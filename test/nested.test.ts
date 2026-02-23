@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { seal, deserialize, serialize, IsString, IsNumber, ValidateNested, Type, BakerValidationError } from '../index';
-import { unseal } from '../testing';
+import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -92,7 +92,7 @@ describe('nested — integration', () => {
     });
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(ItemDto);
-    expect(result.items[0].name).toBe('A');
+    expect(result.items[0]!.name).toBe('A');
   });
 
   it('should return first error for nested array with stopAtFirstError=true and invalid items', async () => {
@@ -115,8 +115,8 @@ describe('nested — integration', () => {
       const err = e as BakerValidationError;
       // stopAtFirstError → only first error returned
       expect(err.errors).toHaveLength(1);
-      expect(err.errors[0].path).toBe('items[0].name');
-      expect(err.errors[0].code).toBe('isString');
+      expect(err.errors[0]!.path).toBe('items[0].name');
+      expect(err.errors[0]!.code).toBe('isString');
     }
   });
 
@@ -136,7 +136,7 @@ describe('nested — integration', () => {
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
       const err = e as BakerValidationError;
-      expect(err.errors[0].code).toBe('isArray');
+      expect(err.errors[0]!.code).toBe('isArray');
     }
   });
 

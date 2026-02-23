@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach, spyOn } from 'bun:test';
 import { seal, _resetForTesting, __testing__ } from './seal';
 import { SealError } from '../errors';
 import { RAW, SEALED } from '../symbols';
@@ -317,6 +317,179 @@ describe('seal', () => {
     expect((CatDto as any)[SEALED]).toBeDefined();
     expect((AnimalContainerDto as any)[SEALED]).toBeDefined();
   });
+
+  // ── DX-5: @Type without @ValidateNested warning ────────────────────────────
+
+  it('should emit console.warn when field has @Type without @ValidateNested and no deserialize transform (DX-5)', () => {
+    // Arrange
+    class NestedTarget {}
+    registerClass(NestedTarget, makeEmptyMeta());
+
+    class WarnDto {}
+    registerClass(WarnDto, {
+      nested: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedTarget as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]![0]).toContain('@Type without @ValidateNested');
+    warnSpy.mockRestore();
+  });
+
+  // ── Placeholder arrow coverage (seal.ts#L88-89) ──────────────────────────
+
+  it('should throw "seal in progress" from placeholder _deserialize when nested DTO seal fails', () => {
+    // Arrange — nested DTO has banned field name 'constructor' → SealError during sealOne
+    // NOT registered in globalRegistry so ParentDto's sealOne triggers it via @Type
+    class BrokenNested {}
+    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested);
+
+    class ParentDto {}
+    registerClass(ParentDto, {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act — seal fails mid-process; ParentDto gets placeholder before nested DTO throws
+    expect(() => seal()).toThrow(SealError);
+    // Assert — ParentDto's SEALED still has the placeholder _deserialize
+    const sealed = (ParentDto as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(() => sealed._deserialize()).toThrow('seal in progress');
+  });
+
+  it('should throw "seal in progress" from placeholder _serialize when nested DTO seal fails', () => {
+    // Arrange
+    class BrokenNested2 {}
+    (BrokenNested2 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested2);
+
+    class ParentDto2 {}
+    registerClass(ParentDto2, {
+      item: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested2 as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act
+    expect(() => seal()).toThrow(SealError);
+    // Assert — placeholder _serialize throws
+    const sealed = (ParentDto2 as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(() => sealed._serialize()).toThrow('seal in progress');
+  });
+
+  it('should retain placeholder on SEALED when sealOne encounters error mid-process', () => {
+    // Arrange
+    class BrokenNested3 {}
+    (BrokenNested3 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested3);
+
+    class ParentDto3 {}
+    registerClass(ParentDto3, {
+      ref: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested3 as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act
+    expect(() => seal()).toThrow(SealError);
+    // Assert — placeholder retained with _isAsync=false and _isSerializeAsync=false
+    const sealed = (ParentDto3 as any)[SEALED];
+    expect(sealed._isAsync).toBe(false);
+    expect(sealed._isSerializeAsync).toBe(false);
+  });
+
+  // ── DX-5 transform filter callback coverage (seal.ts#L110) ──────────────────
+
+  it('should invoke transform.filter callback and emit warn when @Type field has serializeOnly-only transforms', () => {
+    // Arrange — transform has serializeOnly → filter returns false → length=0 → warn
+    class NestedA {}
+    registerClass(NestedA, makeEmptyMeta());
+
+    class WarnTransformDto {}
+    registerClass(WarnTransformDto, {
+      nested: {
+        validation: [],
+        transform: [{ fn: () => 'x', options: { serializeOnly: true } }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedA as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert — warn emitted because deserialize-direction transforms = 0
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]![0]).toContain('@Type without @ValidateNested');
+    warnSpy.mockRestore();
+  });
+
+  it('should invoke transform.filter callback and skip warn when @Type field has bidirectional transform', () => {
+    // Arrange — bidirectional transform → filter returns true → length=1 → no warn
+    class NestedB {}
+    registerClass(NestedB, makeEmptyMeta());
+
+    class NoWarnTransformDto {}
+    registerClass(NoWarnTransformDto, {
+      nested: {
+        validation: [],
+        transform: [{ fn: () => 'x' }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedB as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert — no warn because there IS a deserialize-direction transform
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  // ── debug option — _source storage ─────────────────────────────────────────
+
+  it('should store _source on SEALED executors when seal is called with debug:true', () => {
+    // Arrange
+    class DebugDto {}
+    registerClass(DebugDto, makeStringField('name'));
+    // Act
+    seal({ debug: true });
+    // Assert
+    const sealed = (DebugDto as any)[SEALED];
+    expect(sealed._source).toBeDefined();
+    expect(typeof sealed._source.deserialize).toBe('string');
+    expect(typeof sealed._source.serialize).toBe('string');
+    expect(sealed._source.deserialize.length).toBeGreaterThan(0);
+    expect(sealed._source.serialize.length).toBeGreaterThan(0);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -333,7 +506,7 @@ describe('mergeInheritance', () => {
     const merged = mergeInheritance(StandaloneDto);
     // Assert
     expect(merged.name).toBeDefined();
-    expect(merged.name.validation.length).toBe(1);
+    expect(merged.name!.validation.length).toBe(1);
   });
 
   it('should union-merge validation rules from parent and child', () => {
@@ -350,7 +523,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildDto);
     // Assert — both isString and min(1) should be present
-    expect(merged.name.validation.length).toBe(2);
+    expect(merged.name!.validation.length).toBe(2);
   });
 
   it('should ignore parent transform when child has its own transform', () => {
@@ -374,8 +547,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildTr);
     // Assert — only child transform
-    expect(merged.name.transform.length).toBe(1);
-    expect(merged.name.transform[0].fn).toBe(childFn);
+    expect(merged.name!.transform.length).toBe(1);
+    expect(merged.name!.transform[0]!.fn).toBe(childFn);
   });
 
   it('should inherit parent transform when child has none', () => {
@@ -392,8 +565,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildTr2);
     // Assert — parent transform inherited
-    expect(merged.x.transform.length).toBe(1);
-    expect(merged.x.transform[0].fn).toBe(parentFn2);
+    expect(merged.x!.transform.length).toBe(1);
+    expect(merged.x!.transform[0]!.fn).toBe(parentFn2);
   });
 
   it('should override parent expose with child expose when child has @Expose', () => {
@@ -409,7 +582,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildEx);
     // Assert — child name used, not parent
-    expect(merged.field.expose[0].name).toBe('child_name');
+    expect(merged.field!.expose[0]!.name).toBe('child_name');
   });
 
   it('should inherit parent expose when child has no @Expose', () => {
@@ -425,8 +598,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildEx2);
     // Assert — parent expose inherited
-    expect(merged.field.expose.length).toBe(1);
-    expect(merged.field.expose[0].name).toBe('parent_exposed');
+    expect(merged.field!.expose.length).toBe(1);
+    expect(merged.field!.expose[0]!.name).toBe('parent_exposed');
   });
 
   it('should inherit parent exclude when child has no exclude', () => {
@@ -442,7 +615,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildExcl);
     // Assert
-    expect(merged.secret.exclude).toEqual({ serializeOnly: true });
+    expect(merged.secret!.exclude).toEqual({ serializeOnly: true });
   });
 
   it('should inherit parent type when child has no @Type', () => {
@@ -459,7 +632,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildType);
     // Assert
-    expect(merged.nested.type?.fn()).toBe(NestedDto);
+    expect(merged.nested!.type?.fn()).toBe(NestedDto);
   });
 
   it('should apply child-first flag merge (isOptional)', () => {
@@ -475,7 +648,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildFlag);
     // Assert — parent flag inherited (child has none)
-    expect(merged.age.flags.isOptional).toBe(true);
+    expect(merged.age!.flags.isOptional).toBe(true);
   });
 
   it('should not add duplicate validation rules during union merge', () => {
@@ -492,7 +665,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildDup);
     // Assert — deduplicated
-    expect(merged.f.validation.length).toBe(1);
+    expect(merged.f!.validation.length).toBe(1);
   });
 
   // ── Object.hasOwn — prototype chain 체인 수집 정확성 (H2) ─────────────────
@@ -507,7 +680,7 @@ describe('mergeInheritance', () => {
     const merged = mergeInheritance(ChildNR);
     // Assert — parent field accessible, not double-merged
     expect(merged.x).toBeDefined();
-    expect(merged.x.validation.length).toBe(1);
+    expect(merged.x!.validation.length).toBe(1);
   });
 
   it('should not double-merge parent rules when child inherits RAW via prototype', () => {
@@ -521,7 +694,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildNR2);
     // Assert
-    expect(merged.name.validation.length).toBe(1);
+    expect(merged.name!.validation.length).toBe(1);
   });
 
   it('should skip intermediate class without own RAW in 3-level chain', () => {
@@ -537,8 +710,8 @@ describe('mergeInheritance', () => {
     // Assert — both fields present, each exactly once
     expect(merged.a).toBeDefined();
     expect(merged.b).toBeDefined();
-    expect(merged.a.validation.length).toBe(1);
-    expect(merged.b.validation.length).toBe(1);
+    expect(merged.a!.validation.length).toBe(1);
+    expect(merged.b!.validation.length).toBe(1);
   });
 
   it('should handle 3-level inheritance chain correctly', () => {
@@ -558,7 +731,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(Child3);
     // Assert — all 3 rules in union
-    expect(merged.x.validation.length).toBe(3);
+    expect(merged.x!.validation.length).toBe(3);
   });
 });
 

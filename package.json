@@ -1,16 +1,15 @@
 {
   "name": "@zipbul/baker",
   "version": "0.0.1",
-  "description": "AOT-equivalent validate + transform with inline code generation",
+  "description": "Decorator-based validate + transform with inline code generation. class-validator DX, AOT-level performance, zero reflect-metadata.",
   "license": "MIT",
   "author": "Junhyung Park (https://github.com/parkrevil)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/zipbul/toolkit",
-    "directory": "packages/baker"
+    "url": "https://github.com/zipbul/baker.git"
   },
-  "bugs": "https://github.com/zipbul/toolkit/issues",
-  "homepage": "https://github.com/zipbul/toolkit/tree/main/packages/baker#readme",
+  "bugs": "https://github.com/zipbul/baker/issues",
+  "homepage": "https://github.com/zipbul/baker#readme",
   "keywords": [
     "validation",
     "transform",
@@ -18,26 +17,67 @@
     "dto",
     "class-validator",
     "class-transformer",
+    "serialize",
+    "deserialize",
+    "code-generation",
+    "bun",
     "zipbul"
   ],
   "engines": {
     "bun": ">=1.0.0"
   },
   "type": "module",
-  "module": "index.ts",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.js",
   "exports": {
-    ".": { "import": "./index.ts" },
-    "./decorators": { "import": "./src/decorators/index.ts" },
-    "./stubs": { "import": "./src/stubs/index.ts" },
-    "./rules": { "import": "./src/rules/index.ts" },
-    "./symbols": { "import": "./src/symbols.ts" },
-    "./testing": { "import": "./testing.ts" }
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./decorators": {
+      "import": "./dist/src/decorators/index.js",
+      "types": "./dist/src/decorators/index.d.ts"
+    },
+    "./aot": {
+      "import": "./dist/src/aot/index.js",
+      "types": "./dist/src/aot/index.d.ts"
+    },
+    "./rules": {
+      "import": "./dist/src/rules/index.js",
+      "types": "./dist/src/rules/index.d.ts"
+    },
+    "./symbols": {
+      "import": "./dist/src/symbols.js",
+      "types": "./dist/src/symbols.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "dependencies": {
-    "@zipbul/result": "workspace:*"
+    "@zipbul/result": "^0.0.3"
   },
   "scripts": {
+    "build": "bun build index.ts src/decorators/index.ts src/aot/index.ts src/rules/index.ts src/symbols.ts --outdir dist --target bun --format esm --splitting --packages external --sourcemap=linked --root . --production && tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "test": "bun test",
-    "coverage": "bun test --coverage"
+    "test:coverage": "bun test --coverage",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "release": "changeset publish",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8",
+    "@commitlint/cli": "^20.4.2",
+    "@commitlint/config-conventional": "^20.4.2",
+    "@types/bun": "^1.3.9",
+    "husky": "^9.1.7"
   }
 }

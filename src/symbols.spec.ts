@@ -24,11 +24,11 @@ describe('symbols', () => {
   });
 
   it("should equal Symbol.for('baker:raw') when comparing RAW", () => {
-    expect(RAW).toBe(Symbol.for('baker:raw'));
+    expect(RAW as symbol).toBe(Symbol.for('baker:raw'));
   });
 
   it("should equal Symbol.for('baker:sealed') when comparing SEALED", () => {
-    expect(SEALED).toBe(Symbol.for('baker:sealed'));
+    expect(SEALED as symbol).toBe(Symbol.for('baker:sealed'));
   });
 
   it('should return the same symbol reference when accessing RAW multiple times', () => {

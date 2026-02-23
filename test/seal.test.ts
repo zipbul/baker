@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { seal, SealError, IsString, IsNumber, Transform, Type, ValidateNested, createRule } from '../index';
-import { unseal } from '../testing';
+import { unseal } from './helpers/unseal';
 import { SEALED } from '../src/symbols';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────

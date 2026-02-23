@@ -10,7 +10,7 @@ import {
   IsJSON, IsJWT, IsSemVer,
   IsBase64, IsBase32, IsBase58, IsMongoId, IsBooleanString, IsNumberString,
   IsDecimal, IsHexadecimal, IsOctal, IsDataURI, IsPort,
-  IsISBN, IsISIN, IsISO8601, IsISRC, IsISSN, IsBIC, IsIBAN, IsIBANOptions,
+  IsISBN, IsISIN, IsISO8601, IsISRC, IsISSN, IsBIC, IsIBAN,
   IsByteLength, IsHash,
   IsLatLong, IsLocale, IsFQDN, IsEAN,
   IsISO31661Alpha2, IsISO31661Alpha3, IsFirebasePushId,

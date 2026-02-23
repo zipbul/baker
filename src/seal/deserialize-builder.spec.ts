@@ -6,7 +6,8 @@ import { isString } from '../rules/typechecker';
 import { isNumber } from '../rules/typechecker';
 import { min, max } from '../rules/number';
 import { minLength } from '../rules/string';
-import type { RawClassMeta, SealedExecutors } from '../types';
+import { isNotEmpty } from '../rules/common';
+import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 import type { SealOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,7 +20,7 @@ async function run<T>(
   options?: SealOptions,
   input?: unknown,
 ) {
-  const exec = buildDeserializeCode<T>(Class, merged, options, false);
+  const exec = buildDeserializeCode<T>(Class, merged, options, false, false);
   return exec(input !== undefined ? input : {});
 }
 
@@ -47,7 +48,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class NullDto {}
     const merged: RawClassMeta = {};
-    const exec = buildDeserializeCode(NullDto, merged, undefined, false);
+    const exec = buildDeserializeCode(NullDto, merged, undefined, false, false);
     // Act
     const result = await exec(null);
     // Assert
@@ -61,7 +62,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class ArrDto {}
     const merged: RawClassMeta = {};
-    const exec = buildDeserializeCode(ArrDto, merged, undefined, false);
+    const exec = buildDeserializeCode(ArrDto, merged, undefined, false, false);
     // Act
     const result = await exec([1, 2, 3]);
     // Assert
@@ -95,7 +96,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildDeserializeCode(DefaultDto, merged, { exposeDefaultValues: true }, false);
+    const exec = buildDeserializeCode(DefaultDto, merged, { exposeDefaultValues: true }, false, false);
     // Act — no 'name' in input
     const result = await exec({});
     // Assert — uses default 'anonymous', passes isString validation
@@ -129,7 +130,7 @@ describe('buildDeserializeCode', () => {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildDeserializeCode(MultiDto, merged, { stopAtFirstError: false }, false);
+    const exec = buildDeserializeCode(MultiDto, merged, { stopAtFirstError: false }, false, false);
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'not-a-number' });
     // Assert — collects both errors
@@ -145,7 +146,7 @@ describe('buildDeserializeCode', () => {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildDeserializeCode(StopDto, merged, { stopAtFirstError: true }, false);
+    const exec = buildDeserializeCode(StopDto, merged, { stopAtFirstError: true }, false, false);
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'bad' });
     // Assert — early return with 1 error
@@ -176,7 +177,7 @@ describe('buildDeserializeCode', () => {
   it('should include sourceURL comment referencing class name in generated code', () => {
     // Arrange
     class SourceUrlDto {}
-    const exec = buildDeserializeCode(SourceUrlDto, {}, undefined, false);
+    const exec = buildDeserializeCode(SourceUrlDto, {}, undefined, false, false);
     // Assert — function toString contains sourceURL
     const src = exec.toString();
     expect(src).toContain('SourceUrlDto');
@@ -190,7 +191,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       email: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildDeserializeCode(PathDto, merged, undefined, false);
+    const exec = buildDeserializeCode(PathDto, merged, undefined, false, false);
     // Act
     const result = await exec({ email: 123 });
     // Assert
@@ -206,7 +207,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildDeserializeCode(ReqDto, merged, undefined, false);
+    const exec = buildDeserializeCode(ReqDto, merged, undefined, false, false);
     // Act
     const result = await exec({});
     // Assert
@@ -228,7 +229,7 @@ describe('buildDeserializeCode', () => {
         flags: { isOptional: true, isDefined: true }, // IsDefined wins
       },
     };
-    const exec = buildDeserializeCode(IsDef, merged, undefined, false);
+    const exec = buildDeserializeCode(IsDef, merged, undefined, false, false);
     // Act — undefined should fail (no optional guard when isDefined)
     const result = await exec({});
     // Assert
@@ -250,7 +251,7 @@ describe('buildDeserializeCode', () => {
         flags: { isOptional: true },
       },
     };
-    const exec = buildDeserializeCode(OptDefault, merged, { exposeDefaultValues: true }, false);
+    const exec = buildDeserializeCode(OptDefault, merged, { exposeDefaultValues: true }, false, false);
     // Act — key absent + isOptional → skip (not error)
     const result = await exec({});
     // Assert — no error (optional guard subsumes exposeDefault guard)
@@ -262,7 +263,7 @@ describe('buildDeserializeCode', () => {
   it('should return empty instance when DTO has no fields', async () => {
     // Arrange
     class EmptyDto {}
-    const exec = buildDeserializeCode(EmptyDto, {}, undefined, false);
+    const exec = buildDeserializeCode(EmptyDto, {}, undefined, false, false);
     // Act
     const result = await exec({});
     // Assert
@@ -389,7 +390,7 @@ describe('buildDeserializeCode', () => {
       },
     };
     // Act — invalid: Map value is not string
-    const result = await run(MapDto, merged, undefined, { tags: new Map([['k1', 'v1'], ['k2', 42]]) });
+    const result = await run(MapDto, merged, undefined, { tags: new Map<string, unknown>([['k1', 'v1'], ['k2', 42]]) });
     // Assert
     expect(isErr(result)).toBe(true);
   });
@@ -698,4 +699,124 @@ describe('buildDeserializeCode', () => {
     const exec = buildDeserializeCode<PostDto>(PostDto, merged, undefined, false, false);
     const result = await exec({ tags: [{ label: 'ts' }, { label: 'js' }] });
     expect(isErr(result)).toBe(false);
+  });
+
+// ─── string type gate with typeAsserter (covers L398) ──────────────────────
+
+  it('should generate string type gate when isString + minLength are combined in collectErrors', async () => {
+    // Arrange — isString is typeAsserter, minLength has requiresType='string'
+    class StringGateDto { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }, { rule: minLength(3) }],
+        transform: [], expose: [], exclude: null, type: null, flags: {},
+      },
+    };
+    const exec = buildDeserializeCode<StringGateDto>(StringGateDto, merged, undefined, false, false);
+    // Act — valid string passes gate and minLength
+    const result = await exec({ name: 'Alice' });
+    // Assert
+    expect(isErr(result)).toBe(false);
+    expect((result as StringGateDto).name).toBe('Alice');
+  });
+
+// ─── otherGeneral loop in collectErrors (covers L425-426) ──────────────────
+
+  it('should emit otherGeneral rules in collectErrors mode when type gate has additional general rules', async () => {
+    // Arrange — isString=typeAsserter, isNotEmpty=otherGeneral, minLength=stringDeps
+    class OtherGenDto { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }, { rule: isNotEmpty }, { rule: minLength(1) }],
+        transform: [], expose: [], exclude: null, type: null, flags: {},
+      },
+    };
+    const exec = buildDeserializeCode<OtherGenDto>(OtherGenDto, merged, undefined, false, false);
+    // Act — valid string passes all rules
+    const result = await exec({ name: 'Bob' });
+    // Assert
+    expect(isErr(result)).toBe(false);
+    expect((result as OtherGenDto).name).toBe('Bob');
+  });
+
+// ─── otherGeneral loop in stopAtFirstError (covers L441) ───────────────────
+
+  it('should emit otherGeneral rules in stopAtFirstError mode when type gate has additional general rules', async () => {
+    // Arrange — same rules but stopAtFirstError=true
+    class StopGenDto { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }, { rule: isNotEmpty }, { rule: minLength(1) }],
+        transform: [], expose: [], exclude: null, type: null, flags: {},
+      },
+    };
+    const exec = buildDeserializeCode<StopGenDto>(StopGenDto, merged, { stopAtFirstError: true }, false, false);
+    // Act — valid string passes all rules
+    const result = await exec({ name: 'Carol' });
+    // Assert
+    expect(isErr(result)).toBe(false);
+    expect((result as StopGenDto).name).toBe('Carol');
+  });
+
+// ─── addExecutor method in makeEmitCtx (covers L657-658) ───────────────────
+
+  it('should support rules that call addExecutor on EmitContext', async () => {
+    // Arrange — custom rule that calls ctx.addExecutor during emit
+    class ExecRuleDto { val!: string; }
+
+    // a custom SealedExecutors mock to push via addExecutor
+    const dummySealedExec: SealedExecutors<unknown> = {
+      _deserialize: () => ({}),
+      _serialize: () => ({}),
+      _isAsync: false,
+      _isSerializeAsync: false,
+    };
+
+    const customRule: EmittableRule = Object.assign(
+      (value: unknown): boolean => typeof value === 'string',
+      {
+        emit(varName: string, ctx: import('../types').EmitContext): string {
+          // exercise addExecutor to cover L657-658
+          const idx = ctx.addExecutor(dummySealedExec);
+          // return a simple validation check (always pass for string)
+          return `if (typeof ${varName} !== 'string') ${ctx.fail('customRule')};`;
+        },
+        ruleName: 'customRule' as const,
+      },
+    );
+
+    const merged: RawClassMeta = {
+      val: {
+        validation: [{ rule: customRule }],
+        transform: [], expose: [], exclude: null, type: null, flags: {},
+      },
+    };
+    const exec = buildDeserializeCode<ExecRuleDto>(ExecRuleDto, merged, undefined, false, false);
+    // Act
+    const result = await exec({ val: 'test' });
+    // Assert — should succeed; the addExecutor call was exercised during code gen
+    expect(isErr(result)).toBe(false);
+    expect((result as ExecRuleDto).val).toBe('test');
+  });
+  // ── sanitizeKey replace callback coverage (deserialize-builder.ts#L13) ────
+
+  it('should sanitize hyphenated field key to valid JS variable name when field name contains special characters', async () => {
+    // Arrange — field name 'my-field' has '-' which matches /[^a-zA-Z0-9_]/
+    class HyphenDto { 'my-field' = ''; }
+    const merged: RawClassMeta = {
+      'my-field': {
+        validation: [{ rule: isString }],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: null,
+        flags: {},
+      },
+    };
+    const exec = buildDeserializeCode<HyphenDto>(HyphenDto, merged, undefined, false, false);
+    // Act
+    const result = await exec({ 'my-field': 'hello' });
+    // Assert — field with special char is deserialized correctly
+    expect(isErr(result)).toBe(false);
+    expect((result as HyphenDto)['my-field']).toBe('hello');
   });

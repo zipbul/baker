@@ -177,7 +177,7 @@ describe('arrayUnique', () => {
   });
 
   it('should use identifier function to determine uniqueness when provided', () => {
-    const byId = (v: { id: number }) => v.id;
+    const byId = (v: unknown) => (v as { id: number }).id;
     expect(arrayUnique(byId)([{ id: 1 }, { id: 2 }])).toBe(true);
     expect(arrayUnique(byId)([{ id: 1 }, { id: 1 }])).toBe(false);
   });
@@ -192,7 +192,7 @@ describe('arrayUnique', () => {
 
   it('should generate identifier-map code when emit() is called with an identifier function', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const byId = (v: { id: number }) => v.id;
+    const byId = (v: unknown) => (v as { id: number }).id;
     const code = arrayUnique(byId).emit('_v', ctx);
     expect(addRefMock).toHaveBeenCalledWith(byId);
     expect(code).toContain('_v.map(');

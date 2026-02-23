@@ -7,8 +7,8 @@ import type { ValidationOptions } from './interfaces';
 export interface EmitContext {
   /** RegExp 참조 배열에 등록, 인덱스 반환 */
   addRegex(re: RegExp): number;
-  /** 함수 참조 배열에 등록, 인덱스 반환 — @Transform, @ValidateIf 조건 함수 등 */
-  addRef(fn: Function): number;
+  /** 참조 배열에 등록, 인덱스 반환 — 함수, 배열, Set, 원시값 등 */
+  addRef(value: unknown): number;
   /** SealedExecutors 객체 참조 배열에 등록 — 중첩 @Type DTO용 */
   addExecutor(executor: SealedExecutors<unknown>): number;
   /** 에러 코드로 실패 처리 코드 문자열 생성 — path는 builder가 바인딩 */

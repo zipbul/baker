@@ -402,7 +402,7 @@ function buildRulesCode(
       gateErrorCode = typeAsseter.rule.ruleName;
     } else {
       gateCondition = `typeof ${varName} !== '${gateType}'`;
-      gateErrorCode = gateDeps[0].rule.ruleName;
+      gateErrorCode = gateDeps[0]!.rule.ruleName;
     }
 
     // 타입 게이트 fail — typeAsseter rd가 있으면 message/context 반영
