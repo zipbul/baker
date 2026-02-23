@@ -396,11 +396,11 @@ describe('isAlpha', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isAlpha', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isAlpha().emit('_v', ctx);
+    const code = isAlpha.emit('_v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(code).toContain('_re[0]');
     expect(failMock).toHaveBeenCalledWith('isAlpha');
-    expect(isAlpha().ruleName).toBe('isAlpha');
+    expect(isAlpha.ruleName).toBe('isAlpha');
   });
 });
 
@@ -415,14 +415,14 @@ describe('isAlphanumeric', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isAlphanumeric', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isAlphanumeric().emit('_v', ctx);
+    const code = isAlphanumeric.emit('_v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isAlphanumeric');
-    expect(isAlphanumeric().ruleName).toBe('isAlphanumeric');
+    expect(isAlphanumeric.ruleName).toBe('isAlphanumeric');
   });
 
   it('should return false for empty string', () => {
-    expect(isAlphanumeric()('')).toBe(false);
+    expect(isAlphanumeric('')).toBe(false);
   });
 });
 
@@ -485,7 +485,7 @@ describe('isNumberString', () => {
   it('should invoke the addRef checkFn (covers L207-209 closure body)', () => {
     const { ctx, addRefMock } = makeCtx(0);
     isNumberString().emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0][0] as (s: string) => boolean;
+    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
     // empty string → false (L208: if (s.length === 0) return false)
     expect(checkFn('')).toBe(false);
     // non-numeric string → false (L209-210: NaN check)
@@ -1425,7 +1425,7 @@ describe('isJSON', () => {
   it('should invoke the addRef checkFn (covers L919 catch return false)', () => {
     const { ctx, addRefMock } = makeCtx(0);
     isJSON.emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0][0] as (s: string) => boolean;
+    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
     // invalid JSON → catch → return false  (L919)
     expect(checkFn('{invalid}')).toBe(false);
     // valid JSON → return true
@@ -1693,7 +1693,7 @@ describe('isByteLength', () => {
     const rule = isByteLength(2, 5);
     const { ctx, addRefMock } = makeCtx(0);
     rule.emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0][0] as (s: string) => boolean;
+    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
     // 'a' = 1 byte < min(2) → false  (L1167)
     expect(checkFn('a')).toBe(false);
     // '日本語' = 9 bytes > max(5) → false  (L1168)

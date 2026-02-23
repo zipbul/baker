@@ -159,7 +159,7 @@ describe('deserialize', () => {
     }
     // Assert
     expect(caught).toBeInstanceOf(BakerValidationError);
-    expect(caught!.errors[0].code).toBe('invalidInput');
+    expect(caught!.errors[0]!.code).toBe('invalidInput');
   });
 
   it('should throw BakerValidationError when _deserialize returns Err for array input', async () => {

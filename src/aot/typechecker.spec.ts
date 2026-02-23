@@ -28,7 +28,7 @@ describe('aot/typechecker', () => {
     const target = {};
     const key = 'field';
     for (const name of EXPECTED_EXPORTS) {
-      const decorator = (aot as Record<string, (...args: any[]) => PropertyDecorator>)[name](undefined as any);
+      const decorator = (aot as Record<string, (...args: any[]) => PropertyDecorator>)[name]!(undefined as any);
       expect(() => decorator(target, key)).not.toThrow();
     }
   });

@@ -333,7 +333,7 @@ describe('mergeInheritance', () => {
     const merged = mergeInheritance(StandaloneDto);
     // Assert
     expect(merged.name).toBeDefined();
-    expect(merged.name.validation.length).toBe(1);
+    expect(merged.name!.validation.length).toBe(1);
   });
 
   it('should union-merge validation rules from parent and child', () => {
@@ -350,7 +350,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildDto);
     // Assert — both isString and min(1) should be present
-    expect(merged.name.validation.length).toBe(2);
+    expect(merged.name!.validation.length).toBe(2);
   });
 
   it('should ignore parent transform when child has its own transform', () => {
@@ -374,8 +374,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildTr);
     // Assert — only child transform
-    expect(merged.name.transform.length).toBe(1);
-    expect(merged.name.transform[0].fn).toBe(childFn);
+    expect(merged.name!.transform.length).toBe(1);
+    expect(merged.name!.transform[0]!.fn).toBe(childFn);
   });
 
   it('should inherit parent transform when child has none', () => {
@@ -392,8 +392,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildTr2);
     // Assert — parent transform inherited
-    expect(merged.x.transform.length).toBe(1);
-    expect(merged.x.transform[0].fn).toBe(parentFn2);
+    expect(merged.x!.transform.length).toBe(1);
+    expect(merged.x!.transform[0]!.fn).toBe(parentFn2);
   });
 
   it('should override parent expose with child expose when child has @Expose', () => {
@@ -409,7 +409,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildEx);
     // Assert — child name used, not parent
-    expect(merged.field.expose[0].name).toBe('child_name');
+    expect(merged.field!.expose[0]!.name).toBe('child_name');
   });
 
   it('should inherit parent expose when child has no @Expose', () => {
@@ -425,8 +425,8 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildEx2);
     // Assert — parent expose inherited
-    expect(merged.field.expose.length).toBe(1);
-    expect(merged.field.expose[0].name).toBe('parent_exposed');
+    expect(merged.field!.expose.length).toBe(1);
+    expect(merged.field!.expose[0]!.name).toBe('parent_exposed');
   });
 
   it('should inherit parent exclude when child has no exclude', () => {
@@ -442,7 +442,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildExcl);
     // Assert
-    expect(merged.secret.exclude).toEqual({ serializeOnly: true });
+    expect(merged.secret!.exclude).toEqual({ serializeOnly: true });
   });
 
   it('should inherit parent type when child has no @Type', () => {
@@ -459,7 +459,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildType);
     // Assert
-    expect(merged.nested.type?.fn()).toBe(NestedDto);
+    expect(merged.nested!.type?.fn()).toBe(NestedDto);
   });
 
   it('should apply child-first flag merge (isOptional)', () => {
@@ -475,7 +475,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildFlag);
     // Assert — parent flag inherited (child has none)
-    expect(merged.age.flags.isOptional).toBe(true);
+    expect(merged.age!.flags.isOptional).toBe(true);
   });
 
   it('should not add duplicate validation rules during union merge', () => {
@@ -492,7 +492,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildDup);
     // Assert — deduplicated
-    expect(merged.f.validation.length).toBe(1);
+    expect(merged.f!.validation.length).toBe(1);
   });
 
   // ── Object.hasOwn — prototype chain 체인 수집 정확성 (H2) ─────────────────
@@ -507,7 +507,7 @@ describe('mergeInheritance', () => {
     const merged = mergeInheritance(ChildNR);
     // Assert — parent field accessible, not double-merged
     expect(merged.x).toBeDefined();
-    expect(merged.x.validation.length).toBe(1);
+    expect(merged.x!.validation.length).toBe(1);
   });
 
   it('should not double-merge parent rules when child inherits RAW via prototype', () => {
@@ -521,7 +521,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(ChildNR2);
     // Assert
-    expect(merged.name.validation.length).toBe(1);
+    expect(merged.name!.validation.length).toBe(1);
   });
 
   it('should skip intermediate class without own RAW in 3-level chain', () => {
@@ -537,8 +537,8 @@ describe('mergeInheritance', () => {
     // Assert — both fields present, each exactly once
     expect(merged.a).toBeDefined();
     expect(merged.b).toBeDefined();
-    expect(merged.a.validation.length).toBe(1);
-    expect(merged.b.validation.length).toBe(1);
+    expect(merged.a!.validation.length).toBe(1);
+    expect(merged.b!.validation.length).toBe(1);
   });
 
   it('should handle 3-level inheritance chain correctly', () => {
@@ -558,7 +558,7 @@ describe('mergeInheritance', () => {
     // Act
     const merged = mergeInheritance(Child3);
     // Assert — all 3 rules in union
-    expect(merged.x.validation.length).toBe(3);
+    expect(merged.x!.validation.length).toBe(3);
   });
 });
 

@@ -32,7 +32,7 @@ describe('aot/string', () => {
     expect(typeof aot.Matches(/test/)).toBe('function');
     expect(typeof aot.IsEmail()).toBe('function');
     expect(typeof aot.IsURL()).toBe('function');
-    expect(typeof aot.IsUUID('4')).toBe('function');
+    expect(typeof aot.IsUUID(4)).toBe('function');
     expect(typeof aot.IsIP(4)).toBe('function');
     expect(typeof aot.IsByteLength(0, 100)).toBe('function');
     expect(typeof aot.IsHash('md5')).toBe('function');
@@ -43,7 +43,7 @@ describe('aot/string', () => {
     const target = {};
     const key = 'field';
     for (const name of EXPECTED_EXPORTS) {
-      const decorator = (aot as Record<string, (...args: any[]) => PropertyDecorator>)[name](undefined as any);
+      const decorator = (aot as Record<string, (...args: any[]) => PropertyDecorator>)[name]!(undefined as any);
       expect(() => decorator(target, key)).not.toThrow();
     }
   });

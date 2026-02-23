@@ -30,7 +30,7 @@ function makeDiscriminatorMeta(
       expose: [],
       exclude: null,
       type: {
-        fn: () => subTypes[0].value as new (...args: any[]) => any,
+        fn: () => subTypes[0]!.value as new (...args: any[]) => any,
         discriminator: { property: 'type', subTypes },
       },
       flags: {},
