@@ -379,7 +379,7 @@ const UUID_RE: Record<string | number, RegExp> = {
 };
 
 export function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
-  const re = version != null ? (UUID_RE[version] ?? UUID_RE.all) : UUID_RE.all;
+  const re = (version != null ? (UUID_RE[version] ?? UUID_RE.all) : UUID_RE.all)!;
   return makeStringRule(
     'isUUID',
     (v) => re.test(v),
@@ -557,7 +557,7 @@ function _validateISINStr(v: string): boolean {
   let sum = 0;
   let alternate = false;
   for (let i = expanded.length - 1; i >= 0; i--) {
-    let n = parseInt(expanded[i], 10);
+    let n = parseInt(expanded[i]!, 10);
     if (alternate) {
       n *= 2;
       if (n > 9) n -= 9;
@@ -779,10 +779,10 @@ function _validateEAN(value: string): boolean {
   const len = digits.length;
   let sum = 0;
   for (let i = 0; i < len - 1; i++) {
-    sum += digits[i] * (len === 8 ? (i % 2 === 0 ? 3 : 1) : (i % 2 === 0 ? 1 : 3));
+    sum += digits[i]! * (len === 8 ? (i % 2 === 0 ? 3 : 1) : (i % 2 === 0 ? 1 : 3));
   }
   const check = (10 - (sum % 10)) % 10;
-  return check === digits[len - 1];
+  return check === digits[len - 1]!;
 }
 
 export const isEAN = makeStringRule(
@@ -1150,20 +1150,20 @@ export function isIBAN(options?: IsIBANOptions): EmittableRule {
   return fn as EmittableRule;
 }
 
-// ByteLength — counts UTF-8 bytes via TextEncoder
+// ByteLength — counts UTF-8 bytes via Buffer.byteLength
 export function isByteLength(min: number, max?: number): EmittableRule {
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
-    const byteLen = new TextEncoder().encode(value).length;
+    const byteLen = Buffer.byteLength(value, 'utf8');
     if (byteLen < min) return false;
     if (max !== undefined && byteLen > max) return false;
     return true;
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    // emit: ref-based (TextEncoder is available in all modern runtimes incl. Bun)
+    // emit: ref-based (Buffer.byteLength is available in Bun and Node)
     const checkFn = (s: string): boolean => {
-      const byteLen = new TextEncoder().encode(s).length;
+      const byteLen = Buffer.byteLength(s, 'utf8');
       if (byteLen < min) return false;
       if (max !== undefined && byteLen > max) return false;
       return true;

@@ -39,8 +39,8 @@ export function validateExposeStacks(merged: RawClassMeta, className?: string): 
 function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
-      const aGroups = entries[i].groups ?? [];
-      const bGroups = entries[j].groups ?? [];
+      const aGroups = entries[i]!.groups ?? [];
+      const bGroups = entries[j]!.groups ?? [];
       if (_groupsOverlap(aGroups, bGroups)) {
         const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bGroups.includes(g));
         throw new SealError(

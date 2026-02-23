@@ -1,5 +1,5 @@
 import { collectExpose, collectExclude, collectTransform, collectType } from '../collect';
-import type { ExposeDef, TransformFunction, TypeDef } from '../types';
+import type { ExcludeDef, ExposeDef, TransformFunction, TypeDef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Option Types (§1.2, §1.5 방향 옵션)

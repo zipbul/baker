@@ -6,6 +6,6 @@
     "emitDeclarationOnly": true,
     "outDir": "dist"
   },
-  "include": ["index.ts", "testing.ts", "src/**/*.ts"],
+  "include": ["index.ts", "src/**/*.ts"],
   "exclude": ["**/*.spec.ts", "**/*.test.ts", "test"]
 }
