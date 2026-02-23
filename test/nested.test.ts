@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { seal, deserialize, serialize, IsString, IsNumber, ValidateNested, Type, BakerValidationError } from '../index';
-import { unseal } from '../testing';
+import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 

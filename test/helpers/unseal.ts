@@ -1,6 +1,6 @@
-import { globalRegistry } from './src/registry';
-import { SEALED } from './src/symbols';
-import { _resetForTesting } from './src/seal/seal';
+import { globalRegistry } from '../../src/registry';
+import { SEALED } from '../../src/symbols';
+import { _resetForTesting } from '../../src/seal/seal';
 
 /**
  * 테스트 전용: 봉인 상태를 초기화한다.

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { seal, deserialize, IsString, IsNumber, IsBoolean, IsOptional, IsDefined, IsISIN, IsISSN, Min } from '../index';
-import { unseal } from '../testing';
+import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 

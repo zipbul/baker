@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { isErr } from '@zipbul/result';
 import { seal, IsString, IsNumber, IsBoolean, IsOptional, Transform } from '../index';
-import { unseal } from '../testing';
+import { unseal } from './helpers/unseal';
 import { SEALED } from '../src/symbols';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────

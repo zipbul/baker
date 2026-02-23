@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import * as stubs from './string';
+import * as aot from './string';
 
 // All 69 exported stub function names
 const EXPECTED_EXPORTS = [
@@ -18,32 +18,32 @@ const EXPECTED_EXPORTS = [
   'IsPhoneNumber', 'IsStrongPassword', 'IsTaxId',
 ] as const;
 
-describe('stubs/string', () => {
+describe('aot/string', () => {
   it('should export all 69 stub functions', () => {
     for (const name of EXPECTED_EXPORTS) {
-      expect(typeof (stubs as Record<string, unknown>)[name]).toBe('function');
+      expect(typeof (aot as Record<string, unknown>)[name]).toBe('function');
     }
   });
 
   it('should return a PropertyDecorator when called with valid args', () => {
     // Representative sample covering different arg shapes
-    expect(typeof stubs.MinLength(1)).toBe('function');
-    expect(typeof stubs.Length(1, 10)).toBe('function');
-    expect(typeof stubs.Matches(/test/)).toBe('function');
-    expect(typeof stubs.IsEmail()).toBe('function');
-    expect(typeof stubs.IsURL()).toBe('function');
-    expect(typeof stubs.IsUUID('4')).toBe('function');
-    expect(typeof stubs.IsIP(4)).toBe('function');
-    expect(typeof stubs.IsByteLength(0, 100)).toBe('function');
-    expect(typeof stubs.IsHash('md5')).toBe('function');
-    expect(typeof stubs.IsStrongPassword()).toBe('function');
+    expect(typeof aot.MinLength(1)).toBe('function');
+    expect(typeof aot.Length(1, 10)).toBe('function');
+    expect(typeof aot.Matches(/test/)).toBe('function');
+    expect(typeof aot.IsEmail()).toBe('function');
+    expect(typeof aot.IsURL()).toBe('function');
+    expect(typeof aot.IsUUID('4')).toBe('function');
+    expect(typeof aot.IsIP(4)).toBe('function');
+    expect(typeof aot.IsByteLength(0, 100)).toBe('function');
+    expect(typeof aot.IsHash('md5')).toBe('function');
+    expect(typeof aot.IsStrongPassword()).toBe('function');
   });
 
   it('should not throw when returned decorator is applied to a dummy target', () => {
     const target = {};
     const key = 'field';
     for (const name of EXPECTED_EXPORTS) {
-      const decorator = (stubs as Record<string, (...args: any[]) => PropertyDecorator>)[name](undefined as any);
+      const decorator = (aot as Record<string, (...args: any[]) => PropertyDecorator>)[name](undefined as any);
       expect(() => decorator(target, key)).not.toThrow();
     }
   });
