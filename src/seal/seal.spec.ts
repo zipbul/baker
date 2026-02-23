@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach, spyOn } from 'bun:test';
 import { seal, _resetForTesting, __testing__ } from './seal';
 import { SealError } from '../errors';
 import { RAW, SEALED } from '../symbols';
@@ -316,6 +316,179 @@ describe('seal', () => {
     expect((DogDto as any)[SEALED]).toBeDefined();
     expect((CatDto as any)[SEALED]).toBeDefined();
     expect((AnimalContainerDto as any)[SEALED]).toBeDefined();
+  });
+
+  // ── DX-5: @Type without @ValidateNested warning ────────────────────────────
+
+  it('should emit console.warn when field has @Type without @ValidateNested and no deserialize transform (DX-5)', () => {
+    // Arrange
+    class NestedTarget {}
+    registerClass(NestedTarget, makeEmptyMeta());
+
+    class WarnDto {}
+    registerClass(WarnDto, {
+      nested: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedTarget as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]![0]).toContain('@Type without @ValidateNested');
+    warnSpy.mockRestore();
+  });
+
+  // ── Placeholder arrow coverage (seal.ts#L88-89) ──────────────────────────
+
+  it('should throw "seal in progress" from placeholder _deserialize when nested DTO seal fails', () => {
+    // Arrange — nested DTO has banned field name 'constructor' → SealError during sealOne
+    // NOT registered in globalRegistry so ParentDto's sealOne triggers it via @Type
+    class BrokenNested {}
+    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested);
+
+    class ParentDto {}
+    registerClass(ParentDto, {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act — seal fails mid-process; ParentDto gets placeholder before nested DTO throws
+    expect(() => seal()).toThrow(SealError);
+    // Assert — ParentDto's SEALED still has the placeholder _deserialize
+    const sealed = (ParentDto as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(() => sealed._deserialize()).toThrow('seal in progress');
+  });
+
+  it('should throw "seal in progress" from placeholder _serialize when nested DTO seal fails', () => {
+    // Arrange
+    class BrokenNested2 {}
+    (BrokenNested2 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested2);
+
+    class ParentDto2 {}
+    registerClass(ParentDto2, {
+      item: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested2 as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act
+    expect(() => seal()).toThrow(SealError);
+    // Assert — placeholder _serialize throws
+    const sealed = (ParentDto2 as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(() => sealed._serialize()).toThrow('seal in progress');
+  });
+
+  it('should retain placeholder on SEALED when sealOne encounters error mid-process', () => {
+    // Arrange
+    class BrokenNested3 {}
+    (BrokenNested3 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    freeClasses.push(BrokenNested3);
+
+    class ParentDto3 {}
+    registerClass(ParentDto3, {
+      ref: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => BrokenNested3 as any },
+        flags: { validateNested: true },
+      },
+    });
+    // Act
+    expect(() => seal()).toThrow(SealError);
+    // Assert — placeholder retained with _isAsync=false and _isSerializeAsync=false
+    const sealed = (ParentDto3 as any)[SEALED];
+    expect(sealed._isAsync).toBe(false);
+    expect(sealed._isSerializeAsync).toBe(false);
+  });
+
+  // ── DX-5 transform filter callback coverage (seal.ts#L110) ──────────────────
+
+  it('should invoke transform.filter callback and emit warn when @Type field has serializeOnly-only transforms', () => {
+    // Arrange — transform has serializeOnly → filter returns false → length=0 → warn
+    class NestedA {}
+    registerClass(NestedA, makeEmptyMeta());
+
+    class WarnTransformDto {}
+    registerClass(WarnTransformDto, {
+      nested: {
+        validation: [],
+        transform: [{ fn: () => 'x', options: { serializeOnly: true } }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedA as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert — warn emitted because deserialize-direction transforms = 0
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]![0]).toContain('@Type without @ValidateNested');
+    warnSpy.mockRestore();
+  });
+
+  it('should invoke transform.filter callback and skip warn when @Type field has bidirectional transform', () => {
+    // Arrange — bidirectional transform → filter returns true → length=1 → no warn
+    class NestedB {}
+    registerClass(NestedB, makeEmptyMeta());
+
+    class NoWarnTransformDto {}
+    registerClass(NoWarnTransformDto, {
+      nested: {
+        validation: [],
+        transform: [{ fn: () => 'x' }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedB as any },
+        flags: {}, // no validateNested
+      },
+    });
+    const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    // Act
+    seal();
+    // Assert — no warn because there IS a deserialize-direction transform
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  // ── debug option — _source storage ─────────────────────────────────────────
+
+  it('should store _source on SEALED executors when seal is called with debug:true', () => {
+    // Arrange
+    class DebugDto {}
+    registerClass(DebugDto, makeStringField('name'));
+    // Act
+    seal({ debug: true });
+    // Assert
+    const sealed = (DebugDto as any)[SEALED];
+    expect(sealed._source).toBeDefined();
+    expect(typeof sealed._source.deserialize).toBe('string');
+    expect(typeof sealed._source.serialize).toBe('string');
+    expect(sealed._source.deserialize.length).toBeGreaterThan(0);
+    expect(sealed._source.serialize.length).toBeGreaterThan(0);
   });
 });
 

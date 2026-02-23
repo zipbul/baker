@@ -376,4 +376,93 @@ describe('buildSerializeCode', () => {
     // The field is excluded from serialize output
     expect(result.name).toBeUndefined();
   });
+
+  // ── async + each nested serialize (serialize-builder.ts#L134) ──────────────
+
+  it('should generate async Promise.all map code for nested @Type array field when isAsync is true', async () => {
+    // Arrange
+    class AsyncItemDto {}
+    const mockItemSerialize = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
+    (AsyncItemDto as any)[SEALED] = {
+      _deserialize: mock(() => {}),
+      _serialize: mockItemSerialize,
+      _isAsync: true,
+      _isSerializeAsync: true,
+    } satisfies SealedExecutors<unknown>;
+
+    class AsyncOrderDto { items: AsyncItemDto[] = [new AsyncItemDto(), new AsyncItemDto()]; }
+    const merged: RawClassMeta = {
+      items: {
+        validation: [{ rule: isString, each: true }],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => AsyncItemDto as any },
+        flags: { validateNested: true },
+      },
+    };
+    const exec = buildSerializeCode(AsyncOrderDto, merged, undefined, true);
+    const instance = new AsyncOrderDto();
+    // Act
+    const result = await exec(instance) as Record<string, unknown>;
+    // Assert — async serialize called for each item via Promise.all
+    expect(mockItemSerialize).toHaveBeenCalledTimes(2);
+    expect(Array.isArray(result.items)).toBe(true);
+  });
+
+  it('should return empty array when async each serialize receives empty array input', async () => {
+    // Arrange
+    class AsyncItemDto2 {}
+    const mockItemSerialize2 = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
+    (AsyncItemDto2 as any)[SEALED] = {
+      _deserialize: mock(() => {}),
+      _serialize: mockItemSerialize2,
+      _isAsync: true,
+      _isSerializeAsync: true,
+    } satisfies SealedExecutors<unknown>;
+
+    class EmptyOrderDto { items: AsyncItemDto2[] = []; }
+    const merged: RawClassMeta = {
+      items: {
+        validation: [{ rule: isString, each: true }],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => AsyncItemDto2 as any },
+        flags: { validateNested: true },
+      },
+    };
+    const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true);
+    const instance = new EmptyOrderDto();
+    // Act
+    const result = await exec(instance) as Record<string, unknown>;
+    // Assert — empty array → empty result
+    expect(mockItemSerialize2).not.toHaveBeenCalled();
+    expect(result.items).toEqual([]);
+  });
+
+  // ── debug option — __bakerSource ────────────────────────────────────────────
+
+  it('should store __bakerSource on executor when debug:true', () => {
+    // Arrange
+    class DebugSerDto { name = 'test'; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: null,
+        flags: {},
+      },
+    };
+    const opts: SealOptions = { debug: true };
+    const exec = buildSerializeCode(DebugSerDto, merged, opts, false);
+    // Act
+    const source = (exec as any).__bakerSource;
+    // Assert — __bakerSource should be a non-empty string
+    expect(typeof source).toBe('string');
+    expect(source.length).toBeGreaterThan(0);
+    expect(source).toContain('__bk$out');
+  });
 });
