@@ -1,4 +1,5 @@
 import { err as _resultErr, isErr as _resultIsErr } from '@zipbul/result';
+import type { Result, ResultAsync } from '@zipbul/result';
 import { SEALED } from '../symbols';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, EmittableRule, SealedExecutors, RuleDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
@@ -45,7 +46,7 @@ export function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-): (input: unknown, opts?: RuntimeOptions) => (T | ReturnType<typeof _resultErr<BakerError[]>>) | Promise<T | ReturnType<typeof _resultErr<BakerError[]>>> {
+): (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]> {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
   const collectErrors = !stopAtFirstError;
   const exposeDefaultValues = options?.exposeDefaultValues ?? false;
@@ -68,11 +69,7 @@ export function buildDeserializeCode<T>(
   }
 
   // preamble: input type guard (§4.9)
-  if (collectErrors) {
-    body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
-  } else {
-    body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
-  }
+  body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
 
   // WeakSet guard (순환 참조)
   if (needsCircularCheck) {
@@ -129,7 +126,7 @@ export function buildDeserializeCode<T>(
   )(Class, regexes, refs, execs, _resultErr, _resultIsErr) as (
     input: unknown,
     opts?: RuntimeOptions,
-  ) => Promise<T | ReturnType<typeof _resultErr<BakerError[]>>>;
+  ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
 
   if (options?.debug) (executor as any).__bakerSource = body;
 

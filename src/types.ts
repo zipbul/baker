@@ -137,10 +137,11 @@ export interface RawClassMeta {
 
 import type { RuntimeOptions } from './interfaces';
 import type { BakerError } from './errors';
+import type { Result, ResultAsync } from '@zipbul/result';
 
 export interface SealedExecutors<T> {
   /** 내부 executor — Result 패턴. deserialize()가 감싸서 throw로 변환 */
-  _deserialize(input: unknown, options?: RuntimeOptions): (T | import('@zipbul/result').Err<BakerError[]>) | Promise<T | import('@zipbul/result').Err<BakerError[]>>;
+  _deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
   /** 내부 executor — 항상 성공. serialize는 무검증 전제 */
   _serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
   /** deserialize 방향에 async 규칙/transform/nested가 있으면 true */

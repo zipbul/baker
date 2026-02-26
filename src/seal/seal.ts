@@ -87,8 +87,8 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
 
   // 0. placeholder 등록 — 순환 참조 시 무한 재귀 방지
   const placeholder: SealedExecutors<T> = {
-    _deserialize: () => { throw new Error('seal in progress'); },
-    _serialize: () => { throw new Error('seal in progress'); },
+    _deserialize: () => { throw new SealError('seal in progress'); },
+    _serialize: () => { throw new SealError('seal in progress'); },
     _isAsync: false,
     _isSerializeAsync: false,
   };
