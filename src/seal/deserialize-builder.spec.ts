@@ -35,7 +35,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class NameDto { name!: string; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const result = await run(NameDto, merged, undefined, { name: 'Alice' });
@@ -81,6 +81,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
+        schema: null,
       },
     };
     // Act
@@ -94,7 +95,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class DefaultDto { name: string = 'anonymous'; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     const exec = buildDeserializeCode(DefaultDto, merged, { exposeDefaultValues: true }, false, false);
     // Act — no 'name' in input
@@ -115,6 +116,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
+        schema: null,
       },
     };
     // Act
@@ -127,8 +129,8 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class MultiDto { name!: string; age!: number; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-      age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     const exec = buildDeserializeCode(MultiDto, merged, { stopAtFirstError: false }, false, false);
     // Act — both fields invalid
@@ -143,8 +145,8 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class StopDto { name!: string; age!: number; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-      age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      age: { validation: [{ rule: isNumber() }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     const exec = buildDeserializeCode(StopDto, merged, { stopAtFirstError: true }, false, false);
     // Act — both fields invalid
@@ -166,6 +168,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
+        schema: null,
       },
     };
     // Act
@@ -189,7 +192,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class PathDto { email!: string; }
     const merged: RawClassMeta = {
-      email: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      email: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     const exec = buildDeserializeCode(PathDto, merged, undefined, false, false);
     // Act
@@ -205,7 +208,7 @@ describe('buildDeserializeCode', () => {
     // Arrange
     class ReqDto { name!: string; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     const exec = buildDeserializeCode(ReqDto, merged, undefined, false, false);
     // Act
@@ -227,6 +230,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true, isDefined: true }, // IsDefined wins
+        schema: null,
       },
     };
     const exec = buildDeserializeCode(IsDef, merged, undefined, false, false);
@@ -249,6 +253,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode(OptDefault, merged, { exposeDefaultValues: true }, false, false);
@@ -280,7 +285,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString, message: '이름은 문자열이어야 합니다' }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act
@@ -300,7 +305,7 @@ describe('buildDeserializeCode', () => {
           rule: isNumber(),
           message: (args: { property: string; value: unknown }) => `${args.property} must be a number, got ${typeof args.value}`,
         }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act
@@ -317,7 +322,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString, context: { httpStatus: 400, extra: 'info' } }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act
@@ -334,7 +339,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act
@@ -354,7 +359,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       names: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act — invalid: Set contains non-string
@@ -369,7 +374,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       names: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act — valid: all elements are strings
@@ -386,7 +391,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       tags: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act — invalid: Map value is not string
@@ -401,7 +406,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       tags: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     // Act — valid: all Map values are strings
@@ -417,7 +422,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       names: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<SetStopDto>(SetStopDto, merged, { stopAtFirstError: true }, false, false);
@@ -430,7 +435,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       names: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<SetStopDto2>(SetStopDto2, merged, { stopAtFirstError: true }, false, false);
@@ -443,7 +448,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       tags: {
         validation: [{ rule: isString, each: true }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<MapStopDto>(MapStopDto, merged, { stopAtFirstError: true }, false, false);
@@ -461,6 +466,7 @@ describe('buildDeserializeCode', () => {
         validation: [{ rule: isNumber() }],
         transform: [], expose: [], exclude: null, type: null,
         flags: { validateIf: validateIfFn, isOptional: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<ConditionalDto>(ConditionalDto, merged, undefined, false, false);
@@ -476,6 +482,7 @@ describe('buildDeserializeCode', () => {
         validation: [{ rule: isNumber() }],
         transform: [], expose: [], exclude: null, type: null,
         flags: { validateIf: validateIfFn, isOptional: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<ConditionalDto2>(ConditionalDto2, merged, undefined, false, false);
@@ -490,7 +497,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<CircularDto>(CircularDto, merged, undefined, true, false);
@@ -505,11 +512,11 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
       secret: {
         validation: [],
-        transform: [], expose: [], exclude: { serializeOnly: false }, type: null, flags: {},
+        transform: [], expose: [], exclude: { serializeOnly: false }, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<ExcludeDto>(ExcludeDto, merged, undefined, false, false);
@@ -525,7 +532,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
       outOnly: {
         validation: [],
@@ -534,6 +541,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<ExposeOnlyDto>(ExposeOnlyDto, merged, undefined, false, false);
@@ -549,7 +557,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString, message: 'Must be a string' }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<MsgDto>(MsgDto, merged, { stopAtFirstError: true }, false, false);
@@ -585,6 +593,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: { fn: () => AddressDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<PersonDto>(PersonDto, merged, undefined, false, false);
@@ -619,6 +628,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: { fn: () => PhoneDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<ContactDto>(ContactDto, merged, undefined, false, false);
@@ -653,6 +663,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: { fn: () => CityDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<LocationDto>(LocationDto, merged, { stopAtFirstError: true }, false, false);
@@ -694,6 +705,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: { fn: () => TagDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<PostDto>(PostDto, merged, undefined, false, false);
@@ -709,7 +721,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }, { rule: minLength(3) }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<StringGateDto>(StringGateDto, merged, undefined, false, false);
@@ -728,7 +740,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }, { rule: isNotEmpty }, { rule: minLength(1) }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<OtherGenDto>(OtherGenDto, merged, undefined, false, false);
@@ -747,7 +759,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       name: {
         validation: [{ rule: isString }, { rule: isNotEmpty }, { rule: minLength(1) }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<StopGenDto>(StopGenDto, merged, { stopAtFirstError: true }, false, false);
@@ -788,7 +800,7 @@ describe('buildDeserializeCode', () => {
     const merged: RawClassMeta = {
       val: {
         validation: [{ rule: customRule }],
-        transform: [], expose: [], exclude: null, type: null, flags: {},
+        transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null,
       },
     };
     const exec = buildDeserializeCode<ExecRuleDto>(ExecRuleDto, merged, undefined, false, false);
@@ -811,6 +823,7 @@ describe('buildDeserializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
+        schema: null,
       },
     };
     const exec = buildDeserializeCode<HyphenDto>(HyphenDto, merged, undefined, false, false);

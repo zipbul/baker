@@ -18,14 +18,14 @@ async function pass<T>(cls: new (...a: any[]) => T, input: unknown): Promise<T> 
 }
 
 /** 헬퍼: 거부 확인 + 에러 코드 반환 */
-async function failCode(cls: Function, input: unknown): Promise<string> {
+async function failCode(cls: new (...args: any[]) => any, input: unknown): Promise<string> {
   seal();
   try {
     await deserialize(cls, input);
     throw new Error('expected rejection');
   } catch (e) {
     if (!(e instanceof BakerValidationError)) throw e;
-    return e.errors[0].code;
+    return e.errors[0]!.code;
   }
 }
 

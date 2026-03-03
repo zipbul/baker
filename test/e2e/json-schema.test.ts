@@ -112,14 +112,14 @@ describe('toJsonSchema 문자열 + format', () => {
   it('문자열 constraints + format 매핑', () => {
     const s = toJsonSchema(StrDto);
     expect(s.properties!.name).toEqual({ type: 'string', minLength: 1, maxLength: 50 });
-    expect(s.properties!.slug.pattern).toBe('^[a-z-]+$');
+    expect(s.properties!.slug!.pattern).toBe('^[a-z-]+$');
     expect(s.properties!.email).toEqual({ format: 'email' });
     expect(s.properties!.uuid).toEqual({ format: 'uuid' });
     expect(s.properties!.ts).toEqual({ format: 'date-time' });
     expect(s.properties!.ip4).toEqual({ format: 'ipv4' });
     expect(s.properties!.ip6).toEqual({ format: 'ipv6' });
     // @IsIP() 버전 미지정 → format 매핑 없음
-    expect(s.properties!.ipAny.format).toBeUndefined();
+    expect(s.properties!.ipAny!.format).toBeUndefined();
   });
 });
 
@@ -236,20 +236,20 @@ describe('toJsonSchema @Schema', () => {
 
   it('프로퍼티 레벨 객체형 → 오버라이드', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.name.minLength).toBe(3); // @Schema가 자동 매핑 1을 오버라이드
-    expect(s.properties!.name.description).toBe('Display name');
+    expect(s.properties!.name!.minLength).toBe(3); // @Schema가 자동 매핑 1을 오버라이드
+    expect(s.properties!.name!.description).toBe('Display name');
   });
 
   it('composition-aware → 자동 매핑 억제', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.composed.type).toBeUndefined();
-    expect(s.properties!.composed.allOf).toBeDefined();
+    expect(s.properties!.composed!.type).toBeUndefined();
+    expect(s.properties!.composed!.allOf).toBeDefined();
   });
 
   it('함수형 @Schema', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.custom.type).toBe('string');
-    expect(s.properties!.custom.examples).toEqual(['hello']);
+    expect(s.properties!.custom!.type).toBe('string');
+    expect(s.properties!.custom!.examples).toEqual(['hello']);
   });
 });
 
@@ -279,12 +279,12 @@ describe('toJsonSchema groups', () => {
 
   it('rule groups 필터링', () => {
     const create = toJsonSchema(GroupDto, { groups: ['create'] });
-    expect(create.properties!.score.minimum).toBe(0);
-    expect(create.properties!.score.maximum).toBeUndefined();
+    expect(create.properties!.score!.minimum).toBe(0);
+    expect(create.properties!.score!.maximum).toBeUndefined();
 
     const update = toJsonSchema(GroupDto, { groups: ['update'] });
-    expect(update.properties!.score.maximum).toBe(100);
-    expect(update.properties!.score.minimum).toBeUndefined();
+    expect(update.properties!.score!.maximum).toBe(100);
+    expect(update.properties!.score!.minimum).toBeUndefined();
   });
 });
 
@@ -305,7 +305,7 @@ describe('toJsonSchema 순환 참조', () => {
     const s = toJsonSchema(TreeNode);
     expect(s.properties!.child).toEqual({ $ref: '#/$defs/TreeNode' });
     expect(s.$defs!.TreeNode).toBeDefined();
-    expect(s.$defs!.TreeNode.properties!.value).toEqual({ type: 'string' });
+    expect(s.$defs!.TreeNode!.properties!.value).toEqual({ type: 'string' });
   });
 });
 
@@ -328,6 +328,6 @@ describe('toJsonSchema @IsOptional → required 제외', () => {
   it('age 프로퍼티는 스키마에 존재', () => {
     const s = toJsonSchema(OptDto);
     expect(s.properties!.age).toBeDefined();
-    expect(s.properties!.age.type).toBe('number');
+    expect(s.properties!.age!.type).toBe('number');
   });
 });

@@ -66,7 +66,7 @@ describe('toJsonSchema — @IsNotEmptyObject → minProperties', () => {
   }
   it('minProperties: 1 매핑', () => {
     const schema = toJsonSchema(MinPropDto);
-    expect(schema.properties!.config.minProperties).toBe(1);
+    expect(schema.properties!.config!.minProperties).toBe(1);
   });
 });
 

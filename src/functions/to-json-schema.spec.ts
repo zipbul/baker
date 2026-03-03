@@ -262,7 +262,7 @@ describe('toJsonSchema — format', () => {
     meta.validation.push(fakeRule(ruleName, constraints));
 
     const schema = toJsonSchema(Dto);
-    expect(schema.properties!.field.format).toBe(expectedFormat);
+    expect(schema.properties!.field!.format).toBe(expectedFormat);
   });
 
   it('isIP (버전 미지정) → 스키마 매핑 없음', () => {
@@ -598,7 +598,7 @@ describe('toJsonSchema — 순환 참조', () => {
     // A는 루트에 인라인되며, 순환 때문에 $defs에도 등록
     expect(schema.type).toBe('object');
     expect(schema.properties!.b).toEqual({ $ref: '#/$defs/B' });
-    expect(schema.$defs!.B.properties!.a).toEqual({ $ref: '#/$defs/A' });
+    expect(schema.$defs!.B!.properties!.a).toEqual({ $ref: '#/$defs/A' });
     expect(schema.$defs!.A).toBeDefined();
   });
 
@@ -665,7 +665,7 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     }));
 
     const schema = toJsonSchema(Dto);
-    expect(schema.properties!.value.anyOf).toEqual([
+    expect(schema.properties!.value!.anyOf).toEqual([
       { type: 'string' }, { type: 'number' },
     ]);
   });
@@ -684,7 +684,7 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     expect(schema.properties!.field).toEqual({
       allOf: [{ minLength: 1 }, { maxLength: 100 }],
     });
-    expect(schema.properties!.field.type).toBeUndefined();
+    expect(schema.properties!.field!.type).toBeUndefined();
   });
 });
 
@@ -764,7 +764,7 @@ describe('toJsonSchema — whitelist', () => {
 
     const schema = toJsonSchema(Outer, { whitelist: true });
     expect(schema.unevaluatedProperties).toBe(false);
-    expect(schema.$defs!.Inner.unevaluatedProperties).toBe(false);
+    expect(schema.$defs!.Inner!.unevaluatedProperties).toBe(false);
   });
 });
 

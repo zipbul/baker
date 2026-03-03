@@ -8,7 +8,7 @@ import { unseal } from '../integration/helpers/unseal';
 afterEach(() => unseal());
 
 /** 헬퍼: 에러 코드 추출 (없으면 null) */
-async function tryDeserialize(cls: Function, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
+async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
   try {
     const value = await deserialize(cls, input);
     return { ok: true, value };

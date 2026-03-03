@@ -83,8 +83,8 @@ describe('@Nested 역직렬화', () => {
       items: [{ label: 'a' }, { label: 'b' }],
     });
     expect(result.items).toHaveLength(2);
-    expect(result.items[0]).toBeInstanceOf(ItemDto);
-    expect(result.items[0].label).toBe('a');
+    expect(result.items[0]!).toBeInstanceOf(ItemDto);
+    expect(result.items[0]!.label).toBe('a');
   });
 
   it('배열 중첩 크기 검증', async () => {
@@ -125,27 +125,27 @@ describe('@Nested toJsonSchema', () => {
   it('단순 $ref', () => {
     const schema = toJsonSchema(UserDto);
     expect(schema.properties!.address).toEqual({ $ref: '#/$defs/AddressDto' });
-    expect(schema.$defs!.AddressDto.type).toBe('object');
-    expect(schema.$defs!.AddressDto.properties!.city).toEqual({ type: 'string' });
+    expect(schema.$defs!.AddressDto!.type).toBe('object');
+    expect(schema.$defs!.AddressDto!.properties!.city).toEqual({ type: 'string' });
   });
 
   it('each → type: "array", items: { $ref }', () => {
     const schema = toJsonSchema(ListDto);
-    expect(schema.properties!.items.type).toBe('array');
-    expect(schema.properties!.items.items).toEqual({ $ref: '#/$defs/ItemDto' });
-    expect(schema.properties!.items.minItems).toBe(1);
+    expect(schema.properties!.items!.type).toBe('array');
+    expect(schema.properties!.items!.items).toEqual({ $ref: '#/$defs/ItemDto' });
+    expect(schema.properties!.items!.minItems).toBe(1);
   });
 
   it('discriminator → oneOf + const', () => {
     const schema = toJsonSchema(PetOwnerDto);
-    const pet = schema.properties!.pet;
+    const pet = schema.properties!.pet!;
     expect(pet.oneOf).toHaveLength(2);
-    expect(pet.oneOf![0]).toEqual({
+    expect(pet.oneOf![0]!).toEqual({
       $ref: '#/$defs/DogDto',
       properties: { type: { const: 'dog' } },
       required: ['type'],
     });
-    expect(pet.oneOf![1]).toEqual({
+    expect(pet.oneOf![1]!).toEqual({
       $ref: '#/$defs/CatDto',
       properties: { type: { const: 'cat' } },
       required: ['type'],
@@ -163,7 +163,7 @@ describe('@Nested 에지 케이스', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors[0];
+      const err = (e as BakerValidationError).errors[0]!;
       expect(err.path).toBe('address');
       expect(err.code).toBe('isObject');
     }

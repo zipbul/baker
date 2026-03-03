@@ -34,7 +34,7 @@ describe('@IsNotEmptyObject', () => {
 
   it('toJsonSchema → minProperties: 1', () => {
     const schema = toJsonSchema(EmptyObjDto);
-    expect(schema.properties!.config.minProperties).toBe(1);
+    expect(schema.properties!.config!.minProperties).toBe(1);
   });
 });
 

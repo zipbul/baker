@@ -21,7 +21,7 @@ describe('invalidInput 에러 코드', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors[0];
+      const err = (e as BakerValidationError).errors[0]!;
       expect(err.path).toBe('');
       expect(err.code).toBe('invalidInput');
     }
@@ -34,7 +34,7 @@ describe('invalidInput 에러 코드', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors[0].code).toBe('invalidInput');
+      expect((e as BakerValidationError).errors[0]!.code).toBe('invalidInput');
     }
   });
 
@@ -45,7 +45,7 @@ describe('invalidInput 에러 코드', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors[0].code).toBe('invalidInput');
+      expect((e as BakerValidationError).errors[0]!.code).toBe('invalidInput');
     }
   });
 
@@ -56,7 +56,7 @@ describe('invalidInput 에러 코드', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors[0].code).toBe('invalidInput');
+      expect((e as BakerValidationError).errors[0]!.code).toBe('invalidInput');
     }
   });
 
@@ -67,7 +67,7 @@ describe('invalidInput 에러 코드', () => {
       expect.unreachable();
     } catch (e) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors[0].code).toBe('invalidInput');
+      expect((e as BakerValidationError).errors[0]!.code).toBe('invalidInput');
     }
   });
 

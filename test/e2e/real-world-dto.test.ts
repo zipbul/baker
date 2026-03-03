@@ -178,18 +178,18 @@ describe('CreateUserDto — toJsonSchema', () => {
     const schema = toJsonSchema(CreateUserDto, { direction: 'deserialize' });
     expect(schema.type).toBe('object');
     expect(schema.properties!.user_name).toBeDefined();
-    expect(schema.properties!.user_name.type).toBe('string');
-    expect(schema.properties!.user_name.minLength).toBe(2);
-    expect(schema.properties!.email.format).toBe('email');
-    expect(schema.properties!.age.minimum).toBe(0);
-    expect(schema.properties!.age.maximum).toBe(150);
+    expect(schema.properties!.user_name!.type).toBe('string');
+    expect(schema.properties!.user_name!.minLength).toBe(2);
+    expect(schema.properties!.email!.format).toBe('email');
+    expect(schema.properties!.age!.minimum).toBe(0);
+    expect(schema.properties!.age!.maximum).toBe(150);
     expect(schema.properties!.role).toEqual({ enum: ['admin', 'user', 'guest'] });
-    expect(schema.properties!.bio.type).toEqual(['string', 'null']);
+    expect(schema.properties!.bio!.type).toEqual(['string', 'null']);
   });
 
   it('중첩 → $ref + $defs', () => {
     const schema = toJsonSchema(CreateUserDto);
-    expect(schema.properties!.address.$ref).toBe('#/$defs/AddressDto');
+    expect(schema.properties!.address!.$ref).toBe('#/$defs/AddressDto');
     expect(schema.$defs!.AddressDto).toBeDefined();
   });
 });

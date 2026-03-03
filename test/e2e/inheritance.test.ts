@@ -73,6 +73,6 @@ describe('inheritance — toJsonSchema', () => {
     expect(schema.properties!.name).toBeDefined();
     expect(schema.properties!.age).toBeDefined();
     expect(schema.properties!.active).toBeDefined();
-    expect(schema.properties!.age.minimum).toBe(0);
+    expect(schema.properties!.age!.minimum).toBe(0);
   });
 });

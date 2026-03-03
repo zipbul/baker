@@ -9,7 +9,7 @@ import { unseal } from '../integration/helpers/unseal';
 afterEach(() => unseal());
 
 /** 헬퍼: BakerValidationError에서 errors 배열 추출 */
-async function getErrors(cls: Function, input: unknown) {
+async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   try {
     await deserialize(cls, input);
     throw new Error('expected rejection');
@@ -60,8 +60,8 @@ describe('중첩 객체 에러 경로', () => {
     seal();
     const errors = await getErrors(UserDto, { name: 'John', address: { city: 123, street: 'Main' } });
     expect(errors).toHaveLength(1);
-    expect(errors[0].path).toBe('address.city');
-    expect(errors[0].code).toBe('isString');
+    expect(errors[0]!.path).toBe('address.city');
+    expect(errors[0]!.code).toBe('isString');
   });
 
   it('여러 중첩 필드 실패', async () => {
@@ -92,8 +92,8 @@ describe('깊은 중첩 에러 경로 (3 레벨)', () => {
     seal();
     const errors = await getErrors(Company, { city: { zip: { code: 999 } } });
     expect(errors).toHaveLength(1);
-    expect(errors[0].path).toBe('city.zip.code');
-    expect(errors[0].code).toBe('isString');
+    expect(errors[0]!.path).toBe('city.zip.code');
+    expect(errors[0]!.code).toBe('isString');
   });
 });
 
@@ -181,7 +181,7 @@ describe('한 필드 다중 에러 (collectErrors 모드)', () => {
     // 3.5는 정수가 아니므로 isInt 실패. 또한 10보다 작으므로 min도 실패할 수 있음
     // (단, 타입 체커가 먼저 거부하면 이후 규칙이 안 돌 수 있음 — 구현에 따라 다름)
     expect(errors.length).toBeGreaterThanOrEqual(1);
-    expect(errors[0].path).toBe('v');
+    expect(errors[0]!.path).toBe('v');
     expect(errors.some(e => e.code === 'isInt')).toBe(true);
   });
 });

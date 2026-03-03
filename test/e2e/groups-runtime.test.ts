@@ -86,13 +86,13 @@ describe('groups — toJsonSchema', () => {
 
   it('rule groups 필터링 — create', () => {
     const s = toJsonSchema(GroupDto, { groups: ['create'] });
-    expect(s.properties!.score.minimum).toBe(0);
-    expect(s.properties!.score.maximum).toBeUndefined();
+    expect(s.properties!.score!.minimum).toBe(0);
+    expect(s.properties!.score!.maximum).toBeUndefined();
   });
 
   it('rule groups 필터링 — update', () => {
     const s = toJsonSchema(GroupDto, { groups: ['update'] });
-    expect(s.properties!.score.maximum).toBe(100);
-    expect(s.properties!.score.minimum).toBeUndefined();
+    expect(s.properties!.score!.maximum).toBe(100);
+    expect(s.properties!.score!.minimum).toBeUndefined();
   });
 });

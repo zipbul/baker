@@ -172,10 +172,10 @@ describe('Nested 배열 라운드트립', () => {
     const obj2 = await deserialize<OrderDto>(OrderDto, plain);
     expect(obj2.orderId).toBe('ORD-001');
     expect(obj2.items).toHaveLength(2);
-    expect(obj2.items[0].product).toBe('Laptop');
-    expect(obj2.items[0].qty).toBe(2);
-    expect(obj2.items[1].product).toBe('Mouse');
-    expect(obj2.items[1].qty).toBe(5);
+    expect(obj2.items[0]!.product).toBe('Laptop');
+    expect(obj2.items[0]!.qty).toBe(2);
+    expect(obj2.items[1]!.product).toBe('Mouse');
+    expect(obj2.items[1]!.qty).toBe(5);
   });
 });
 

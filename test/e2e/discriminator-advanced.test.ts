@@ -97,8 +97,8 @@ describe('discriminator — toJsonSchema', () => {
   it('oneOf + const 매핑', () => {
     const schema = toJsonSchema(OwnerDto);
     const pet = schema.properties!.pet;
-    expect(pet.oneOf).toHaveLength(2);
-    expect(pet.oneOf[0]).toEqual({
+    expect(pet!.oneOf).toHaveLength(2);
+    expect(pet!.oneOf![0]).toEqual({
       $ref: '#/$defs/DogDto',
       properties: { type: { const: 'dog' } },
       required: ['type'],

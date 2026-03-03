@@ -96,8 +96,8 @@ describe('깊은 중첩 객체 스택 안전성', () => {
       throw new Error('expected rejection');
     } catch (e) {
       if (!(e instanceof BakerValidationError)) throw e;
-      expect(e.errors[0].path).toBe('child.child.child.child.leaf.value');
-      expect(e.errors[0].code).toBe('isString');
+      expect(e.errors[0]!.path).toBe('child.child.child.child.leaf.value');
+      expect(e.errors[0]!.code).toBe('isString');
     }
   });
 });
@@ -119,7 +119,7 @@ describe('큰 배열 입력 처리', () => {
     const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
     const r = await deserialize<ListDto>(ListDto, { items });
     expect(r.items).toHaveLength(1000);
-    expect(r.items[999].id).toBe(999);
+    expect(r.items[999]!.id).toBe(999);
   });
 
   it('1000개 중 일부 무효 → 해당 인덱스만 에러', async () => {

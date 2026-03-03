@@ -18,7 +18,7 @@ import { unseal } from '../integration/helpers/unseal';
 afterEach(() => unseal());
 
 /** 헬퍼: BakerValidationError에서 특정 path의 code를 추출 */
-async function getErrorCode(cls: Function, input: unknown, path?: string): Promise<string> {
+async function getErrorCode(cls: new (...args: any[]) => any, input: unknown, path?: string): Promise<string> {
   try {
     await deserialize(cls, input);
     throw new Error('expected rejection');

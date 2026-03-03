@@ -71,6 +71,6 @@ describe('@MinDate/@MaxDate', () => {
 
   it('toJsonSchema — format: date-time 매핑', () => {
     const schema = toJsonSchema(DateRangeDto);
-    expect(schema.properties!.eventDate.format).toBe('date-time');
+    expect(schema.properties!.eventDate!.format).toBe('date-time');
   });
 });

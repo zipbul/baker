@@ -11,7 +11,7 @@ import { unseal } from '../integration/helpers/unseal';
 afterEach(() => unseal());
 
 /** 헬퍼: errors 배열 추출 */
-async function getErrors(cls: Function, input: unknown) {
+async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   try {
     await deserialize(cls, input);
     throw new Error('expected rejection');
@@ -146,7 +146,7 @@ describe('@Transform + @IsEnum 조합', () => {
   it('"ACTIVE" → lowercase Transform → "active" → enum 통과', async () => {
     seal();
     const r = await deserialize<StatusDto>(StatusDto, { status: 'ACTIVE' });
-    expect(r.status).toBe('active');
+    expect(r.status as string).toBe('active');
   });
 
   it('"unknown" → lowercase → enum 거부', async () => {
@@ -246,7 +246,7 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
       tags: [{ label: 'news' }, { label: 'tech' }],
     });
     expect(r.tags).toHaveLength(2);
-    expect(r.tags![0].label).toBe('news');
+    expect(r.tags![0]!.label).toBe('news');
   });
 
   it('빈 tags 배열 → ArrayMinSize 거부', async () => {
