@@ -1,5 +1,11 @@
 # @zipbul/baker
 
+## 0.1.1
+
+### Patch Changes
+
+- 95ce993: Add coverage badge gist configuration
+
 ## 0.1.0
 
 ### Minor Changes
