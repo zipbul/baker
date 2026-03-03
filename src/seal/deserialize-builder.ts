@@ -1,8 +1,9 @@
 import { err as _resultErr, isErr as _resultIsErr } from '@zipbul/result';
+import type { Result, ResultAsync } from '@zipbul/result';
 import { SEALED } from '../symbols';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, EmittableRule, SealedExecutors, RuleDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
-import type { BakerError } from '../errors';
+import { SealError, type BakerError } from '../errors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — 코드 생성 유틸
@@ -45,7 +46,7 @@ export function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-): (input: unknown, opts?: RuntimeOptions) => (T | ReturnType<typeof _resultErr<BakerError[]>>) | Promise<T | ReturnType<typeof _resultErr<BakerError[]>>> {
+): (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]> {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
   const collectErrors = !stopAtFirstError;
   const exposeDefaultValues = options?.exposeDefaultValues ?? false;
@@ -68,11 +69,7 @@ export function buildDeserializeCode<T>(
   }
 
   // preamble: input type guard (§4.9)
-  if (collectErrors) {
-    body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
-  } else {
-    body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
-  }
+  body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
 
   // WeakSet guard (순환 참조)
   if (needsCircularCheck) {
@@ -80,6 +77,23 @@ export function buildDeserializeCode<T>(
     const wsIdx = refs.length - 1;
     body += `if (_refs[${wsIdx}].has(input)) return _err([{path:'',code:'circular'}]);\n`;
     body += `_refs[${wsIdx}].add(input);\n`;
+  }
+
+  // whitelist 체크 (§7.2) — 미선언 필드 거부
+  if (options?.whitelist) {
+    const allowedKeys = new Set<string>();
+    for (const [fieldKey, meta] of Object.entries(merged)) {
+      const extractKey = getDeserializeExtractKey(fieldKey, meta.expose);
+      allowedKeys.add(extractKey);
+    }
+    const allowedIdx = refs.length;
+    refs.push(allowedKeys);
+
+    if (collectErrors) {
+      body += `for (var __bk$k of Object.keys(input)) { if (!_refs[${allowedIdx}].has(__bk$k)) __bk$errors.push({path:__bk$k,code:'whitelistViolation'}); }\n`;
+    } else {
+      body += `for (var __bk$k of Object.keys(input)) { if (!_refs[${allowedIdx}].has(__bk$k)) return _err([{path:__bk$k,code:'whitelistViolation'}]); }\n`;
+    }
   }
 
   // groups 변수 — expose groups 또는 validation rule groups가 있을 때만 (§4.9, §M4)
@@ -129,7 +143,7 @@ export function buildDeserializeCode<T>(
   )(Class, regexes, refs, execs, _resultErr, _resultIsErr) as (
     input: unknown,
     opts?: RuntimeOptions,
-  ) => Promise<T | ReturnType<typeof _resultErr<BakerError[]>>>;
+  ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
 
   if (options?.debug) (executor as any).__bakerSource = body;
 
@@ -206,27 +220,40 @@ function generateFieldCode(
   // inner content (extract + optional guard + validation + assign)
   let innerCode = extractCode;
 
-  // ② @IsOptional guard (§4.3)
-  // @IsDefined overrides @IsOptional
+  // ② null/undefined 가드 — @IsOptional, @IsNullable, @IsDefined 조합 (§4.3, Phase5)
   const useOptionalGuard = meta.flags.isOptional && !meta.flags.isDefined;
+  const isNullable = meta.flags.isNullable === true;
 
   const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx);
+  const assignNull = `__bk$out[${JSON.stringify(fieldKey)}] = null;\n`;
 
-  if (meta.flags.isDefined) {
-    // C2: @IsDefined — undefined만 거부, null/""/0 등은 후속 검증으로 통과
+  if (isNullable && useOptionalGuard) {
+    // Case 4: @IsNullable + @IsOptional — null은 할당, undefined는 skip
+    innerCode += `if (${varName} === null) { ${assignNull}}\n`;
+    innerCode += `else if (${varName} !== undefined) {\n`;
+    innerCode += validationCode;
+    innerCode += '}\n';
+  } else if (isNullable) {
+    // Case 3: @IsNullable (+ optional @IsDefined — 동일 동작)
+    innerCode += `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
+    innerCode += `else if (${varName} !== null) {\n`;
+    innerCode += validationCode;
+    innerCode += `} else { ${assignNull}}\n`;
+  } else if (meta.flags.isDefined) {
+    // @IsDefined — undefined만 거부, null/""/0 등은 후속 검증으로 통과
     innerCode += `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
     innerCode += validationCode;
   } else if (useOptionalGuard) {
+    // Case 2: @IsOptional — undefined/null 시 전체 skip
     innerCode += `if (${varName} !== undefined && ${varName} !== null) {\n`;
     innerCode += validationCode;
     innerCode += '}\n';
-  } else if (collectErrors && exposeDefaultValues) {
-    // exposeDefaultValues: true without isOptional — wrap in undefined check so we don't
-    // fail on keys that weren't in input (they got default values already set above)
-    // Actually, exposeDefaultValues already handles this by extracting default; no wrap needed
-    innerCode += validationCode;
   } else {
+    // Case 1: 플래그 없음 (기본) — undefined/null 거부
+    innerCode += `if (${varName} === undefined || ${varName} === null) ${emitCtx.fail('isDefined')};\n`;
+    innerCode += `else {\n`;
     innerCode += validationCode;
+    innerCode += '}\n';
   }
 
   // ① @ValidateIf outer wrap
@@ -281,7 +308,7 @@ function generateValidationCode(
   }
 
   // Build validation with type gate
-  code += buildRulesCode(fieldKey, varName, meta.validation, collectErrors, emitCtx, ctx);
+  code += buildRulesCode(fieldKey, varName, meta.validation, collectErrors, emitCtx, ctx, meta);
 
   return code;
 }
@@ -303,8 +330,9 @@ function computeRuleExtras(
   } else if (typeof rd.message === 'function') {
     const msgIdx = ctx.refs.length;
     ctx.refs.push(rd.message as unknown);
-    // TODO(DX-4): constraints currently always empty — populate with rule-specific constraint values when EmittableRule exposes them
-    extra += `,message:_refs[${msgIdx}]({property:${JSON.stringify(fieldKey)},value:${varName},constraints:[]})`;
+    const constraintsIdx = ctx.refs.length;
+    ctx.refs.push(rd.rule.constraints ?? {});
+    extra += `,message:_refs[${msgIdx}]({property:${JSON.stringify(fieldKey)},value:${varName},constraints:_refs[${constraintsIdx}]})`;
   }
   if (rd.context !== undefined) {
     const ctxIdx = ctx.refs.length;
@@ -351,6 +379,45 @@ function wrapGroupsGuard(rd: RuleDef, code: string): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// generateConversionCode — enableImplicitConversion 변환 코드 생성
+// ─────────────────────────────────────────────────────────────────────────────
+
+function generateConversionCode(
+  targetType: string,
+  varName: string,
+  fieldKey: string,
+  skipVar: string | null, // null = stopAtFirstError
+  collectErrors: boolean,
+  emitCtx: EmitContext,
+): string {
+  const failCode = collectErrors
+    ? `__bk$errors.push({path:${JSON.stringify(fieldKey)},code:'conversionFailed'}); ${skipVar} = true;`
+    : emitCtx.fail('conversionFailed') + ';';
+
+  switch (targetType) {
+    case 'string':
+      return `  ${varName} = String(${varName});\n`;
+    case 'number':
+      return `  ${varName} = Number(${varName});\n  if (isNaN(${varName})) { ${failCode} }\n`;
+    case 'boolean':
+      return (
+        `  if (${varName} === 'true' || ${varName} === '1' || ${varName} === 1) ${varName} = true;\n` +
+        `  else if (${varName} === 'false' || ${varName} === '0' || ${varName} === 0) ${varName} = false;\n` +
+        `  else { ${failCode} }\n`
+      );
+    case 'date':
+      return `  ${varName} = new Date(${varName});\n  if (isNaN(${varName}.getTime())) { ${failCode} }\n`;
+    default:
+      return '';
+  }
+}
+
+/** @Type() primitive builtin → target type mapping */
+const PRIMITIVE_TYPE_HINTS: Record<string, string> = {
+  Number: 'number', Boolean: 'boolean', String: 'string', Date: 'date',
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // buildRulesCode — 타입 가드 + 마커 패턴 (§4.3, §4.10)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -361,92 +428,165 @@ function buildRulesCode(
   collectErrors: boolean,
   emitCtx: EmitContext,
   ctx: FieldCodeContext,
+  meta?: RawPropertyMeta,
 ): string {
   const each = validation.filter(rd => rd.each);
   const nonEach = validation.filter(rd => !rd.each);
 
   let code = '';
 
-  // Separate by requiresType
-  const stringDeps = nonEach.filter(rd => rd.rule.requiresType === 'string');
-  const numberDeps = nonEach.filter(rd => rd.rule.requiresType === 'number');
+  // Separate by requiresType — 4-type gate support
+  const stringDeps  = nonEach.filter(rd => rd.rule.requiresType === 'string');
+  const numberDeps  = nonEach.filter(rd => rd.rule.requiresType === 'number');
+  const booleanDeps = nonEach.filter(rd => rd.rule.requiresType === 'boolean');
+  const dateDeps    = nonEach.filter(rd => rd.rule.requiresType === 'date');
   const generalRules = nonEach.filter(rd => !rd.rule.requiresType);
 
-  const hasStringDeps = stringDeps.length > 0;
-  const hasNumberDeps = numberDeps.length > 0;
+  // Mixed gate conflict detection
+  const typedDeps = [
+    { type: 'string' as const, deps: stringDeps },
+    { type: 'number' as const, deps: numberDeps },
+    { type: 'boolean' as const, deps: booleanDeps },
+    { type: 'date' as const, deps: dateDeps },
+  ].filter(d => d.deps.length > 0);
+  if (typedDeps.length > 1) {
+    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${typedDeps.map(d => d.type).join(', ')}`);
+  }
 
-  if (hasStringDeps || hasNumberDeps) {
-    const gateType = hasStringDeps ? 'string' : 'number';
-    const gateDeps = hasStringDeps ? stringDeps : numberDeps;
+  // Asserter → gate mapping
+  const ASSERTER_TO_GATE: Record<string, string> = {
+    isString: 'string', isNumber: 'number', isBoolean: 'boolean', isDate: 'date', isInt: 'number',
+  };
+  const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean']);
 
-    // Find type asserter in generalRules
-    const asserterName = gateType === 'string' ? 'isString' : 'isNumber';
-    const typeAsseterIdx = generalRules.findIndex(rd => rd.rule.ruleName === asserterName);
-    const typeAsseter = typeAsseterIdx >= 0 ? generalRules[typeAsseterIdx] : undefined;
+  const hasTypedDeps = typedDeps.length > 0;
+  const firstTyped = hasTypedDeps ? typedDeps[0] : undefined;
+  const gateType = firstTyped?.type ?? null;
+  const gateDeps = firstTyped?.deps ?? [];
 
+  // Find type asserter in generalRules matching gate type
+  let typeAsserterIdx = -1;
+  if (gateType) {
+    typeAsserterIdx = generalRules.findIndex(rd => ASSERTER_TO_GATE[rd.rule.ruleName] === gateType);
+  }
+
+  // enableImplicitConversion check — skip if explicit @Transform for deserialize direction
+  const enableConversion = !!(ctx.options?.enableImplicitConversion) &&
+    !(meta?.transform.some(td => !td.options?.serializeOnly));
+
+  // enableImplicitConversion: asserter-only gate 추론 — @IsNumber() 단독 사용 시에도 변환 gate 생성
+  let asserterInferredGate: string | null = null;
+  if (!hasTypedDeps && enableConversion && typeAsserterIdx < 0) {
+    for (let i = 0; i < generalRules.length; i++) {
+      const gate = ASSERTER_TO_GATE[generalRules[i]!.rule.ruleName];
+      if (gate) {
+        typeAsserterIdx = i;
+        asserterInferredGate = gate;
+        break;
+      }
+    }
+  }
+
+  const typeAsserter = typeAsserterIdx >= 0 ? generalRules[typeAsserterIdx] : undefined;
+
+  // @Type() primitive hint — infer conversion target when no typed deps exist
+  let typeHintGate: string | null = null;
+  if (!hasTypedDeps && !asserterInferredGate && enableConversion && meta?.type?.fn) {
+    try {
+      const typeCtor = meta.type.fn();
+      typeHintGate = PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null;
+    } catch { /* ignore lazy eval failures */ }
+  }
+
+  // Effective gate: typed deps > asserter inferred > @Type hint
+  const effectiveGateType = gateType ?? asserterInferredGate ?? typeHintGate;
+
+  if (hasTypedDeps || asserterInferredGate || typeHintGate) {
     // Other general rules (excluding the type asserter)
-    const otherGeneral = typeAsseter
-      ? generalRules.filter((_, i) => i !== typeAsseterIdx)
+    const otherGeneral = typeAsserter
+      ? generalRules.filter((_, i) => i !== typeAsserterIdx)
       : generalRules;
 
-    // Generate type gate condition
+    // Generate type gate condition — date uses instanceof, others use typeof
     let gateCondition: string;
     let gateErrorCode: string;
 
-    if (typeAsseter) {
-      if (gateType === 'string') {
-        gateCondition = `typeof ${varName} !== 'string'`;
-      } else {
-        gateCondition = `typeof ${varName} !== 'number'`;
-      }
-      gateErrorCode = typeAsseter.rule.ruleName;
-    } else {
-      gateCondition = `typeof ${varName} !== '${gateType}'`;
+    if (typeAsserter) {
+      gateErrorCode = typeAsserter.rule.ruleName;
+    } else if (gateDeps.length > 0) {
       gateErrorCode = gateDeps[0]!.rule.ruleName;
+    } else {
+      gateErrorCode = 'conversionFailed'; // @Type hint only — no asserter or deps
     }
 
-    // 타입 게이트 fail — typeAsseter rd가 있으면 message/context 반영
-    const gateEmitCtx = typeAsseter
-      ? makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsseter, ctx)
+    if (effectiveGateType === 'date') {
+      gateCondition = `!(${varName} instanceof Date)`;
+    } else {
+      gateCondition = `typeof ${varName} !== '${effectiveGateType}'`;
+    }
+
+    // 타입 게이트 fail — typeAsserter rd가 있으면 message/context 반영
+    const gateEmitCtx = typeAsserter
+      ? makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)
       : emitCtx;
 
+    // Helper: emit inner validation rules
+    const emitInnerRules = (indent: string): string => {
+      let inner = '';
+      // typeAsserter emit — GATE_ONLY_ASSERTERS(isString,isBoolean)는 gate와 완전 중복이므로 스킵
+      if (typeAsserter && !GATE_ONLY_ASSERTERS.has(typeAsserter.rule.ruleName)) {
+        const taCode = wrapGroupsGuard(typeAsserter, typeAsserter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)));
+        inner += indent + taCode.replace(/\n/g, '\n' + indent) + '\n';
+      }
+      for (const rd of otherGeneral) {
+        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
+        inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
+      }
+      for (const rd of gateDeps) {
+        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
+        inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
+      }
+      return inner;
+    };
+
     if (collectErrors) {
-      code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
-      code += `else {\n`;
-      const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
-      code += `  var ${markVar} = __bk$errors.length;\n`;
-      // typeAsseter emit — isString은 gate에서 전체 typeof 체크 완료되므로 스킵 (PERF-1)
-      // isNumber 등은 NaN/Infinity 추가 검사가 필요하므로 emit 유지
-      if (typeAsseter && typeAsseter.rule.ruleName !== 'isString') {
-        const taCode = wrapGroupsGuard(typeAsseter, typeAsseter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsseter, ctx)));
-        code += '  ' + taCode.replace(/\n/g, '\n  ') + '\n';
+      if (enableConversion) {
+        // Conversion mode: try convert on gate failure, skip field if conversion fails
+        const skipVar = `__bk$skip_${sanitizeKey(fieldKey)}`;
+        code += `var ${skipVar} = false;\n`;
+        code += `if (${gateCondition}) {\n`;
+        code += generateConversionCode(effectiveGateType!, varName, fieldKey, skipVar, true, emitCtx);
+        code += `}\n`;
+        code += `if (!${skipVar}) {\n`;
+        const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = __bk$errors.length;\n`;
+        code += emitInnerRules('  ');
+        code += `  if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `}\n`;
+      } else {
+        code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
+        code += `else {\n`;
+        const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = __bk$errors.length;\n`;
+        code += emitInnerRules('  ');
+        code += `  if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `}\n`;
       }
-      for (const rd of otherGeneral) {
-        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-        code += '  ' + ruleCode.replace(/\n/g, '\n  ') + '\n';
-      }
-      for (const rd of gateDeps) {
-        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-        code += '  ' + ruleCode.replace(/\n/g, '\n  ') + '\n';
-      }
-      code += `  if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-      code += `}\n`;
     } else {
-      code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
-      // typeAsseter emit — isString은 gate에서 전체 typeof 체크 완료되므로 스킵 (PERF-1)
-      if (typeAsseter && typeAsseter.rule.ruleName !== 'isString') {
-        code += wrapGroupsGuard(typeAsseter, typeAsseter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsseter, ctx))) + '\n';
+      if (enableConversion) {
+        code += `if (${gateCondition}) {\n`;
+        code += generateConversionCode(effectiveGateType!, varName, fieldKey, null, false, emitCtx);
+        code += `}\n`;
+        code += emitInnerRules('');
+        code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      } else {
+        code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
+        code += emitInnerRules('');
+        code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       }
-      for (const rd of otherGeneral) {
-        code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-      }
-      for (const rd of gateDeps) {
-        code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-      }
-      code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     }
   } else {
-    // No type-specific rules — all general
+    // No type-specific rules and no @Type hint — all general
     if (collectErrors) {
       if (generalRules.length === 0) {
         code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
@@ -588,6 +728,15 @@ function generateNestedCode(
       const iVar = `__bk$i_${sk}`;
       const awaitKwE = ctx.isAsync ? 'await ' : '';
       code += `if (Array.isArray(${varName})) {\n`;
+
+      // Emit non-each array-level validation rules (e.g. @ArrayMinSize, @ArrayMaxSize)
+      const nonEachRules = meta.validation.filter(rd => !rd.each);
+      for (const rd of nonEachRules) {
+        const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
+        const ruleEmit = rd.rule.emit(varName, emitCtx);
+        code += `  ${ruleEmit}\n`;
+      }
+
       code += `  var __bk$arr_${sk} = [];\n`;
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
       code += `    var __bk$r_${sk} = ${awaitKwE}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;

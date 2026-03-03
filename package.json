@@ -40,10 +40,6 @@
       "import": "./dist/src/decorators/index.js",
       "types": "./dist/src/decorators/index.d.ts"
     },
-    "./aot": {
-      "import": "./dist/src/aot/index.js",
-      "types": "./dist/src/aot/index.d.ts"
-    },
     "./rules": {
       "import": "./dist/src/rules/index.js",
       "types": "./dist/src/rules/index.d.ts"
@@ -61,10 +57,10 @@
     "access": "public"
   },
   "dependencies": {
-    "@zipbul/result": "^0.0.3"
+    "@zipbul/result": "^0.1.4"
   },
   "scripts": {
-    "build": "bun build index.ts src/decorators/index.ts src/aot/index.ts src/rules/index.ts src/symbols.ts --outdir dist --target bun --format esm --splitting --packages external --sourcemap=linked --root . --production && tsc -p tsconfig.build.json",
+    "build": "bun build index.ts src/decorators/index.ts src/rules/index.ts src/symbols.ts --outdir dist --target bun --format esm --splitting --packages external --sourcemap=linked --root . --production && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",

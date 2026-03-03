@@ -48,6 +48,7 @@ export function isMobilePhone(locale: string): EmittableRule {
   };
   (fn as any).ruleName = 'isMobilePhone';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { locale };
 
   return fn as EmittableRule;
 }
@@ -133,6 +134,7 @@ export function isPostalCode(locale: string): EmittableRule {
   };
   (fn as any).ruleName = 'isPostalCode';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { locale };
 
   return fn as EmittableRule;
 }
@@ -214,6 +216,7 @@ export function isIdentityCard(locale: string): EmittableRule {
   };
   (fn as any).ruleName = 'isIdentityCard';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { locale };
 
   return fn as EmittableRule;
 }
@@ -311,6 +314,7 @@ export function isPassportNumber(locale: string): EmittableRule {
   };
   (fn as any).ruleName = 'isPassportNumber';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { locale };
 
   return fn as EmittableRule;
 }

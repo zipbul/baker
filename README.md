@@ -43,7 +43,9 @@ Baker gives you the **familiar decorator DX** of class-validator while generatin
 - 🔁 **Circular reference detection** — automatic static analysis at seal time
 - 🏷️ **Group-based validation** — apply different rules per request with `groups`
 - 🧩 **Custom rules** — `createRule()` for user-defined validators with codegen support
-- 🚀 **AOT mode** — zipbul CLI generates code at build time, eliminating runtime `seal()` cost
+- 📐 **JSON Schema output** — `toJsonSchema()` generates JSON Schema Draft 2020-12 from your DTOs
+- 🪆 **`@Nested`** — single-decorator nested DTO validation with discriminator support
+- 🛡️ **Whitelist mode** — reject undeclared fields with `seal({ whitelist: true })`
 
 ---
 
@@ -143,6 +145,7 @@ const plain = await serialize(userInstance);
 |---|---|
 | `@IsDefined()` | `!== undefined && !== null` |
 | `@IsOptional()` | Skip subsequent rules if value is absent |
+| `@IsNullable()` | Allow `null` (skip validation), reject `undefined` |
 | `@IsNotEmpty()` | `!== undefined && !== null && !== ''` |
 | `@IsEmpty()` | `=== undefined \|\| === null \|\| === ''` |
 | `@Equals(val)` | `=== val` |
@@ -251,8 +254,10 @@ const plain = await serialize(userInstance);
 |---|---|
 | `@Transform(fn, opts?)` | Custom transform function |
 | `@Type(fn)` | Nested DTO type + implicit conversion |
+| `@Nested(fn, opts?)` | Shorthand for `@ValidateNested()` + `@Type(fn)` with discriminator support |
 | `@Expose(opts?)` | Control property exposure |
 | `@Exclude(opts?)` | Exclude property from serialization |
+| `@Schema(schema)` | Attach JSON Schema metadata (class or property level) |
 
 ---
 
@@ -267,7 +272,7 @@ interface ValidationOptions {
   message?: string | ((args: {
     property: string;
     value: unknown;
-    constraints: unknown[];
+    constraints: Record<string, unknown>;
   }) => string);          // Custom error message
   context?: unknown;     // Arbitrary context attached to error
 }
@@ -348,8 +353,10 @@ const user = await deserialize(UserDto, body, { groups: ['create'] });
 
 ## 🪆 Nested Objects
 
+Use `@Nested` for nested DTO validation:
+
 ```typescript
-import { ValidateNested, Type } from '@zipbul/baker/decorators';
+import { Nested, IsString } from '@zipbul/baker';
 
 class AddressDto {
   @IsString()
@@ -357,9 +364,35 @@ class AddressDto {
 }
 
 class UserDto {
-  @ValidateNested()
-  @Type(() => AddressDto)
+  @Nested(() => AddressDto)
   address!: AddressDto;
+}
+```
+
+Array nesting and discriminator polymorphism:
+
+```typescript
+class ItemDto {
+  @IsString()
+  label!: string;
+}
+
+class ListDto {
+  @Nested(() => ItemDto, { each: true })
+  items!: ItemDto[];
+}
+
+class PetOwnerDto {
+  @Nested(() => DogDto, {
+    discriminator: {
+      property: 'type',
+      subTypes: [
+        { value: DogDto, name: 'dog' },
+        { value: CatDto, name: 'cat' },
+      ],
+    },
+  })
+  pet!: DogDto | CatDto;
 }
 ```
 
@@ -390,23 +423,43 @@ seal({
   enableCircularCheck: 'auto',     // Detect circular references ('auto' | true | false)
   exposeDefaultValues: false,      // Use class defaults for missing keys
   stopAtFirstError: false,         // Stop at first error or collect all
+  whitelist: false,                // Reject undeclared fields
   debug: false,                    // Store generated source for inspection
 });
 ```
 
 ---
 
-## 🔧 AOT Mode
+## 📐 JSON Schema
 
-With the **zipbul CLI**, you can generate validation code at build time — eliminating the runtime `seal()` cost entirely.
-
-In AOT mode, use the `/aot` import (no-op stub decorators):
+Generate JSON Schema Draft 2020-12 from your DTOs:
 
 ```typescript
-import { IsString } from '@zipbul/baker/aot';
+import { toJsonSchema } from '@zipbul/baker';
+
+const schema = toJsonSchema(CreateUserDto);
+// { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", properties: { ... } }
 ```
 
-The CLI replaces these stubs with pre-generated validation code during the build step.
+Options:
+
+```typescript
+toJsonSchema(CreateUserDto, {
+  direction: 'deserialize', // 'deserialize' | 'serialize' — filters @Expose/@Exclude direction
+  groups: ['create'],       // Filter rules/fields by group
+});
+```
+
+Use `@Schema()` to attach additional JSON Schema metadata:
+
+```typescript
+@Schema({ title: 'CreateUser', description: 'Creates a new user' })
+class CreateUserDto {
+  @IsString()
+  @Schema({ description: 'Display name', examples: ['Alice'] })
+  name!: string;
+}
+```
 
 ---
 
@@ -414,9 +467,8 @@ The CLI replaces these stubs with pre-generated validation code during the build
 
 | Import path | Purpose |
 |---|---|
-| `@zipbul/baker` | Main API: `seal`, `deserialize`, `serialize`, all decorators |
+| `@zipbul/baker` | Main API: `seal`, `deserialize`, `serialize`, `toJsonSchema`, all decorators |
 | `@zipbul/baker/decorators` | Decorators only |
-| `@zipbul/baker/aot` | No-op stub decorators for AOT mode |
 | `@zipbul/baker/rules` | Raw rule objects |
 | `@zipbul/baker/symbols` | Internal symbols |
 

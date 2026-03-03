@@ -32,6 +32,7 @@ export function minLength(min: number): EmittableRule {
     `if (${varName}.length < ${min}) ${ctx.fail('minLength')};`;
   (fn as any).ruleName = 'minLength';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { min };
 
   return fn as EmittableRule;
 }
@@ -44,6 +45,7 @@ export function maxLength(max: number): EmittableRule {
     `if (${varName}.length > ${max}) ${ctx.fail('maxLength')};`;
   (fn as any).ruleName = 'maxLength';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { max };
 
   return fn as EmittableRule;
 }
@@ -56,6 +58,7 @@ export function length(minLen: number, maxLen: number): EmittableRule {
     `if (${varName}.length < ${minLen} || ${varName}.length > ${maxLen}) ${ctx.fail('length')};`;
   (fn as any).ruleName = 'length';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { min: minLen, max: maxLen };
 
   return fn as EmittableRule;
 }
@@ -70,6 +73,7 @@ export function contains(seed: string): EmittableRule {
   };
   (fn as any).ruleName = 'contains';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { seed };
 
   return fn as EmittableRule;
 }
@@ -84,6 +88,7 @@ export function notContains(seed: string): EmittableRule {
   };
   (fn as any).ruleName = 'notContains';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { seed };
 
   return fn as EmittableRule;
 }
@@ -100,6 +105,7 @@ export function matches(pattern: string | RegExp, modifiers?: string): Emittable
   };
   (fn as any).ruleName = 'matches';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { pattern: re.source };
 
   return fn as EmittableRule;
 }
@@ -115,6 +121,7 @@ const _isLowercase = (value: unknown): boolean =>
   `if (${varName} !== ${varName}.toLowerCase()) ${ctx.fail('isLowercase')};`;
 (_isLowercase as any).ruleName = 'isLowercase';
 (_isLowercase as any).requiresType = 'string';
+(_isLowercase as any).constraints = {};
 export const isLowercase = _isLowercase as EmittableRule;
 
 const _isUppercase = (value: unknown): boolean =>
@@ -124,6 +131,7 @@ const _isUppercase = (value: unknown): boolean =>
   `if (${varName} !== ${varName}.toUpperCase()) ${ctx.fail('isUppercase')};`;
 (_isUppercase as any).ruleName = 'isUppercase';
 (_isUppercase as any).requiresType = 'string';
+(_isUppercase as any).constraints = {};
 export const isUppercase = _isUppercase as EmittableRule;
 
 // ASCII: all code points in [0x00, 0x7F]
@@ -136,6 +144,7 @@ export const isAscii = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isAscii')};`;
   },
 );
+(isAscii as any).constraints = {};
 
 // Alpha — default en-US locale singleton that also acts as factory
 // Usage: isAlpha('HelloWorld') → boolean  OR  isAlpha() → EmittableRule
@@ -158,6 +167,7 @@ const _isAlpha = function isAlpha(value?: unknown): boolean | EmittableRule {
 };
 (_isAlpha as any).ruleName = 'isAlpha';
 (_isAlpha as any).requiresType = 'string';
+(_isAlpha as any).constraints = {};
 export const isAlpha = _isAlpha;
 
 // Alphanumeric — same dual pattern
@@ -178,6 +188,7 @@ const _isAlphanumeric = function isAlphanumeric(value?: unknown): boolean | Emit
 };
 (_isAlphanumeric as any).ruleName = 'isAlphanumeric';
 (_isAlphanumeric as any).requiresType = 'string';
+(_isAlphanumeric as any).constraints = {};
 export const isAlphanumeric = _isAlphanumeric;
 
 // BooleanString: 'true' | 'false' | '1' | '0'
@@ -188,6 +199,7 @@ const _isBooleanString = (value: unknown): boolean =>
   `if (${varName} !== 'true' && ${varName} !== 'false' && ${varName} !== '1' && ${varName} !== '0') ${ctx.fail('isBooleanString')};`;
 (_isBooleanString as any).ruleName = 'isBooleanString';
 (_isBooleanString as any).requiresType = 'string';
+(_isBooleanString as any).constraints = {};
 export const isBooleanString = _isBooleanString as EmittableRule;
 
 export interface IsNumberStringOptions {
@@ -195,7 +207,7 @@ export interface IsNumberStringOptions {
 }
 
 export function isNumberString(options?: IsNumberStringOptions): EmittableRule {
-  return makeStringRule(
+  const fn = makeStringRule(
     'isNumberString',
     (v) => {
       if (v.length === 0) return false;
@@ -213,6 +225,8 @@ export function isNumberString(options?: IsNumberStringOptions): EmittableRule {
       return `if (!_refs[${i}](${varName})) ${ctx.fail('isNumberString')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 export interface IsDecimalOptions {
@@ -223,7 +237,7 @@ export interface IsDecimalOptions {
 
 export function isDecimal(options?: IsDecimalOptions): EmittableRule {
   const decimalRe = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/;
-  return makeStringRule(
+  const fn = makeStringRule(
     'isDecimal',
     (v) => decimalRe.test(v),
     (varName, ctx) => {
@@ -231,6 +245,8 @@ export function isDecimal(options?: IsDecimalOptions): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isDecimal')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // Full-width characters (Unicode fullwidth forms)
@@ -243,6 +259,7 @@ export const isFullWidth = makeStringRule(
     return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isFullWidth')};`;
   },
 );
+(isFullWidth as any).constraints = {};
 
 // Half-width characters
 const HALFWIDTH_RE = /[\u0020-\u007E\uFF61-\uFF9F]/;
@@ -254,6 +271,7 @@ export const isHalfWidth = makeStringRule(
     return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isHalfWidth')};`;
   },
 );
+(isHalfWidth as any).constraints = {};
 
 // Variable-width: must contain both full-width AND half-width
 export const isVariableWidth = makeStringRule(
@@ -265,6 +283,7 @@ export const isVariableWidth = makeStringRule(
     return `if (!_re[${i1}].test(${varName}) || !_re[${i2}].test(${varName})) ${ctx.fail('isVariableWidth')};`;
   },
 );
+(isVariableWidth as any).constraints = {};
 
 // Multibyte: any character outside Latin-1 / half-width range
 const MULTIBYTE_RE = /[^\x00-\xFF]/;
@@ -276,6 +295,7 @@ export const isMultibyte = makeStringRule(
     return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isMultibyte')};`;
   },
 );
+(isMultibyte as any).constraints = {};
 
 // Surrogate pairs
 const SURROGATE_RE = /[\uD800-\uDBFF][\uDC00-\uDFFF]/;
@@ -287,6 +307,7 @@ export const isSurrogatePair = makeStringRule(
     return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isSurrogatePair')};`;
   },
 );
+(isSurrogatePair as any).constraints = {};
 
 // Hexadecimal
 const HEX_RE = /^[0-9a-fA-F]+$/;
@@ -298,6 +319,7 @@ export const isHexadecimal = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isHexadecimal')};`;
   },
 );
+(isHexadecimal as any).constraints = {};
 
 // Octal
 const OCTAL_RE = /^(0[oO])?[0-7]+$/;
@@ -309,6 +331,7 @@ export const isOctal = makeStringRule(
     return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isOctal')};`;
   },
 );
+(isOctal as any).constraints = {};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Group C: Regex-based
@@ -324,7 +347,7 @@ export interface IsEmailOptions {
 const EMAIL_RE = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
 export function isEmail(_options?: IsEmailOptions): EmittableRule {
-  return makeStringRule(
+  const fn = makeStringRule(
     'isEmail',
     (v) => EMAIL_RE.test(v),
     (varName, ctx) => {
@@ -332,6 +355,8 @@ export function isEmail(_options?: IsEmailOptions): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isEmail')};`;
     },
   );
+  (fn as any).constraints = { format: 'email' };
+  return fn;
 }
 
 // URL — RFC 3986 simplified
@@ -364,6 +389,7 @@ export function isURL(options?: IsURLOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isURL';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { format: 'uri' };
 
   return fn as EmittableRule;
 }
@@ -380,7 +406,7 @@ const UUID_RE: Record<string | number, RegExp> = {
 
 export function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
   const re = (version != null ? (UUID_RE[version] ?? UUID_RE.all) : UUID_RE.all)!;
-  return makeStringRule(
+  const fn = makeStringRule(
     'isUUID',
     (v) => re.test(v),
     (varName, ctx) => {
@@ -388,6 +414,8 @@ export function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isUUID')};`;
     },
   );
+  (fn as any).constraints = { format: 'uuid' };
+  return fn;
 }
 
 // IP
@@ -417,6 +445,7 @@ export function isIP(version?: 4 | 6): EmittableRule {
   };
   (fn as any).ruleName = 'isIP';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = { version };
 
   return fn as EmittableRule;
 }
@@ -431,6 +460,7 @@ export const isHexColor = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isHexColor')};`;
   },
 );
+(isHexColor as any).constraints = {};
 
 // RgbColor
 const RGB_RE = /^rgb\(\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*\)$/;
@@ -455,6 +485,7 @@ export function isRgbColor(includePercentValues: boolean = false): EmittableRule
   };
   (fn as any).ruleName = 'isRgbColor';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -469,6 +500,7 @@ export const isHSL = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isHSL')};`;
   },
 );
+(isHSL as any).constraints = {};
 
 // MAC Address
 export interface IsMACAddressOptions {
@@ -497,6 +529,7 @@ export function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isMACAddress';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -537,6 +570,7 @@ export function isISBN(version?: 10 | 13): EmittableRule {
   };
   (validateFn as any).ruleName = 'isISBN';
   (validateFn as any).requiresType = 'string';
+  (validateFn as any).constraints = {};
 
   return validateFn as EmittableRule;
 }
@@ -576,6 +610,7 @@ export const isISIN = makeStringRule(
     return `if (!_refs[${i}](${varName})) ${ctx.fail('isISIN')};`;
   },
 );
+(isISIN as any).constraints = {};
 
 // ISO 8601
 const ISO8601_RE = /^\d{4}(?:-\d{2}(?:-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
@@ -609,10 +644,11 @@ export function isISO8601(options?: IsISO8601Options): EmittableRule {
       const i = ctx.addRef(fn);
       return `if (!_refs[${i}](${varName})) ${ctx.fail('isISO8601')};`;
     };
+    (fn as any).constraints = { format: 'date-time' };
     return fn as unknown as EmittableRule;
   }
   // non-strict: both validate and emit use same ISO8601_RE
-  return makeStringRule(
+  const fn = makeStringRule(
     'isISO8601',
     (v) => ISO8601_RE.test(v),
     (varName, ctx) => {
@@ -620,6 +656,8 @@ export function isISO8601(options?: IsISO8601Options): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isISO8601')};`;
     },
   );
+  (fn as any).constraints = { format: 'date-time' };
+  return fn;
 }
 
 // ISRC — ISO 3901
@@ -632,6 +670,7 @@ export const isISRC = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isISRC')};`;
   },
 );
+(isISRC as any).constraints = {};
 
 // ISSN
 export interface IsISSNOptions {
@@ -667,6 +706,7 @@ export function isISSN(options?: IsISSNOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isISSN';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -681,6 +721,7 @@ export const isJWT = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isJWT')};`;
   },
 );
+(isJWT as any).constraints = {};
 
 // LatLong
 export interface IsLatLongOptions {
@@ -690,7 +731,7 @@ export interface IsLatLongOptions {
 const LAT_LONG_RE = /^[-+]?([1-8]?\d(?:\.\d+)?|90(?:\.0+)?),\s*[-+]?(180(?:\.0+)?|1[0-7]\d(?:\.\d+)?|\d{1,2}(?:\.\d+)?)$/;
 
 export function isLatLong(options?: IsLatLongOptions): EmittableRule {
-  return makeStringRule(
+  const fn = makeStringRule(
     'isLatLong',
     (v) => LAT_LONG_RE.test(v),
     (varName, ctx) => {
@@ -698,6 +739,8 @@ export function isLatLong(options?: IsLatLongOptions): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isLatLong')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // Locale — BCP 47 simplified
@@ -710,6 +753,7 @@ export const isLocale = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isLocale')};`;
   },
 );
+(isLocale as any).constraints = {};
 
 // DataURI
 const DATA_URI_RE = /^data:([a-zA-Z0-9!#$&\-^_]+\/[a-zA-Z0-9!#$&\-^_]+)(?:;[a-zA-Z0-9\-]+=[a-zA-Z0-9\-]+)*(?:;base64)?,[\s\S]*$/;
@@ -721,6 +765,7 @@ export const isDataURI = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isDataURI')};`;
   },
 );
+(isDataURI as any).constraints = {};
 
 // FQDN
 export interface IsFQDNOptions {
@@ -757,6 +802,7 @@ export function isFQDN(options?: IsFQDNOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isFQDN';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -771,6 +817,7 @@ export const isPort = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPort')};`;
   },
 );
+(isPort as any).constraints = {};
 
 // EAN (EAN-8 and EAN-13 with checksum)
 function _validateEAN(value: string): boolean {
@@ -793,6 +840,7 @@ export const isEAN = makeStringRule(
     return `if (!_refs[${i}](${varName})) ${ctx.fail('isEAN')};`;
   },
 );
+(isEAN as any).constraints = {};
 
 // ISO 3166-1 Alpha-2
 const ISO31661A2_CODES = new Set([
@@ -825,6 +873,7 @@ const _isISO31661Alpha2 = (value: unknown): boolean => {
 };
 (_isISO31661Alpha2 as any).ruleName = 'isISO31661Alpha2';
 (_isISO31661Alpha2 as any).requiresType = 'string';
+(_isISO31661Alpha2 as any).constraints = {};
 export const isISO31661Alpha2 = _isISO31661Alpha2 as EmittableRule;
 
 // ISO 3166-1 Alpha-3
@@ -858,6 +907,7 @@ const _isISO31661Alpha3 = (value: unknown): boolean => {
 };
 (_isISO31661Alpha3 as any).ruleName = 'isISO31661Alpha3';
 (_isISO31661Alpha3 as any).requiresType = 'string';
+(_isISO31661Alpha3 as any).constraints = {};
 export const isISO31661Alpha3 = _isISO31661Alpha3 as EmittableRule;
 
 // BIC / SWIFT code
@@ -870,6 +920,7 @@ export const isBIC = makeStringRule(
     return `if (!_re[${i}].test(${varName}.toUpperCase())) ${ctx.fail('isBIC')};`;
   },
 );
+(isBIC as any).constraints = {};
 
 // Firebase Push ID — 20 chars, base64url charset (-0-9A-Za-z_)
 const FIREBASE_RE = /^[a-zA-Z0-9_-]{20}$/;
@@ -881,6 +932,7 @@ export const isFirebasePushId = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isFirebasePushId')};`;
   },
 );
+(isFirebasePushId as any).constraints = {};
 
 // SemVer — Semantic Versioning 2.0
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -892,6 +944,7 @@ export const isSemVer = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isSemVer')};`;
   },
 );
+(isSemVer as any).constraints = {};
 
 // MongoDB ObjectId — 24-char hex
 const MONGO_ID_RE = /^[0-9a-fA-F]{24}$/;
@@ -903,6 +956,7 @@ export const isMongoId = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMongoId')};`;
   },
 );
+(isMongoId as any).constraints = {};
 
 // JSON
 const _isJSON = (value: unknown): boolean => {
@@ -923,6 +977,7 @@ const _isJSON = (value: unknown): boolean => {
 };
 (_isJSON as any).ruleName = 'isJSON';
 (_isJSON as any).requiresType = 'string';
+(_isJSON as any).constraints = {};
 export const isJSON = _isJSON as EmittableRule;
 
 // Base32
@@ -935,7 +990,7 @@ export interface IsBase32Options {
 
 export function isBase32(options?: IsBase32Options): EmittableRule {
   const re = BASE32_RE;
-  return makeStringRule(
+  const fn = makeStringRule(
     'isBase32',
     (v) => {
       if (v.length === 0) return false;
@@ -947,6 +1002,8 @@ export function isBase32(options?: IsBase32Options): EmittableRule {
       return `if (${varName}.length === 0 || ${varName}.length % 8 !== 0 || !_re[${i}].test(${varName})) ${ctx.fail('isBase32')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // Base58
@@ -959,6 +1016,7 @@ export const isBase58 = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isBase58')};`;
   },
 );
+(isBase58 as any).constraints = {};
 
 // Base64
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/;
@@ -970,7 +1028,7 @@ export interface IsBase64Options {
 
 export function isBase64(options?: IsBase64Options): EmittableRule {
   const re = options?.urlSafe ? BASE64_URL_RE : BASE64_RE;
-  return makeStringRule(
+  const fn = makeStringRule(
     'isBase64',
     (v) => {
       if (v.length === 0) return false;
@@ -981,6 +1039,8 @@ export function isBase64(options?: IsBase64Options): EmittableRule {
       return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // DateString — ISO 8601 date only (YYYY-MM-DD)
@@ -991,7 +1051,7 @@ export interface IsDateStringOptions {
 }
 
 export function isDateString(options?: IsDateStringOptions): EmittableRule {
-  return makeStringRule(
+  const fn = makeStringRule(
     'isDateString',
     (v) => DATE_STRING_RE.test(v),
     (varName, ctx) => {
@@ -999,6 +1059,8 @@ export function isDateString(options?: IsDateStringOptions): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isDateString')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // MimeType
@@ -1011,6 +1073,7 @@ export const isMimeType = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMimeType')};`;
   },
 );
+(isMimeType as any).constraints = {};
 
 // Currency
 export interface IsCurrencyOptions {
@@ -1034,7 +1097,7 @@ export interface IsCurrencyOptions {
 const CURRENCY_RE = /^[-+]?(?:[,.\d]+)(?:[.,]\d{2})?$|^\$?-?(?:\d+|\d{1,3}(?:,\d{3})*)(?:\.\d{1,2})?$/;
 
 export function isCurrency(options?: IsCurrencyOptions): EmittableRule {
-  return makeStringRule(
+  const fn = makeStringRule(
     'isCurrency',
     (v) => {
       if (v.length === 0) return false;
@@ -1045,6 +1108,8 @@ export function isCurrency(options?: IsCurrencyOptions): EmittableRule {
       return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isCurrency')};`;
     },
   );
+  (fn as any).constraints = {};
+  return fn;
 }
 
 // Magnet URI
@@ -1057,6 +1122,7 @@ export const isMagnetURI = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMagnetURI')};`;
   },
 );
+(isMagnetURI as any).constraints = {};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Group D: Algorithm-based
@@ -1095,6 +1161,7 @@ const _isCreditCard = (value: unknown): boolean => {
 }`;
 (_isCreditCard as any).ruleName = 'isCreditCard';
 (_isCreditCard as any).requiresType = 'string';
+(_isCreditCard as any).constraints = {};
 export const isCreditCard = _isCreditCard as EmittableRule;
 
 // IBAN — ISO 13616 mod-97
@@ -1146,6 +1213,7 @@ export function isIBAN(options?: IsIBANOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isIBAN';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -1173,6 +1241,7 @@ export function isByteLength(min: number, max?: number): EmittableRule {
   };
   (fn as any).ruleName = 'isByteLength';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -1222,6 +1291,7 @@ export function isHash(algorithm: string): EmittableRule {
   };
   (fn as any).ruleName = 'isHash';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -1238,6 +1308,7 @@ export const isRFC3339 = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isRFC3339')};`;
   },
 );
+(isRFC3339 as any).constraints = {};
 
 // isMilitaryTime — HH:MM 24시간 형식 (§4.8 B)
 
@@ -1251,6 +1322,7 @@ export const isMilitaryTime = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMilitaryTime')};`;
   },
 );
+(isMilitaryTime as any).constraints = {};
 
 // isLatitude — string 또는 number, -90 ~ 90 (requiresType none)
 
@@ -1277,6 +1349,7 @@ const _isLatitude = (value: unknown): boolean => _checkLatitude(value);
   return `if (!_refs[${i}](${varName})) ${ctx.fail('isLatitude')};`;
 };
 (_isLatitude as any).ruleName = 'isLatitude';
+(_isLatitude as any).constraints = {};
 // requiresType = undefined — string|number 모두 처리
 
 export const isLatitude = _isLatitude as EmittableRule;
@@ -1303,6 +1376,7 @@ const _isLongitude = (value: unknown): boolean => _checkLongitude(value);
   return `if (!_refs[${i}](${varName})) ${ctx.fail('isLongitude')};`;
 };
 (_isLongitude as any).ruleName = 'isLongitude';
+(_isLongitude as any).constraints = {};
 // requiresType = undefined — string|number 모두 처리
 
 export const isLongitude = _isLongitude as EmittableRule;
@@ -1319,6 +1393,7 @@ export const isEthereumAddress = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isEthereumAddress')};`;
   },
 );
+(isEthereumAddress as any).constraints = {};
 
 // isBtcAddress — P2PKH (1...), P2SH (3...), bech32 (bc1...) (§4.8 B)
 
@@ -1336,6 +1411,7 @@ export const isBtcAddress = makeStringRule(
     return `if (!_re[${i1}].test(${varName}) && !_re[${i2}].test(${varName}) && !_re[${i3}].test(${varName})) ${ctx.fail('isBtcAddress')};`;
   },
 );
+(isBtcAddress as any).constraints = {};
 
 // isISO4217CurrencyCode — ISO 4217 통화 코드 집합 (§4.8 C: ref 기반)
 
@@ -1368,6 +1444,7 @@ export const isISO4217CurrencyCode = makeStringRule(
     return `if (!_refs[${i}].has(${varName})) ${ctx.fail('isISO4217CurrencyCode')};`;
   },
 );
+(isISO4217CurrencyCode as any).constraints = {};
 
 // isPhoneNumber — E.164 국제 전화번호 (§4.8 B)
 
@@ -1381,6 +1458,7 @@ export const isPhoneNumber = makeStringRule(
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPhoneNumber')};`;
   },
 );
+(isPhoneNumber as any).constraints = {};
 
 // isStrongPassword — 강력한 비밀번호 체크 (§4.8 C: factory)
 
@@ -1431,6 +1509,7 @@ export function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRu
   };
   (fn as any).ruleName = 'isStrongPassword';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }
@@ -1468,6 +1547,7 @@ export function isTaxId(locale: string): EmittableRule {
   };
   (fn as any).ruleName = 'isTaxId';
   (fn as any).requiresType = 'string';
+  (fn as any).constraints = {};
 
   return fn as EmittableRule;
 }

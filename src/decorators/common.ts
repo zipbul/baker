@@ -51,6 +51,18 @@ export function ValidateNested(options?: ValidationOptions): PropertyDecorator {
   };
 }
 
+/**
+ * null 허용+할당. undefined는 거부.
+ * @IsOptional과 조합 시: null은 할당, undefined는 skip.
+ * @IsDefined와 조합 시: Case 3과 동일 (추가 효과 없음).
+ */
+export function IsNullable(_options?: ValidationOptions): PropertyDecorator {
+  return (target, key) => {
+    const meta = ensureMeta((target as any).constructor, key as string);
+    meta.flags.isNullable = true;
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Rule-based decorators — collectValidation으로 등록 (§3.2)
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { RAW } from './symbols';
+import { RAW, RAW_CLASS_SCHEMA } from './symbols';
 import { globalRegistry } from './registry';
 import type { RawPropertyMeta, RuleDef, TransformDef, ExposeDef, ExcludeDef, TypeDef } from './types';
 
@@ -31,6 +31,7 @@ export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
     exclude: null,
     type: null,
     flags: {},
+    schema: null,
   });
 }
 
@@ -61,4 +62,23 @@ export function collectExclude(target: object, key: string, excludeDef: ExcludeD
 export function collectType(target: object, key: string, typeDef: TypeDef): void {
   const meta = ensureMeta((target as any).constructor, key);
   meta.type = typeDef;
+}
+
+export function collectSchema(
+  target: object, key: string,
+  schemaDef: Record<string, unknown> | ((auto: Record<string, unknown>) => Record<string, unknown>),
+): void {
+  const meta = ensureMeta((target as any).constructor, key);
+  // 함수형은 항상 덮어씌움 (마지막 선언 우선)
+  if (typeof schemaDef === 'function' || typeof meta.schema === 'function') {
+    meta.schema = schemaDef;
+  } else {
+    meta.schema = { ...(meta.schema ?? {}), ...schemaDef } as Record<string, unknown>;
+  }
+}
+
+export function collectClassSchema(target: Function, schema: Record<string, unknown>): void {
+  globalRegistry.add(target);
+  const existing = (target as any)[RAW_CLASS_SCHEMA] as Record<string, unknown> | undefined;
+  (target as any)[RAW_CLASS_SCHEMA] = { ...(existing ?? {}), ...schema };
 }

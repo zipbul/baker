@@ -16,6 +16,8 @@ export function minDate(date: Date): EmittableRule {
   };
 
   (fn as any).ruleName = 'minDate';
+  (fn as any).requiresType = 'date';
+  (fn as any).constraints = { min: date.toISOString() };
 
   return fn as EmittableRule;
 }
@@ -36,6 +38,8 @@ export function maxDate(date: Date): EmittableRule {
   };
 
   (fn as any).ruleName = 'maxDate';
+  (fn as any).requiresType = 'date';
+  (fn as any).constraints = { max: date.toISOString() };
 
   return fn as EmittableRule;
 }

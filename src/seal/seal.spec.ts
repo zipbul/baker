@@ -33,6 +33,7 @@ function makeStringField(name: string, rules: RuleDef[] = []): RawClassMeta {
       exclude: null,
       type: null,
       flags: {},
+      schema: null,
     },
   };
 }
@@ -134,6 +135,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => AddressDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     });
     // Act
@@ -185,6 +187,7 @@ describe('seal', () => {
         exclude: null,
         type: null,
         flags: {},
+        schema: null,
       },
     });
     // Act / Assert
@@ -221,7 +224,7 @@ describe('seal', () => {
     // Arrange — self-referencing DTO
     class TreeDto {}
     (TreeDto as any)[RAW] = {
-      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
       child: {
         validation: [],
         transform: [],
@@ -229,6 +232,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => TreeDto as any },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     globalRegistry.add(TreeDto);
@@ -305,6 +309,7 @@ describe('seal', () => {
           },
         },
         flags: { validateNested: true },
+        schema: null,
       },
     };
     registerClass(AnimalContainerDto, raw);
@@ -334,6 +339,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => NestedTarget as any },
         flags: {}, // no validateNested
+        schema: null,
       },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
@@ -351,7 +357,7 @@ describe('seal', () => {
     // Arrange — nested DTO has banned field name 'constructor' → SealError during sealOne
     // NOT registered in globalRegistry so ParentDto's sealOne triggers it via @Type
     class BrokenNested {}
-    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     freeClasses.push(BrokenNested);
 
     class ParentDto {}
@@ -363,6 +369,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => BrokenNested as any },
         flags: { validateNested: true },
+        schema: null,
       },
     });
     // Act — seal fails mid-process; ParentDto gets placeholder before nested DTO throws
@@ -376,7 +383,7 @@ describe('seal', () => {
   it('should throw "seal in progress" from placeholder _serialize when nested DTO seal fails', () => {
     // Arrange
     class BrokenNested2 {}
-    (BrokenNested2 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    (BrokenNested2 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     freeClasses.push(BrokenNested2);
 
     class ParentDto2 {}
@@ -388,6 +395,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => BrokenNested2 as any },
         flags: { validateNested: true },
+        schema: null,
       },
     });
     // Act
@@ -401,7 +409,7 @@ describe('seal', () => {
   it('should retain placeholder on SEALED when sealOne encounters error mid-process', () => {
     // Arrange
     class BrokenNested3 {}
-    (BrokenNested3 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    (BrokenNested3 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     freeClasses.push(BrokenNested3);
 
     class ParentDto3 {}
@@ -413,6 +421,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => BrokenNested3 as any },
         flags: { validateNested: true },
+        schema: null,
       },
     });
     // Act
@@ -439,6 +448,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => NestedA as any },
         flags: {}, // no validateNested
+        schema: null,
       },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
@@ -464,6 +474,7 @@ describe('seal', () => {
         exclude: null,
         type: { fn: () => NestedB as any },
         flags: {}, // no validateNested
+        schema: null,
       },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
@@ -513,12 +524,12 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseDto {}
     (BaseDto as any)[RAW] = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
 
     class ChildDto extends BaseDto {}
     (ChildDto as any)[RAW] = {
-      name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildDto);
@@ -538,11 +549,11 @@ describe('mergeInheritance', () => {
 
     class BaseTr {}
     (BaseTr as any)[RAW] = {
-      name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildTr extends BaseTr {}
     (ChildTr as any)[RAW] = {
-      name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildTr);
@@ -556,11 +567,11 @@ describe('mergeInheritance', () => {
     const parentFn2 = (v: any) => v;
     class BaseTr2 {}
     (BaseTr2 as any)[RAW] = {
-      x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {} },
+      x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildTr2 extends BaseTr2 {}
     (ChildTr2 as any)[RAW] = {
-      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildTr2);
@@ -573,11 +584,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseEx {}
     (BaseEx as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {} },
+      field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildEx extends BaseEx {}
     (ChildEx as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {} },
+      field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildEx);
@@ -589,11 +600,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseEx2 {}
     (BaseEx2 as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {} },
+      field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildEx2 extends BaseEx2 {}
     (ChildEx2 as any)[RAW] = {
-      field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildEx2);
@@ -606,11 +617,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseExcl {}
     (BaseExcl as any)[RAW] = {
-      secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {} },
+      secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {}, schema: null },
     };
     class ChildExcl extends BaseExcl {}
     (ChildExcl as any)[RAW] = {
-      secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildExcl);
@@ -623,11 +634,11 @@ describe('mergeInheritance', () => {
     class NestedDto {}
     class BaseType {}
     (BaseType as any)[RAW] = {
-      nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {} },
+      nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {}, schema: null },
     };
     class ChildType extends BaseType {}
     (ChildType as any)[RAW] = {
-      nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildType);
@@ -639,11 +650,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseFlag {}
     (BaseFlag as any)[RAW] = {
-      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true } },
+      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true }, schema: null },
     };
     class ChildFlag extends BaseFlag {}
     (ChildFlag as any)[RAW] = {
-      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildFlag);
@@ -656,11 +667,11 @@ describe('mergeInheritance', () => {
     const sharedRule = isString;
     class BaseDup {}
     (BaseDup as any)[RAW] = {
-      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildDup extends BaseDup {}
     (ChildDup as any)[RAW] = {
-      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(ChildDup);
@@ -687,7 +698,7 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseNR2 {}
     (BaseNR2 as any)[RAW] = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class ChildNR2 extends BaseNR2 {}
     // ChildNR2 has no own RAW — rule must appear exactly once
@@ -718,15 +729,15 @@ describe('mergeInheritance', () => {
     // Arrange
     class GrandParent {}
     (GrandParent as any)[RAW] = {
-      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class ParentLevel extends GrandParent {}
     (ParentLevel as any)[RAW] = {
-      x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     class Child3 extends ParentLevel {}
     (Child3 as any)[RAW] = {
-      x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
     // Act
     const merged = mergeInheritance(Child3);
@@ -741,7 +752,7 @@ describe('mergeInheritance', () => {
 
 /** RAW 메타에 bannedKey 이름의 필드를 own enumerable property로 추가하는 헬퍼 */
 function makeRawWithBannedKey(bannedKey: string): RawClassMeta {
-  const fieldMeta = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
+  const fieldMeta = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null };
   const raw = Object.create(null) as RawClassMeta;
   Object.defineProperty(raw, bannedKey, {
     value: fieldMeta,
@@ -764,7 +775,7 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named constructor', () => {
     // Arrange
     class BannedConstructorDto {}
-    const raw = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    const raw = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     registerClass(BannedConstructorDto, raw);
     // Act / Assert
     expect(() => seal()).toThrow(SealError);
@@ -773,7 +784,7 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named prototype', () => {
     // Arrange
     class BannedPrototypeDto {}
-    const raw = { prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } } as unknown as RawClassMeta;
+    const raw = { prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     registerClass(BannedPrototypeDto, raw);
     // Act / Assert
     expect(() => seal()).toThrow(SealError);
@@ -784,11 +795,11 @@ describe('sealOne — banned field names (C5)', () => {
     class MixedBannedDto {}
     const raw = Object.create(null) as RawClassMeta;
     Object.defineProperty(raw, 'name', {
-      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
       enumerable: true, writable: true, configurable: true,
     });
     Object.defineProperty(raw, 'constructor', {
-      value: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
+      value: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
       enumerable: true, writable: true, configurable: true,
     });
     registerClass(MixedBannedDto, raw);

@@ -355,7 +355,7 @@ describe('isInt', () => {
     expect(code).toContain('Number.isInteger');
     expect(failMock).toHaveBeenCalledWith('isInt');
     expect(isInt.ruleName).toBe('isInt');
-    expect((isInt as any).requiresType).toBeUndefined();
+    expect((isInt as any).requiresType).toBe('number');
   });
 });
 

@@ -87,8 +87,8 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
 
   // 0. placeholder 등록 — 순환 참조 시 무한 재귀 방지
   const placeholder: SealedExecutors<T> = {
-    _deserialize: () => { throw new Error('seal in progress'); },
-    _serialize: () => { throw new Error('seal in progress'); },
+    _deserialize: () => { throw new SealError('seal in progress'); },
+    _serialize: () => { throw new SealError('seal in progress'); },
     _isAsync: false,
     _isSerializeAsync: false,
   };
@@ -197,6 +197,7 @@ export function mergeInheritance(Class: Function): RawClassMeta {
           exclude: meta.exclude,
           type: meta.type,
           flags: { ...meta.flags },
+          schema: typeof meta.schema === 'function' ? meta.schema : (meta.schema ? { ...meta.schema } : null),
         };
       } else {
         // 이미 자식에 존재 → 카테고리별 독립 병합 (§4.2)
@@ -236,8 +237,22 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         if (pf.isOptional !== undefined && mf.isOptional === undefined) mf.isOptional = pf.isOptional;
         if (pf.isDefined !== undefined && mf.isDefined === undefined) mf.isDefined = pf.isDefined;
         if (pf.validateIf !== undefined && mf.validateIf === undefined) mf.validateIf = pf.validateIf;
+        if (pf.isNullable !== undefined && mf.isNullable === undefined) mf.isNullable = pf.isNullable;
         if (pf.validateNested !== undefined && mf.validateNested === undefined) mf.validateNested = pf.validateNested;
         if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) mf.validateNestedEach = pf.validateNestedEach;
+
+        // schema: 자식 우선, 자식에 없으면 부모 계승
+        if (m.schema == null && p.schema != null) {
+          m.schema = typeof p.schema === 'function' ? p.schema : { ...p.schema };
+        } else if (m.schema != null && p.schema != null) {
+          if (typeof m.schema === 'function') { /* 자식 함수형 유지 */ }
+          else if (typeof p.schema === 'function') { /* 자식 객체형 유지 */ }
+          else {
+            for (const [sk, sv] of Object.entries(p.schema)) {
+              if (!(sk in m.schema)) m.schema[sk] = sv;
+            }
+          }
+        }
       }
     }
   }

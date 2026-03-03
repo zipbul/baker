@@ -8,3 +8,6 @@ export const RAW = Symbol.for('baker:raw');
 
 /** Tier 2 봉인 결과 (seal()이 Class에 저장하는 dual executor) */
 export const SEALED = Symbol.for('baker:sealed');
+
+/** 클래스 레벨 @Schema() 메타데이터 */
+export const RAW_CLASS_SCHEMA = Symbol.for('baker:rawClassSchema');
