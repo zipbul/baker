@@ -76,6 +76,31 @@ describe('min', () => {
     // Act / Assert
     expect((rule as any).requiresType).toBe('number');
   });
+
+  it('exclusive: value > n (boundary excluded)', () => {
+    const rule = min(5, { exclusive: true });
+    expect(rule(5)).toBe(false);
+    expect(rule(6)).toBe(true);
+    expect(rule(4)).toBe(false);
+  });
+
+  it('exclusive: emit generates v <= n check', () => {
+    const rule = min(10, { exclusive: true });
+    const { ctx, failMock } = makeCtx();
+    const code = rule.emit('_v', ctx);
+    expect(code).toContain('_v <= 10');
+    expect(failMock).toHaveBeenCalledWith('min');
+  });
+
+  it('exclusive: constraints include exclusive flag', () => {
+    const rule = min(3, { exclusive: true });
+    expect(rule.constraints).toEqual({ min: 3, exclusive: true });
+  });
+
+  it('non-exclusive: constraints do not include exclusive', () => {
+    const rule = min(3);
+    expect(rule.constraints).toEqual({ min: 3 });
+  });
 });
 
 // ─── max ─────────────────────────────────────────────────────────────────────
@@ -132,6 +157,26 @@ describe('max', () => {
     const rule = max(10);
     // Act / Assert
     expect((rule as any).requiresType).toBe('number');
+  });
+
+  it('exclusive: value < n (boundary excluded)', () => {
+    const rule = max(5, { exclusive: true });
+    expect(rule(5)).toBe(false);
+    expect(rule(4)).toBe(true);
+    expect(rule(6)).toBe(false);
+  });
+
+  it('exclusive: emit generates v >= n check', () => {
+    const rule = max(10, { exclusive: true });
+    const { ctx, failMock } = makeCtx();
+    const code = rule.emit('_v', ctx);
+    expect(code).toContain('_v >= 10');
+    expect(failMock).toHaveBeenCalledWith('max');
+  });
+
+  it('exclusive: constraints include exclusive flag', () => {
+    const rule = max(7, { exclusive: true });
+    expect(rule.constraints).toEqual({ max: 7, exclusive: true });
   });
 });
 

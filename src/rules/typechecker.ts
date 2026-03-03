@@ -10,6 +10,7 @@ const _isString = (value: unknown): boolean => typeof value === 'string';
   `if (typeof ${varName} !== 'string') ${ctx.fail('isString')};`;
 
 (_isString as any).ruleName = 'isString';
+(_isString as any).constraints = {};
 // requiresType은 undefined — 자체 typeof 포함 (§4.7)
 
 export const isString = _isString as EmittableRule;
@@ -59,6 +60,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
   };
 
   (fn as any).ruleName = 'isNumber';
+  (fn as any).constraints = { allowNaN: options?.allowNaN, allowInfinity: options?.allowInfinity, maxDecimalPlaces: options?.maxDecimalPlaces };
   // requiresType은 undefined — 자체 typeof 포함
 
   return fn as EmittableRule;
@@ -74,6 +76,7 @@ const _isBoolean = (value: unknown): boolean => typeof value === 'boolean';
   `if (typeof ${varName} !== 'boolean') ${ctx.fail('isBoolean')};`;
 
 (_isBoolean as any).ruleName = 'isBoolean';
+(_isBoolean as any).constraints = {};
 
 export const isBoolean = _isBoolean as EmittableRule;
 
@@ -88,6 +91,7 @@ const _isDate = (value: unknown): boolean =>
   `if (!(${varName} instanceof Date) || isNaN(${varName}.getTime())) ${ctx.fail('isDate')};`;
 
 (_isDate as any).ruleName = 'isDate';
+(_isDate as any).constraints = {};
 
 export const isDate = _isDate as EmittableRule;
 
@@ -106,6 +110,7 @@ export function isEnum(entity: object): EmittableRule {
   };
 
   (fn as any).ruleName = 'isEnum';
+  (fn as any).constraints = { values: Object.values(entity) };
 
   return fn as EmittableRule;
 }
@@ -121,6 +126,8 @@ const _isInt = (value: unknown): boolean =>
   `if (typeof ${varName} !== 'number' || !Number.isInteger(${varName})) ${ctx.fail('isInt')};`;
 
 (_isInt as any).ruleName = 'isInt';
+(_isInt as any).requiresType = 'number';
+(_isInt as any).constraints = {};
 
 export const isInt = _isInt as EmittableRule;
 
@@ -134,6 +141,7 @@ const _isArray = (value: unknown): boolean => Array.isArray(value);
   `if (!Array.isArray(${varName})) ${ctx.fail('isArray')};`;
 
 (_isArray as any).ruleName = 'isArray';
+(_isArray as any).constraints = {};
 // requiresType은 undefined — 자체 Array.isArray 체크 포함
 
 export const isArray = _isArray as EmittableRule;
@@ -149,6 +157,7 @@ const _isObject = (value: unknown): boolean =>
   `if (typeof ${varName} !== 'object' || ${varName} === null || Array.isArray(${varName})) ${ctx.fail('isObject')};`;
 
 (_isObject as any).ruleName = 'isObject';
+(_isObject as any).constraints = {};
 // requiresType은 undefined — 자체 typeof + null + Array.isArray 체크 포함
 
 export const isObject = _isObject as EmittableRule;

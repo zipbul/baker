@@ -27,6 +27,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
     return `if (Object.keys(${varName}).length === 0) ${ctx.fail('isNotEmptyObject')};`;
   };
   (fn as any).ruleName = 'isNotEmptyObject';
+  (fn as any).constraints = { nullable: options?.nullable };
 
   return fn as EmittableRule;
 }
@@ -43,6 +44,7 @@ export function isInstance(targetType: new (...args: any[]) => any): EmittableRu
     return `if (!(${varName} instanceof _refs[${i}])) ${ctx.fail('isInstance')};`;
   };
   (fn as any).ruleName = 'isInstance';
+  (fn as any).constraints = { type: targetType.name };
 
   return fn as EmittableRule;
 }

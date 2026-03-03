@@ -30,7 +30,9 @@ export interface EmittableRule {
    * 해당 타입을 전제하는 rule만 설정 (예: isEmail → 'string').
    * @IsString 자체는 undefined (자체 typeof 포함).
    */
-  readonly requiresType?: 'string' | 'number';
+  readonly requiresType?: 'string' | 'number' | 'boolean' | 'date';
+  /** 룰 파라미터를 외부에서 읽을 수 있도록 노출 — toJsonSchema 매핑에 사용 */
+  readonly constraints?: Record<string, unknown>;
   /** async validate 함수 사용 시 true — deserialize-builder가 await 코드를 생성 */
   readonly isAsync?: boolean;
 }
@@ -43,7 +45,7 @@ export interface EmittableRule {
 export interface MessageArgs {
   property: string;
   value: unknown;
-  constraints: unknown[];
+  constraints: Record<string, unknown>;
 }
 
 export interface RuleDef {
@@ -104,8 +106,10 @@ export interface TypeDef {
 export interface PropertyFlags {
   /** @IsOptional() — undefined/null 시 validation 전체 skip */
   isOptional?: boolean;
-  /** @IsDefined() — null/undefined 불허. isOptional과 동시 시 IsDefined 우선 */
+  /** @IsDefined() — undefined 불허 (@IsOptional 오버라이드). 현재 코드는 undefined만 거부, null은 후속 검증에 위임 */
   isDefined?: boolean;
+  /** @IsNullable() — null 허용+할당, undefined는 거부 */
+  isNullable?: boolean;
   /** @ValidateIf(cond) — false 시 필드 전체 검증 skip */
   validateIf?: (obj: any) => boolean;
   /** @ValidateNested() — 중첩 DTO 재귀 검증 트리거. @Type과 함께 사용 */
@@ -125,6 +129,7 @@ export interface RawPropertyMeta {
   exclude: ExcludeDef | null;
   type: TypeDef | null;
   flags: PropertyFlags;
+  schema: Record<string, unknown> | ((auto: Record<string, unknown>) => Record<string, unknown>) | null;
 }
 
 export interface RawClassMeta {
@@ -150,6 +155,85 @@ export interface SealedExecutors<T> {
   _isSerializeAsync: boolean;
   /** debug: true 시 생성된 executor 소스코드 저장 */
   _source?: { deserialize: string; serialize: string };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// JsonSchema202012 — JSON Schema Draft 2020-12 타입 인터페이스 (§6.7)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface JsonSchema202012 {
+  // 핵심 구조
+  $schema?: string;
+  $id?: string;
+  $ref?: string;
+  $defs?: Record<string, JsonSchema202012>;
+  $comment?: string;
+
+  // 타입
+  type?: string | string[];
+  enum?: unknown[];
+  const?: unknown;
+
+  // 숫자
+  minimum?: number;
+  maximum?: number;
+  exclusiveMinimum?: number;
+  exclusiveMaximum?: number;
+  multipleOf?: number;
+
+  // 문자열
+  minLength?: number;
+  maxLength?: number;
+  pattern?: string;
+  format?: string;
+
+  // 배열
+  items?: JsonSchema202012;
+  prefixItems?: JsonSchema202012[];
+  contains?: JsonSchema202012;
+  minContains?: number;
+  maxContains?: number;
+  minItems?: number;
+  maxItems?: number;
+  uniqueItems?: boolean;
+
+  // 객체
+  properties?: Record<string, JsonSchema202012>;
+  required?: string[];
+  additionalProperties?: boolean | JsonSchema202012;
+  unevaluatedProperties?: boolean | JsonSchema202012;
+  patternProperties?: Record<string, JsonSchema202012>;
+  propertyNames?: JsonSchema202012;
+  minProperties?: number;
+  maxProperties?: number;
+  dependentRequired?: Record<string, string[]>;
+  dependentSchemas?: Record<string, JsonSchema202012>;
+
+  // 조합
+  allOf?: JsonSchema202012[];
+  anyOf?: JsonSchema202012[];
+  oneOf?: JsonSchema202012[];
+  not?: JsonSchema202012;
+  if?: JsonSchema202012;
+  then?: JsonSchema202012;
+  else?: JsonSchema202012;
+
+  // 어노테이션
+  title?: string;
+  description?: string;
+  default?: unknown;
+  examples?: unknown[];
+  deprecated?: boolean;
+  readOnly?: boolean;
+  writeOnly?: boolean;
+
+  // 컨텐츠
+  contentEncoding?: string;
+  contentMediaType?: string;
+  contentSchema?: JsonSchema202012;
+
+  // 확장 (사용자 커스텀)
+  [key: string]: unknown;
 }
 
 // Re-export for convenience

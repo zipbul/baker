@@ -820,3 +820,64 @@ describe('buildDeserializeCode', () => {
     expect(isErr(result)).toBe(false);
     expect((result as HyphenDto)['my-field']).toBe('hello');
   });
+
+  // ── whitelist (§7.2) ───────────────────────────────────────────────────────
+
+  it('whitelist: should pass when no extra keys', async () => {
+    class WlDto { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }], transform: [], expose: [],
+        exclude: null, type: null, flags: {}, schema: null,
+      },
+    };
+    const result = await run(WlDto, merged, { whitelist: true }, { name: 'ok' });
+    expect(isErr(result)).toBe(false);
+    expect((result as WlDto).name).toBe('ok');
+  });
+
+  it('whitelist: should fail with whitelistViolation for extra key (stopAtFirstError)', async () => {
+    class WlDto2 { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }], transform: [], expose: [],
+        exclude: null, type: null, flags: {}, schema: null,
+      },
+    };
+    const result = await run(WlDto2, merged, { whitelist: true, stopAtFirstError: true }, { name: 'ok', extra: 1 });
+    expect(isErr(result)).toBe(true);
+    const errors = (result as any).data;
+    expect(errors).toHaveLength(1);
+    expect(errors[0].code).toBe('whitelistViolation');
+    expect(errors[0].path).toBe('extra');
+  });
+
+  it('whitelist: should collect all violations (collectErrors)', async () => {
+    class WlDto3 { name!: string; }
+    const merged: RawClassMeta = {
+      name: {
+        validation: [{ rule: isString }], transform: [], expose: [],
+        exclude: null, type: null, flags: {}, schema: null,
+      },
+    };
+    const result = await run(WlDto3, merged, { whitelist: true }, { name: 'ok', extra1: 1, extra2: 2 });
+    expect(isErr(result)).toBe(true);
+    const errors = (result as any).data;
+    expect(errors.length).toBeGreaterThanOrEqual(2);
+    expect(errors.some((e: any) => e.path === 'extra1' && e.code === 'whitelistViolation')).toBe(true);
+    expect(errors.some((e: any) => e.path === 'extra2' && e.code === 'whitelistViolation')).toBe(true);
+  });
+
+  it('whitelist: should use extract key (not field key) for @Expose', async () => {
+    class WlDto4 { userName!: string; }
+    const merged: RawClassMeta = {
+      userName: {
+        validation: [{ rule: isString }], transform: [],
+        expose: [{ name: 'user_name', deserializeOnly: true }],
+        exclude: null, type: null, flags: {}, schema: null,
+      },
+    };
+    // user_name is the extract key, so it should be in the allowed set
+    const result = await run(WlDto4, merged, { whitelist: true }, { user_name: 'ok' });
+    expect(isErr(result)).toBe(false);
+  });

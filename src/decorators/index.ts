@@ -1,7 +1,10 @@
 export {
-  IsDefined, IsOptional, ValidateIf, ValidateNested,
+  IsDefined, IsOptional, ValidateIf, ValidateNested, IsNullable,
   Equals, NotEquals, IsEmpty, IsNotEmpty, IsIn, IsNotIn,
 } from './common';
+
+export { Nested } from './nested';
+export type { NestedOptions } from './nested';
 
 export {
   IsString, IsNumber, IsBoolean, IsDate, IsEnum, IsInt,
@@ -56,6 +59,8 @@ export {
 export type {
   ExposeOptions, ExcludeOptions, TransformOptions, TypeOptions,
 } from './transform';
+
+export { Schema } from './schema';
 
 export {
   IsMobilePhone, IsPostalCode, IsIdentityCard, IsPassportNumber,

@@ -10,6 +10,8 @@
  * - 'isObject': 중첩 @Type 필드의 값이 객체가 아닐 때
  * - 'isArray': 배열 중첩 (each:true) 필드의 값이 배열이 아닐 때
  * - 'invalidDiscriminator': discriminator 값이 subTypes에 없을 때
+ * - 'conversionFailed': enableImplicitConversion에서 타입 변환 실패 시
+ * - 'whitelistViolation': whitelist: true에서 미선언 필드가 input에 존재할 때
  *
  * 향후 확장 필드(message, expected, actual 등)는 반드시 Optional로 추가.
  */

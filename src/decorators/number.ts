@@ -6,11 +6,11 @@ import type { ValidationOptions } from '../interfaces';
 // Number Decorators (§1.1 Number)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** value >= n */
-export function Min(n: number, options?: ValidationOptions): PropertyDecorator {
+/** value >= n (exclusive: true → value > n) */
+export function Min(n: number, options?: ValidationOptions & { exclusive?: boolean }): PropertyDecorator {
   return (target, key) => {
     collectValidation(target as object, key as string, {
-      rule: min(n),
+      rule: min(n, options?.exclusive ? { exclusive: true } : undefined),
       each: options?.each,
       groups: options?.groups,
       message: options?.message,
@@ -19,11 +19,11 @@ export function Min(n: number, options?: ValidationOptions): PropertyDecorator {
   };
 }
 
-/** value <= n */
-export function Max(n: number, options?: ValidationOptions): PropertyDecorator {
+/** value <= n (exclusive: true → value < n) */
+export function Max(n: number, options?: ValidationOptions & { exclusive?: boolean }): PropertyDecorator {
   return (target, key) => {
     collectValidation(target as object, key as string, {
-      rule: max(n),
+      rule: max(n, options?.exclusive ? { exclusive: true } : undefined),
       each: options?.each,
       groups: options?.groups,
       message: options?.message,

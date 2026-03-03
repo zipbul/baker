@@ -14,6 +14,10 @@ export interface CreateRuleOptions {
    * @phase2 — 현재는 수집만 하고 코드 생성에서 미사용.
    */
   defaultMessage?: string;
+  /** 룰 파라미터 — toJsonSchema 매핑에 사용 */
+  constraints?: Record<string, unknown>;
+  /** 이 룰이 전제하는 타입 — 타입 게이트 최적화에 사용 */
+  requiresType?: 'string' | 'number' | 'boolean' | 'date';
 }
 
 /**
@@ -60,6 +64,8 @@ export function createRule(options: CreateRuleOptions): EmittableRule {
   (fn as any).ruleName = name;
   // isAsync 플래그 — deserialize-builder가 async function 생성 여부 판단에 사용
   (fn as any).isAsync = isAsyncFn;
+  if (options.constraints) (fn as any).constraints = options.constraints;
+  if (options.requiresType) (fn as any).requiresType = options.requiresType;
 
   return fn;
 }

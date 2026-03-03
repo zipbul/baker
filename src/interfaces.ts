@@ -8,7 +8,7 @@ export interface ValidationOptions {
   /** 이 규칙이 속하는 그룹 목록 */
   groups?: string[];
   /** 사용자 정의 에러 메시지 — 검증 실패 시 BakerError.message에 포함 */
-  message?: string | ((args: { property: string; value: unknown; constraints: unknown[] }) => string);
+  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
   /** 검증 실패 시 BakerError.context에 포함할 임의 값 */
   context?: unknown;
 }
@@ -45,6 +45,12 @@ export interface SealOptions {
    * @default false
    */
   debug?: boolean;
+  /**
+   * true: 미선언 필드 거부. mergeInheritance(Class)의 key 집합을 허용 목록으로 사용.
+   * @Exclude 필드도 whitelist에 포함 — 존재는 허용하되 결과에서 제외.
+   * @default false
+   */
+  whitelist?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -13,6 +13,7 @@ export function equals(comparison: unknown): EmittableRule {
   };
 
   (fn as any).ruleName = 'equals';
+  (fn as any).constraints = { value: comparison };
 
   return fn as EmittableRule;
 }
@@ -30,6 +31,7 @@ export function notEquals(comparison: unknown): EmittableRule {
   };
 
   (fn as any).ruleName = 'notEquals';
+  (fn as any).constraints = { value: comparison };
 
   return fn as EmittableRule;
 }
@@ -45,6 +47,7 @@ const _isEmpty = (value: unknown): boolean =>
   `if (${varName} !== undefined && ${varName} !== null && ${varName} !== '') ${ctx.fail('isEmpty')};`;
 
 (_isEmpty as any).ruleName = 'isEmpty';
+(_isEmpty as any).constraints = {};
 
 export const isEmpty = _isEmpty as EmittableRule;
 
@@ -59,6 +62,7 @@ const _isNotEmpty = (value: unknown): boolean =>
   `if (${varName} === undefined || ${varName} === null || ${varName} === '') ${ctx.fail('isNotEmpty')};`;
 
 (_isNotEmpty as any).ruleName = 'isNotEmpty';
+(_isNotEmpty as any).constraints = {};
 
 export const isNotEmpty = _isNotEmpty as EmittableRule;
 
@@ -75,6 +79,7 @@ export function isIn(array: unknown[]): EmittableRule {
   };
 
   (fn as any).ruleName = 'isIn';
+  (fn as any).constraints = { values: array };
 
   return fn as EmittableRule;
 }
@@ -92,6 +97,7 @@ export function isNotIn(array: unknown[]): EmittableRule {
   };
 
   (fn as any).ruleName = 'isNotIn';
+  (fn as any).constraints = { values: array };
 
   return fn as EmittableRule;
 }
