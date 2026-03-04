@@ -1,6 +1,6 @@
 {
   "name": "@zipbul/baker",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Decorator-based validate + transform with inline code generation. class-validator DX, AOT-level performance, zero reflect-metadata.",
   "license": "MIT",
   "author": "Junhyung Park (https://github.com/parkrevil)",

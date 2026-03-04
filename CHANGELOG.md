@@ -1,5 +1,11 @@
 # @zipbul/baker
 
+## 0.1.2
+
+### Patch Changes
+
+- 76657db: fix: pin CI Bun version to 1.3.9 to avoid 1.3.10 bundler regression, optimize isIn/isNotIn with Set, improve npm packaging and test coverage
+
 ## 0.1.1
 
 ### Patch Changes
