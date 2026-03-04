@@ -1,5 +1,9 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, IsNumber, IsBoolean, IsDate, IsString, Min, Transform } from '../../index';
+import {
+  seal, deserialize, IsNumber, IsBoolean, IsDate,
+  Min, Transform, Type, SealError,
+  BakerValidationError, IsNotEmpty,
+} from '../../index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -96,3 +100,73 @@ describe('enableImplicitConversion', () => {
     ).rejects.toThrow();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// L495-498, L518 — @Type() primitive hint + non-typed validation rule
+// @Type 힌트 경로: @ValidateNested 없이 @Type + general rule + enableImplicitConversion
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('@Type hint implicit conversion', () => {
+  it('@Type(() => Number) + @IsNotEmpty — string → number 변환 후 검증', async () => {
+    class TypeHintDto {
+      @Type(() => Number)
+      @IsNotEmpty()
+      value!: number;
+    }
+    seal({ enableImplicitConversion: true });
+    const result = await deserialize<TypeHintDto>(TypeHintDto, { value: '10' });
+    expect(result.value).toBe(10);
+  });
+
+  it('@Type(() => Number) + @IsNotEmpty — 변환 실패 → conversionFailed', async () => {
+    class TypeHintFailDto {
+      @Type(() => Number)
+      @IsNotEmpty()
+      value!: number;
+    }
+    seal({ enableImplicitConversion: true });
+    try {
+      await deserialize(TypeHintFailDto, { value: 'abc' });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      expect((e as BakerValidationError).errors[0]!.code).toBe('conversionFailed');
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// L577-581 — stopAtFirstError + enableImplicitConversion
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('stopAtFirstError + enableImplicitConversion', () => {
+  it('변환 성공 시 정상 동작', async () => {
+    class StopConvDto {
+      @IsNumber()
+      @Min(0)
+      count!: number;
+    }
+    seal({ enableImplicitConversion: true, stopAtFirstError: true });
+    const result = await deserialize<StopConvDto>(StopConvDto, { count: '10' });
+    expect(result.count).toBe(10);
+  });
+
+  it('변환 실패 시 첫 에러에서 중단', async () => {
+    class StopConvFailDto {
+      @IsNumber()
+      first!: number;
+
+      @IsBoolean()
+      second!: boolean;
+    }
+    seal({ enableImplicitConversion: true, stopAtFirstError: true });
+    try {
+      await deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      expect((e as BakerValidationError).errors).toHaveLength(1);
+    }
+  });
+});
+

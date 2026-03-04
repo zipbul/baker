@@ -67,15 +67,16 @@ const _isNotEmpty = (value: unknown): boolean =>
 export const isNotEmpty = _isNotEmpty as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isIn — 배열 내 포함 여부. refs로 배열 전달 (§4.8 C)
+// isIn — 배열 내 포함 여부. Set으로 O(1) 조회 (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isIn(array: unknown[]): EmittableRule {
-  const fn = (value: unknown): boolean => array.indexOf(value) !== -1;
+  const set = new Set(array);
+  const fn = (value: unknown): boolean => set.has(value);
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(array);
-    return `if (_refs[${i}].indexOf(${varName}) === -1) ${ctx.fail('isIn')};`;
+    const i = ctx.addRef(set);
+    return `if (!_refs[${i}].has(${varName})) ${ctx.fail('isIn')};`;
   };
 
   (fn as any).ruleName = 'isIn';
@@ -85,15 +86,16 @@ export function isIn(array: unknown[]): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotIn — 배열 외 여부. refs로 배열 전달 (§4.8 C)
+// isNotIn — 배열 외 여부. Set으로 O(1) 조회 (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isNotIn(array: unknown[]): EmittableRule {
-  const fn = (value: unknown): boolean => array.indexOf(value) === -1;
+  const set = new Set(array);
+  const fn = (value: unknown): boolean => !set.has(value);
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(array);
-    return `if (_refs[${i}].indexOf(${varName}) !== -1) ${ctx.fail('isNotIn')};`;
+    const i = ctx.addRef(set);
+    return `if (_refs[${i}].has(${varName})) ${ctx.fail('isNotIn')};`;
   };
 
   (fn as any).ruleName = 'isNotIn';

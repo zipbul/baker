@@ -15,6 +15,9 @@
     "transform",
     "decorator",
     "dto",
+    "typescript",
+    "runtime-validation",
+    "type-safe",
     "class-validator",
     "class-transformer",
     "serialize",
@@ -50,11 +53,14 @@
     }
   },
   "files": [
-    "dist",
-    "README.md"
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "README.md",
+    "LICENSE"
   ],
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "@zipbul/result": "^0.1.4"

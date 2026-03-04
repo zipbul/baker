@@ -240,7 +240,7 @@ describe('isIn', () => {
     expect(rule(1)).toBe(false);
   });
 
-  it('should call ctx.addRef and generate indexOf === -1 check code when calling emit()', () => {
+  it('should call ctx.addRef and generate Set.has() check code when calling emit()', () => {
     // Arrange
     const rule = isIn([1, 2, 3]);
     const { ctx, addRefMock, failMock } = makeCtx(0);
@@ -249,8 +249,7 @@ describe('isIn', () => {
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(code).toContain('_refs[0]');
-    expect(code).toContain('indexOf');
-    expect(code).toContain('=== -1');
+    expect(code).toContain('.has(');
     expect(failMock).toHaveBeenCalledWith('isIn');
   });
 
@@ -294,7 +293,7 @@ describe('isNotIn', () => {
     expect(rule(2)).toBe(false);
   });
 
-  it('should call ctx.addRef and generate indexOf !== -1 check code when calling emit()', () => {
+  it('should call ctx.addRef and generate Set.has() check code when calling emit()', () => {
     // Arrange
     const rule = isNotIn([1, 2, 3]);
     const { ctx, addRefMock, failMock } = makeCtx(0);
@@ -303,8 +302,7 @@ describe('isNotIn', () => {
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(code).toContain('_refs[0]');
-    expect(code).toContain('indexOf');
-    expect(code).toContain('!== -1');
+    expect(code).toContain('.has(');
     expect(failMock).toHaveBeenCalledWith('isNotIn');
   });
 
