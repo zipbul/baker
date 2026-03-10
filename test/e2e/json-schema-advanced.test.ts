@@ -1,36 +1,30 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import {
-  seal, toJsonSchema,
-  IsNumber, IsString, IsObject, IsDivisibleBy, IsNotEmptyObject,
-  Expose, Exclude,
-} from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import { describe, it, expect } from 'bun:test';
+import { toJsonSchema, Field, Exclude } from '../../index';
+import { isString, isNumber, isDivisibleBy, isNotEmptyObject } from '../../src/rules/index';
+import { Expose } from '../../src/decorators/transform';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class WhitelistSchemaDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @IsNumber()
+  @Field(isNumber())
   age!: number;
 }
 
 class DivisibleDto {
-  @IsNumber()
-  @IsDivisibleBy(5)
+  @Field(isNumber(), isDivisibleBy(5))
   count!: number;
 }
 
 class DirectionSchemaDto {
-  @IsString()
+  @Field(isString)
   @Expose({ name: 'user_name', deserializeOnly: true })
   @Expose({ name: 'userName', serializeOnly: true })
   name!: string;
 
-  @IsString()
+  @Field(isString)
   @Exclude({ serializeOnly: true })
   secret!: string;
 }
@@ -49,7 +43,7 @@ describe('toJsonSchema — whitelist 옵션', () => {
   });
 });
 
-describe('toJsonSchema — @IsDivisibleBy → multipleOf', () => {
+describe('toJsonSchema — isDivisibleBy → multipleOf', () => {
   it('multipleOf 매핑', () => {
     const schema = toJsonSchema(DivisibleDto);
     expect(schema.properties!.count).toEqual({
@@ -59,9 +53,9 @@ describe('toJsonSchema — @IsDivisibleBy → multipleOf', () => {
   });
 });
 
-describe('toJsonSchema — @IsNotEmptyObject → minProperties', () => {
+describe('toJsonSchema — isNotEmptyObject → minProperties', () => {
   class MinPropDto {
-    @IsNotEmptyObject()
+    @Field(isNotEmptyObject())
     config!: Record<string, unknown>;
   }
   it('minProperties: 1 매핑', () => {

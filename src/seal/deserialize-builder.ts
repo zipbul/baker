@@ -145,8 +145,6 @@ export function buildDeserializeCode<T>(
     opts?: RuntimeOptions,
   ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
 
-  if (options?.debug) (executor as any).__bakerSource = body;
-
   return executor;
 }
 
@@ -493,8 +491,9 @@ function buildRulesCode(
   let typeHintGate: string | null = null;
   if (!hasTypedDeps && !asserterInferredGate && enableConversion && meta?.type?.fn) {
     try {
-      const typeCtor = meta.type.fn();
-      typeHintGate = PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null;
+      const raw = meta.type.fn();
+      const typeCtor = Array.isArray(raw) ? raw[0] : raw;
+      typeHintGate = typeCtor ? PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null : null;
     } catch { /* ignore lazy eval failures */ }
   }
 
@@ -717,12 +716,13 @@ function generateNestedCode(
     }
   } else {
     // §8.1 simple nested or §8.2 each array
-    const nestedSealed = (meta.type.fn() as any)[SEALED] as SealedExecutors<unknown> | undefined;
+    const nestedCls = meta.type.resolvedClass ?? meta.type.fn() as Function;
+    const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown> | undefined;
     const execIdx = execs.length;
     execs.push(nestedSealed as SealedExecutors<unknown>);
 
     // Check if validateNested each (array) — determined by flags.validateNestedEach or RuleDef.each
-    const hasEach = meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+    const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     if (hasEach) {
       const iVar = `__bk$i_${sk}`;

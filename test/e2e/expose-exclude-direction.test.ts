@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, serialize, IsString, IsNumber, Expose, Exclude } from '../../index';
+import { Field, Exclude, deserialize, serialize } from '../../index';
+import { isString } from '../../src/rules/index';
+import { Expose } from '../../src/decorators/transform';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -7,20 +9,20 @@ afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DirectionDto {
-  @IsString()
+  @Field(isString)
   @Expose({ name: 'user_name', deserializeOnly: true })
   @Expose({ name: 'userName', serializeOnly: true })
   name!: string;
 
-  @IsString()
+  @Field(isString)
   @Exclude({ serializeOnly: true })
   password!: string;
 
-  @IsString()
+  @Field(isString)
   @Exclude({ deserializeOnly: true })
   token!: string;
 
-  @IsString()
+  @Field(isString)
   @Exclude()
   internal!: string;
 }
@@ -29,7 +31,6 @@ class DirectionDto {
 
 describe('@Expose/@Exclude direction — deserialize', () => {
   it('deserializeOnly @Expose name으로 추출', async () => {
-    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     });
@@ -37,7 +38,6 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('serializeOnly @Exclude → deserialize에서는 포함', async () => {
-    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     });
@@ -45,7 +45,6 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('deserializeOnly @Exclude → deserialize에서 제외', async () => {
-    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     });
@@ -53,7 +52,6 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('양방향 @Exclude → deserialize에서 제외', async () => {
-    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     });
@@ -63,7 +61,6 @@ describe('@Expose/@Exclude direction — deserialize', () => {
 
 describe('@Expose/@Exclude direction — serialize', () => {
   it('serializeOnly @Expose name으로 출력', async () => {
-    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -73,7 +70,6 @@ describe('@Expose/@Exclude direction — serialize', () => {
   });
 
   it('serializeOnly @Exclude → serialize에서 제외', async () => {
-    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -82,7 +78,6 @@ describe('@Expose/@Exclude direction — serialize', () => {
   });
 
   it('양방향 @Exclude → serialize에서 제외', async () => {
-    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });

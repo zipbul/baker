@@ -1,50 +1,47 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, serialize, IsString, IsNumber, IsBoolean, ArrayMinSize, Nested, IsOptional, IsNullable, toJsonSchema, BakerValidationError } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import { describe, it, expect } from 'bun:test';
+import { deserialize, serialize, Field, Type, toJsonSchema, BakerValidationError } from '../../index';
+import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AddressDto {
-  @IsString()
+  @Field(isString)
   city!: string;
 
-  @IsString()
+  @Field(isString)
   street!: string;
 }
 
 class UserDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @Nested(() => AddressDto)
+  @Field({ type: () => AddressDto })
   address!: AddressDto;
 }
 
 class ItemDto {
-  @IsString()
+  @Field(isString)
   label!: string;
 }
 
 class ListDto {
-  @Nested(() => ItemDto, { each: true })
-  @ArrayMinSize(1)
+  @Field(arrayMinSize(1), { type: () => [ItemDto] })
   items!: ItemDto[];
 }
 
 class DogDto {
-  @IsString()
+  @Field(isString)
   breed!: string;
 }
 
 class CatDto {
-  @IsBoolean()
+  @Field(isBoolean)
   indoor!: boolean;
 }
 
 class PetOwnerDto {
-  @Nested(() => DogDto, {
+  @Type(() => DogDto, {
     discriminator: {
       property: 'type',
       subTypes: [
@@ -60,7 +57,6 @@ class PetOwnerDto {
 
 describe('@Nested 역직렬화', () => {
   it('단순 중첩 DTO', async () => {
-    seal();
     const result = await deserialize<UserDto>(UserDto, {
       name: 'Alice',
       address: { city: 'Seoul', street: '강남대로' },
@@ -71,14 +67,12 @@ describe('@Nested 역직렬화', () => {
   });
 
   it('중첩 DTO 검증 실패', async () => {
-    seal();
     await expect(
       deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }),
     ).rejects.toThrow();
   });
 
   it('배열 중첩 (each: true)', async () => {
-    seal();
     const result = await deserialize<ListDto>(ListDto, {
       items: [{ label: 'a' }, { label: 'b' }],
     });
@@ -88,12 +82,10 @@ describe('@Nested 역직렬화', () => {
   });
 
   it('배열 중첩 크기 검증', async () => {
-    seal();
     await expect(deserialize(ListDto, { items: [] })).rejects.toThrow();
   });
 
   it('discriminator 역직렬화', async () => {
-    seal();
     const dog = await deserialize<PetOwnerDto>(PetOwnerDto, {
       pet: { type: 'dog', breed: 'Shiba' },
     });
@@ -110,7 +102,6 @@ describe('@Nested 역직렬화', () => {
 
 describe('@Nested 직렬화', () => {
   it('중첩 DTO 직렬화', async () => {
-    seal();
     const user = new UserDto();
     user.name = 'Bob';
     user.address = new AddressDto();
@@ -157,7 +148,6 @@ describe('@Nested toJsonSchema', () => {
 
 describe('@Nested 에지 케이스', () => {
   it('중첩 DTO에 비-객체 전달 시 에러', async () => {
-    seal();
     try {
       await deserialize(UserDto, { name: 'Alice', address: 'not-object' });
       expect.unreachable();
@@ -170,7 +160,6 @@ describe('@Nested 에지 케이스', () => {
   });
 
   it('배열 중첩에서 특정 원소 실패 시 인덱스 경로', async () => {
-    seal();
     try {
       await deserialize(ListDto, { items: [{ label: 'ok' }, { label: 123 }, { label: 'fine' }] });
       expect.unreachable();
@@ -180,23 +169,21 @@ describe('@Nested 에지 케이스', () => {
     }
   });
 
-  it('@Nested + @IsOptional → 중첩 필드 누락 허용', async () => {
+  it('@Nested + optional → 중첩 필드 누락 허용', async () => {
     class OptNested {
-      @IsString() name!: string;
-      @IsOptional() @Nested(() => AddressDto) address?: AddressDto;
+      @Field(isString) name!: string;
+      @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
     }
-    seal();
     const r = await deserialize<OptNested>(OptNested, { name: 'Alice' });
     expect(r.name).toBe('Alice');
     expect(r.address).toBeUndefined();
   });
 
-  it('@Nested + @IsNullable → null 중첩 허용', async () => {
+  it('@Nested + nullable → null 중첩 허용', async () => {
     class NullNested {
-      @IsString() name!: string;
-      @IsNullable() @Nested(() => AddressDto) address!: AddressDto | null;
+      @Field(isString) name!: string;
+      @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;
     }
-    seal();
     const r = await deserialize<NullNested>(NullNested, { name: 'Alice', address: null });
     expect(r.name).toBe('Alice');
     expect(r.address).toBeNull();

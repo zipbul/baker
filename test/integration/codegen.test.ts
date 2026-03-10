@@ -1,31 +1,30 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { isErr } from '@zipbul/result';
-import { seal, IsString, IsNumber, IsBoolean, IsOptional, Transform } from '../../index';
+import { Field, deserialize } from '../../index';
+import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED } from '../../src/symbols';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class CodegenSimpleDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @IsNumber()
+  @Field(isNumber())
   value!: number;
 }
 
 class CodegenOptionalDto {
-  @IsString()
+  @Field(isString)
   required!: string;
 
-  @IsOptional()
-  @IsBoolean()
+  @Field(isBoolean, { optional: true })
   flag?: boolean;
 }
 
 class CodegenTransformDto {
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
-  @IsString()
+  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim() : value })
   text!: string;
 }
 
@@ -34,8 +33,9 @@ class CodegenTransformDto {
 afterEach(() => unseal());
 
 describe('codegen — integration', () => {
-  it('should generate _deserialize and _serialize functions after seal()', () => {
-    seal();
+  it('should generate _deserialize and _serialize functions after auto-seal', async () => {
+    // Trigger auto-seal via deserialize
+    await deserialize(CodegenSimpleDto, { name: 'Alice', value: 42 });
     const sealed = (CodegenSimpleDto as any)[SEALED];
     expect(sealed).toBeDefined();
     expect(typeof sealed._deserialize).toBe('function');
@@ -43,7 +43,8 @@ describe('codegen — integration', () => {
   });
 
   it('_deserialize should accept valid input and return instance', async () => {
-    seal();
+    // Trigger auto-seal
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const result = await sealed._deserialize({ name: 'Alice', value: 42 });
     expect(isErr(result)).toBe(false);
@@ -52,14 +53,16 @@ describe('codegen — integration', () => {
   });
 
   it('_deserialize should return error Result for invalid input', async () => {
-    seal();
+    // Trigger auto-seal
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const result = await sealed._deserialize({ name: 123, value: 'wrong' });
     expect(isErr(result)).toBe(true);
   });
 
   it('_serialize should return plain object', async () => {
-    seal();
+    // Trigger auto-seal
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const instance = Object.assign(new CodegenSimpleDto(), { name: 'Bob', value: 7 });
     const result = await sealed._serialize(instance);
@@ -67,26 +70,17 @@ describe('codegen — integration', () => {
   });
 
   it('optional field should not cause error when absent', async () => {
-    seal();
-    const sealed = (CodegenOptionalDto as any)[SEALED];
-    const result = await sealed._deserialize({ required: 'hello' });
-    expect(isErr(result)).toBe(false);
+    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' });
+    expect(result.required).toBe('hello');
   });
 
   it('optional field deserialized value should have required field', async () => {
-    seal();
-    const sealed = (CodegenOptionalDto as any)[SEALED];
-    const result = await sealed._deserialize({ required: 'hello' });
-    if (!isErr(result)) {
-      expect((result as CodegenOptionalDto).required).toBe('hello');
-    }
+    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' });
+    expect(result.required).toBe('hello');
   });
 
   it('transform should be applied in generated deserialize code', async () => {
-    seal();
-    const sealed = (CodegenTransformDto as any)[SEALED];
-    const result = await sealed._deserialize({ text: '  trimmed  ' });
-    expect(isErr(result)).toBe(false);
-    expect((result as any).text).toBe('trimmed');
+    const result = await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' });
+    expect(result.text).toBe('trimmed');
   });
 });

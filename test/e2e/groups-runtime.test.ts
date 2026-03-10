@@ -1,22 +1,25 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, serialize, toJsonSchema, IsString, IsNumber, Expose, Min, Max } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { Field, deserialize, serialize, toJsonSchema } from '../../index';
+import { isString, isNumber, min, max } from '../../src/rules/index';
+import { Expose } from '../../src/decorators/transform';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => unseal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class GroupDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
   @Expose({ groups: ['admin'] })
-  @IsString()
+  @Field(isString)
   secret!: string;
 
-  @IsNumber()
-  @Min(0, { groups: ['create'] })
-  @Max(100, { groups: ['update'] })
+  @Field(isNumber())
+  @Field(min(0), { groups: ['create'] })
+  @Field(max(100), { groups: ['update'] })
   score!: number;
 }
 
@@ -24,7 +27,6 @@ class GroupDto {
 
 describe('groups — deserialize', () => {
   it('그룹 일치 → 필드 포함', async () => {
-    seal();
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Alice', secret: 'top', score: 50,
     }, { groups: ['admin'] });
@@ -32,7 +34,6 @@ describe('groups — deserialize', () => {
   });
 
   it('그룹 불일치 → 필드 제외', async () => {
-    seal();
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Alice', secret: 'top', score: 50,
     }, { groups: ['user'] });
@@ -40,7 +41,6 @@ describe('groups — deserialize', () => {
   });
 
   it('그룹 없음 → Expose groups 필드 제외', async () => {
-    seal();
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Bob', secret: 'x', score: 50,
     });
@@ -48,7 +48,6 @@ describe('groups — deserialize', () => {
   });
 
   it('rule groups — create 그룹 → @Min 적용, @Max 미적용', async () => {
-    seal();
     await expect(
       deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] }),
     ).rejects.toThrow();
@@ -63,14 +62,12 @@ describe('groups — deserialize', () => {
 
 describe('groups — serialize', () => {
   it('그룹 일치 → 필드 출력', async () => {
-    seal();
     const dto = Object.assign(new GroupDto(), { name: 'Alice', secret: 'top', score: 50 });
     const result = await serialize(dto, { groups: ['admin'] });
     expect(result['secret']).toBe('top');
   });
 
   it('그룹 불일치 → 필드 미출력', async () => {
-    seal();
     const dto = Object.assign(new GroupDto(), { name: 'Bob', secret: 'top', score: 50 });
     const result = await serialize(dto);
     expect(result['secret']).toBeUndefined();

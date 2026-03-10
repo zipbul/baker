@@ -1,73 +1,61 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import {
-  seal, deserialize, serialize, toJsonSchema, BakerValidationError,
-  IsString, IsNumber, IsBoolean, IsEmail, IsEnum, IsOptional, IsNullable,
-  Min, Max, MinLength, MaxLength, Nested, Expose, Exclude, Transform,
-  ArrayMinSize,
+  deserialize, serialize, toJsonSchema, BakerValidationError,
+  Field, Exclude,
 } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import {
+  isString, isNumber, isBoolean, isEmail, isEnum,
+  min, max, minLength, maxLength, arrayMinSize,
+} from '../../src/rules/index';
+import { Expose, Transform } from '../../src/decorators/transform';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role { Admin = 'admin', User = 'user', Guest = 'guest' }
 
 class AddressDto {
-  @IsString()
-  @MinLength(1)
+  @Field(isString, minLength(1))
   city!: string;
 
-  @IsString()
-  @MinLength(1)
+  @Field(isString, minLength(1))
   street!: string;
 
-  @IsOptional()
-  @IsString()
+  @Field(isString, { optional: true })
   zipCode?: string;
 }
 
 class CreateUserDto {
-  @IsString()
-  @MinLength(2)
-  @MaxLength(50)
+  @Field(isString, minLength(2), maxLength(50))
   @Expose({ name: 'user_name', deserializeOnly: true })
   @Expose({ name: 'userName', serializeOnly: true })
   name!: string;
 
-  @IsEmail()
+  @Field(isEmail())
   email!: string;
 
-  @IsNumber()
-  @Min(0)
-  @Max(150)
+  @Field(isNumber(), min(0), max(150))
   age!: number;
 
-  @IsEnum(Role)
+  @Field(isEnum(Role))
   role!: Role;
 
-  @IsOptional()
-  @IsBoolean()
+  @Field(isBoolean, { optional: true })
   active?: boolean;
 
-  @IsNullable()
-  @IsString()
+  @Field(isString, { nullable: true })
   bio!: string | null;
 
-  @Nested(() => AddressDto)
+  @Field({ type: () => AddressDto })
   address!: AddressDto;
 
-  @IsOptional()
-  @Nested(() => AddressDto, { each: true })
-  @ArrayMinSize(1)
+  @Field(arrayMinSize(1), { type: () => [AddressDto], optional: true })
   addresses?: AddressDto[];
 
   @Exclude({ serializeOnly: true })
-  @IsString()
+  @Field(isString)
   password!: string;
 
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
-  @IsString()
+  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value })
   tag!: string;
 }
 
@@ -87,7 +75,6 @@ const validInput = {
 
 describe('CreateUserDto — 역직렬화', () => {
   it('유효한 입력 → 전체 필드 통과', async () => {
-    seal();
     const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     expect(user).toBeInstanceOf(CreateUserDto);
     expect(user.name).toBe('Alice Kim');
@@ -103,7 +90,6 @@ describe('CreateUserDto — 역직렬화', () => {
   });
 
   it('optional 필드 없이 통과', async () => {
-    seal();
     const input = { ...validInput };
     delete (input as any).active;
     delete (input as any).addresses;
@@ -112,7 +98,6 @@ describe('CreateUserDto — 역직렬화', () => {
   });
 
   it('nullable → null 허용', async () => {
-    seal();
     const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     expect(user.bio).toBeNull();
   });
@@ -120,35 +105,30 @@ describe('CreateUserDto — 역직렬화', () => {
 
 describe('CreateUserDto — 검증 실패', () => {
   it('이름 너무 짧음', async () => {
-    seal();
     await expect(
       deserialize(CreateUserDto, { ...validInput, user_name: 'A' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
   it('잘못된 이메일', async () => {
-    seal();
     await expect(
       deserialize(CreateUserDto, { ...validInput, email: 'not-email' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
   it('나이 범위 초과', async () => {
-    seal();
     await expect(
       deserialize(CreateUserDto, { ...validInput, age: 200 }),
     ).rejects.toThrow(BakerValidationError);
   });
 
   it('잘못된 enum 값', async () => {
-    seal();
     await expect(
       deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
   it('중첩 DTO 검증 실패', async () => {
-    seal();
     await expect(
       deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }),
     ).rejects.toThrow(BakerValidationError);
@@ -157,7 +137,6 @@ describe('CreateUserDto — 검증 실패', () => {
 
 describe('CreateUserDto — 직렬화', () => {
   it('serialize → @Expose 방향별 키, @Exclude serializeOnly', async () => {
-    seal();
     const dto = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     const plain = await serialize(dto);
     // serializeOnly @Expose → userName

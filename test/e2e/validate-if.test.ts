@@ -1,42 +1,35 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsString, IsNumber, IsOptional, ValidateIf, Min } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import { describe, it, expect } from 'bun:test';
+import { deserialize, BakerValidationError, Field } from '../../index';
+import { isString, isNumber, min } from '../../src/rules/index';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ConditionalDto {
-  @IsString()
+  @Field(isString)
   type!: string;
 
-  @ValidateIf((obj: any) => obj.type === 'business')
-  @IsString()
+  @Field(isString, { when: (obj: any) => obj.type === 'business' })
   companyName!: string;
 }
 
 class ConditionalWithMinDto {
-  @IsNumber()
+  @Field(isNumber())
   role!: number;
 
-  @ValidateIf((obj: any) => obj.role >= 2)
-  @IsNumber()
-  @Min(100)
+  @Field(isNumber(), min(100), { when: (obj: any) => obj.role >= 2 })
   budget!: number;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('@ValidateIf', () => {
+describe('@Field({ when }) — conditional validation', () => {
   it('조건 true → 검증 적용', async () => {
-    seal();
     await expect(
       deserialize(ConditionalDto, { type: 'business' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
   it('조건 true + 유효 값 → 통과', async () => {
-    seal();
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'business', companyName: 'Acme',
     });
@@ -44,7 +37,6 @@ describe('@ValidateIf', () => {
   });
 
   it('조건 false → 검증 skip', async () => {
-    seal();
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'personal',
     });
@@ -53,7 +45,6 @@ describe('@ValidateIf', () => {
   });
 
   it('조건 false → 값 있어도 skip (할당 안 됨)', async () => {
-    seal();
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'personal', companyName: 123 as any,
     });
@@ -61,7 +52,6 @@ describe('@ValidateIf', () => {
   });
 
   it('숫자 조건 + Min 검증', async () => {
-    seal();
     // role >= 2 → Min(100) 적용 → budget 50 거부
     await expect(
       deserialize(ConditionalWithMinDto, { role: 3, budget: 50 }),
@@ -69,7 +59,6 @@ describe('@ValidateIf', () => {
   });
 
   it('숫자 조건 false → Min skip', async () => {
-    seal();
     const result = await deserialize<ConditionalWithMinDto>(ConditionalWithMinDto, {
       role: 1, budget: 5,
     });

@@ -1,26 +1,28 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, serialize, BakerValidationError, IsString, IsNumber, IsBoolean, Nested, toJsonSchema } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { Field, Type, deserialize, serialize, BakerValidationError, toJsonSchema } from '../../index';
+import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => unseal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DogDto {
-  @IsString()
+  @Field(isString)
   breed!: string;
 }
 
 class CatDto {
-  @IsBoolean()
+  @Field(isBoolean)
   indoor!: boolean;
 }
 
 class OwnerDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @Nested(() => DogDto, {
+  @Type(() => DogDto, {
     discriminator: {
       property: 'type',
       subTypes: [
@@ -33,7 +35,7 @@ class OwnerDto {
 }
 
 class OwnerKeepDiscDto {
-  @Nested(() => DogDto, {
+  @Type(() => DogDto, {
     discriminator: {
       property: 'kind',
       subTypes: [
@@ -50,7 +52,6 @@ class OwnerKeepDiscDto {
 
 describe('discriminator — invalidDiscriminator', () => {
   it('존재하지 않는 subType → invalidDiscriminator 에러', async () => {
-    seal();
     try {
       await deserialize(OwnerDto, {
         name: 'Alice',
@@ -65,7 +66,6 @@ describe('discriminator — invalidDiscriminator', () => {
   });
 
   it('discriminator 프로퍼티 누락 → 에러', async () => {
-    seal();
     await expect(
       deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }),
     ).rejects.toThrow(BakerValidationError);
@@ -74,7 +74,6 @@ describe('discriminator — invalidDiscriminator', () => {
 
 describe('discriminator — keepDiscriminatorProperty', () => {
   it('keepDiscriminatorProperty: true → 결과에 discriminator 필드 유지', async () => {
-    seal();
     const result = await deserialize<OwnerKeepDiscDto>(OwnerKeepDiscDto, {
       pet: { kind: 'dog', breed: 'Poodle' },
     });
@@ -84,7 +83,6 @@ describe('discriminator — keepDiscriminatorProperty', () => {
   });
 
   it('keepDiscriminatorProperty 미설정 → 결과에 discriminator 필드 없음', async () => {
-    seal();
     const result = await deserialize<OwnerDto>(OwnerDto, {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },

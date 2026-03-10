@@ -1,19 +1,28 @@
-import { describe, it, expect } from 'bun:test';
-import { seal, SealError, Min, unregister } from '../../index';
-import { MinLength } from '../../src/decorators/string';
+import { describe, it, expect, afterEach } from 'bun:test';
+import { Field, deserialize } from '../../index';
+import { isString } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
-// L453 — conflicting requiresType → SealError
+// @Type alone works (auto-nested) — @ValidateNested is removed
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('conflicting requiresType', () => {
-  it('@MinLength (requiresType string) + @Min (requiresType number) → SealError', () => {
-    class ConflictDto {
-      @MinLength(1)
-      @Min(0)
-      value!: string;
+describe('auto-nested via @Type', () => {
+  it('@Field({ type }) alone triggers nested validation without @ValidateNested', async () => {
+    class Inner {
+      @Field(isString)
+      label!: string;
     }
-    expect(() => seal()).toThrow(SealError);
-    unregister(ConflictDto);
+
+    class Outer {
+      @Field({ type: () => Inner })
+      child!: Inner;
+    }
+
+    const result = await deserialize<Outer>(Outer, { child: { label: 'hello' } });
+    expect(result.child).toBeInstanceOf(Inner);
+    expect(result.child.label).toBe('hello');
   });
 });

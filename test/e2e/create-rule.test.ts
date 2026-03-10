@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsNumber, createRule } from '../../index';
-import { collectValidation } from '../../src/collect';
+import { Field, deserialize, BakerValidationError, createRule } from '../../index';
+import { isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -15,11 +15,9 @@ const isEven = createRule({
 });
 
 class EvenDto {
-  @IsNumber()
+  @Field(isNumber(), isEven)
   value!: number;
 }
-// 수동 데코레이터 등록 — createRule은 데코레이터 래퍼를 자동 생성하지 않음
-collectValidation(EvenDto.prototype, 'value', { rule: isEven });
 
 const asyncIsPositive = createRule({
   name: 'asyncPositive',
@@ -27,22 +25,19 @@ const asyncIsPositive = createRule({
 });
 
 class AsyncRuleDto {
-  @IsNumber()
+  @Field(isNumber(), asyncIsPositive)
   score!: number;
 }
-collectValidation(AsyncRuleDto.prototype, 'score', { rule: asyncIsPositive });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('createRule — sync', () => {
   it('규칙 통과', async () => {
-    seal();
     const r = await deserialize<EvenDto>(EvenDto, { value: 4 });
     expect(r.value).toBe(4);
   });
 
   it('규칙 위반 → 커스텀 에러 코드', async () => {
-    seal();
     try {
       await deserialize(EvenDto, { value: 3 });
       expect.unreachable();
@@ -61,13 +56,11 @@ describe('createRule — sync', () => {
 
 describe('createRule — async', () => {
   it('async 규칙 통과', async () => {
-    seal();
     const r = await deserialize<AsyncRuleDto>(AsyncRuleDto, { score: 10 });
     expect(r.score).toBe(10);
   });
 
   it('async 규칙 위반', async () => {
-    seal();
     try {
       await deserialize(AsyncRuleDto, { score: -1 });
       expect.unreachable();

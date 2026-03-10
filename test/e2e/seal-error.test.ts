@@ -1,50 +1,38 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, serialize, SealError, IsString } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class SealTestDto {
-  @IsString()
-  name!: string;
-}
+import { describe, it, expect } from 'bun:test';
+import { deserialize, serialize, SealError, Field } from '../../index';
+import { isString } from '../../src/rules/index';
+import { ensureMeta } from '../../src/collect';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SealError', () => {
-  it('seal() 2회 호출 → SealError', () => {
-    seal();
-    expect(() => seal()).toThrow(SealError);
-  });
-
-  it('미봉인 클래스 deserialize → SealError', async () => {
-    // seal() 미호출
+  it('deserialize on class without @Field → SealError', async () => {
+    class NoFieldDto {}
     await expect(
-      deserialize(SealTestDto, { name: 'Alice' }),
+      deserialize(NoFieldDto, { name: 'Alice' }),
     ).rejects.toThrow(SealError);
   });
 
-  it('미봉인 클래스 serialize → SealError', async () => {
-    const dto = Object.assign(new SealTestDto(), { name: 'Bob' });
+  it('serialize on class without @Field → SealError', async () => {
+    class NoFieldDto2 {}
+    const dto = new NoFieldDto2();
     await expect(serialize(dto)).rejects.toThrow(SealError);
   });
 
-  it('unseal → 재봉인 가능', () => {
-    seal();
-    unseal();
-    expect(() => seal()).not.toThrow();
+  it('banned field name "__proto__" throws SealError during auto-seal', async () => {
+    class ProtoDto {}
+    // Manually register a banned field name via ensureMeta to simulate the scenario
+    ensureMeta(ProtoDto, '__proto__');
+    await expect(
+      deserialize(ProtoDto, { '__proto__': 'evil' }),
+    ).rejects.toThrow(SealError);
   });
-});
 
-describe('seal debug 옵션', () => {
-  it('debug: true → _source 저장', () => {
-    seal({ debug: true });
-    const sealed = (SealTestDto as any)[Symbol.for('baker:sealed')];
-    expect(sealed._source).toBeDefined();
-    expect(typeof sealed._source.deserialize).toBe('string');
-    expect(typeof sealed._source.serialize).toBe('string');
-    expect(sealed._source.deserialize.length).toBeGreaterThan(0);
+  it('banned field name "constructor" throws SealError during auto-seal', async () => {
+    class CtorDto {}
+    ensureMeta(CtorDto, 'constructor');
+    await expect(
+      deserialize(CtorDto, { constructor: 'evil' }),
+    ).rejects.toThrow(SealError);
   });
 });

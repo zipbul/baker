@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsString } from '../../index';
+import { Field, deserialize, BakerValidationError } from '../../index';
+import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -7,7 +8,7 @@ afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SimpleDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 }
 
@@ -15,7 +16,6 @@ class SimpleDto {
 
 describe('invalidInput 에러 코드', () => {
   it('null 입력 → invalidInput', async () => {
-    seal();
     try {
       await deserialize(SimpleDto, null);
       expect.unreachable();
@@ -28,7 +28,6 @@ describe('invalidInput 에러 코드', () => {
   });
 
   it('undefined 입력 → invalidInput', async () => {
-    seal();
     try {
       await deserialize(SimpleDto, undefined);
       expect.unreachable();
@@ -39,7 +38,6 @@ describe('invalidInput 에러 코드', () => {
   });
 
   it('배열 입력 → invalidInput', async () => {
-    seal();
     try {
       await deserialize(SimpleDto, [1, 2, 3]);
       expect.unreachable();
@@ -50,7 +48,6 @@ describe('invalidInput 에러 코드', () => {
   });
 
   it('문자열 입력 → invalidInput', async () => {
-    seal();
     try {
       await deserialize(SimpleDto, 'hello');
       expect.unreachable();
@@ -61,7 +58,6 @@ describe('invalidInput 에러 코드', () => {
   });
 
   it('숫자 입력 → invalidInput', async () => {
-    seal();
     try {
       await deserialize(SimpleDto, 42);
       expect.unreachable();
@@ -72,7 +68,6 @@ describe('invalidInput 에러 코드', () => {
   });
 
   it('유효한 객체 → 통과', async () => {
-    seal();
     const result = await deserialize<SimpleDto>(SimpleDto, { name: 'Alice' });
     expect(result.name).toBe('Alice');
   });

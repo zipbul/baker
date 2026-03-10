@@ -1,19 +1,22 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import {
-  seal, deserialize, toJsonSchema,
-  IsString, IsNumber, IsInt, IsBoolean, IsDate, IsEnum, IsArray, IsObject,
-  IsOptional, IsDefined, IsNullable,
-  Min, Max, IsPositive, IsNegative,
-  MinLength, MaxLength, IsEmail, IsUUID, IsIP, IsISO8601,
-  Equals, NotEquals, IsIn, IsNotIn,
-  ArrayMinSize, ArrayMaxSize, ArrayUnique, ArrayNotEmpty, ArrayContains,
-  IsNotEmptyObject, Matches,
-  Expose, Exclude, Schema, Nested,
+  deserialize, toJsonSchema,
+  Field, Exclude, Type, arrayOf,
 } from '../../index';
 import { unseal } from '../integration/helpers/unseal';
-import type { JsonSchema202012 } from '../../index';
 
+beforeEach(() => unseal());
 afterEach(() => unseal());
+import {
+  isString, isNumber, isInt, isBoolean, isDate, isEnum, isArray, isObject,
+  min, max, isPositive, isNegative,
+  minLength, maxLength, isEmail, isUUID, isIP, isISO8601,
+  equals, notEquals, isIn, isNotIn,
+  arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains,
+  isNotEmptyObject, matches,
+} from '../../src/rules/index';
+import { Expose } from '../../src/decorators/transform';
+import type { JsonSchema202012 } from '../../index';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // 타입 매핑
@@ -21,13 +24,13 @@ afterEach(() => unseal());
 
 describe('toJsonSchema 타입 매핑', () => {
   class TypesDto {
-    @IsString()  str!: string;
-    @IsNumber()  num!: number;
-    @IsInt()     int!: number;
-    @IsBoolean() bool!: boolean;
-    @IsDate()    date!: Date;
-    @IsArray()   arr!: unknown[];
-    @IsObject()  obj!: object;
+    @Field(isString)  str!: string;
+    @Field(isNumber())  num!: number;
+    @Field(isInt)     int!: number;
+    @Field(isBoolean) bool!: boolean;
+    @Field(isDate)    date!: Date;
+    @Field(isArray)   arr!: unknown[];
+    @Field(isObject)  obj!: object;
   }
 
   it('기본 타입 → JSON Schema type', () => {
@@ -50,9 +53,9 @@ describe('toJsonSchema enum/const', () => {
   enum Role { Admin = 'admin', User = 'user' }
 
   class EnumDto {
-    @IsEnum(Role)   role!: Role;
-    @IsIn(['a','b']) status!: string;
-    @Equals('fixed') type!: string;
+    @Field(isEnum(Role))   role!: Role;
+    @Field(isIn(['a','b'])) status!: string;
+    @Field(equals('fixed')) type!: string;
   }
 
   it('enum, isIn, equals 매핑', () => {
@@ -63,8 +66,8 @@ describe('toJsonSchema enum/const', () => {
   });
 
   class NegDto {
-    @NotEquals('bad') val1!: unknown;
-    @IsNotIn([1,2])   val2!: unknown;
+    @Field(notEquals('bad')) val1!: unknown;
+    @Field(isNotIn([1,2]))   val2!: unknown;
   }
 
   it('notEquals, isNotIn 매핑', () => {
@@ -80,9 +83,9 @@ describe('toJsonSchema enum/const', () => {
 
 describe('toJsonSchema 숫자', () => {
   class NumDto {
-    @IsNumber() @Min(0) @Max(100) range!: number;
-    @IsPositive()  pos!: number;
-    @IsNegative()  neg!: number;
+    @Field(isNumber(), min(0), max(100)) range!: number;
+    @Field(isPositive)  pos!: number;
+    @Field(isNegative)  neg!: number;
   }
 
   it('min/max, isPositive, isNegative', () => {
@@ -99,14 +102,14 @@ describe('toJsonSchema 숫자', () => {
 
 describe('toJsonSchema 문자열 + format', () => {
   class StrDto {
-    @IsString() @MinLength(1) @MaxLength(50) name!: string;
-    @IsString() @Matches(/^[a-z-]+$/) slug!: string;
-    @IsEmail()   email!: string;
-    @IsUUID()    uuid!: string;
-    @IsISO8601() ts!: string;
-    @IsIP(4)     ip4!: string;
-    @IsIP(6)     ip6!: string;
-    @IsIP()      ipAny!: string;
+    @Field(isString, minLength(1), maxLength(50)) name!: string;
+    @Field(isString, matches(/^[a-z-]+$/)) slug!: string;
+    @Field(isEmail())   email!: string;
+    @Field(isUUID())    uuid!: string;
+    @Field(isISO8601()) ts!: string;
+    @Field(isIP(4))     ip4!: string;
+    @Field(isIP(6))     ip6!: string;
+    @Field(isIP())      ipAny!: string;
   }
 
   it('문자열 constraints + format 매핑', () => {
@@ -129,9 +132,9 @@ describe('toJsonSchema 문자열 + format', () => {
 
 describe('toJsonSchema 배열', () => {
   class ArrDto {
-    @IsArray() @ArrayMinSize(1) @ArrayMaxSize(10) @ArrayUnique() tags!: string[];
-    @ArrayNotEmpty() items!: unknown[];
-    @ArrayContains(['a','b']) must!: string[];
+    @Field(isArray, arrayMinSize(1), arrayMaxSize(10), arrayUnique()) tags!: string[];
+    @Field(arrayNotEmpty) items!: unknown[];
+    @Field(arrayContains(['a','b'])) must!: string[];
   }
 
   it('배열 constraints 매핑', () => {
@@ -150,10 +153,7 @@ describe('toJsonSchema 배열', () => {
 
 describe('toJsonSchema each:true', () => {
   class EachDto {
-    @IsArray()
-    @ArrayMinSize(1)
-    @IsString({ each: true })
-    @MinLength(1, { each: true })
+    @Field(isArray, arrayMinSize(1), arrayOf(isString, minLength(1)))
     names!: string[];
   }
 
@@ -173,16 +173,16 @@ describe('toJsonSchema each:true', () => {
 
 describe('toJsonSchema direction', () => {
   class DirDto {
-    @IsString()
+    @Field(isString)
     @Expose({ name: 'user_name', deserializeOnly: true })
     @Expose({ name: 'userName', serializeOnly: true })
     name!: string;
 
-    @IsString()
+    @Field(isString)
     @Exclude({ serializeOnly: true })
     password!: string;
 
-    @IsString()
+    @Field(isString)
     @Exclude()
     internal!: string;
   }
@@ -205,38 +205,24 @@ describe('toJsonSchema direction', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// @Schema
+// @Field({ schema: ... })
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema @Schema', () => {
-  @Schema({ title: 'CreateUser', description: 'Creates a user' })
+describe('toJsonSchema @Field({ schema })', () => {
   class TitledDto {
-    @IsString()
-    @Schema({ description: 'Display name', minLength: 3 })
-    @MinLength(1)
+    @Field(isString, minLength(1), { schema: { description: 'Display name', minLength: 3 } })
     name!: string;
 
-    @IsString()
-    @Schema({ allOf: [{ minLength: 1 }, { maxLength: 100 }] })
+    @Field(isString, { schema: { allOf: [{ minLength: 1 }, { maxLength: 100 }] } })
     composed!: string;
 
-    @IsString()
-    @Schema((auto: JsonSchema202012) => ({
-      ...auto,
-      examples: ['hello'],
-    }))
+    @Field(isString)
     custom!: string;
   }
 
-  it('클래스 레벨 → 루트에 병합', () => {
-    const s = toJsonSchema(TitledDto);
-    expect(s.title).toBe('CreateUser');
-    expect(s.description).toBe('Creates a user');
-  });
-
   it('프로퍼티 레벨 객체형 → 오버라이드', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.name!.minLength).toBe(3); // @Schema가 자동 매핑 1을 오버라이드
+    expect(s.properties!.name!.minLength).toBe(3); // schema가 자동 매핑 1을 오버라이드
     expect(s.properties!.name!.description).toBe('Display name');
   });
 
@@ -244,12 +230,6 @@ describe('toJsonSchema @Schema', () => {
     const s = toJsonSchema(TitledDto);
     expect(s.properties!.composed!.type).toBeUndefined();
     expect(s.properties!.composed!.allOf).toBeDefined();
-  });
-
-  it('함수형 @Schema', () => {
-    const s = toJsonSchema(TitledDto);
-    expect(s.properties!.custom!.type).toBe('string');
-    expect(s.properties!.custom!.examples).toEqual(['hello']);
   });
 });
 
@@ -259,15 +239,12 @@ describe('toJsonSchema @Schema', () => {
 
 describe('toJsonSchema groups', () => {
   class GroupDto {
-    @IsString() name!: string;
+    @Field(isString) name!: string;
 
-    @IsString()
-    @Expose({ groups: ['admin'] })
+    @Field(isString, { groups: ['admin'] })
     secret!: string;
 
-    @IsNumber()
-    @Min(0, { groups: ['create'] })
-    @Max(100, { groups: ['update'] })
+    @Field(isNumber())
     score!: number;
   }
 
@@ -275,16 +252,6 @@ describe('toJsonSchema groups', () => {
     const s = toJsonSchema(GroupDto, { groups: ['user'] });
     expect(s.properties!.name).toBeDefined();
     expect(s.properties!.secret).toBeUndefined();
-  });
-
-  it('rule groups 필터링', () => {
-    const create = toJsonSchema(GroupDto, { groups: ['create'] });
-    expect(create.properties!.score!.minimum).toBe(0);
-    expect(create.properties!.score!.maximum).toBeUndefined();
-
-    const update = toJsonSchema(GroupDto, { groups: ['update'] });
-    expect(update.properties!.score!.maximum).toBe(100);
-    expect(update.properties!.score!.minimum).toBeUndefined();
   });
 });
 
@@ -294,10 +261,9 @@ describe('toJsonSchema groups', () => {
 
 describe('toJsonSchema 순환 참조', () => {
   class TreeNode {
-    @IsString() value!: string;
+    @Field(isString) value!: string;
 
-    @IsOptional()
-    @Nested(() => TreeNode)
+    @Field({ type: () => TreeNode, optional: true })
     child?: TreeNode;
   }
 
@@ -310,13 +276,13 @@ describe('toJsonSchema 순환 참조', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// @IsOptional과 required
+// optional → required 제외
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema @IsOptional → required 제외', () => {
+describe('toJsonSchema optional → required 제외', () => {
   class OptDto {
-    @IsString() name!: string;
-    @IsOptional() @IsNumber() age?: number;
+    @Field(isString) name!: string;
+    @Field(isNumber(), { optional: true }) age?: number;
   }
 
   it('required에 name만 포함, age 제외', () => {

@@ -1,40 +1,31 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, IsString, IsNumber, IsOptional, IsNullable, Min, Max, toJsonSchema } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import { describe, it, expect } from 'bun:test';
+import { deserialize, Field, toJsonSchema } from '../../index';
+import { isString, isNumber, min, max } from '../../src/rules/index';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NullableStringDto {
-  @IsNullable()
-  @IsString()
+  @Field(isString, { nullable: true })
   nickname!: string | null;
 
-  @IsString()
+  @Field(isString)
   name!: string;
 }
 
 class NullableOptionalDto {
-  @IsNullable()
-  @IsOptional()
-  @IsString()
+  @Field(isString, { nullable: true, optional: true })
   bio!: string | null | undefined;
 }
 
 class NullableNumberDto {
-  @IsNullable()
-  @IsNumber()
-  @Min(0)
-  @Max(200)
+  @Field(isNumber(), min(0), max(200), { nullable: true })
   age!: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('@IsNullable 역직렬화', () => {
+describe('nullable 역직렬화', () => {
   it('null 값 허용', async () => {
-    seal();
     const result = await deserialize<NullableStringDto>(NullableStringDto, {
       nickname: null, name: 'Alice',
     });
@@ -43,22 +34,19 @@ describe('@IsNullable 역직렬화', () => {
   });
 
   it('유효 값 통과', async () => {
-    seal();
     const result = await deserialize<NullableStringDto>(NullableStringDto, {
       nickname: 'bob', name: 'Alice',
     });
     expect(result.nickname).toBe('bob');
   });
 
-  it('undefined → 거부 (@IsNullable without @IsOptional)', async () => {
-    seal();
+  it('undefined → 거부 (nullable without optional)', async () => {
     await expect(
       deserialize(NullableStringDto, { name: 'Alice' }),
     ).rejects.toThrow();
   });
 
-  it('@IsNullable + @IsOptional → null과 undefined 모두 허용', async () => {
-    seal();
+  it('nullable + optional → null과 undefined 모두 허용', async () => {
     const r1 = await deserialize<NullableOptionalDto>(NullableOptionalDto, { bio: null });
     expect(r1.bio).toBeNull();
 
@@ -67,7 +55,6 @@ describe('@IsNullable 역직렬화', () => {
   });
 
   it('nullable number null → 할당, 유효 값 → 검증 통과', async () => {
-    seal();
     const r1 = await deserialize<NullableNumberDto>(NullableNumberDto, { age: null });
     expect(r1.age).toBeNull();
 
@@ -76,19 +63,18 @@ describe('@IsNullable 역직렬화', () => {
   });
 
   it('nullable number 범위 위반 → 에러', async () => {
-    seal();
     await expect(deserialize(NullableNumberDto, { age: -1 })).rejects.toThrow();
   });
 });
 
-describe('@IsNullable toJsonSchema', () => {
+describe('nullable toJsonSchema', () => {
   it('type 배열에 "null" 추가', () => {
     const schema = toJsonSchema(NullableStringDto);
     expect(schema.properties!.nickname).toEqual({ type: ['string', 'null'] });
     expect(schema.properties!.name).toEqual({ type: 'string' });
   });
 
-  it('@IsNullable + @IsNumber → ["number", "null"] with constraints', () => {
+  it('nullable number → ["number", "null"] with constraints', () => {
     const schema = toJsonSchema(NullableNumberDto);
     expect(schema.properties!.age).toEqual({
       type: ['number', 'null'], minimum: 0, maximum: 200,

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, toJsonSchema, BakerValidationError, IsNumber, Min, Max } from '../../index';
+import { Field, deserialize, toJsonSchema, BakerValidationError } from '../../index';
+import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -7,16 +8,12 @@ afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ExclusiveDto {
-  @IsNumber()
-  @Min(0, { exclusive: true })
-  @Max(100, { exclusive: true })
+  @Field(isNumber(), min(0, { exclusive: true }), max(100, { exclusive: true }))
   score!: number;
 }
 
 class InclusiveDto {
-  @IsNumber()
-  @Min(0)
-  @Max(100)
+  @Field(isNumber(), min(0), max(100))
   value!: number;
 }
 
@@ -24,13 +21,11 @@ class InclusiveDto {
 
 describe('@Min/@Max exclusive', () => {
   it('exclusive — 경계값 정확히 거부', async () => {
-    seal();
     await expect(deserialize(ExclusiveDto, { score: 0 })).rejects.toThrow(BakerValidationError);
     await expect(deserialize(ExclusiveDto, { score: 100 })).rejects.toThrow(BakerValidationError);
   });
 
   it('exclusive — 경계 바로 안쪽 통과', async () => {
-    seal();
     const r1 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 0.001 });
     expect(r1.score).toBe(0.001);
     const r2 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 99.999 });
@@ -38,7 +33,6 @@ describe('@Min/@Max exclusive', () => {
   });
 
   it('inclusive — 경계값 포함', async () => {
-    seal();
     const r1 = await deserialize<InclusiveDto>(InclusiveDto, { value: 0 });
     expect(r1.value).toBe(0);
     const r2 = await deserialize<InclusiveDto>(InclusiveDto, { value: 100 });
@@ -46,7 +40,6 @@ describe('@Min/@Max exclusive', () => {
   });
 
   it('inclusive — 범위 밖 거부', async () => {
-    seal();
     await expect(deserialize(InclusiveDto, { value: -1 })).rejects.toThrow(BakerValidationError);
     await expect(deserialize(InclusiveDto, { value: 101 })).rejects.toThrow(BakerValidationError);
   });
@@ -73,9 +66,7 @@ describe('@Min/@Max exclusive toJsonSchema', () => {
 
   it('mixed — 한쪽만 exclusive', () => {
     class MixedDto {
-      @IsNumber()
-      @Min(0, { exclusive: true })
-      @Max(100)
+      @Field(isNumber(), min(0, { exclusive: true }), max(100))
       val!: number;
     }
     const schema = toJsonSchema(MixedDto);

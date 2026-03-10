@@ -1,44 +1,42 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, SealError, IsString, IsNumber, IsEmail, Min } from '../../index';
+import { deserialize, BakerValidationError, Field, configure } from '../../index';
+import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class ErrorDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @IsNumber()
-  @Min(0)
+  @Field(isNumber(), min(0))
   age!: number;
 
-  @IsEmail()
+  @Field(isEmail())
   email!: string;
 }
 
 class MultiFieldErrorDto {
-  @IsString()
+  @Field(isString)
   a!: string;
 
-  @IsString()
+  @Field(isString)
   b!: string;
 
-  @IsString()
+  @Field(isString)
   c!: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-afterEach(() => unseal());
+afterEach(() => { unseal(); configure({}); });
 
 describe('error — integration', () => {
   it('should throw BakerValidationError on invalid input', async () => {
-    seal();
     await expect(deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' })).rejects.toThrow(BakerValidationError);
   });
 
   it('BakerValidationError should have errors array', async () => {
-    seal();
     try {
       await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
       expect(true).toBe(false); // should not reach
@@ -50,7 +48,6 @@ describe('error — integration', () => {
   });
 
   it('BakerValidationError.errors should include path and code', async () => {
-    seal();
     try {
       await deserialize(ErrorDto, { age: 25, email: 'x@y.com' }); // missing required name
       expect(true).toBe(false);
@@ -62,7 +59,6 @@ describe('error — integration', () => {
   });
 
   it('should collect all errors when multiple fields invalid', async () => {
-    seal();
     try {
       await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 }); // all invalid
       expect(true).toBe(false);
@@ -72,24 +68,8 @@ describe('error — integration', () => {
     }
   });
 
-  it('should throw SealError when sealing twice', () => {
-    seal();
-    expect(() => seal()).toThrow(SealError);
-  });
-
-  it('should throw SealError with meaningful message', () => {
-    seal();
-    try {
-      seal();
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e).toBeInstanceOf(SealError);
-      expect((e as SealError).message).toContain('sealed');
-    }
-  });
-
-  it('should respect stopAtFirstError seal option', async () => {
-    seal({ stopAtFirstError: true });
+  it('should respect stopAtFirstError configure option', async () => {
+    configure({ stopAtFirstError: true });
     try {
       await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
       expect(true).toBe(false);
@@ -103,7 +83,6 @@ describe('error — integration', () => {
   // ─── DX-2: BakerValidationError should include class name in message ───────
 
   it('should include class name in BakerValidationError.message', async () => {
-    seal();
     try {
       await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
       expect(true).toBe(false);

@@ -1,6 +1,6 @@
-import { RAW_CLASS_SCHEMA } from '../symbols';
+import { RAW_CLASS_SCHEMA, SEALED } from '../symbols';
 import { mergeInheritance } from '../seal/seal';
-import type { RawPropertyMeta, RuleDef, JsonSchema202012 } from '../types';
+import type { RawClassMeta, RawPropertyMeta, RuleDef, JsonSchema202012, SealedExecutors } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ToJsonSchemaOptions (§6.4)
@@ -11,6 +11,10 @@ export interface ToJsonSchemaOptions {
   groups?: string[];
   /** true: 모든 object 스키마에 unevaluatedProperties: false 추가 (seal의 whitelist 옵션 대응) */
   whitelist?: boolean;
+  /** 클래스 레벨 JSON Schema 메타데이터 (title, description 등) */
+  title?: string;
+  description?: string;
+  $id?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -144,6 +148,11 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     Object.assign(rootSchema, classSchema);
   }
 
+  // toJsonSchema 호출 시 전달된 클래스 레벨 메타데이터
+  if (options?.title) rootSchema.title = options.title;
+  if (options?.description) rootSchema.description = options.description;
+  if (options?.$id) rootSchema.$id = options.$id;
+
   return rootSchema;
 }
 
@@ -195,7 +204,8 @@ function processNestedClass(C: Function, ctx: SchemaContext): JsonSchema202012 {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
-  const merged = mergeInheritance(C);
+  const sealed = (C as any)[SEALED] as SealedExecutors<unknown> | undefined;
+  const merged: RawClassMeta = sealed?._merged ?? mergeInheritance(C);
   const properties: Record<string, JsonSchema202012> = {};
   const required: string[] = [];
 
@@ -217,6 +227,12 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
           return e.groups.some(g => ctx.groups!.includes(g));
         });
         if (!anyMatch) continue;
+      } else if (meta.validation.length > 0 && meta.validation.every(rd => rd.groups && rd.groups.length > 0)) {
+        // 모든 규칙이 groups 지정 → 필드 레벨 groups 필터 적용
+        const anyRuleMatch = meta.validation.some(rd =>
+          rd.groups!.some(g => ctx.groups!.includes(g)),
+        );
+        if (!anyRuleMatch) continue;
       }
     }
 
@@ -321,12 +337,12 @@ function buildNestedTypeSchema(
     innerSchema = { oneOf };
   } else {
     // 단순 중첩 참조
-    const nestedClass = meta.type!.fn();
+    const nestedClass = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
     innerSchema = processNestedClass(nestedClass, ctx);
   }
 
   // each:true / validateNestedEach → 배열 래핑
-  const isArray = meta.flags.validateNestedEach;
+  const isArray = meta.type?.isArray || meta.flags.validateNestedEach;
   if (isArray) {
     const schema: JsonSchema202012 = { type: 'array', items: innerSchema };
 

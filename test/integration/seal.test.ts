@@ -1,15 +1,18 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, SealError, IsString, IsNumber, Transform, Type, ValidateNested, createRule } from '../../index';
+import { Field, deserialize, serialize, createRule } from '../../index';
+import { Transform } from '../../src/decorators/transform';
+import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED } from '../../src/symbols';
+import { collectValidation } from '../../src/collect';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class SealTestDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @IsNumber()
+  @Field(isNumber())
   age!: number;
 }
 
@@ -17,34 +20,40 @@ class SealTestDto {
 
 afterEach(() => unseal());
 
-describe('seal — integration', () => {
-  it('should seal registered DTOs', () => {
-    seal();
-    expect((SealTestDto as any)[SEALED]).toBeDefined();
-    expect(typeof (SealTestDto as any)[SEALED]._deserialize).toBe('function');
-    expect(typeof (SealTestDto as any)[SEALED]._serialize).toBe('function');
+describe('auto-seal — integration', () => {
+  it('should auto-seal registered DTOs on first deserialize', async () => {
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+    const sealed = (SealTestDto as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(typeof sealed._deserialize).toBe('function');
+    expect(typeof sealed._serialize).toBe('function');
   });
 
-  it('should throw SealError when sealed twice', () => {
-    seal();
-    expect(() => seal()).toThrow(SealError);
+  it('should auto-seal registered DTOs on first serialize', async () => {
+    const dto = Object.assign(new SealTestDto(), { name: 'Bob', age: 30 });
+    await serialize(dto);
+    const sealed = (SealTestDto as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(typeof sealed._deserialize).toBe('function');
+    expect(typeof sealed._serialize).toBe('function');
   });
 
-  it('should allow re-sealing after unseal()', () => {
-    seal();
+  it('should allow re-seal after unseal()', async () => {
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     unseal();
-    expect(() => seal()).not.toThrow();
+    // Should not throw — auto-seal triggers again
+    await expect(deserialize(SealTestDto, { name: 'Bob', age: 30 })).resolves.toBeDefined();
   });
 
-  it('should attach executors after seal', () => {
-    seal();
+  it('should attach executors after auto-seal', async () => {
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     const sealed = (SealTestDto as any)[SEALED];
     expect(sealed).toHaveProperty('_deserialize');
     expect(sealed).toHaveProperty('_serialize');
   });
 
-  it('should remove executors after unseal', () => {
-    seal();
+  it('should remove executors after unseal', async () => {
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     unseal();
     expect((SealTestDto as any)[SEALED]).toBeUndefined();
   });
@@ -55,13 +64,13 @@ describe('seal — integration', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SyncDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 }
 
 class AsyncTransformDeserializeDto {
   @Transform(async ({ value }) => (typeof value === 'string' ? value.trim() : value), { deserializeOnly: true })
-  @IsString()
+  @Field(isString)
   name!: string;
 }
 
@@ -70,106 +79,68 @@ const asyncRule = createRule({
   validate: async (v) => typeof v === 'string',
 });
 
-import { collectValidation, collectTransform } from '../../src/collect';
-
-function AsyncRule(): PropertyDecorator {
-  return (target, key) => collectValidation(target as object, key as string, { rule: asyncRule });
-}
-
 class AsyncRuleDto {
-  @AsyncRule()
+  @Field({ rules: [asyncRule] })
   name!: string;
 }
 
 class AsyncTransformSerializeDto {
   @Transform(async ({ value }) => (typeof value === 'number' ? value * 100 : value), { serializeOnly: true })
-  @IsNumber()
+  @Field(isNumber())
   price!: number;
 }
 
 class NestedSyncDto {
-  @IsString()
+  @Field(isString)
   label!: string;
 }
 
 class ParentWithAsyncNestedDto {
-  @ValidateNested()
-  @Type(() => AsyncTransformDeserializeDto)
+  @Field({ type: () => AsyncTransformDeserializeDto })
   child!: AsyncTransformDeserializeDto;
 }
 
 describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
-  it('sync DTO → _isAsync === false', () => {
-    seal();
+  it('sync DTO → _isAsync === false', async () => {
+    await deserialize(SyncDto, { name: 'test' });
     const sealed = (SyncDto as any)[SEALED];
     expect(sealed._isAsync).toBe(false);
   });
 
-  it('async @Transform (deserialize) → _isAsync === true', () => {
-    seal();
+  it('async @Transform (deserialize) → _isAsync === true', async () => {
+    await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('async createRule → _isAsync === true', () => {
-    seal();
+  it('async createRule → _isAsync === true', async () => {
+    await deserialize(AsyncRuleDto, { name: 'test' });
     const sealed = (AsyncRuleDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('nested async DTO → parent _isAsync === true', () => {
-    seal();
+  it('nested async DTO → parent _isAsync === true', async () => {
+    await deserialize(ParentWithAsyncNestedDto, { child: { name: '  nested  ' } });
     const sealed = (ParentWithAsyncNestedDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('async @Transform (serializeOnly) → _isSerializeAsync === true', () => {
-    seal();
+  it('async @Transform (serializeOnly) → _isSerializeAsync === true', async () => {
+    const dto = Object.assign(new AsyncTransformSerializeDto(), { price: 9 });
+    await serialize(dto);
     const sealed = (AsyncTransformSerializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(true);
   });
 
-  it('sync DTO → _isSerializeAsync === false', () => {
-    seal();
+  it('sync DTO → _isSerializeAsync === false', async () => {
+    await deserialize(SyncDto, { name: 'test' });
     const sealed = (SyncDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
   });
 
-  it('async @Transform (deserialize only) → _isSerializeAsync === false', () => {
-    seal();
+  it('async @Transform (deserialize only) → _isSerializeAsync === false', async () => {
+    await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// M3: debug 옵션 — _source 저장
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('M3 — debug option (_source)', () => {
-  it('debug: true → _source.deserialize is non-empty string', () => {
-    seal({ debug: true });
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(typeof sealed._source?.deserialize).toBe('string');
-    expect(sealed._source?.deserialize.length).toBeGreaterThan(0);
-  });
-
-  it('debug: true → _source.serialize is non-empty string', () => {
-    seal({ debug: true });
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(typeof sealed._source?.serialize).toBe('string');
-    expect(sealed._source?.serialize.length).toBeGreaterThan(0);
-  });
-
-  it('debug: false (default) → _source is undefined', () => {
-    seal();
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(sealed._source).toBeUndefined();
-  });
-
-  it('debug: true → _source.deserialize contains field name', () => {
-    seal({ debug: true });
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(sealed._source?.deserialize).toContain('name');
   });
 });

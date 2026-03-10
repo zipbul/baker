@@ -1,35 +1,33 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsString, IsNumber, IsDefined, IsOptional } from '../../index';
+import { Field, deserialize, BakerValidationError } from '../../index';
+import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+// In the new API, fields are required by default (isDefined is implicit)
 class DefinedDto {
-  @IsDefined()
-  @IsString()
+  @Field(isString)
   name!: string;
 }
 
 class OptionalDto {
-  @IsOptional()
-  @IsString()
+  @Field(isString, { optional: true })
   nickname?: string;
 }
 
+// In the new API, required is the default — just @Field(isString) without optional
 class DefinedOverrideDto {
-  @IsDefined()
-  @IsOptional()
-  @IsString()
+  @Field(isString)
   tag!: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('@IsDefined', () => {
+describe('@IsDefined (implicit in new API)', () => {
   it('undefined → isDefined 에러', async () => {
-    seal();
     try {
       await deserialize(DefinedDto, {});
       expect.unreachable();
@@ -40,41 +38,35 @@ describe('@IsDefined', () => {
   });
 
   it('유효 값 → 통과', async () => {
-    seal();
     const result = await deserialize<DefinedDto>(DefinedDto, { name: 'Alice' });
     expect(result.name).toBe('Alice');
   });
 
   it('빈 문자열 → isDefined 통과, isString 검증으로 진행', async () => {
-    seal();
     const result = await deserialize<DefinedDto>(DefinedDto, { name: '' });
     expect(result.name).toBe('');
   });
 });
 
-describe('@IsOptional', () => {
+describe('optional', () => {
   it('undefined → skip', async () => {
-    seal();
     const result = await deserialize<OptionalDto>(OptionalDto, {});
     expect(result.nickname).toBeUndefined();
   });
 
   it('null → skip', async () => {
-    seal();
     const result = await deserialize<OptionalDto>(OptionalDto, { nickname: null });
     expect(result.nickname).toBeUndefined();
   });
 
   it('유효 값 → 검증 통과', async () => {
-    seal();
     const result = await deserialize<OptionalDto>(OptionalDto, { nickname: 'Bob' });
     expect(result.nickname).toBe('Bob');
   });
 });
 
-describe('@IsDefined + @IsOptional 동시 선언', () => {
-  it('@IsDefined 우선 → undefined 거부', async () => {
-    seal();
+describe('required field (not optional) → undefined 거부', () => {
+  it('required → undefined 거부', async () => {
     await expect(
       deserialize(DefinedOverrideDto, {}),
     ).rejects.toThrow(BakerValidationError);

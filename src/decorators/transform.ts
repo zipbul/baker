@@ -95,10 +95,10 @@ export function Transform(fn: TransformFunction, options?: TransformOptions): Pr
 
 /**
  * 중첩 객체의 타입을 지정. discriminator 다형성 지원.
- * @ValidateNested와 함께 사용 시 중첩 DTO 재귀 검증 활성화.
- * builder 트리거 조건: meta.type !== null && meta.flags.validateNested === true
+ * DTO 클래스 지정 시 자동으로 중첩 재귀 검증 활성화.
+ * 배열은 `@Type(() => [Dto])` 형태로 지정.
  */
-export function Type(fn: () => Function, options?: TypeOptions): PropertyDecorator {
+export function Type(fn: () => Function | Function[], options?: TypeOptions): PropertyDecorator {
   return (target, key) => {
     collectType(target as object, key as string, {
       fn: fn as TypeDef['fn'],

@@ -3,7 +3,6 @@ import { buildSerializeCode } from './serialize-builder';
 import { isString } from '../rules/typechecker';
 import { SEALED } from '../symbols';
 import type { RawClassMeta, SealedExecutors } from '../types';
-import type { SealOptions } from '../interfaces';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -457,29 +456,4 @@ describe('buildSerializeCode', () => {
     expect(result.items).toEqual([]);
   });
 
-  // ── debug option — __bakerSource ────────────────────────────────────────────
-
-  it('should store __bakerSource on executor when debug:true', () => {
-    // Arrange
-    class DebugSerDto { name = 'test'; }
-    const merged: RawClassMeta = {
-      name: {
-        validation: [],
-        transform: [],
-        expose: [],
-        exclude: null,
-        type: null,
-        flags: {},
-        schema: null,
-      },
-    };
-    const opts: SealOptions = { debug: true };
-    const exec = buildSerializeCode(DebugSerDto, merged, opts, false);
-    // Act
-    const source = (exec as any).__bakerSource;
-    // Assert — __bakerSource should be a non-empty string
-    expect(typeof source).toBe('string');
-    expect(source.length).toBeGreaterThan(0);
-    expect(source).toContain('__bk$out');
-  });
 });

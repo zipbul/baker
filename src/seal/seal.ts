@@ -1,11 +1,12 @@
 import { RAW, SEALED } from '../symbols';
 import { globalRegistry } from '../registry';
 import { SealError } from '../errors';
+import { _getGlobalOptions } from '../configure';
 import { buildDeserializeCode } from './deserialize-builder';
 import { buildSerializeCode } from './serialize-builder';
 import { analyzeCircular } from './circular-analyzer';
 import { validateExposeStacks } from './expose-validator';
-import type { RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
+import type { RawClassMeta, SealedExecutors } from '../types';
 import type { SealOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,9 +22,9 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
       ? meta.transform.filter(td => !td.options?.serializeOnly)
       : meta.transform.filter(td => !td.options?.deserializeOnly);
     if (transforms.some(td => (td.fn as any).constructor?.name === 'AsyncFunction')) return true;
-    // 3. nested DTO async — RAW 메타데이터를 직접 재귀 분석 (SEALED placeholder 의존 제거, BUG-2 수정)
-    if (meta.type?.fn) {
-      const nestedClass = meta.type.fn();
+    // 3. nested DTO async — resolvedClass 사용 (정규화 이후), 미정규화 시 fn() fallback
+    if (meta.type?.resolvedClass || meta.type?.fn) {
+      const nestedClass = meta.type.resolvedClass ?? meta.type.fn() as Function;
       const v = visited ?? new Set<Function>();
       if (!v.has(nestedClass)) {
         v.add(nestedClass);
@@ -52,23 +53,48 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
 let _sealed = false;
 
+/** seal 완료된 클래스 목록 — unseal에서 SEALED 제거 시 사용 */
+export const _sealedClasses = new Set<Function>();
+
 // ─────────────────────────────────────────────────────────────────────────────
-// seal() — 전역 레지스트리 모든 DTO 봉인 (§4.1)
+// _autoSeal — 첫 deserialize/serialize 호출 시 globalRegistry 전체 배치 seal
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 전역 레지스트리에 등록된 **모든** DTO를 봉인한다.
- * - 2회 호출 시: SealError throw
- * - 순환 참조 DTO는 placeholder 패턴으로 안전하게 처리
+ * @internal — deserialize/serialize에서 호출.
+ * 이미 sealed면 no-op.
  */
-export function seal(options?: SealOptions): void {
-  if (_sealed) throw new SealError('already sealed: seal() must be called exactly once');
+export function _autoSeal(): void {
+  if (_sealed) return;
+
+  const options = _getGlobalOptions();
 
   for (const Class of globalRegistry) {
     sealOne(Class, options);
   }
 
+  for (const Class of globalRegistry) {
+    _sealedClasses.add(Class);
+    delete (Class as any)[RAW];
+  }
+  globalRegistry.clear();
+
   _sealed = true;
+}
+
+/**
+ * @internal — 동적 import로 auto-seal 이후에 등록된 클래스를 즉석 seal.
+ * Class[RAW]가 있고 Class[SEALED]가 없는 경우에만 동작.
+ */
+export function _sealOnDemand(Class: Function): void {
+  if (Object.prototype.hasOwnProperty.call(Class, SEALED)) return;
+  if (!Object.prototype.hasOwnProperty.call(Class, RAW)) return;
+
+  const options = _getGlobalOptions();
+  sealOne(Class, options);
+  _sealedClasses.add(Class);
+  delete (Class as any)[RAW];
+  globalRegistry.delete(Class);
 }
 
 /**
@@ -76,6 +102,7 @@ export function seal(options?: SealOptions): void {
  */
 export function _resetForTesting(): void {
   _sealed = false;
+  _sealedClasses.clear();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,10 +132,19 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
     }
   }
 
-  // 1b. @Type without @ValidateNested 경고 (DX-5)
-  for (const [key, meta] of Object.entries(merged)) {
-    if (meta.type && !meta.flags.validateNested && meta.transform.filter(td => !td.options?.serializeOnly).length === 0) {
-      console.warn(`[baker] ${Class.name}.${key}: @Type without @ValidateNested — nested DTO will not be validated during deserialization. Add @ValidateNested() to enable recursive validation.`);
+  // 1b. TypeDef 정규화 — @Type/@Field type fn() 해석, 배열 감지, DTO 자동 nested 추론
+  const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
+  for (const meta of Object.values(merged)) {
+    if (!meta.type?.fn) continue;
+    const raw = meta.type.fn();
+    const isArray = Array.isArray(raw);
+    const resolved = isArray ? (raw as any[])[0] : raw;
+    meta.type.isArray = isArray;
+    if (!PRIMITIVE_CTORS.has(resolved)) {
+      meta.type.resolvedClass = resolved;
+      // DTO 클래스면 자동으로 validateNested 플래그 설정
+      if (!meta.flags.validateNested) meta.flags.validateNested = true;
+      if (isArray && !meta.flags.validateNestedEach) meta.flags.validateNestedEach = true;
     }
   }
 
@@ -118,11 +154,10 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
   // 3. 순환 참조 정적 분석
   const needsCircularCheck = analyzeCircular(Class, merged, options);
 
-  // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀)
+  // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass 사용
   for (const meta of Object.values(merged)) {
-    if (meta.type?.fn) {
-      const nested = meta.type.fn();
-      sealOne(nested, options);
+    if (meta.type?.resolvedClass) {
+      sealOne(meta.type.resolvedClass, options);
     }
     if (meta.type?.discriminator) {
       for (const sub of meta.type.discriminator.subTypes) {
@@ -142,19 +177,13 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
   const serializeExecutor = buildSerializeCode<T>(Class, merged, options, isSerializeAsync);
 
   // 8. placeholder를 실제 executor로 in-place 교체 (Object.assign으로 참조 무결성 보장)
-  const assigned: Record<string, unknown> = {
+  Object.assign(placeholder, {
     _deserialize: deserializeExecutor,
     _serialize: serializeExecutor,
     _isAsync: isAsync,
     _isSerializeAsync: isSerializeAsync,
-  };
-  if (options?.debug) {
-    assigned._source = {
-      deserialize: (deserializeExecutor as any).__bakerSource ?? '',
-      serialize: (serializeExecutor as any).__bakerSource ?? '',
-    };
-  }
-  Object.assign(placeholder, assigned);
+    _merged: merged,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,40 +1,55 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsString, IsNumber, IsEmail, Min } from '../../index';
+import { Field, deserialize, configure, BakerValidationError } from '../../index';
+import { isString, isNumber, isEmail } from '../../src/rules/index';
+import { collectValidation } from '../../src/collect';
 import type { BakerError } from '../../index';
 import { unseal } from '../integration/helpers/unseal';
 
-afterEach(() => unseal());
+afterEach(() => { unseal(); configure({}); });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class MultiDto {
-  @IsString()
+  @Field(isString)
   a!: string;
 
-  @IsString()
+  @Field(isString)
   b!: string;
 
-  @IsString()
+  @Field(isString)
   c!: string;
 }
 
 class MessageDto {
-  @IsString({ message: 'name은 문자열이어야 합니다' })
+  @Field()
   name!: string;
 }
+// Attach isString rule with custom message via collectValidation
+collectValidation(MessageDto.prototype, 'name', {
+  rule: isString,
+  message: 'name은 문자열이어야 합니다',
+});
 
 class MessageFnDto {
-  @IsNumber(undefined, { message: ({ property, value }) => `${property}(${value})은 숫자가 아닙니다` })
+  @Field()
   score!: number;
 }
+collectValidation(MessageFnDto.prototype, 'score', {
+  rule: isNumber(),
+  message: ({ property, value }) => `${property}(${value})은 숫자가 아닙니다`,
+});
 
 class ContextDto {
-  @IsEmail(undefined, { context: { severity: 'critical' } })
+  @Field()
   email!: string;
 }
+collectValidation(ContextDto.prototype, 'email', {
+  rule: isEmail(),
+  context: { severity: 'critical' },
+});
 
 class ClassNameDto {
-  @IsString()
+  @Field(isString)
   field!: string;
 }
 
@@ -42,7 +57,7 @@ class ClassNameDto {
 
 describe('error handling — stopAtFirstError', () => {
   it('stopAtFirstError: true → 에러 1개', async () => {
-    seal({ stopAtFirstError: true });
+    configure({ stopAtFirstError: true });
     try {
       await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
       expect.unreachable();
@@ -52,7 +67,6 @@ describe('error handling — stopAtFirstError', () => {
   });
 
   it('stopAtFirstError: false (기본) → 전체 에러 수집', async () => {
-    seal();
     try {
       await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
       expect.unreachable();
@@ -64,7 +78,6 @@ describe('error handling — stopAtFirstError', () => {
 
 describe('error handling — custom message', () => {
   it('string message', async () => {
-    seal();
     try {
       await deserialize(MessageDto, { name: 123 });
       expect.unreachable();
@@ -75,7 +88,6 @@ describe('error handling — custom message', () => {
   });
 
   it('function message', async () => {
-    seal();
     try {
       await deserialize(MessageFnDto, { score: 'abc' });
       expect.unreachable();
@@ -89,7 +101,6 @@ describe('error handling — custom message', () => {
 
 describe('error handling — context', () => {
   it('context 객체 포함', async () => {
-    seal();
     try {
       await deserialize(ContextDto, { email: 'not-email' });
       expect.unreachable();
@@ -102,7 +113,6 @@ describe('error handling — context', () => {
 
 describe('error handling — className', () => {
   it('BakerValidationError.className 포함', async () => {
-    seal();
     try {
       await deserialize(ClassNameDto, { field: 42 });
       expect.unreachable();
@@ -113,7 +123,6 @@ describe('error handling — className', () => {
   });
 
   it('error message에 클래스명 포함', async () => {
-    seal();
     try {
       await deserialize(ClassNameDto, { field: 42 });
       expect.unreachable();

@@ -1,26 +1,25 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import {
-  seal, deserialize, serialize,
-  IsString, IsNumber, IsBoolean, IsOptional, IsNullable,
-  Nested, Expose, Exclude, Transform, Min, MinLength, IsEmail,
-  ArrayMinSize,
+  deserialize, serialize,
+  Field, Exclude,
 } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
-
-afterEach(() => unseal());
+import {
+  isString, isNumber, isBoolean, isEmail,
+  min, minLength, arrayMinSize,
+} from '../../src/rules/index';
+import { Expose, Transform } from '../../src/decorators/transform';
 
 // ─── 1. 단순 플랫 DTO 라운드트립 ───────────────────────────────────────────
 
 describe('플랫 DTO 라운드트립', () => {
   class FlatDto {
-    @IsString() name!: string;
-    @IsNumber() age!: number;
-    @IsBoolean() active!: boolean;
+    @Field(isString) name!: string;
+    @Field(isNumber()) age!: number;
+    @Field(isBoolean) active!: boolean;
   }
 
   it('deserialize → serialize → deserialize 동일', async () => {
     const input = { name: 'Alice', age: 30, active: true };
-    seal();
     const obj1 = await deserialize<FlatDto>(FlatDto, input);
     const plain = await serialize(obj1);
     const obj2 = await deserialize<FlatDto>(FlatDto, plain);
@@ -34,18 +33,17 @@ describe('플랫 DTO 라운드트립', () => {
 
 describe('중첩 DTO 라운드트립', () => {
   class Address {
-    @IsString() city!: string;
-    @IsString() zip!: string;
+    @Field(isString) city!: string;
+    @Field(isString) zip!: string;
   }
 
   class PersonDto {
-    @IsString() name!: string;
-    @Nested(() => Address) address!: Address;
+    @Field(isString) name!: string;
+    @Field({ type: () => Address }) address!: Address;
   }
 
   it('deserialize → serialize → deserialize 동일', async () => {
     const input = { name: 'Bob', address: { city: 'Seoul', zip: '06000' } };
-    seal();
     const obj1 = await deserialize<PersonDto>(PersonDto, input);
     const plain = await serialize(obj1);
     const obj2 = await deserialize<PersonDto>(PersonDto, plain);
@@ -55,22 +53,19 @@ describe('중첩 DTO 라운드트립', () => {
   });
 });
 
-// ─── 3. @Expose name 매핑 라운드트립 ───────────────────────────────────────
+// ─── 3. @Field({ name }) 매핑 라운드트립 ───────────────────────────────────
 
-describe('@Expose name 매핑 라운드트립', () => {
+describe('@Field({ name }) 매핑 라운드트립', () => {
   class MappedDto {
-    @Expose({ name: 'user_name' })
-    @IsString()
+    @Field(isString, { name: 'user_name' })
     userName!: string;
 
-    @Expose({ name: 'user_age' })
-    @IsNumber()
+    @Field(isNumber(), { name: 'user_age' })
     userAge!: number;
   }
 
   it('snake_case 입력 → 직렬화 → 재역직렬화', async () => {
     const input = { user_name: 'Carol', user_age: 25 };
-    seal();
     const obj1 = await deserialize<MappedDto>(MappedDto, input);
     expect(obj1.userName).toBe('Carol');
     const plain = await serialize(obj1);
@@ -88,12 +83,11 @@ describe('@Transform 포함 라운드트립', () => {
   class TrimDto {
     @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
     @Transform(({ value }) => typeof value === 'string' ? value.toUpperCase() : value, { serializeOnly: true })
-    @IsString()
+    @Field(isString)
     tag!: string;
   }
 
   it('deserialize trim → serialize uppercase → deserialize trim', async () => {
-    seal();
     const obj1 = await deserialize<TrimDto>(TrimDto, { tag: '  hello  ' });
     expect(obj1.tag).toBe('hello'); // trimmed
 
@@ -105,17 +99,16 @@ describe('@Transform 포함 라운드트립', () => {
   });
 });
 
-// ─── 5. @IsOptional + @IsNullable 라운드트립 ──────────────────────────────
+// ─── 5. optional + nullable 라운드트립 ──────────────────────────────────
 
-describe('@IsOptional + @IsNullable 라운드트립', () => {
+describe('optional + nullable 라운드트립', () => {
   class NullableDto {
-    @IsString() name!: string;
-    @IsOptional() @IsNullable() @IsString() nickname?: string | null;
+    @Field(isString) name!: string;
+    @Field(isString, { optional: true, nullable: true }) nickname?: string | null;
   }
 
   it('nickname 존재 시 라운드트립', async () => {
     const input = { name: 'Dave', nickname: 'D' };
-    seal();
     const obj = await deserialize<NullableDto>(NullableDto, input);
     const plain = await serialize(obj);
     const obj2 = await deserialize<NullableDto>(NullableDto, plain);
@@ -124,7 +117,6 @@ describe('@IsOptional + @IsNullable 라운드트립', () => {
 
   it('nickname = null 라운드트립', async () => {
     const input = { name: 'Dave', nickname: null };
-    seal();
     const obj = await deserialize<NullableDto>(NullableDto, input);
     expect(obj.nickname).toBeNull();
     const plain = await serialize(obj);
@@ -134,7 +126,6 @@ describe('@IsOptional + @IsNullable 라운드트립', () => {
 
   it('nickname 누락 라운드트립', async () => {
     const input = { name: 'Dave' };
-    seal();
     const obj = await deserialize<NullableDto>(NullableDto, input);
     expect(obj.nickname).toBeUndefined();
     const plain = await serialize(obj);
@@ -147,14 +138,13 @@ describe('@IsOptional + @IsNullable 라운드트립', () => {
 
 describe('Nested 배열 라운드트립', () => {
   class LineItem {
-    @IsString() product!: string;
-    @IsNumber() @Min(1) qty!: number;
+    @Field(isString) product!: string;
+    @Field(isNumber(), min(1)) qty!: number;
   }
 
   class OrderDto {
-    @IsString() orderId!: string;
-    @Nested(() => LineItem, { each: true })
-    @ArrayMinSize(1)
+    @Field(isString) orderId!: string;
+    @Field(arrayMinSize(1), { type: () => [LineItem] })
     items!: LineItem[];
   }
 
@@ -166,7 +156,6 @@ describe('Nested 배열 라운드트립', () => {
         { product: 'Mouse', qty: 5 },
       ],
     };
-    seal();
     const obj = await deserialize<OrderDto>(OrderDto, input);
     const plain = await serialize(obj);
     const obj2 = await deserialize<OrderDto>(OrderDto, plain);
@@ -183,12 +172,11 @@ describe('Nested 배열 라운드트립', () => {
 
 describe('@Exclude 필드 라운드트립', () => {
   class SecretDto {
-    @IsString() username!: string;
-    @Exclude() @IsString() password!: string;
+    @Field(isString) username!: string;
+    @Exclude() @Field(isString) password!: string;
   }
 
   it('Exclude 필드는 양방향 제외', async () => {
-    seal();
     const obj = await deserialize<SecretDto>(SecretDto, { username: 'admin', password: 'secret' });
     // @Exclude() 기본은 양방향 → deserialize에서도 제외
     expect(obj.password).toBeUndefined();
@@ -201,26 +189,21 @@ describe('@Exclude 필드 라운드트립', () => {
 
 describe('복합 DTO 전체 라운드트립', () => {
   class ContactInfo {
-    @IsEmail() email!: string;
-    @IsOptional() @IsString() phone?: string;
+    @Field(isEmail()) email!: string;
+    @Field(isString, { optional: true }) phone?: string;
   }
 
   class ProfileDto {
-    @Expose({ name: 'full_name' })
-    @IsString()
-    @MinLength(2)
+    @Field(isString, minLength(2), { name: 'full_name' })
     fullName!: string;
 
-    @IsNumber()
-    @Min(0)
+    @Field(isNumber(), min(0))
     age!: number;
 
-    @Nested(() => ContactInfo)
+    @Field({ type: () => ContactInfo })
     contact!: ContactInfo;
 
-    @IsOptional()
-    @IsNullable()
-    @IsString()
+    @Field(isString, { optional: true, nullable: true })
     bio?: string | null;
   }
 
@@ -231,7 +214,6 @@ describe('복합 DTO 전체 라운드트립', () => {
       contact: { email: 'test@example.com', phone: '+821012345678' },
       bio: 'Hello World',
     };
-    seal();
     const obj = await deserialize<ProfileDto>(ProfileDto, input);
     const plain = await serialize(obj);
     const obj2 = await deserialize<ProfileDto>(ProfileDto, plain);
@@ -250,7 +232,6 @@ describe('복합 DTO 전체 라운드트립', () => {
       contact: { email: 'test@example.com' },
       bio: null,
     };
-    seal();
     const obj = await deserialize<ProfileDto>(ProfileDto, input);
     const plain = await serialize(obj);
     const obj2 = await deserialize<ProfileDto>(ProfileDto, plain);

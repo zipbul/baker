@@ -1,36 +1,32 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import {
-  seal, deserialize, serialize, BakerValidationError,
-  Type, ValidateNested, IsString, IsNumber,
-} from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, serialize, BakerValidationError, Field, Type } from '../../index';
+import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => unseal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class Address {
-  @IsString() city!: string;
+  @Field(isString) city!: string;
 }
 
 class TypeDto {
-  @Type(() => Address)
-  @ValidateNested()
+  @Field({ type: () => Address })
   address!: Address;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('@Type', () => {
+describe('@Type / @Field({ type })', () => {
   it('중첩 객체를 인스턴스로 변환', async () => {
-    seal();
     const r = await deserialize<TypeDto>(TypeDto, { address: { city: 'Seoul' } });
     expect(r.address).toBeInstanceOf(Address);
     expect(r.address.city).toBe('Seoul');
   });
 
   it('중첩 검증 실패', async () => {
-    seal();
     await expect(
       deserialize(TypeDto, { address: { city: 123 } }),
     ).rejects.toThrow(BakerValidationError);
@@ -38,11 +34,11 @@ describe('@Type', () => {
 
   it('discriminator 다형성', async () => {
     class Cat {
-      @IsString() name!: string;
+      @Field(isString) name!: string;
     }
     class Dog {
-      @IsString() name!: string;
-      @IsNumber() age!: number;
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
     }
 
     class PetDto {
@@ -53,11 +49,8 @@ describe('@Type', () => {
         ] },
         keepDiscriminatorProperty: true,
       })
-      @ValidateNested()
       pet!: Cat | Dog;
     }
-
-    seal();
 
     const catResult = await deserialize<PetDto>(PetDto, { pet: { type: 'cat', name: 'Whiskers' } });
     expect(catResult.pet).toBeInstanceOf(Cat);
@@ -69,7 +62,6 @@ describe('@Type', () => {
   });
 
   it('serialize 시 중첩 객체 직렬화', async () => {
-    seal();
     const r = await deserialize<TypeDto>(TypeDto, { address: { city: 'Seoul' } });
     const s = await serialize(r);
     expect(s).toEqual({ address: { city: 'Seoul' } });

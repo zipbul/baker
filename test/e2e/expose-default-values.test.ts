@@ -1,20 +1,20 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, IsString, IsNumber, IsOptional } from '../../index';
+import { Field, deserialize, configure } from '../../index';
+import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-afterEach(() => unseal());
+afterEach(() => { unseal(); configure({}); });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DefaultsDto {
-  @IsString()
+  @Field(isString)
   name: string = 'anonymous';
 
-  @IsNumber()
+  @Field(isNumber())
   score: number = 100;
 
-  @IsOptional()
-  @IsString()
+  @Field(isString, { optional: true })
   tag?: string = 'default-tag';
 }
 
@@ -22,14 +22,14 @@ class DefaultsDto {
 
 describe('exposeDefaultValues', () => {
   it('true → 누락 필드에 클래스 기본값 사용', async () => {
-    seal({ exposeDefaultValues: true });
+    configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {});
     expect(result.name).toBe('anonymous');
     expect(result.score).toBe(100);
   });
 
   it('true → 입력 값이 있으면 기본값 무시', async () => {
-    seal({ exposeDefaultValues: true });
+    configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Alice', score: 50,
     });
@@ -38,19 +38,19 @@ describe('exposeDefaultValues', () => {
   });
 
   it('false (기본) → 누락 필드는 undefined → isDefined 에러', async () => {
-    seal({ exposeDefaultValues: false });
+    configure({ allowClassDefaults: false });
     await expect(
       deserialize(DefaultsDto, {}),
     ).rejects.toThrow();
   });
 
-  it('true + @IsOptional → optional 필드도 기본값 사용', async () => {
-    seal({ exposeDefaultValues: true });
+  it('true + optional → optional 필드도 기본값 사용', async () => {
+    configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Bob', score: 80,
     });
-    // @IsOptional이므로 undefined/null이면 skip, 기본값 유지될 수 있음
-    // 하지만 exposeDefaultValues는 @IsOptional 아닌 필드에만 적용
+    // optional이므로 undefined/null이면 skip, 기본값 유지될 수 있음
+    // 하지만 allowClassDefaults는 optional 아닌 필드에만 적용
     expect(result.name).toBe('Bob');
   });
 });

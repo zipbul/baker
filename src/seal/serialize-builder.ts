@@ -73,8 +73,6 @@ export function buildSerializeCode<T>(
     `return ${fnKeyword}(instance, _opts) { ` + body + ' }',
   )(refs, execs) as (instance: T, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>;
 
-  if (options?.debug) (executor as any).__bakerSource = body;
-
   return executor;
 }
 
@@ -119,13 +117,14 @@ function generateSerializeFieldCode(
   const useOptionalGuard = meta.flags.isOptional;
 
   // ③ nested @Type 처리 (H4) — @Transform 없는 경우에만 (§4.3 serialize 파이프라인)
-  if (meta.type?.fn && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
-    const nestedSealed = (meta.type.fn() as any)[SEALED] as SealedExecutors<unknown>;
+  if ((meta.type?.resolvedClass || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
+    const nestedCls = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
+    const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
     const execIdx = execs.length;
     execs.push(nestedSealed);
 
     // 배열/each 여부 판단
-    const hasEach = meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+    const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
     const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
 
     let nestedCode: string;

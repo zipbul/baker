@@ -1,30 +1,30 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { seal, deserialize, BakerValidationError, IsString, IsNumber, Expose } from '../../index';
+import { deserialize, configure, BakerValidationError, Field } from '../../index';
+import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-afterEach(() => unseal());
+afterEach(() => { unseal(); configure({}); });
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ProfileDto {
-  @IsString()
+  @Field(isString)
   name!: string;
 
-  @IsNumber()
+  @Field(isNumber())
   age!: number;
 }
 
 class ExposedDto {
-  @Expose({ name: 'user_name' })
-  @IsString()
+  @Field(isString, { name: 'user_name' })
   name!: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('whitelist seal option', () => {
+describe('stripUnknown (whitelist) configure option', () => {
   it('미선언 필드 거부', async () => {
-    seal({ whitelist: true });
+    configure({ stripUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
       expect.unreachable();
@@ -37,20 +37,20 @@ describe('whitelist seal option', () => {
   });
 
   it('선언 필드만 있으면 통과', async () => {
-    seal({ whitelist: true });
+    configure({ stripUnknown: true });
     const result = await deserialize<ProfileDto>(ProfileDto, { name: 'Bob', age: 30 });
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
   });
 
-  it('@Expose extractKey 기준으로 허용', async () => {
-    seal({ whitelist: true });
+  it('@Field({ name }) extractKey 기준으로 허용', async () => {
+    configure({ stripUnknown: true });
     const result = await deserialize<ExposedDto>(ExposedDto, { user_name: 'Carol' });
     expect(result.name).toBe('Carol');
   });
 
-  it('@Expose extractKey 외 필드 거부', async () => {
-    seal({ whitelist: true });
+  it('@Field({ name }) extractKey 외 필드 거부', async () => {
+    configure({ stripUnknown: true });
     try {
       await deserialize(ExposedDto, { user_name: 'Carol', hack: 1 });
       expect.unreachable();
@@ -61,7 +61,7 @@ describe('whitelist seal option', () => {
   });
 
   it('collectErrors 모드에서 다수 미선언 필드 수집', async () => {
-    seal({ whitelist: true });
+    configure({ stripUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
       expect.unreachable();
@@ -71,8 +71,8 @@ describe('whitelist seal option', () => {
     }
   });
 
-  it('stopAtFirstError + whitelist → 첫 번째 위반만', async () => {
-    seal({ whitelist: true, stopAtFirstError: true });
+  it('stopAtFirstError + stripUnknown → 첫 번째 위반만', async () => {
+    configure({ stripUnknown: true, stopAtFirstError: true });
     try {
       await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
       expect.unreachable();
@@ -81,8 +81,8 @@ describe('whitelist seal option', () => {
     }
   });
 
-  it('whitelist + 검증 에러 동시 수집', async () => {
-    seal({ whitelist: true });
+  it('stripUnknown + 검증 에러 동시 수집', async () => {
+    configure({ stripUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 123, age: 'bad', extra: 'x' });
       expect.unreachable();

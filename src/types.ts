@@ -1,5 +1,3 @@
-import type { ValidationOptions } from './interfaces';
-
 // ─────────────────────────────────────────────────────────────────────────────
 // EmitContext — 코드 생성 컨텍스트 (§4.7)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -91,12 +89,16 @@ export interface ExcludeDef {
 }
 
 export interface TypeDef {
-  fn: () => new (...args: any[]) => any;
+  fn: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
   discriminator?: {
     property: string;
     subTypes: { value: Function; name: string }[];
   };
   keepDiscriminatorProperty?: boolean;
+  /** seal() 정규화 결과 — fn()이 배열을 반환하면 true */
+  isArray?: boolean;
+  /** seal() 정규화 결과 — fn() 해석 후 캐시된 클래스 (프리미티브 제외, DTO만) */
+  resolvedClass?: new (...args: any[]) => any;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -153,8 +155,8 @@ export interface SealedExecutors<T> {
   _isAsync: boolean;
   /** serialize 방향에 async transform/nested가 있으면 true */
   _isSerializeAsync: boolean;
-  /** debug: true 시 생성된 executor 소스코드 저장 */
-  _source?: { deserialize: string; serialize: string };
+  /** seal 시 병합된 메타데이터 캐시 — toJsonSchema에서 사용 (RAW 삭제 후에도 유효) */
+  _merged?: RawClassMeta;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -236,5 +238,3 @@ export interface JsonSchema202012 {
   [key: string]: unknown;
 }
 
-// Re-export for convenience
-export type { ValidationOptions } from './interfaces';
