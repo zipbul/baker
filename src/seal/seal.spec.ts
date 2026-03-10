@@ -376,11 +376,64 @@ describe('_autoSeal', () => {
     warnSpy.mockRestore();
   });
 
-  // ── Placeholder arrow coverage (seal.ts#L88-89) ──────────────────────────
+  // ── _autoSeal 실패 시 placeholder 정리 ──────────────────────────
 
-  it('should throw "seal in progress" from placeholder _deserialize when nested DTO seal fails', () => {
-    // Arrange — nested DTO has banned field name 'constructor' → SealError during sealOne
-    // NOT registered in globalRegistry so ParentDto's sealOne triggers it via @Type
+  it('should clean up recursively-sealed nested DTOs in _sealOnDemand', () => {
+    // Arrange — batch seal first (empty), then register parent+nested after
+    _autoSeal(); // sets _sealed=true
+
+    class NestedLate {}
+    (NestedLate as any)[RAW] = makeStringField('val');
+    globalRegistry.add(NestedLate);
+    freeClasses.push(NestedLate);
+
+    class ParentLate {}
+    (ParentLate as any)[RAW] = {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => NestedLate as any },
+        flags: {},
+        schema: null,
+      },
+    };
+    globalRegistry.add(ParentLate);
+    freeClasses.push(ParentLate);
+
+    // Act — _sealOnDemand should seal ParentLate AND recursively seal NestedLate
+    _sealOnDemand(ParentLate);
+
+    // Assert — both sealed, RAW removed, removed from registry
+    expect((ParentLate as any)[SEALED]).toBeDefined();
+    expect((NestedLate as any)[SEALED]).toBeDefined();
+    expect((ParentLate as any)[RAW]).toBeUndefined();
+    expect((NestedLate as any)[RAW]).toBeUndefined();
+    expect(globalRegistry.has(ParentLate)).toBe(false);
+    expect(globalRegistry.has(NestedLate)).toBe(false);
+  });
+
+  it('should throw SealError when @Type returns invalid value (null/non-function)', () => {
+    // Arrange
+    class BadTypeDto {}
+    registerClass(BadTypeDto, {
+      field: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => null as any },
+        flags: {},
+        schema: null,
+      },
+    });
+    // Act / Assert
+    expect(() => _autoSeal()).toThrow(SealError);
+  });
+
+  it('should clean up stale placeholders when _autoSeal fails', () => {
+    // Arrange — nested DTO has banned field name 'constructor' → SealError
     class BrokenNested {}
     (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
     freeClasses.push(BrokenNested);
@@ -397,64 +450,10 @@ describe('_autoSeal', () => {
         schema: null,
       },
     });
-    // Act — seal fails mid-process; ParentDto gets placeholder before nested DTO throws
+    // Act — seal 실패
     expect(() => _autoSeal()).toThrow(SealError);
-    // Assert — ParentDto's SEALED still has the placeholder _deserialize
-    const sealed = (ParentDto as any)[SEALED];
-    expect(sealed).toBeDefined();
-    expect(() => sealed._deserialize()).toThrow('seal in progress');
-  });
-
-  it('should throw "seal in progress" from placeholder _serialize when nested DTO seal fails', () => {
-    // Arrange
-    class BrokenNested2 {}
-    (BrokenNested2 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
-    freeClasses.push(BrokenNested2);
-
-    class ParentDto2 {}
-    registerClass(ParentDto2, {
-      item: {
-        validation: [],
-        transform: [],
-        expose: [],
-        exclude: null,
-        type: { fn: () => BrokenNested2 as any },
-        flags: { validateNested: true },
-        schema: null,
-      },
-    });
-    // Act
-    expect(() => _autoSeal()).toThrow(SealError);
-    // Assert — placeholder _serialize throws
-    const sealed = (ParentDto2 as any)[SEALED];
-    expect(sealed).toBeDefined();
-    expect(() => sealed._serialize()).toThrow('seal in progress');
-  });
-
-  it('should retain placeholder on SEALED when sealOne encounters error mid-process', () => {
-    // Arrange
-    class BrokenNested3 {}
-    (BrokenNested3 as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
-    freeClasses.push(BrokenNested3);
-
-    class ParentDto3 {}
-    registerClass(ParentDto3, {
-      ref: {
-        validation: [],
-        transform: [],
-        expose: [],
-        exclude: null,
-        type: { fn: () => BrokenNested3 as any },
-        flags: { validateNested: true },
-        schema: null,
-      },
-    });
-    // Act
-    expect(() => _autoSeal()).toThrow(SealError);
-    // Assert — placeholder retained with _isAsync=false and _isSerializeAsync=false
-    const sealed = (ParentDto3 as any)[SEALED];
-    expect(sealed._isAsync).toBe(false);
-    expect(sealed._isSerializeAsync).toBe(false);
+    // Assert — stale placeholder 정리됨
+    expect((ParentDto as any)[SEALED]).toBeUndefined();
   });
 
   // ── DX-5 transform filter callback coverage (seal.ts#L110) ──────────────────
@@ -668,6 +667,89 @@ describe('mergeInheritance', () => {
     const merged = mergeInheritance(ChildFlag);
     // Assert — parent flag inherited (child has none)
     expect(merged.age!.flags.isOptional).toBe(true);
+  });
+
+  it('should inherit parent schema when child has no schema', () => {
+    // Arrange
+    class BaseSchema {}
+    (BaseSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent desc' } },
+    };
+    class ChildSchema extends BaseSchema {}
+    (ChildSchema as any)[RAW] = {
+      f: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+    };
+    // Act
+    const merged = mergeInheritance(ChildSchema);
+    // Assert — parent schema inherited
+    expect(merged.f!.schema).toEqual({ description: 'parent desc' });
+  });
+
+  it('should inherit parent function schema when child has no schema', () => {
+    // Arrange
+    const schemaFn = () => ({ type: 'string' });
+    class BaseFnSchema {}
+    (BaseFnSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: schemaFn },
+    };
+    class ChildFnSchema extends BaseFnSchema {}
+    (ChildFnSchema as any)[RAW] = {
+      f: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+    };
+    // Act
+    const merged = mergeInheritance(ChildFnSchema);
+    // Assert — parent function schema inherited
+    expect(merged.f!.schema).toBe(schemaFn);
+  });
+
+  it('should merge parent object schema keys into child object schema', () => {
+    // Arrange
+    class BaseObjSchema {}
+    (BaseObjSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent', example: 42 } },
+    };
+    class ChildObjSchema extends BaseObjSchema {}
+    (ChildObjSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'child' } },
+    };
+    // Act
+    const merged = mergeInheritance(ChildObjSchema);
+    // Assert — child description preserved, parent example merged
+    expect((merged.f!.schema as any).description).toBe('child');
+    expect((merged.f!.schema as any).example).toBe(42);
+  });
+
+  it('should keep child function schema when parent has object schema', () => {
+    // Arrange
+    const childSchemaFn = () => ({ type: 'number' });
+    class BaseMixSchema {}
+    (BaseMixSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent' } },
+    };
+    class ChildMixSchema extends BaseMixSchema {}
+    (ChildMixSchema as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: childSchemaFn },
+    };
+    // Act
+    const merged = mergeInheritance(ChildMixSchema);
+    // Assert — child function schema preserved
+    expect(merged.f!.schema).toBe(childSchemaFn);
+  });
+
+  it('should keep child object schema when parent has function schema', () => {
+    // Arrange
+    class BaseParentFn {}
+    (BaseParentFn as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: () => ({ type: 'string' }) },
+    };
+    class ChildObjOnly extends BaseParentFn {}
+    (ChildObjOnly as any)[RAW] = {
+      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'child obj' } },
+    };
+    // Act
+    const merged = mergeInheritance(ChildObjOnly);
+    // Assert — child object schema preserved (parent function ignored)
+    expect((merged.f!.schema as any).description).toBe('child obj');
   });
 
   it('should not add duplicate validation rules during union merge', () => {

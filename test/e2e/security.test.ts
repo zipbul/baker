@@ -6,7 +6,7 @@ import {
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => unseal());
 
 // ─── __proto__, constructor 키 주입 (stripUnknown 모드) ──────────────────────
 

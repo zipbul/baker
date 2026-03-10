@@ -53,6 +53,9 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
 let _sealed = false;
 
+/** @internal — configure()에서 사후 호출 경고용 */
+export function _isSealed(): boolean { return _sealed; }
+
 /** seal 완료된 클래스 목록 — unseal에서 SEALED 제거 시 사용 */
 export const _sealedClasses = new Set<Function>();
 
@@ -69,8 +72,18 @@ export function _autoSeal(): void {
 
   const options = _getGlobalOptions();
 
-  for (const Class of globalRegistry) {
-    sealOne(Class, options);
+  try {
+    for (const Class of globalRegistry) {
+      sealOne(Class, options);
+    }
+  } catch (e) {
+    // 실패 시 stale placeholder 정리 — 부분 seal 상태 방지
+    for (const Class of globalRegistry) {
+      if (Object.prototype.hasOwnProperty.call(Class, SEALED)) {
+        delete (Class as any)[SEALED];
+      }
+    }
+    throw e;
   }
 
   for (const Class of globalRegistry) {
@@ -90,11 +103,23 @@ export function _sealOnDemand(Class: Function): void {
   if (Object.prototype.hasOwnProperty.call(Class, SEALED)) return;
   if (!Object.prototype.hasOwnProperty.call(Class, RAW)) return;
 
+  const before = new Set(_sealedClasses);
   const options = _getGlobalOptions();
   sealOne(Class, options);
+
+  // sealOne이 재귀적으로 seal한 nested DTO도 정리
   _sealedClasses.add(Class);
   delete (Class as any)[RAW];
   globalRegistry.delete(Class);
+
+  // 재귀로 seal된 추가 클래스 정리 (RAW 삭제 + registry 제거)
+  for (const C of globalRegistry) {
+    if (Object.prototype.hasOwnProperty.call(C, SEALED) && !before.has(C)) {
+      _sealedClasses.add(C);
+      delete (C as any)[RAW];
+      globalRegistry.delete(C);
+    }
+  }
 }
 
 /**
@@ -109,13 +134,18 @@ export function _resetForTesting(): void {
 // sealOne() — 개별 클래스 봉인 (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** placeholder 전용 — 봉인 진행 중 호출 시 에러 */
+function _sealInProgressThrow(): never {
+  throw new SealError('seal in progress');
+}
+
 function sealOne<T>(Class: Function, options?: SealOptions): void {
   if (Object.prototype.hasOwnProperty.call(Class, SEALED)) return; // 이미 봉인됨 (순환 참조 중 재귀 방지)
 
   // 0. placeholder 등록 — 순환 참조 시 무한 재귀 방지
   const placeholder: SealedExecutors<T> = {
-    _deserialize: () => { throw new SealError('seal in progress'); },
-    _serialize: () => { throw new SealError('seal in progress'); },
+    _deserialize: _sealInProgressThrow,
+    _serialize: _sealInProgressThrow,
     _isAsync: false,
     _isSerializeAsync: false,
   };
@@ -136,9 +166,12 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
   const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
   for (const meta of Object.values(merged)) {
     if (!meta.type?.fn) continue;
-    const raw = meta.type.fn();
-    const isArray = Array.isArray(raw);
-    const resolved = isArray ? (raw as any[])[0] : raw;
+    const typeResult = meta.type.fn();
+    const isArray = Array.isArray(typeResult);
+    const resolved = isArray ? (typeResult as any[])[0] : typeResult;
+    if (resolved == null || typeof resolved !== 'function') {
+      throw new SealError(`${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`);
+    }
     meta.type.isArray = isArray;
     if (!PRIMITIVE_CTORS.has(resolved)) {
       meta.type.resolvedClass = resolved;

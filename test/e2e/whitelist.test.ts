@@ -3,7 +3,7 @@ import { deserialize, configure, BakerValidationError, Field } from '../../index
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 

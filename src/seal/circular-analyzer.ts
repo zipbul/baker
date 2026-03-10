@@ -33,8 +33,8 @@ export function analyzeCircular(
       for (const meta of Object.values(raw)) {
         // 단순 @Type
         if (meta.type?.fn) {
-          const raw = meta.type.fn();
-          const nested = Array.isArray(raw) ? raw[0] : raw;
+          const typeResult = meta.type.fn();
+          const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
           if (walk(nested as Function)) return true;
         }
         // discriminator subTypes

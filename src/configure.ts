@@ -1,4 +1,5 @@
 import type { SealOptions } from './interfaces';
+import { _isSealed } from './seal/seal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BakerConfig — 글로벌 설정 (auto-seal 전에 호출)
@@ -22,6 +23,9 @@ let _globalOptions: SealOptions = { enableCircularCheck: 'auto' };
  * 안 하면 기본값 적용.
  */
 export function configure(config: BakerConfig): void {
+  if (_isSealed()) {
+    console.warn('[baker] configure() called after auto-seal. Already-sealed classes are not affected. Call configure() before the first deserialize/serialize.');
+  }
   _globalOptions = {
     enableImplicitConversion: config.autoConvert ?? false,
     enableCircularCheck: 'auto',
@@ -34,4 +38,9 @@ export function configure(config: BakerConfig): void {
 /** @internal — seal에서 사용 */
 export function _getGlobalOptions(): SealOptions {
   return _globalOptions;
+}
+
+/** @internal — unseal 시 기본값으로 리셋 */
+export function _resetConfigForTesting(): void {
+  _globalOptions = { enableCircularCheck: 'auto' };
 }
