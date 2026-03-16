@@ -6,14 +6,30 @@ import { buildDeserializeCode } from './deserialize-builder';
 import { buildSerializeCode } from './serialize-builder';
 import { analyzeCircular } from './circular-analyzer';
 import { validateExposeStacks } from './expose-validator';
+import { isAsyncFunction } from '../utils';
 import type { RawClassMeta, SealedExecutors } from '../types';
 import type { SealOptions } from '../interfaces';
+
+const BANNED_FIELD_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
+const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
+
+/** @internal Placeholder executor for circular dependency detection during seal */
+function _circularPlaceholder(className: string): SealedExecutors<unknown> {
+  const msg = `Circular dependency during seal: ${className} is still being sealed`;
+  return {
+    _deserialize() { throw new SealError(msg); },
+    _serialize() { throw new SealError(msg); },
+    _isAsync: false,
+    _isSerializeAsync: false,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // analyzeAsync — sealed DTO가 async executor를 필요로 하는지 정적 분석 (C1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serialize', visited?: Set<Function>): boolean {
+  const v = visited ?? new Set<Function>();
   for (const meta of Object.values(merged)) {
     // 1. createRule async (deserialize 방향만)
     if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) return true;
@@ -21,11 +37,19 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
     const transforms = direction === 'deserialize'
       ? meta.transform.filter(td => !td.options?.serializeOnly)
       : meta.transform.filter(td => !td.options?.deserializeOnly);
-    if (transforms.some(td => (td.fn as any).constructor?.name === 'AsyncFunction')) return true;
+    if (transforms.some(td => isAsyncFunction(td.fn))) return true;
     // 3. nested DTO async — resolvedClass 사용 (정규화 이후), 미정규화 시 fn() fallback
     if (meta.type?.resolvedClass || meta.type?.fn) {
-      const nestedClass = meta.type.resolvedClass ?? meta.type.fn() as Function;
-      const v = visited ?? new Set<Function>();
+      let nestedClass: Function;
+      if (meta.type.resolvedClass) {
+        nestedClass = meta.type.resolvedClass;
+      } else {
+        try {
+          nestedClass = meta.type.fn!() as Function;
+        } catch (e) {
+          throw new SealError(`type function threw: ${(e as Error).message}`);
+        }
+      }
       if (!v.has(nestedClass)) {
         v.add(nestedClass);
         const nestedMerged = mergeInheritance(nestedClass);
@@ -35,7 +59,6 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
     // discriminator subTypes
     if (meta.type?.discriminator) {
       for (const sub of meta.type.discriminator.subTypes) {
-        const v = visited ?? new Set<Function>();
         if (!v.has(sub.value)) {
           v.add(sub.value);
           const subMerged = mergeInheritance(sub.value);
@@ -79,7 +102,7 @@ export function _autoSeal(): void {
   } catch (e) {
     // 실패 시 stale placeholder 정리 — 부분 seal 상태 방지
     for (const Class of globalRegistry) {
-      if (Object.prototype.hasOwnProperty.call(Class, SEALED)) {
+      if (Object.hasOwn(Class as object, SEALED)) {
         delete (Class as any)[SEALED];
       }
     }
@@ -100,8 +123,8 @@ export function _autoSeal(): void {
  * Class[RAW]가 있고 Class[SEALED]가 없는 경우에만 동작.
  */
 export function _sealOnDemand(Class: Function): void {
-  if (Object.prototype.hasOwnProperty.call(Class, SEALED)) return;
-  if (!Object.prototype.hasOwnProperty.call(Class, RAW)) return;
+  if (Object.hasOwn(Class as object, SEALED)) return;
+  if (!Object.hasOwn(Class as object, RAW)) return;
 
   const before = new Set(_sealedClasses);
   const options = _getGlobalOptions();
@@ -112,13 +135,14 @@ export function _sealOnDemand(Class: Function): void {
   delete (Class as any)[RAW];
   globalRegistry.delete(Class);
 
-  // 재귀로 seal된 추가 클래스 정리 (RAW 삭제 + registry 제거)
-  for (const C of globalRegistry) {
-    if (Object.prototype.hasOwnProperty.call(C, SEALED) && !before.has(C)) {
-      _sealedClasses.add(C);
-      delete (C as any)[RAW];
-      globalRegistry.delete(C);
-    }
+  // 재귀로 seal된 추가 클래스 정리 (RAW 삭제 + registry 제거) — snapshot 후 삭제
+  const newlySealed = [...globalRegistry].filter(
+    C => Object.hasOwn(C as object, SEALED) && !before.has(C),
+  );
+  for (const C of newlySealed) {
+    _sealedClasses.add(C);
+    delete (C as any)[RAW];
+    globalRegistry.delete(C);
   }
 }
 
@@ -130,40 +154,47 @@ export function _resetForTesting(): void {
   _sealedClasses.clear();
 }
 
+/**
+ * @internal — serialize/deserialize에서 사용. sealed executor를 보장하여 반환.
+ */
+export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
+  let sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
+  if (!sealed) {
+    _autoSeal();
+    sealed = (Class as any)[SEALED];
+  }
+  if (!sealed) {
+    _sealOnDemand(Class);
+    sealed = (Class as any)[SEALED];
+  }
+  if (!sealed) {
+    throw new SealError(`${Class.name} has no @Field decorators`);
+  }
+  return sealed;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // sealOne() — 개별 클래스 봉인 (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** placeholder 전용 — 봉인 진행 중 호출 시 에러 */
-function _sealInProgressThrow(): never {
-  throw new SealError('seal in progress');
-}
-
-function sealOne<T>(Class: Function, options?: SealOptions): void {
-  if (Object.prototype.hasOwnProperty.call(Class, SEALED)) return; // 이미 봉인됨 (순환 참조 중 재귀 방지)
+function sealOne(Class: Function, options?: SealOptions): void {
+  if (Object.hasOwn(Class as object, SEALED)) return; // 이미 봉인됨 (순환 참조 중 재귀 방지)
 
   // 0. placeholder 등록 — 순환 참조 시 무한 재귀 방지
-  const placeholder: SealedExecutors<T> = {
-    _deserialize: _sealInProgressThrow,
-    _serialize: _sealInProgressThrow,
-    _isAsync: false,
-    _isSerializeAsync: false,
-  };
+  const placeholder = _circularPlaceholder(Class.name);
   (Class as any)[SEALED] = placeholder;
 
   // 1. 상속 메타데이터 병합
   const merged = mergeInheritance(Class);
 
   // 1a. 금지된 필드명 검사 — prototype pollution 방지 (C5)
-  const BANNED_FIELD_NAMES = ['__proto__', 'constructor', 'prototype'];
   for (const key of Object.keys(merged)) {
-    if (BANNED_FIELD_NAMES.includes(key)) {
+    if (BANNED_FIELD_NAMES.has(key)) {
       throw new SealError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
     }
   }
 
   // 1b. TypeDef 정규화 — @Type/@Field type fn() 해석, 배열 감지, DTO 자동 nested 추론
-  const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
   for (const meta of Object.values(merged)) {
     if (!meta.type?.fn) continue;
     const typeResult = meta.type.fn();
@@ -185,7 +216,7 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
   validateExposeStacks(merged, Class.name);
 
   // 3. 순환 참조 정적 분석
-  const needsCircularCheck = analyzeCircular(Class, merged, options);
+  const needsCircularCheck = analyzeCircular(Class, options);
 
   // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass 사용
   for (const meta of Object.values(merged)) {
@@ -204,10 +235,10 @@ function sealOne<T>(Class: Function, options?: SealOptions): void {
   const isSerializeAsync = analyzeAsync(merged, 'serialize');
 
   // 6. deserialize executor 코드 생성
-  const deserializeExecutor = buildDeserializeCode<T>(Class, merged, options, needsCircularCheck, isAsync);
+  const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
 
   // 7. serialize executor 코드 생성
-  const serializeExecutor = buildSerializeCode<T>(Class, merged, options, isSerializeAsync);
+  const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
 
   // 8. placeholder를 실제 executor로 in-place 교체 (Object.assign으로 참조 무결성 보장)
   Object.assign(placeholder, {
@@ -328,4 +359,5 @@ export function mergeInheritance(Class: Function): RawClassMeta {
 
 export const __testing__ = {
   mergeInheritance,
+  _circularPlaceholder,
 };

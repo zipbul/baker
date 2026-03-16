@@ -1,4 +1,5 @@
 import { ensureMeta } from '../collect';
+import { isAsyncFunction } from '../utils';
 import type { EmittableRule, TypeDef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 
 export interface FieldTransformParams {
   value: unknown;
+  key: string;
   obj: Record<string, unknown>;
   direction: 'deserialize' | 'serialize';
 }
@@ -50,6 +52,13 @@ export interface JsonSchemaOverride {
 export interface FieldOptions {
   /** 중첩 DTO 타입. thunk — 순환 참조 지원. [Dto]면 배열. */
   type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
+  /** 다형성 discriminator 설정 — type과 함께 사용 */
+  discriminator?: {
+    property: string;
+    subTypes: { value: Function; name: string }[];
+  };
+  /** discriminator 프로퍼티를 결과 객체에 유지할지 여부 */
+  keepDiscriminatorProperty?: boolean;
   /** 검증 규칙 배열 */
   rules?: (EmittableRule | ArrayOfMarker)[];
   /** undefined 허용 */
@@ -58,7 +67,13 @@ export interface FieldOptions {
   nullable?: boolean;
   /** JSON 키 매핑 (양방향) */
   name?: string;
-  /** 필드 가시성 그룹 */
+  /** deserialize 방향 키 매핑 (name과 동시 사용 불가) */
+  deserializeName?: string;
+  /** serialize 방향 키 매핑 (name과 동시 사용 불가) */
+  serializeName?: string;
+  /** 필드 제외 — true: 양방향, 'deserializeOnly': 역직렬화만, 'serializeOnly': 직렬화만 */
+  exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
+  /** 그룹 — 필드 가시성 제어 + validation rule 조건부 적용 */
   groups?: string[];
   /** 조건부 검증 — false 시 필드 전체 검증 skip */
   when?: (obj: any) => boolean;
@@ -66,17 +81,28 @@ export interface FieldOptions {
   schema?: JsonSchemaOverride;
   /** 값 변환 함수 */
   transform?: (params: FieldTransformParams) => unknown;
+  /** transform 방향 제한 */
+  transformDirection?: 'deserializeOnly' | 'serializeOnly';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FieldOptions 감지 — EmittableRule/ArrayOfMarker와 구분
 // ─────────────────────────────────────────────────────────────────────────────
 
+const FIELD_OPTION_KEYS = new Set([
+  'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
+  'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
+  'exclude', 'groups', 'when', 'schema', 'transform', 'transformDirection',
+]);
+
 function isFieldOptions(arg: unknown): arg is FieldOptions {
   if (typeof arg === 'function') return false;
   if (typeof arg !== 'object' || arg === null) return false;
   if (isArrayOfMarker(arg)) return false;
-  return true;
+  // 알려진 키가 하나라도 있으면 FieldOptions
+  const keys = Object.keys(arg);
+  if (keys.length === 0) return true; // @Field({})
+  return keys.some(k => FIELD_OPTION_KEYS.has(k));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,32 +172,69 @@ export function Field(...args: any[]): PropertyDecorator {
     if (options.nullable) meta.flags.isNullable = true;
     if (options.when) meta.flags.validateIf = options.when;
 
-    // ── type (중첩 DTO) ──
+    // ── type (중첩 DTO + discriminator) ──
     if (options.type) {
-      meta.type = { fn: options.type as TypeDef['fn'] };
+      meta.type = {
+        fn: options.type as TypeDef['fn'],
+        discriminator: options.discriminator,
+        keepDiscriminatorProperty: options.keepDiscriminatorProperty,
+      };
     }
 
-    // ── name → expose ──
+    // ── expose ──
     if (options.name) {
-      meta.expose.push({ name: options.name });
+      meta.expose.push({ name: options.name, groups: options.groups });
+    } else if (options.deserializeName || options.serializeName) {
+      if (options.deserializeName) {
+        meta.expose.push({ name: options.deserializeName, deserializeOnly: true, groups: options.groups });
+      }
+      if (options.serializeName) {
+        meta.expose.push({ name: options.serializeName, serializeOnly: true, groups: options.groups });
+      }
+    } else if (options.groups) {
+      meta.expose.push({ groups: options.groups });
+    } else {
+      meta.expose.push({});
+    }
+
+    // ── exclude ──
+    if (options.exclude) {
+      if (options.exclude === true) {
+        meta.exclude = {};
+      } else if (options.exclude === 'deserializeOnly') {
+        meta.exclude = { deserializeOnly: true };
+      } else if (options.exclude === 'serializeOnly') {
+        meta.exclude = { serializeOnly: true };
+      }
     }
 
     // ── transform ──
     if (options.transform) {
       const userFn = options.transform;
-      const isAsync = userFn.constructor?.name === 'AsyncFunction';
+      const isAsync = isAsyncFunction(userFn);
       const wrapperFn = isAsync
         ? async (params: any) => userFn({
             value: params.value,
+            key: params.key,
             obj: params.obj,
             direction: params.type,
           })
         : (params: any) => userFn({
             value: params.value,
+            key: params.key,
             obj: params.obj,
             direction: params.type,
           });
-      meta.transform.push({ fn: wrapperFn });
+      if (options.transformDirection && options.transformDirection !== 'deserializeOnly' && options.transformDirection !== 'serializeOnly') {
+        throw new Error(`Invalid transformDirection: "${options.transformDirection}". Expected 'deserializeOnly' or 'serializeOnly'.`);
+      }
+      const transformOptions: any = {};
+      if (options.transformDirection === 'deserializeOnly') transformOptions.deserializeOnly = true;
+      if (options.transformDirection === 'serializeOnly') transformOptions.serializeOnly = true;
+      meta.transform.push({
+        fn: wrapperFn,
+        options: Object.keys(transformOptions).length > 0 ? transformOptions : undefined,
+      });
     }
 
     // ── schema ──

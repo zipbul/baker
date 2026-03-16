@@ -155,8 +155,8 @@ describe('isNumber', () => {
     // Act
     const code = rule.emit('_v', ctx);
     // Assert
-    expect(code).toContain('_s');
-    expect(code).toContain('_d');
+    expect(code).toContain('toExponential');
+    expect(code).toContain('_mant');
     expect(failMock).toHaveBeenCalledWith('isNumber');
   });
 });

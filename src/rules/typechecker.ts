@@ -37,9 +37,10 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
     // NaN이 아닌 비유한수 (Infinity / -Infinity)
     if (!isFinite(value)) return allowInfinity;
     if (maxDecimalPlaces !== undefined) {
-      const str = value.toString();
-      const dotIdx = str.indexOf('.');
-      if (dotIdx !== -1 && str.length - dotIdx - 1 > maxDecimalPlaces) return false;
+      const parts = value.toExponential().split('e');
+      const mantissaDecimals = (parts[0]!.split('.')[1] || '').length;
+      const exponent = parseInt(parts[1]!, 10);
+      if (Math.max(0, mantissaDecimals - exponent) > maxDecimalPlaces) return false;
     }
     return true;
   };
@@ -54,7 +55,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
       code += `\nelse if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
     }
     if (maxDecimalPlaces !== undefined) {
-      code += `\nelse { var _s=${varName}.toString(); var _d=_s.indexOf('.'); if(_d!==-1&&_s.length-_d-1>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+      code += `\nelse { var _exp=${varName}.toExponential().split('e'); var _mant=(_exp[0].split('.')[1]||'').length; var _exp2=parseInt(_exp[1],10); if(Math.max(0,_mant-_exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
     }
     return code;
   };

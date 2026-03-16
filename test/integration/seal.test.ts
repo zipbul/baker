@@ -1,9 +1,8 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Field, deserialize, serialize, createRule } from '../../index';
-import { Transform } from '../../src/decorators/transform';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
-import { SEALED } from '../../src/symbols';
+import { SEALED, RAW } from '../../src/symbols';
 import { collectValidation } from '../../src/collect';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -69,8 +68,10 @@ class SyncDto {
 }
 
 class AsyncTransformDeserializeDto {
-  @Transform(async ({ value }) => (typeof value === 'string' ? value.trim() : value), { deserializeOnly: true })
-  @Field(isString)
+  @Field(isString, {
+    transform: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
+    transformDirection: 'deserializeOnly',
+  })
   name!: string;
 }
 
@@ -85,8 +86,10 @@ class AsyncRuleDto {
 }
 
 class AsyncTransformSerializeDto {
-  @Transform(async ({ value }) => (typeof value === 'number' ? value * 100 : value), { serializeOnly: true })
-  @Field(isNumber())
+  @Field(isNumber(), {
+    transform: async ({ value }) => (typeof value === 'number' ? value * 100 : value),
+    transformDirection: 'serializeOnly',
+  })
   price!: number;
 }
 
@@ -142,5 +145,36 @@ describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
     await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _ensureSealed → _sealOnDemand path (late-registered class after auto-seal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('_ensureSealed — _sealOnDemand fallback', () => {
+  it('should seal a late-registered class via _sealOnDemand when serialize is called after auto-seal', async () => {
+    // 1. Trigger auto-seal with an existing DTO
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+
+    // 2. Define a new class AFTER auto-seal — manually attach RAW metadata
+    class LateDto {}
+    (LateDto as any)[RAW] = {
+      value: {
+        validation: [{ rule: isString }],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: null,
+        flags: {},
+        schema: null,
+      },
+    };
+
+    // 3. serialize triggers _ensureSealed → _autoSeal (no-op) → _sealOnDemand
+    const instance = Object.assign(new LateDto(), { value: 'hello' });
+    const result = await serialize(instance);
+    expect(result).toEqual({ value: 'hello' });
+    expect((LateDto as any)[SEALED]).toBeDefined();
   });
 });

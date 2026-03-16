@@ -562,14 +562,16 @@ describe('toJsonSchema — 중첩 DTO', () => {
     expect(schema.properties!.pet).toEqual({
       oneOf: [
         {
-          $ref: '#/$defs/DogDto',
-          properties: { type: { const: 'dog' } },
-          required: ['type'],
+          allOf: [
+            { $ref: '#/$defs/DogDto' },
+            { properties: { type: { const: 'dog' } }, required: ['type'] },
+          ],
         },
         {
-          $ref: '#/$defs/CatDto',
-          properties: { type: { const: 'cat' } },
-          required: ['type'],
+          allOf: [
+            { $ref: '#/$defs/CatDto' },
+            { properties: { type: { const: 'cat' } }, required: ['type'] },
+          ],
         },
       ],
     });
@@ -680,11 +682,12 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     });
 
     const schema = toJsonSchema(Dto);
-    // composition 키워드 존재 → 자동 매핑(type, minLength) 전부 억제
+    // C-15: composition 키워드가 있어도 자동 매핑(type, minLength)이 base로 유지됨
     expect(schema.properties!.field).toEqual({
+      type: 'string', minLength: 3,
       allOf: [{ minLength: 1 }, { maxLength: 100 }],
     });
-    expect(schema.properties!.field!.type).toBeUndefined();
+    expect(schema.properties!.field!.type).toBe('string');
   });
 });
 

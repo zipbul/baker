@@ -1,4 +1,5 @@
 import type { EmittableRule, EmitContext } from './types';
+import { isAsyncFunction } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createRule — 커스텀 검증 규칙 생성 Public API (§1.1)
@@ -40,7 +41,7 @@ export function createRule(
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
 
   // async 함수 여부 자동 감지
-  const isAsyncFn = validate.constructor.name === 'AsyncFunction';
+  const isAsyncFn = isAsyncFunction(validate);
 
   // 검증 함수 래퍼 — validate에 직접 위임
   const fn = function (value: unknown): boolean | Promise<boolean> {

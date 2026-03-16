@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, Type, deserialize, serialize, BakerValidationError, toJsonSchema } from '../../index';
+import { Field, deserialize, serialize, BakerValidationError, toJsonSchema } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -22,7 +22,8 @@ class OwnerDto {
   @Field(isString)
   name!: string;
 
-  @Type(() => DogDto, {
+  @Field({
+    type: () => DogDto,
     discriminator: {
       property: 'type',
       subTypes: [
@@ -35,7 +36,8 @@ class OwnerDto {
 }
 
 class OwnerKeepDiscDto {
-  @Type(() => DogDto, {
+  @Field({
+    type: () => DogDto,
     discriminator: {
       property: 'kind',
       subTypes: [
@@ -91,15 +93,57 @@ describe('discriminator — keepDiscriminatorProperty', () => {
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// discriminator serialize — single & array (covers serialize-builder C-8 instanceof chain)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class OwnerArrayDto {
+  @Field(isString)
+  name!: string;
+
+  @Field({
+    type: () => [DogDto],
+    discriminator: {
+      property: 'type',
+      subTypes: [
+        { value: DogDto, name: 'dog' },
+        { value: CatDto, name: 'cat' },
+      ],
+    },
+  })
+  pets!: (DogDto | CatDto)[];
+}
+
+describe('discriminator — serialize', () => {
+  it('should serialize single discriminator field with instanceof dispatch', async () => {
+    const dog = Object.assign(new DogDto(), { breed: 'Shiba' });
+    const owner = Object.assign(new OwnerDto(), { name: 'Alice', pet: dog });
+    const result = await serialize(owner);
+    expect(result.pet).toEqual({ breed: 'Shiba', type: 'dog' });
+  });
+
+  it('should serialize array discriminator field with instanceof dispatch', async () => {
+    const dog = Object.assign(new DogDto(), { breed: 'Poodle' });
+    const cat = Object.assign(new CatDto(), { indoor: true });
+    const owner = Object.assign(new OwnerArrayDto(), { name: 'Bob', pets: [dog, cat] });
+    const result = await serialize(owner);
+    expect(result.pets).toEqual([
+      { breed: 'Poodle', type: 'dog' },
+      { indoor: true, type: 'cat' },
+    ]);
+  });
+});
+
 describe('discriminator — toJsonSchema', () => {
   it('oneOf + const 매핑', () => {
     const schema = toJsonSchema(OwnerDto);
     const pet = schema.properties!.pet;
     expect(pet!.oneOf).toHaveLength(2);
     expect(pet!.oneOf![0]).toEqual({
-      $ref: '#/$defs/DogDto',
-      properties: { type: { const: 'dog' } },
-      required: ['type'],
+      allOf: [
+        { $ref: '#/$defs/DogDto' },
+        { properties: { type: { const: 'dog' } }, required: ['type'] },
+      ],
     });
   });
 });

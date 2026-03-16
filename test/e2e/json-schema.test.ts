@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import {
   deserialize, toJsonSchema,
-  Field, Exclude, Type, arrayOf,
+  Field, arrayOf,
 } from '../../index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -15,7 +15,6 @@ import {
   arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains,
   isNotEmptyObject, matches,
 } from '../../src/rules/index';
-import { Expose } from '../../src/decorators/transform';
 import type { JsonSchema202012 } from '../../index';
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -173,17 +172,13 @@ describe('toJsonSchema each:true', () => {
 
 describe('toJsonSchema direction', () => {
   class DirDto {
-    @Field(isString)
-    @Expose({ name: 'user_name', deserializeOnly: true })
-    @Expose({ name: 'userName', serializeOnly: true })
+    @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
     name!: string;
 
-    @Field(isString)
-    @Exclude({ serializeOnly: true })
+    @Field(isString, { exclude: 'serializeOnly' })
     password!: string;
 
-    @Field(isString)
-    @Exclude()
+    @Field(isString, { exclude: true })
     internal!: string;
   }
 
@@ -226,9 +221,9 @@ describe('toJsonSchema @Field({ schema })', () => {
     expect(s.properties!.name!.description).toBe('Display name');
   });
 
-  it('composition-aware → 자동 매핑 억제', () => {
+  it('composition-aware → 자동 매핑이 base로 유지 (C-15)', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.composed!.type).toBeUndefined();
+    expect(s.properties!.composed!.type).toBe('string');
     expect(s.properties!.composed!.allOf).toBeDefined();
   });
 });

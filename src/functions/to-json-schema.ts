@@ -15,6 +15,8 @@ export interface ToJsonSchemaOptions {
   title?: string;
   description?: string;
   $id?: string;
+  /** 매핑되지 않은 규칙에 대한 콜백 (기본: console.warn) */
+  onUnmappedRule?: (ruleName: string, fieldKey: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,6 +35,8 @@ interface SchemaContext {
   defs: Record<string, JsonSchema202012>;
   /** 동명 클래스 disambiguation 카운터 */
   nameCounter: Map<string, number>;
+  /** 매핑되지 않은 규칙 콜백 */
+  onUnmappedRule?: (ruleName: string, fieldKey: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -122,6 +126,7 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     defKeyMap: new Map(),
     defs: {},
     nameCounter: new Map(),
+    onUnmappedRule: options?.onUnmappedRule,
   };
 
   // 루트 클래스 인라인 구축 (processNestedClass가 아닌 직접 호출)
@@ -142,10 +147,18 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     rootSchema.$defs = ctx.defs;
   }
 
-  // 클래스 레벨 @Schema 병합 (자동 생성 위에 덮어씌움)
+  // 클래스 레벨 @Schema 병합 (키별 deep merge)
   const classSchema = (Class as any)[RAW_CLASS_SCHEMA] as Record<string, unknown> | undefined;
   if (classSchema) {
-    Object.assign(rootSchema, classSchema);
+    for (const [key, val] of Object.entries(classSchema)) {
+      if (key === 'properties' || key === '$defs') {
+        (rootSchema as any)[key] = { ...((rootSchema as any)[key] as object ?? {}), ...(val as object) };
+      } else if (key === 'required') {
+        rootSchema.required = [...new Set([...(rootSchema.required ?? []), ...(val as string[])])];
+      } else {
+        (rootSchema as any)[key] = val;
+      }
+    }
   }
 
   // toJsonSchema 호출 시 전달된 클래스 레벨 메타데이터
@@ -329,9 +342,10 @@ function buildNestedTypeSchema(
     const oneOf: JsonSchema202012[] = subTypes.map(sub => {
       const ref = processNestedClass(sub.value as Function, ctx);
       return {
-        ...ref,
-        properties: { [property]: { const: sub.name } },
-        required: [property],
+        allOf: [
+          ref,
+          { properties: { [property]: { const: sub.name } }, required: [property] },
+        ],
       };
     });
     innerSchema = { oneOf };
@@ -359,7 +373,15 @@ function buildNestedTypeSchema(
     return applyUserSchema(meta, schema);
   }
 
-  if (meta.flags.isNullable) applyNullable(innerSchema);
+  if (meta.flags.isNullable) {
+    if (innerSchema.$ref) {
+      innerSchema = { oneOf: [innerSchema, { type: 'null' }] };
+    } else if (innerSchema.oneOf) {
+      innerSchema = { oneOf: [...innerSchema.oneOf, { type: 'null' }] };
+    } else {
+      applyNullable(innerSchema);
+    }
+  }
   return applyUserSchema(meta, innerSchema);
 }
 
@@ -389,9 +411,11 @@ function mapRulesToSchema(rules: RuleDef[]): JsonSchema202012 {
 
 function applyNullable(schema: JsonSchema202012): void {
   if (schema.type) {
-    schema.type = Array.isArray(schema.type)
-      ? [...schema.type, 'null']
-      : [schema.type, 'null'];
+    if (Array.isArray(schema.type)) {
+      if (!schema.type.includes('null')) schema.type = [...schema.type, 'null'];
+    } else {
+      schema.type = schema.type === 'null' ? ['null'] : [schema.type, 'null'];
+    }
   } else {
     schema.type = ['null'];
   }
@@ -410,5 +434,5 @@ function applyUserSchema(
   // 객체형: composition-aware merge (§6.5)
   const userSchema = meta.schema as JsonSchema202012;
   const hasComposition = Object.keys(userSchema).some(k => COMPOSITION_KEYWORDS.has(k));
-  return hasComposition ? { ...userSchema } : { ...autoSchema, ...userSchema };
+  return hasComposition ? { ...autoSchema, ...userSchema } : { ...autoSchema, ...userSchema };
 }

@@ -68,6 +68,9 @@ export function collectSchema(
   target: object, key: string,
   schemaDef: Record<string, unknown> | ((auto: Record<string, unknown>) => Record<string, unknown>),
 ): void {
+  if (Array.isArray(schemaDef)) {
+    throw new Error('Invalid schema: expected object or function, got Array');
+  }
   const meta = ensureMeta((target as any).constructor, key);
   // 함수형은 항상 덮어씌움 (마지막 선언 우선)
   if (typeof schemaDef === 'function' || typeof meta.schema === 'function') {

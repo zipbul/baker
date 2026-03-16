@@ -1,6 +1,4 @@
-import { SEALED } from '../symbols';
-import { SealError } from '../errors';
-import { _autoSeal, _sealOnDemand } from '../seal/seal';
+import { _ensureSealed } from '../seal/seal';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,18 +16,6 @@ export async function serialize<T>(
   options?: RuntimeOptions,
 ): Promise<Record<string, unknown>> {
   const Class = (instance as any).constructor as Function;
-  let sealed = (Class as any)[SEALED];
-  if (!sealed) {
-    _autoSeal();
-    sealed = (Class as any)[SEALED];
-    if (!sealed) {
-      _sealOnDemand(Class);
-      sealed = (Class as any)[SEALED];
-      if (!sealed) {
-        throw new SealError(`${Class.name} has no @Field decorators`);
-      }
-    }
-  }
-
+  const sealed = _ensureSealed(Class);
   return await sealed._serialize(instance, options) as Record<string, unknown>;
 }

@@ -4,6 +4,7 @@ import { SEALED } from '../symbols';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, EmittableRule, SealedExecutors, RuleDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import { SealError, type BakerError } from '../errors';
+import { isAsyncFunction } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — 코드 생성 유틸
@@ -30,10 +31,16 @@ function getDeserializeExtractKey(fieldKey: string, exposeStack: RawPropertyMeta
   return fieldKey;
 }
 
-/** 필드 expose groups 결정 (직렬화에 적용되는 @Expose) */
+/** 필드 expose groups 결정 — 무조건 노출 엔트리가 하나라도 있으면 undefined (제한 없음) */
 function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  const desDef = exposeStack.find(e => !e.serializeOnly);
-  return desDef?.groups;
+  const desEntries = exposeStack.filter(e => !e.serializeOnly);
+  if (desEntries.length === 0) return undefined;
+  // 그룹 제한 없는 엔트리가 하나라도 있으면 무조건 노출
+  if (desEntries.some(e => !e.groups || e.groups.length === 0)) return undefined;
+  // 모든 엔트리의 groups 병합
+  const all = new Set<string>();
+  for (const e of desEntries) for (const g of e.groups!) all.add(g);
+  return [...all];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -287,7 +294,7 @@ function generateValidationCode(
     for (const td of dsTransforms) {
       const refIdx = ctx.refs.length;
       ctx.refs.push(td.fn);
-      const isAsyncTransform = ctx.isAsync && (td.fn as any).constructor?.name === 'AsyncFunction';
+      const isAsyncTransform = ctx.isAsync && isAsyncFunction(td.fn);
       const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:input,type:'deserialize'})`;
       code += `${varName} = ${isAsyncTransform ? 'await ' : ''}${callExpr};\n`;
     }
@@ -406,7 +413,7 @@ function generateConversionCode(
     case 'date':
       return `  ${varName} = new Date(${varName});\n  if (isNaN(${varName}.getTime())) { ${failCode} }\n`;
     default:
-      return '';
+      throw new SealError(`Unknown implicit conversion type: "${targetType}" for field "${fieldKey}"`);
   }
 }
 
@@ -494,7 +501,7 @@ function buildRulesCode(
       const raw = meta.type.fn();
       const typeCtor = Array.isArray(raw) ? raw[0] : raw;
       typeHintGate = typeCtor ? PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null : null;
-    } catch { /* ignore lazy eval failures */ }
+    } catch (e) { throw new SealError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`); }
   }
 
   // Effective gate: typed deps > asserter inferred > @Type hint
@@ -656,16 +663,20 @@ function buildRulesCode(
       code += '    ' + rd.rule.emit(`${varName}[${iVar}]`, arrEmitCtx2) + '\n';
       code += `  }\n`;
       code += `} else if (${varName} instanceof Set) {\n`;
+      code += `  var ${siVar} = 0;\n`;
       code += `  for (var ${svVar} of ${varName}) {\n`;
-      const setFail2 = (c: string) => `return _err([{path:${pathKey},code:${JSON.stringify(c)}${extra}}])`;
+      const setFail2 = (c: string) => `return _err([{path:${pathKey}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}}])`;
       const setEmitCtx2: EmitContext = { ...emitCtx, fail: setFail2 };
       code += '    ' + rd.rule.emit(svVar, setEmitCtx2) + '\n';
+      code += `    ${siVar}++;\n`;
       code += `  }\n`;
       code += `} else if (${varName} instanceof Map) {\n`;
+      code += `  var ${miVar} = 0;\n`;
       code += `  for (var ${mvVar} of ${varName}.values()) {\n`;
-      const mapFail2 = (c: string) => `return _err([{path:${pathKey},code:${JSON.stringify(c)}${extra}}])`;
+      const mapFail2 = (c: string) => `return _err([{path:${pathKey}+'['+${miVar}+']',code:${JSON.stringify(c)}${extra}}])`;
       const mapEmitCtx2: EmitContext = { ...emitCtx, fail: mapFail2 };
       code += '    ' + rd.rule.emit(mvVar, mapEmitCtx2) + '\n';
+      code += `    ${miVar}++;\n`;
       code += `  }\n`;
       code += `}\n`;
       code += eachGuardClose;
@@ -732,8 +743,8 @@ function generateNestedCode(
       // Emit non-each array-level validation rules (e.g. @ArrayMinSize, @ArrayMaxSize)
       const nonEachRules = meta.validation.filter(rd => !rd.each);
       for (const rd of nonEachRules) {
-        const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
-        const ruleEmit = rd.rule.emit(varName, emitCtx);
+        const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
+        const ruleEmit = rd.rule.emit(varName, ruleEmitCtx);
         code += `  ${ruleEmit}\n`;
       }
 

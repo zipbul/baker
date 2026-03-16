@@ -1,5 +1,6 @@
 import { RAW } from '../symbols';
-import type { RawClassMeta } from '../types';
+import { SealError } from '../errors';
+import type { RawClassMeta } from '../types'; // used in walk() cast
 import type { SealOptions } from '../interfaces';
 
 /**
@@ -14,7 +15,6 @@ import type { SealOptions } from '../interfaces';
  */
 export function analyzeCircular(
   Class: Function,
-  _merged: RawClassMeta,
   options?: SealOptions,
 ): boolean {
   if (options?.enableCircularCheck === true) return true;
@@ -33,7 +33,12 @@ export function analyzeCircular(
       for (const meta of Object.values(raw)) {
         // 단순 @Type
         if (meta.type?.fn) {
-          const typeResult = meta.type.fn();
+          let typeResult: unknown;
+          try {
+            typeResult = meta.type.fn();
+          } catch (e) {
+            throw new SealError(`${cls.name}: type function threw: ${(e as Error).message}`);
+          }
           const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
           if (walk(nested as Function)) return true;
         }

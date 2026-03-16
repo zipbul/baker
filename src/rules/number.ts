@@ -5,6 +5,7 @@ import type { EmitContext, EmittableRule } from '../types';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
+  if (!Number.isFinite(n)) throw new Error(`min: bound must be a finite number, got ${n}`);
   const exclusive = opts?.exclusive ?? false;
 
   const fn = exclusive
@@ -28,6 +29,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
+  if (!Number.isFinite(n)) throw new Error(`max: bound must be a finite number, got ${n}`);
   const exclusive = opts?.exclusive ?? false;
 
   const fn = exclusive
@@ -81,6 +83,7 @@ export const isNegative = _isNegative as EmittableRule;
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isDivisibleBy(n: number): EmittableRule {
+  if (n === 0) throw new Error('isDivisibleBy: divisor must not be zero');
   const fn = (value: unknown): boolean => (value as number) % n === 0;
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string =>

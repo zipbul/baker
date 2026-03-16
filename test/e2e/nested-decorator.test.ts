@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, serialize, Field, Type, toJsonSchema, BakerValidationError } from '../../index';
+import { deserialize, serialize, Field, toJsonSchema, BakerValidationError } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AddressDto {
@@ -41,7 +40,8 @@ class CatDto {
 }
 
 class PetOwnerDto {
-  @Type(() => DogDto, {
+  @Field({
+    type: () => DogDto,
     discriminator: {
       property: 'type',
       subTypes: [
@@ -132,14 +132,16 @@ describe('@Nested toJsonSchema', () => {
     const pet = schema.properties!.pet!;
     expect(pet.oneOf).toHaveLength(2);
     expect(pet.oneOf![0]!).toEqual({
-      $ref: '#/$defs/DogDto',
-      properties: { type: { const: 'dog' } },
-      required: ['type'],
+      allOf: [
+        { $ref: '#/$defs/DogDto' },
+        { properties: { type: { const: 'dog' } }, required: ['type'] },
+      ],
     });
     expect(pet.oneOf![1]!).toEqual({
-      $ref: '#/$defs/CatDto',
-      properties: { type: { const: 'cat' } },
-      required: ['type'],
+      allOf: [
+        { $ref: '#/$defs/CatDto' },
+        { properties: { type: { const: 'cat' } }, required: ['type'] },
+      ],
     });
   });
 });

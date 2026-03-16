@@ -1,7 +1,6 @@
 import { isErr } from '@zipbul/result';
-import { SEALED } from '../symbols';
-import { SealError, BakerValidationError } from '../errors';
-import { _autoSeal, _sealOnDemand } from '../seal/seal';
+import { BakerValidationError } from '../errors';
+import { _ensureSealed } from '../seal/seal';
 import type { BakerError } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
 
@@ -21,21 +20,7 @@ export async function deserialize<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): Promise<T> {
-  let sealed = (Class as any)[SEALED];
-  if (!sealed) {
-    // 배치 auto-seal
-    _autoSeal();
-    sealed = (Class as any)[SEALED];
-    if (!sealed) {
-      // 동적 import — auto-seal 이후 등록된 클래스
-      _sealOnDemand(Class);
-      sealed = (Class as any)[SEALED];
-      if (!sealed) {
-        throw new SealError(`${Class.name} has no @Field decorators`);
-      }
-    }
-  }
-
+  const sealed = _ensureSealed(Class);
   const result = await sealed._deserialize(input, options);
   if (isErr(result)) {
     throw new BakerValidationError(result.data as BakerError[], Class.name);

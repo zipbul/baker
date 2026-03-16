@@ -1,4 +1,5 @@
 import { SEALED } from '../symbols';
+import { isAsyncFunction } from '../utils';
 import type { RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 
@@ -17,11 +18,14 @@ function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['e
   return fieldKey;
 }
 
-/** serialize 방향의 expose groups 결정 */
+/** serialize 방향의 expose groups 결정 — 무조건 노출 엔트리가 하나라도 있으면 undefined (제한 없음) */
 function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  // serializeOnly 또는 방향 미지정 @Expose
-  const def = exposeStack.find(e => !e.deserializeOnly);
-  return def?.groups;
+  const serEntries = exposeStack.filter(e => !e.deserializeOnly);
+  if (serEntries.length === 0) return undefined;
+  if (serEntries.some(e => !e.groups || e.groups.length === 0)) return undefined;
+  const all = new Set<string>();
+  for (const e of serEntries) for (const g of e.groups!) all.add(g);
+  return [...all];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,26 +121,83 @@ function generateSerializeFieldCode(
   const useOptionalGuard = meta.flags.isOptional;
 
   // ③ nested @Type 처리 (H4) — @Transform 없는 경우에만 (§4.3 serialize 파이프라인)
-  if ((meta.type?.resolvedClass || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
-    const nestedCls = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
-    const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
-    const execIdx = execs.length;
-    execs.push(nestedSealed);
+  if ((meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
 
     // 배열/each 여부 판단
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
     const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
 
     let nestedCode: string;
-    if (hasEach) {
-      if (isAsync) {
-        nestedCode = `${outputTarget} = await Promise.all(instance[${JSON.stringify(fieldKey)}].map(async function(__ser_item) { return await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+
+    if (meta.type!.discriminator) {
+      // §C-8 discriminator serialize — instanceof dispatch
+      const { property, subTypes, keepDiscriminatorProperty } = meta.type!.discriminator;
+      const keepDisc = keepDiscriminatorProperty !== false; // default true for round-trip
+
+      // most-specific-first 정렬 (상속 관계 시 하위 클래스 우선)
+      const sorted = [...subTypes].sort((a, b) => {
+        if ((a.value as any).prototype instanceof b.value) return -1;
+        if ((b.value as any).prototype instanceof a.value) return 1;
+        return 0;
+      });
+
+      // instanceof 분기 코드 생성 헬퍼
+      const buildInstanceofChain = (itemVar: string, awaitKw: string): string => {
+        let code = '';
+        for (let i = 0; i < sorted.length; i++) {
+          const sub = sorted[i]!;
+          const nestedSealed = (sub.value as any)[SEALED] as SealedExecutors<unknown>;
+          const execIdx = execs.length;
+          execs.push(nestedSealed);
+          const refIdx = refs.length;
+          refs.push(sub.value);
+          const prefix = i === 0 ? 'if' : '} else if';
+          code += `${prefix} (${itemVar} instanceof _refs[${refIdx}]) {\n`;
+          code += `  var __bk$sr = ${awaitKw}_execs[${execIdx}]._serialize(${itemVar}, _opts);\n`;
+          if (keepDisc) {
+            code += `  __bk$sr[${JSON.stringify(property)}] = ${JSON.stringify(sub.name)};\n`;
+          }
+          code += `  __bk$out_item = __bk$sr;\n`;
+        }
+        code += '} else { __bk$out_item = ' + itemVar + '; }\n';
+        return code;
+      };
+
+      if (hasEach) {
+        const awaitKw = isAsync ? 'await ' : '';
+        if (isAsync) {
+          nestedCode = `${outputTarget} = await Promise.all(instance[${JSON.stringify(fieldKey)}].map(async function(__ser_item) {\n`;
+        } else {
+          nestedCode = `${outputTarget} = instance[${JSON.stringify(fieldKey)}].map(function(__ser_item) {\n`;
+        }
+        nestedCode += `  var __bk$out_item;\n`;
+        nestedCode += buildInstanceofChain('__ser_item', awaitKw);
+        nestedCode += `  return __bk$out_item;\n`;
+        nestedCode += `});`;
       } else {
-        nestedCode = `${outputTarget} = instance[${JSON.stringify(fieldKey)}].map(function(__ser_item) { return _execs[${execIdx}]._serialize(__ser_item, _opts); });`;
+        const awaitKw = isAsync ? 'await ' : '';
+        const fkStr = JSON.stringify(fieldKey);
+        nestedCode = `var __bk$out_item;\n`;
+        nestedCode += buildInstanceofChain(`instance[${fkStr}]`, awaitKw);
+        nestedCode += `${outputTarget} = __bk$out_item;`;
       }
     } else {
-      const awaitKw = isAsync ? 'await ' : '';
-      nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}]._serialize(instance[${JSON.stringify(fieldKey)}], _opts);`;
+      // 기존 단순 nested 로직
+      const nestedCls = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
+      const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
+      const execIdx = execs.length;
+      execs.push(nestedSealed);
+
+      if (hasEach) {
+        if (isAsync) {
+          nestedCode = `${outputTarget} = await Promise.all(instance[${JSON.stringify(fieldKey)}].map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+        } else {
+          nestedCode = `${outputTarget} = instance[${JSON.stringify(fieldKey)}].map(function(__ser_item) { return __ser_item == null ? __ser_item : _execs[${execIdx}]._serialize(__ser_item, _opts); });`;
+        }
+      } else {
+        const awaitKw = isAsync ? 'await ' : '';
+        nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}]._serialize(instance[${JSON.stringify(fieldKey)}], _opts);`;
+      }
     }
 
     if (useOptionalGuard) {
@@ -184,7 +245,7 @@ function buildSerializeOutputExpr(
       const refIdx = refs.length;
       refs.push(td.fn);
       const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance,type:'serialize'})`;
-      const isAsyncTransform = isAsync && (td.fn as any).constructor?.name === 'AsyncFunction';
+      const isAsyncTransform = isAsync && isAsyncFunction(td.fn);
       valueExpr = isAsyncTransform ? `(await ${callExpr})` : callExpr;
     }
     return `${outputTarget} = ${valueExpr};`;

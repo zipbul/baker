@@ -8,7 +8,7 @@ import { isNumber } from '../rules/typechecker';
 import { min, max } from '../rules/number';
 import type { RawClassMeta, RuleDef } from '../types';
 
-const { mergeInheritance } = __testing__;
+const { mergeInheritance, _circularPlaceholder } = __testing__;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -903,5 +903,19 @@ describe('sealOne — banned field names (C5)', () => {
     registerClass(UpperCaseDto, makeRawWithBannedKey('__PROTO__'));
     // Act / Assert
     expect(() => _autoSeal()).not.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _circularPlaceholder — placeholder executor 동작 검증
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('_circularPlaceholder', () => {
+  it('should return placeholder that throws SealError on _deserialize and _serialize', () => {
+    const p = _circularPlaceholder('TestDto');
+    expect(() => p._deserialize({})).toThrow(SealError);
+    expect(() => p._serialize({})).toThrow(SealError);
+    expect(p._isAsync).toBe(false);
+    expect(p._isSerializeAsync).toBe(false);
   });
 });

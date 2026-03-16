@@ -375,7 +375,7 @@ export function isURL(options?: IsURLOptions): EmittableRule {
   const protocols = options?.protocols ?? URL_PROTOCOLS_DEFAULT;
   const protocolPattern = protocols.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const re = new RegExp(
-    `^(?:${protocolPattern}):\\/\\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)(?::\\d{1,5})?(?:\\/[^\\s]*)?$`,
+    `^(?:${protocolPattern}):\\/\\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)(?::(6553[0-5]|655[0-2]\\d|65[0-4]\\d{2}|6[0-4]\\d{3}|[1-5]\\d{4}|[1-9]\\d{0,3}|0))?(?:\\/[^\\s]*)?$`,
   );
 
   const fn = (value: unknown): boolean => {
