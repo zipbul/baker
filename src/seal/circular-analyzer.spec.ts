@@ -40,8 +40,6 @@ function makeDiscriminatorMeta(
   };
 }
 
-const emptyMerged: RawClassMeta = {};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,11 +57,8 @@ describe('analyzeCircular', () => {
     (NoTypeDto as any)[RAW] = {
       name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
     };
-    const merged: RawClassMeta = {
-      name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
-    };
     // Act
-    const result = analyzeCircular(NoTypeDto, merged);
+    const result = analyzeCircular(NoTypeDto);
     // Assert
     expect(result).toBe(false);
   });
@@ -76,31 +71,8 @@ describe('analyzeCircular', () => {
     class ADto {}
     (ADto as any)[RAW] = makeTypeMeta(() => BDto);
 
-    const merged = makeTypeMeta(() => BDto);
     // Act
-    const result = analyzeCircular(ADto, merged);
-    // Assert
-    expect(result).toBe(false);
-  });
-
-  it('should return true when enableCircularCheck is true regardless of structure', () => {
-    // Arrange
-    class FlatDto {}
-    (FlatDto as any)[RAW] = {};
-    // Act
-    const result = analyzeCircular(FlatDto, emptyMerged, { enableCircularCheck: true });
-    // Assert
-    expect(result).toBe(true);
-  });
-
-  it('should return false when enableCircularCheck is false regardless of structure', () => {
-    // Arrange — circular setup
-    class SelfDto {}
-    (SelfDto as any)[RAW] = makeTypeMeta(() => SelfDto);
-    // Act
-    const result = analyzeCircular(SelfDto, makeTypeMeta(() => SelfDto), {
-      enableCircularCheck: false,
-    });
+    const result = analyzeCircular(ADto);
     // Assert
     expect(result).toBe(false);
   });
@@ -110,9 +82,8 @@ describe('analyzeCircular', () => {
     class BNoRaw {}
     class ADto {}
     (ADto as any)[RAW] = makeTypeMeta(() => BNoRaw);
-    const merged = makeTypeMeta(() => BNoRaw);
     // Act
-    const result = analyzeCircular(ADto, merged);
+    const result = analyzeCircular(ADto);
     // Assert
     expect(result).toBe(false);
   });
@@ -123,9 +94,8 @@ describe('analyzeCircular', () => {
     // Arrange
     class SelfRefDto {}
     (SelfRefDto as any)[RAW] = makeTypeMeta(() => SelfRefDto);
-    const merged = makeTypeMeta(() => SelfRefDto);
     // Act
-    const result = analyzeCircular(SelfRefDto, merged);
+    const result = analyzeCircular(SelfRefDto);
     // Assert
     expect(result).toBe(true);
   });
@@ -138,9 +108,8 @@ describe('analyzeCircular', () => {
     (ADto2 as any)[RAW] = makeTypeMeta(() => BDto2);
     (BDto2 as any)[RAW] = makeTypeMeta(() => ADto2);
 
-    const merged = makeTypeMeta(() => BDto2);
     // Act
-    const result = analyzeCircular(ADto2, merged);
+    const result = analyzeCircular(ADto2);
     // Assert
     expect(result).toBe(true);
   });
@@ -152,9 +121,8 @@ describe('analyzeCircular', () => {
     (ContentDto as any)[RAW] = makeTypeMeta(() => ParentDto);
     (ParentDto as any)[RAW] = makeDiscriminatorMeta([{ value: ContentDto, name: 'content' }]);
 
-    const merged = makeDiscriminatorMeta([{ value: ContentDto, name: 'content' }]);
     // Act
-    const result = analyzeCircular(ParentDto, merged);
+    const result = analyzeCircular(ParentDto);
     // Assert
     expect(result).toBe(true);
   });
@@ -186,35 +154,13 @@ describe('analyzeCircular', () => {
       },
     };
 
-    const merged = (ADto as any)[RAW];
     // Act
-    const result = analyzeCircular(ADto, merged);
+    const result = analyzeCircular(ADto);
     // Assert
     expect(result).toBe(true);
   });
 
   // ── Corner ─────────────────────────────────────────────────────────────────
-
-  it('should return true when enableCircularCheck is true even with no @Type fields', () => {
-    // Arrange
-    class SimpleDto {}
-    (SimpleDto as any)[RAW] = {};
-    // Act
-    const result = analyzeCircular(SimpleDto, emptyMerged, { enableCircularCheck: true });
-    // Assert
-    expect(result).toBe(true);
-  });
-
-  it('should return false when enableCircularCheck is false even with a cycle', () => {
-    // Arrange
-    class CyclicDto {}
-    (CyclicDto as any)[RAW] = makeTypeMeta(() => CyclicDto);
-    const merged = makeTypeMeta(() => CyclicDto);
-    // Act
-    const result = analyzeCircular(CyclicDto, merged, { enableCircularCheck: false });
-    // Assert
-    expect(result).toBe(false);
-  });
 
   // ── Edge ───────────────────────────────────────────────────────────────────
 
@@ -223,7 +169,7 @@ describe('analyzeCircular', () => {
     class EmptyDto {}
     (EmptyDto as any)[RAW] = {};
     // Act
-    const result = analyzeCircular(EmptyDto, emptyMerged);
+    const result = analyzeCircular(EmptyDto);
     // Assert
     expect(result).toBe(false);
   });
@@ -235,8 +181,8 @@ describe('analyzeCircular', () => {
     class IdemDto {}
     (IdemDto as any)[RAW] = {};
     // Act
-    const first = analyzeCircular(IdemDto, emptyMerged);
-    const second = analyzeCircular(IdemDto, emptyMerged);
+    const first = analyzeCircular(IdemDto);
+    const second = analyzeCircular(IdemDto);
     // Assert
     expect(first).toBe(second);
   });

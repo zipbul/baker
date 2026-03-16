@@ -1,60 +1,58 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
   deserialize, configure, BakerValidationError,
-  Field, Type,
+  Field,
 } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-// ─── __proto__, constructor 키 주입 (stripUnknown 모드) ──────────────────────
+// ─── __proto__, constructor 키 주입 (forbidUnknown 모드) ──────────────────────
 
-describe('프로토타입 오염 방어 (stripUnknown)', () => {
+describe('프로토타입 오염 방어 (forbidUnknown)', () => {
   class SafeDto {
     @Field(isString) name!: string;
   }
 
-  it('__proto__ 키 → whitelistViolation 거부', async () => {
-    configure({ stripUnknown: true });
+  it('__proto__ 키 → 오염 방지', async () => {
+    configure({ forbidUnknown: true });
     try {
-      await deserialize(SafeDto, { name: 'ok', __proto__: { admin: true } });
-      // __proto__가 Object.prototype에 의해 무시될 수 있으므로
-      // 통과하더라도 결과에 __proto__ 없어야 함
+      const result = await deserialize<any>(SafeDto, { name: 'ok', __proto__: { admin: true } });
+      // __proto__가 Object.prototype에 의해 무시 → 결과에 admin 없어야 함
+      expect(result.admin).toBeUndefined();
     } catch (e) {
-      if (e instanceof BakerValidationError) {
-        // whitelist 거부 → OK
-        expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-      }
+      if (!(e instanceof BakerValidationError)) throw e;
+      expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
     }
   });
 
   it('constructor 키 → whitelistViolation 거부', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     try {
       await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
+      throw new Error('expected rejection');
     } catch (e) {
-      if (e instanceof BakerValidationError) {
-        expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-      }
+      if (!(e instanceof BakerValidationError)) throw e;
+      expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
     }
   });
 
   it('toString 키 → whitelistViolation 거부', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     try {
       await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
+      throw new Error('expected rejection');
     } catch (e) {
-      if (e instanceof BakerValidationError) {
-        expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-      }
+      if (!(e instanceof BakerValidationError)) throw e;
+      expect(e.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
     }
   });
 });
 
-// ─── stripUnknown 없이 추가 키 무시 확인 ──────────────────────────────────────
+// ─── forbidUnknown 없이 추가 키 무시 확인 ──────────────────────────────────────
 
-describe('stripUnknown 없이 추가 키 무시', () => {
+describe('forbidUnknown 없이 추가 키 무시', () => {
   class Dto { @Field(isString) name!: string; }
 
   it('미선언 키는 결과에 포함되지 않음', async () => {

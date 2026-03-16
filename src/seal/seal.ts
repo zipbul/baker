@@ -216,7 +216,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
   validateExposeStacks(merged, Class.name);
 
   // 3. 순환 참조 정적 분석
-  const needsCircularCheck = analyzeCircular(Class, options);
+  const needsCircularCheck = analyzeCircular(Class);
 
   // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass 사용
   for (const meta of Object.values(merged)) {

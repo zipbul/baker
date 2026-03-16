@@ -1,26 +1,19 @@
 import { RAW } from '../symbols';
 import { SealError } from '../errors';
 import type { RawClassMeta } from '../types'; // used in walk() cast
-import type { SealOptions } from '../interfaces';
 
 /**
  * 순환 참조 정적 분석 (§4.6)
  *
- * - enableCircularCheck: true → 항상 true
- * - enableCircularCheck: false → 항상 false
- * - 'auto' (기본) → @Type 참조 그래프를 DFS로 탐색해 순환 감지
+ * @Type 참조 그래프를 DFS로 탐색해 순환 감지.
  *
  * 순환 없는 flat DTO → false (WeakSet 오버헤드 0)
  * 순환 있는 DTO → true (WeakSet 자동 삽입)
  */
 export function analyzeCircular(
   Class: Function,
-  options?: SealOptions,
 ): boolean {
-  if (options?.enableCircularCheck === true) return true;
-  if (options?.enableCircularCheck === false) return false;
-
-  // auto mode: @Type 참조 그래프 DFS — visited set으로 back-edge 감지
+  // @Type 참조 그래프 DFS — visited set으로 back-edge 감지
   const visited = new Set<Function>();
 
   function walk(cls: Function): boolean {

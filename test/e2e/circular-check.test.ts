@@ -17,7 +17,7 @@ class TreeNode {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('enableCircularCheck', () => {
+describe('circular reference detection', () => {
   it('정상 트리 구조 → 통과', async () => {
     const result = await deserialize<TreeNode>(TreeNode, {
       value: 'root',

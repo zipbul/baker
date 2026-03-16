@@ -22,9 +22,9 @@ class ExposedDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('stripUnknown (whitelist) configure option', () => {
+describe('forbidUnknown (whitelist) configure option', () => {
   it('미선언 필드 거부', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
       expect.unreachable();
@@ -37,20 +37,20 @@ describe('stripUnknown (whitelist) configure option', () => {
   });
 
   it('선언 필드만 있으면 통과', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     const result = await deserialize<ProfileDto>(ProfileDto, { name: 'Bob', age: 30 });
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
   });
 
   it('@Field({ name }) extractKey 기준으로 허용', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     const result = await deserialize<ExposedDto>(ExposedDto, { user_name: 'Carol' });
     expect(result.name).toBe('Carol');
   });
 
   it('@Field({ name }) extractKey 외 필드 거부', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     try {
       await deserialize(ExposedDto, { user_name: 'Carol', hack: 1 });
       expect.unreachable();
@@ -61,7 +61,7 @@ describe('stripUnknown (whitelist) configure option', () => {
   });
 
   it('collectErrors 모드에서 다수 미선언 필드 수집', async () => {
-    configure({ stripUnknown: true });
+    configure({ forbidUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
       expect.unreachable();
@@ -71,8 +71,8 @@ describe('stripUnknown (whitelist) configure option', () => {
     }
   });
 
-  it('stopAtFirstError + stripUnknown → 첫 번째 위반만', async () => {
-    configure({ stripUnknown: true, stopAtFirstError: true });
+  it('stopAtFirstError + forbidUnknown → 첫 번째 위반만', async () => {
+    configure({ forbidUnknown: true, stopAtFirstError: true });
     try {
       await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
       expect.unreachable();
@@ -81,8 +81,8 @@ describe('stripUnknown (whitelist) configure option', () => {
     }
   });
 
-  it('stripUnknown + 검증 에러 동시 수집', async () => {
-    configure({ stripUnknown: true });
+  it('forbidUnknown + 검증 에러 동시 수집', async () => {
+    configure({ forbidUnknown: true });
     try {
       await deserialize(ProfileDto, { name: 123, age: 'bad', extra: 'x' });
       expect.unreachable();

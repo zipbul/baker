@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, createRule } from '../../index';
+import { Field, deserialize, serialize, createRule, configure } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED, RAW } from '../../src/symbols';
@@ -176,5 +176,33 @@ describe('_ensureSealed — _sealOnDemand fallback', () => {
     const result = await serialize(instance);
     expect(result).toEqual({ value: 'hello' });
     expect((LateDto as any)[SEALED]).toBeDefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// B-10: configure() returns { warnings } for testability
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('configure() — return warnings (B-10)', () => {
+  it('should return empty warnings when called before seal', () => {
+    const result = configure({});
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('should return a warning when called after auto-seal', async () => {
+    // Trigger auto-seal
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+
+    const result = configure({ autoConvert: true });
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain('called after auto-seal');
+  });
+
+  it('should return empty warnings again after unseal + re-configure', async () => {
+    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+    unseal();
+
+    const result = configure({});
+    expect(result.warnings).toEqual([]);
   });
 });

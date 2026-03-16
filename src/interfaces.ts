@@ -9,12 +9,6 @@ export interface SealOptions {
    */
   enableImplicitConversion?: boolean;
   /**
-   * 순환 참조 감지.
-   * 'auto' = 정적 분석으로 필요한 DTO만 WeakSet 삽입.
-   * @default 'auto'
-   */
-  enableCircularCheck?: boolean | 'auto';
-  /**
    * input에 해당 키가 없을 때 클래스 기본값을 사용.
    * @default false
    */
