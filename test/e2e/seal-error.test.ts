@@ -7,9 +7,9 @@ import { unseal } from '../integration/helpers/unseal';
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SealError', () => {
-  // 매 테스트 후 poison 클래스 제거 + seal 상태 리셋
+  // After each test, remove poison classes from registry + reset seal state
   afterEach(() => {
-    // poison 클래스(banned field 등)를 registry에서 제거
+    // Remove poison classes (banned fields etc.) from registry
     for (const cls of [...globalRegistry]) {
       globalRegistry.delete(cls);
     }

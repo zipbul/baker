@@ -1,9 +1,9 @@
 import { ensureMeta } from '../collect';
 import { isAsyncFunction } from '../utils';
-import type { EmittableRule, RawPropertyMeta, TypeDef } from '../types';
+import type { EmittableRule, RawPropertyMeta, RuleDef, TypeDef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayOf — 배열 원소 검증 마커 (each: true 대체)
+// arrayOf — Array element validation marker (replaces each: true)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ARRAY_OF = Symbol.for('baker:arrayOf');
@@ -14,7 +14,7 @@ export interface ArrayOfMarker {
 }
 
 /**
- * 배열의 각 원소에 규칙 적용.
+ * Apply rules to each element of an array.
  *
  * @example
  * @Field(arrayOf(isString(), minLength(1)))
@@ -31,7 +31,7 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FieldOptions — @Field 옵션 객체
+// FieldOptions — @Field options object
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface FieldTransformParams {
@@ -50,68 +50,77 @@ export interface JsonSchemaOverride {
 }
 
 export interface FieldOptions {
-  /** 중첩 DTO 타입. thunk — 순환 참조 지원. [Dto]면 배열. */
+  /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
   type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
-  /** 다형성 discriminator 설정 — type과 함께 사용 */
+  /** Polymorphic discriminator configuration — used with type */
   discriminator?: {
     property: string;
     subTypes: { value: Function; name: string }[];
   };
-  /** discriminator 프로퍼티를 결과 객체에 유지할지 여부 */
+  /** Whether to keep the discriminator property in the result object */
   keepDiscriminatorProperty?: boolean;
-  /** 검증 규칙 배열 */
+  /** Validation rules array */
   rules?: (EmittableRule | ArrayOfMarker)[];
-  /** undefined 허용 */
+  /** Allow undefined */
   optional?: boolean;
-  /** null 허용 */
+  /** Allow null */
   nullable?: boolean;
-  /** JSON 키 매핑 (양방향) */
+  /** JSON key mapping (bidirectional) */
   name?: string;
-  /** deserialize 방향 키 매핑 (name과 동시 사용 불가) */
+  /** Deserialize direction key mapping (cannot be used with name) */
   deserializeName?: string;
-  /** serialize 방향 키 매핑 (name과 동시 사용 불가) */
+  /** Serialize direction key mapping (cannot be used with name) */
   serializeName?: string;
-  /** 필드 제외 — true: 양방향, 'deserializeOnly': 역직렬화만, 'serializeOnly': 직렬화만 */
+  /** Field exclusion — true: bidirectional, 'deserializeOnly': deserialization only, 'serializeOnly': serialization only */
   exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
-  /** 그룹 — 필드 가시성 제어 + validation rule 조건부 적용 */
+  /** Groups — field visibility control + conditional validation rule application */
   groups?: string[];
-  /** 조건부 검증 — false 시 필드 전체 검증 skip */
+  /** Conditional validation — skip all field validation when false */
   when?: (obj: any) => boolean;
-  /** JSON Schema 커스텀 (프로퍼티 레벨) */
+  /** JSON Schema custom override (property level) */
   schema?: JsonSchemaOverride;
-  /** 값 변환 함수 */
+  /** Value transform function */
   transform?: (params: FieldTransformParams) => unknown;
-  /** transform 방향 제한 */
+  /** Transform direction restriction */
   transformDirection?: 'deserializeOnly' | 'serializeOnly';
+  /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
+  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
+  /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
+  context?: unknown;
+  /** Nested DTO class thunk for Map values — used with type: () => Map */
+  mapValue?: () => new (...args: any[]) => any;
+  /** Nested DTO class thunk for Set elements — used with type: () => Set */
+  setValue?: () => new (...args: any[]) => any;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FieldOptions 감지 — EmittableRule/ArrayOfMarker와 구분
+// FieldOptions detection — distinguish from EmittableRule/ArrayOfMarker
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FIELD_OPTION_KEYS = new Set([
   'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
   'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
   'exclude', 'groups', 'when', 'schema', 'transform', 'transformDirection',
+  'message', 'context', 'mapValue', 'setValue',
 ]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
   if (typeof arg === 'function') return false;
   if (typeof arg !== 'object' || arg === null) return false;
   if (isArrayOfMarker(arg)) return false;
-  // 알려진 키가 하나라도 있으면 FieldOptions
+  // Treat as FieldOptions if at least one known key exists
   const keys = Object.keys(arg);
   if (keys.length === 0) return true; // @Field({})
   return keys.some(k => FIELD_OPTION_KEYS.has(k));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 내부 헬퍼 — Field() 데코레이터 분해
+// Internal helpers — Field() decorator decomposition
 // ─────────────────────────────────────────────────────────────────────────────
 
 type RuleArg = EmittableRule | ArrayOfMarker;
 
-/** 4가지 오버로드 시그니처를 `{ rules, options }`로 정규화 */
+/** Normalize 4 overload signatures into `{ rules, options }` */
 function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions } {
   if (args.length === 0) {
     // Form 1: @Field()
@@ -135,27 +144,26 @@ function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions 
   return { rules: args, options: {} };
 }
 
-/** validation 규칙 등록 + arrayOf 처리 */
+/** Register validation rules + handle arrayOf */
 function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: FieldOptions): void {
   for (const rule of rules) {
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
-        meta.validation.push({
-          rule: innerRule,
-          each: true,
-          groups: options.groups,
-        });
+        const rd: RuleDef = { rule: innerRule, each: true, groups: options.groups };
+        if (options.message !== undefined) rd.message = options.message;
+        if (options.context !== undefined) rd.context = options.context;
+        meta.validation.push(rd);
       }
     } else {
-      meta.validation.push({
-        rule: rule as EmittableRule,
-        groups: options.groups,
-      });
+      const rd: RuleDef = { rule: rule as EmittableRule, groups: options.groups };
+      if (options.message !== undefined) rd.message = options.message;
+      if (options.context !== undefined) rd.context = options.context;
+      meta.validation.push(rd);
     }
   }
 }
 
-/** expose 5-branch 로직 처리 */
+/** Handle expose 5-branch logic */
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
     meta.expose.push({ name: options.name, groups: options.groups });
@@ -173,7 +181,7 @@ function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   }
 }
 
-/** async 감지 + direction 래핑 + transform 등록 */
+/** Detect async + wrap direction + register transform */
 function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
   if (!options.transform) return;
   const userFn = options.transform;
@@ -204,16 +212,16 @@ function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Field — 필드 데코레이터 (4가지 오버로드)
+// @Field — Field decorator (4 overloads)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** @Field() — 빈 필드 등록 */
+/** @Field() — empty field registration */
 export function Field(): PropertyDecorator;
-/** @Field(isString(), email()) — 가변 인자 규칙 */
+/** @Field(isString(), email()) — variadic rules */
 export function Field(...rules: RuleArg[]): PropertyDecorator;
-/** @Field({ type: () => Dto }) — 옵션 객체 */
+/** @Field({ type: () => Dto }) — options object */
 export function Field(options: FieldOptions): PropertyDecorator;
-/** @Field(isString(), { optional: true }) — 규칙 + 옵션 혼합 */
+/** @Field(isString(), { optional: true }) — rules + options mixed */
 export function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
 export function Field(...args: any[]): PropertyDecorator {
   return (target, key) => {
@@ -230,12 +238,13 @@ export function Field(...args: any[]): PropertyDecorator {
     if (options.nullable) meta.flags.isNullable = true;
     if (options.when) meta.flags.validateIf = options.when;
 
-    // ── type (중첩 DTO + discriminator) ──
+    // ── type (nested DTO + discriminator + collection) ──
     if (options.type) {
       meta.type = {
         fn: options.type as TypeDef['fn'],
         discriminator: options.discriminator,
         keepDiscriminatorProperty: options.keepDiscriminatorProperty,
+        collectionValue: options.mapValue ?? options.setValue,
       };
     }
 
@@ -257,7 +266,7 @@ export function Field(...args: any[]): PropertyDecorator {
     // ── schema ──
     if (options.schema) {
       if (typeof meta.schema === 'function') {
-        // 기존 함수형 유지
+        // Keep existing function form
       } else {
         meta.schema = { ...(meta.schema ?? {}), ...options.schema } as Record<string, unknown>;
       }

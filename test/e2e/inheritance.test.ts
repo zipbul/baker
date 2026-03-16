@@ -25,14 +25,14 @@ class GrandChildDto extends ChildDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('inheritance — deserialize', () => {
-  it('child → parent 필드 포함', async () => {
+  it('child → includes parent fields', async () => {
     const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 });
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
   });
 
-  it('grandchild → 모든 조상 필드 포함', async () => {
+  it('grandchild → includes all ancestor fields', async () => {
     const result = await deserialize<GrandChildDto>(GrandChildDto, {
       name: 'Bob', age: 30, active: true,
     });
@@ -42,20 +42,20 @@ describe('inheritance — deserialize', () => {
     expect(result.active).toBe(true);
   });
 
-  it('parent 규칙 위반 → child에서도 에러', async () => {
+  it('parent rule violation → error in child too', async () => {
     // age: -1 violates min(0) from ChildDto
     await expect(deserialize(GrandChildDto, { name: 'X', age: -1, active: true })).rejects.toThrow();
   });
 });
 
 describe('inheritance — serialize', () => {
-  it('child → parent 필드 직렬화', async () => {
+  it('child → serializes parent fields', async () => {
     const dto = Object.assign(new ChildDto(), { name: 'Carol', age: 40 });
     const result = await serialize(dto);
     expect(result).toEqual({ name: 'Carol', age: 40 });
   });
 
-  it('grandchild → 모든 필드 직렬화', async () => {
+  it('grandchild → serializes all fields', async () => {
     const dto = Object.assign(new GrandChildDto(), { name: 'Dave', age: 35, active: false });
     const result = await serialize(dto);
     expect(result).toEqual({ name: 'Dave', age: 35, active: false });
@@ -63,7 +63,7 @@ describe('inheritance — serialize', () => {
 });
 
 describe('inheritance — toJsonSchema', () => {
-  it('grandchild schema에 모든 조상 필드 포함', () => {
+  it('grandchild schema includes all ancestor fields', () => {
     const schema = toJsonSchema(GrandChildDto);
     expect(schema.properties!.name).toBeDefined();
     expect(schema.properties!.age).toBeDefined();

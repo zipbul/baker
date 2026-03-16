@@ -3,28 +3,28 @@ import { SealError } from '../errors';
 import type { RawClassMeta } from '../types'; // used in walk() cast
 
 /**
- * 순환 참조 정적 분석 (§4.6)
+ * Static analysis for circular references (§4.6)
  *
- * @Type 참조 그래프를 DFS로 탐색해 순환 감지.
+ * Traverses the @Type reference graph via DFS to detect cycles.
  *
- * 순환 없는 flat DTO → false (WeakSet 오버헤드 0)
- * 순환 있는 DTO → true (WeakSet 자동 삽입)
+ * Flat DTO without cycles → false (zero WeakSet overhead)
+ * DTO with cycles → true (WeakSet automatically inserted)
  */
 export function analyzeCircular(
   Class: Function,
 ): boolean {
-  // @Type 참조 그래프 DFS — visited set으로 back-edge 감지
+  // @Type reference graph DFS — detect back-edges via visited set
   const visited = new Set<Function>();
 
   function walk(cls: Function): boolean {
-    if (visited.has(cls)) return true; // back-edge → 순환
+    if (visited.has(cls)) return true; // back-edge → cycle detected
 
     visited.add(cls);
 
     const raw = (cls as any)[RAW] as RawClassMeta | undefined;
     if (raw) {
       for (const meta of Object.values(raw)) {
-        // 단순 @Type
+        // Simple @Type
         if (meta.type?.fn) {
           let typeResult: unknown;
           try {
@@ -44,7 +44,7 @@ export function analyzeCircular(
       }
     }
 
-    visited.delete(cls); // 트리 엣지 해제 — 다이아몬드 패턴 false positive 방지
+    visited.delete(cls); // Release tree edge — prevent false positives for diamond patterns
     return false;
   }
 

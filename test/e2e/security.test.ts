@@ -8,18 +8,18 @@ import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-// ─── __proto__, constructor 키 주입 (forbidUnknown 모드) ──────────────────────
+// ─── __proto__, constructor key injection (forbidUnknown mode) ───────────────
 
-describe('프로토타입 오염 방어 (forbidUnknown)', () => {
+describe('prototype pollution defense (forbidUnknown)', () => {
   class SafeDto {
     @Field(isString) name!: string;
   }
 
-  it('__proto__ 키 → 오염 방지', async () => {
+  it('__proto__ key → pollution prevented', async () => {
     configure({ forbidUnknown: true });
     try {
       const result = await deserialize<any>(SafeDto, { name: 'ok', __proto__: { admin: true } });
-      // __proto__가 Object.prototype에 의해 무시 → 결과에 admin 없어야 함
+      // __proto__ ignored by Object.prototype → result should not have admin
       expect(result.admin).toBeUndefined();
     } catch (e) {
       if (!(e instanceof BakerValidationError)) throw e;
@@ -27,7 +27,7 @@ describe('프로토타입 오염 방어 (forbidUnknown)', () => {
     }
   });
 
-  it('constructor 키 → whitelistViolation 거부', async () => {
+  it('constructor key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
     try {
       await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
@@ -38,7 +38,7 @@ describe('프로토타입 오염 방어 (forbidUnknown)', () => {
     }
   });
 
-  it('toString 키 → whitelistViolation 거부', async () => {
+  it('toString key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
     try {
       await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
@@ -50,21 +50,21 @@ describe('프로토타입 오염 방어 (forbidUnknown)', () => {
   });
 });
 
-// ─── forbidUnknown 없이 추가 키 무시 확인 ──────────────────────────────────────
+// ─── extra keys ignored without forbidUnknown ──────────────────────────────
 
-describe('forbidUnknown 없이 추가 키 무시', () => {
+describe('extra keys ignored without forbidUnknown', () => {
   class Dto { @Field(isString) name!: string; }
 
-  it('미선언 키는 결과에 포함되지 않음', async () => {
+  it('undeclared keys not included in result', async () => {
     const r = await deserialize<any>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
     expect(r.name).toBe('ok');
     expect(r.extra).toBeUndefined();
   });
 });
 
-// ─── 깊은 중첩 객체 (스택 안전성) ──────────────────────────────────────────
+// ─── deeply nested objects (stack safety) ──────────────────────────────────
 
-describe('깊은 중첩 객체 스택 안전성', () => {
+describe('deeply nested objects stack safety', () => {
   class Leaf {
     @Field(isString) value!: string;
   }
@@ -75,7 +75,7 @@ describe('깊은 중첩 객체 스택 안전성', () => {
   class Level2 { @Field({ type: () => Level3 }) child!: Level3; }
   class Level1 { @Field({ type: () => Level2 }) child!: Level2; }
 
-  it('5 레벨 중첩 정상 처리', async () => {
+  it('5 levels of nesting processed correctly', async () => {
     const input = {
       child: { child: { child: { child: { leaf: { value: 'deep' } } } } },
     };
@@ -83,7 +83,7 @@ describe('깊은 중첩 객체 스택 안전성', () => {
     expect(r.child.child.child.child.leaf.value).toBe('deep');
   });
 
-  it('5 레벨 중첩 검증 실패 시 정확한 경로', async () => {
+  it('5 levels of nesting validation failure → correct path', async () => {
     const input = {
       child: { child: { child: { child: { leaf: { value: 123 } } } } },
     };
@@ -98,9 +98,9 @@ describe('깊은 중첩 객체 스택 안전성', () => {
   });
 });
 
-// ─── 큰 배열 입력 처리 ─────────────────────────────────────────────────────
+// ─── large array input handling ─────────────────────────────────────────────
 
-describe('큰 배열 입력 처리', () => {
+describe('large array input handling', () => {
   class ItemDto {
     @Field(isNumber()) id!: number;
   }
@@ -110,14 +110,14 @@ describe('큰 배열 입력 처리', () => {
     items!: ItemDto[];
   }
 
-  it('1000개 항목 배열 정상 처리', async () => {
+  it('1000 item array processed correctly', async () => {
     const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
     const r = await deserialize<ListDto>(ListDto, { items });
     expect(r.items).toHaveLength(1000);
     expect(r.items[999]!.id).toBe(999);
   });
 
-  it('1000개 중 일부 무효 → 해당 인덱스만 에러', async () => {
+  it('some invalid among 1000 → only those indices have errors', async () => {
     const items: any[] = Array.from({ length: 100 }, (_, i) => ({ id: i }));
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
@@ -129,13 +129,13 @@ describe('큰 배열 입력 처리', () => {
       const paths = e.errors.map(x => x.path);
       expect(paths).toContain('items[50].id');
       expect(paths).toContain('items[99].id');
-      // 유효 항목은 에러에 없어야 함
+      // valid items should not have errors
       expect(paths.filter(p => p === 'items[0].id')).toHaveLength(0);
     }
   });
 });
 
-// ─── 특수 문자열 키 처리 ───────────────────────────────────────────────────
+// ─── special string key handling ────────────────────────────────────────────
 
 // ─── E-26: frozen / null-prototype input ────────────────────────────────────
 
@@ -169,21 +169,21 @@ describe('E-26: frozen / null-prototype input', () => {
   });
 });
 
-describe('특수 문자열 값 처리', () => {
+describe('special string value handling', () => {
   class Dto { @Field(isString) v!: string; }
 
-  it('매우 긴 문자열 (10K) 통과', async () => {
+  it('very long string (10K) passes', async () => {
     const longStr = 'x'.repeat(10_000);
     const r = await deserialize<any>(Dto, { v: longStr });
     expect(r.v).toHaveLength(10_000);
   });
 
-  it('유니코드 이모지 문자열 통과', async () => {
+  it('unicode emoji string passes', async () => {
     const r = await deserialize<any>(Dto, { v: '🎉🎊🎈' });
     expect(r.v).toBe('🎉🎊🎈');
   });
 
-  it('null byte 포함 문자열 통과', async () => {
+  it('string containing null byte passes', async () => {
     const r = await deserialize<any>(Dto, { v: 'hello\x00world' });
     expect(r.v).toBe('hello\x00world');
   });

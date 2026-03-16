@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// equals — strict equality (===). refs로 비교값 전달 (§4.8 C)
+// equals — strict equality (===). comparison value passed via refs (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function equals(comparison: unknown): EmittableRule {
@@ -19,7 +19,7 @@ export function equals(comparison: unknown): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// notEquals — strict inequality (!==). refs로 비교값 전달
+// notEquals — strict inequality (!==). comparison value passed via refs
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function notEquals(comparison: unknown): EmittableRule {
@@ -37,7 +37,7 @@ export function notEquals(comparison: unknown): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isEmpty — undefined | null | '' 만 empty로 취급 (§4.8 A)
+// isEmpty — only undefined | null | '' are treated as empty (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isEmpty = (value: unknown): boolean =>
@@ -52,7 +52,7 @@ const _isEmpty = (value: unknown): boolean =>
 export const isEmpty = _isEmpty as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotEmpty — undefined | null | '' 이외의 값 (§4.8 A)
+// isNotEmpty — any value other than undefined | null | '' (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isNotEmpty = (value: unknown): boolean =>
@@ -67,7 +67,7 @@ const _isNotEmpty = (value: unknown): boolean =>
 export const isNotEmpty = _isNotEmpty as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isIn — 배열 내 포함 여부. Set으로 O(1) 조회 (§4.8 C)
+// isIn — checks inclusion in array. O(1) lookup via Set (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isIn(array: unknown[]): EmittableRule {
@@ -86,7 +86,7 @@ export function isIn(array: unknown[]): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotIn — 배열 외 여부. Set으로 O(1) 조회 (§4.8 C)
+// isNotIn — checks exclusion from array. O(1) lookup via Set (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isNotIn(array: unknown[]): EmittableRule {

@@ -376,7 +376,7 @@ describe('_autoSeal', () => {
     warnSpy.mockRestore();
   });
 
-  // ── _autoSeal 실패 시 placeholder 정리 ──────────────────────────
+  // ── Cleanup of placeholders when _autoSeal fails ──────────────────────────
 
   it('should clean up recursively-sealed nested DTOs in _sealOnDemand', () => {
     // Arrange — batch seal first (empty), then register parent+nested after
@@ -450,9 +450,9 @@ describe('_autoSeal', () => {
         schema: null,
       },
     });
-    // Act — seal 실패
+    // Act — seal fails
     expect(() => _autoSeal()).toThrow(SealError);
-    // Assert — stale placeholder 정리됨
+    // Assert — stale placeholder cleaned up
     expect((ParentDto as any)[SEALED]).toBeUndefined();
   });
 
@@ -511,7 +511,7 @@ describe('_autoSeal', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// mergeInheritance — __testing__ export 사용
+// mergeInheritance — using __testing__ export
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('mergeInheritance', () => {
@@ -769,7 +769,7 @@ describe('mergeInheritance', () => {
     expect(merged.f!.validation.length).toBe(1);
   });
 
-  // ── Object.hasOwn — prototype chain 체인 수집 정확성 (H2) ─────────────────
+  // ── Object.hasOwn — prototype chain collection accuracy (H2) ─────────────────
 
   it('should not include child in chain when child has no own RAW (inherits via prototype)', () => {
     // Arrange
@@ -840,7 +840,7 @@ describe('mergeInheritance', () => {
 // C5: sealOne — banned field names (prototype pollution prevention)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** RAW 메타에 bannedKey 이름의 필드를 own enumerable property로 추가하는 헬퍼 */
+/** Helper that adds a field named bannedKey as an own enumerable property to the RAW meta */
 function makeRawWithBannedKey(bannedKey: string): RawClassMeta {
   const fieldMeta = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null };
   const raw = Object.create(null) as RawClassMeta;
@@ -907,7 +907,7 @@ describe('sealOne — banned field names (C5)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _circularPlaceholder — placeholder executor 동작 검증
+// _circularPlaceholder — placeholder executor behavior verification
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('_circularPlaceholder', () => {

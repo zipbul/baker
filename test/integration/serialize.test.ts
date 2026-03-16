@@ -60,4 +60,14 @@ describe('serialize — integration', () => {
     expect(typeof result).toBe('object');
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   });
+
+  it('serialize is a regular function, not an async function', () => {
+    expect(serialize.constructor.name).not.toBe('AsyncFunction');
+  });
+
+  it('sync DTO serialize returns a Promise', () => {
+    const dto = Object.assign(new SimpleSerializeDto(), { name: 'Test', age: 1 });
+    const result = serialize(dto);
+    expect(result).toBeInstanceOf(Promise);
+  });
 });

@@ -55,8 +55,8 @@ class PetOwnerDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('@Nested 역직렬화', () => {
-  it('단순 중첩 DTO', async () => {
+describe('@Nested deserialization', () => {
+  it('simple nested DTO', async () => {
     const result = await deserialize<UserDto>(UserDto, {
       name: 'Alice',
       address: { city: 'Seoul', street: '강남대로' },
@@ -66,13 +66,13 @@ describe('@Nested 역직렬화', () => {
     expect(result.address.city).toBe('Seoul');
   });
 
-  it('중첩 DTO 검증 실패', async () => {
+  it('nested DTO validation failure', async () => {
     await expect(
       deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }),
     ).rejects.toThrow();
   });
 
-  it('배열 중첩 (each: true)', async () => {
+  it('array nested (each: true)', async () => {
     const result = await deserialize<ListDto>(ListDto, {
       items: [{ label: 'a' }, { label: 'b' }],
     });
@@ -81,11 +81,11 @@ describe('@Nested 역직렬화', () => {
     expect(result.items[0]!.label).toBe('a');
   });
 
-  it('배열 중첩 크기 검증', async () => {
+  it('array nested size validation', async () => {
     await expect(deserialize(ListDto, { items: [] })).rejects.toThrow();
   });
 
-  it('discriminator 역직렬화', async () => {
+  it('discriminator deserialization', async () => {
     const dog = await deserialize<PetOwnerDto>(PetOwnerDto, {
       pet: { type: 'dog', breed: 'Shiba' },
     });
@@ -100,8 +100,8 @@ describe('@Nested 역직렬화', () => {
   });
 });
 
-describe('@Nested 직렬화', () => {
-  it('중첩 DTO 직렬화', async () => {
+describe('@Nested serialization', () => {
+  it('nested DTO serialization', async () => {
     const user = new UserDto();
     user.name = 'Bob';
     user.address = new AddressDto();
@@ -113,7 +113,7 @@ describe('@Nested 직렬화', () => {
 });
 
 describe('@Nested toJsonSchema', () => {
-  it('단순 $ref', () => {
+  it('simple $ref', () => {
     const schema = toJsonSchema(UserDto);
     expect(schema.properties!.address).toEqual({ $ref: '#/$defs/AddressDto' });
     expect(schema.$defs!.AddressDto!.type).toBe('object');
@@ -146,10 +146,10 @@ describe('@Nested toJsonSchema', () => {
   });
 });
 
-// ─── @Nested 추가 에지 케이스 ───────────────────────────────────────────────
+// ─── @Nested additional edge cases ───────────────────────────────────────────
 
-describe('@Nested 에지 케이스', () => {
-  it('중첩 DTO에 비-객체 전달 시 에러', async () => {
+describe('@Nested edge cases', () => {
+  it('non-object passed to nested DTO → error', async () => {
     try {
       await deserialize(UserDto, { name: 'Alice', address: 'not-object' });
       expect.unreachable();
@@ -161,7 +161,7 @@ describe('@Nested 에지 케이스', () => {
     }
   });
 
-  it('배열 중첩에서 특정 원소 실패 시 인덱스 경로', async () => {
+  it('specific element failure in array nested → index in path', async () => {
     try {
       await deserialize(ListDto, { items: [{ label: 'ok' }, { label: 123 }, { label: 'fine' }] });
       expect.unreachable();
@@ -171,7 +171,7 @@ describe('@Nested 에지 케이스', () => {
     }
   });
 
-  it('@Nested + optional → 중첩 필드 누락 허용', async () => {
+  it('@Nested + optional → missing nested field allowed', async () => {
     class OptNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
@@ -181,7 +181,7 @@ describe('@Nested 에지 케이스', () => {
     expect(r.address).toBeUndefined();
   });
 
-  it('@Nested + nullable → null 중첩 허용', async () => {
+  it('@Nested + nullable → null nested allowed', async () => {
     class NullNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;

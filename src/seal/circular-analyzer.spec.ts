@@ -4,7 +4,7 @@ import { RAW } from '../symbols';
 import type { RawClassMeta } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers — RAW 메타 수동 설정
+// Helpers — manual RAW meta setup
 // ─────────────────────────────────────────────────────────────────────────────
 
 function makeTypeMeta(fn: () => Function): RawClassMeta {
@@ -46,7 +46,7 @@ function makeDiscriminatorMeta(
 
 describe('analyzeCircular', () => {
   afterEach(() => {
-    // 테스트에서 설정한 RAW 제거
+    // Remove RAW set by tests
   });
 
   // ── Happy Path ─────────────────────────────────────────────────────────────

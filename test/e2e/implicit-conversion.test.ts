@@ -68,14 +68,14 @@ describe('enableImplicitConversion', () => {
     expect(result.createdAt.toISOString()).toBe('2024-01-01T00:00:00.000Z');
   });
 
-  it('변환 불가 값 → conversionFailed', async () => {
+  it('unconvertible value → conversionFailed', async () => {
     configure({ autoConvert: true });
     await expect(
       deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }),
     ).rejects.toThrow();
   });
 
-  it('명시적 @Field transform 있으면 변환 스킵', async () => {
+  it('explicit @Field transform present → conversion skipped', async () => {
     configure({ autoConvert: true });
     const result = await deserialize<ConvWithTransformDto>(ConvWithTransformDto, {
       score: '42',
@@ -83,7 +83,7 @@ describe('enableImplicitConversion', () => {
     expect(result.score).toBe(42);
   });
 
-  it('typed deps 있는 경우 (isNumber + min) 변환 동작', async () => {
+  it('typed deps present (isNumber + min) → conversion works', async () => {
     configure({ autoConvert: true });
     const result = await deserialize<ConvWithMinDto>(ConvWithMinDto, {
       count: '5',
@@ -91,7 +91,7 @@ describe('enableImplicitConversion', () => {
     expect(result.count).toBe(5);
   });
 
-  it('autoConvert: false → 변환 없이 타입 에러', async () => {
+  it('autoConvert: false → type error without conversion', async () => {
     configure({ autoConvert: false });
     await expect(
       deserialize(ConvDto, { age: '25', active: true, createdAt: new Date() }),
@@ -101,11 +101,11 @@ describe('enableImplicitConversion', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // @Type() primitive hint + non-typed validation rule
-// @Type 힌트 경로: @Type + general rule + autoConvert
+// @Type hint path: @Type + general rule + autoConvert
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Type hint implicit conversion', () => {
-  it('@Type(() => Number) + isNotEmpty — string → number 변환 후 검증', async () => {
+  it('@Type(() => Number) + isNotEmpty — string → number conversion then validation', async () => {
     class TypeHintDto {
       @Field(isNotEmpty, { type: () => Number })
       value!: number;
@@ -115,7 +115,7 @@ describe('@Type hint implicit conversion', () => {
     expect(result.value).toBe(10);
   });
 
-  it('@Type(() => Number) + isNotEmpty — 변환 실패 → conversionFailed', async () => {
+  it('@Type(() => Number) + isNotEmpty — conversion failure → conversionFailed', async () => {
     class TypeHintFailDto {
       @Field(isNotEmpty, { type: () => Number })
       value!: number;
@@ -136,7 +136,7 @@ describe('@Type hint implicit conversion', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('stopAtFirstError + autoConvert', () => {
-  it('변환 성공 시 정상 동작', async () => {
+  it('conversion success → normal behavior', async () => {
     class StopConvDto {
       @Field(isNumber(), min(0))
       count!: number;
@@ -146,7 +146,7 @@ describe('stopAtFirstError + autoConvert', () => {
     expect(result.count).toBe(10);
   });
 
-  it('변환 실패 시 첫 에러에서 중단', async () => {
+  it('conversion failure → stops at first error', async () => {
     class StopConvFailDto {
       @Field(isNumber())
       first!: number;

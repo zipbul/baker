@@ -1,13 +1,13 @@
 /**
- * 2개의 Symbol — 외부 저장소 0, 글로벌 오염 0
- * Symbol.for 사용: AOT 코드와 런타임 코드가 동일 Symbol을 공유할 수 있도록 global registry 사용
+ * 2 Symbols — zero external storage, zero global pollution
+ * Uses Symbol.for: allows AOT code and runtime code to share the same Symbol via the global registry
  */
 
-/** Tier 1 수집 메타데이터 (데코레이터가 Class에 저장) */
+/** Tier 1 collection metadata (stored on Class by decorators) */
 export const RAW = Symbol.for('baker:raw');
 
-/** Tier 2 봉인 결과 (seal()이 Class에 저장하는 dual executor) */
+/** Tier 2 seal result (dual executor stored on Class by seal()) */
 export const SEALED = Symbol.for('baker:sealed');
 
-/** 클래스 레벨 @Schema() 메타데이터 */
+/** Class-level @Schema() metadata */
 export const RAW_CLASS_SCHEMA = Symbol.for('baker:rawClassSchema');

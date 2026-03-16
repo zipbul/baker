@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// minDate — v >= date (inclusive, getTime 비교). (§4.8 C — refs 함수 호출)
+// minDate — v >= date (inclusive, getTime comparison). (§4.8 C — refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function minDate(date: Date): EmittableRule {
@@ -23,7 +23,7 @@ export function minDate(date: Date): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// maxDate — v <= date (inclusive, getTime 비교). (§4.8 C — refs 함수 호출)
+// maxDate — v <= date (inclusive, getTime comparison). (§4.8 C — refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function maxDate(date: Date): EmittableRule {

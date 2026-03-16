@@ -32,12 +32,12 @@ class AsyncRuleDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('createRule — sync', () => {
-  it('규칙 통과', async () => {
+  it('rule passes', async () => {
     const r = await deserialize<EvenDto>(EvenDto, { value: 4 });
     expect(r.value).toBe(4);
   });
 
-  it('규칙 위반 → 커스텀 에러 코드', async () => {
+  it('rule violation → custom error code', async () => {
     try {
       await deserialize(EvenDto, { value: 3 });
       expect.unreachable();
@@ -48,19 +48,19 @@ describe('createRule — sync', () => {
     }
   });
 
-  it('직접 호출 가능', () => {
+  it('can be called directly', () => {
     expect(isEven(4)).toBe(true);
     expect(isEven(3)).toBe(false);
   });
 });
 
 describe('createRule — async', () => {
-  it('async 규칙 통과', async () => {
+  it('async rule passes', async () => {
     const r = await deserialize<AsyncRuleDto>(AsyncRuleDto, { score: 10 });
     expect(r.score).toBe(10);
   });
 
-  it('async 규칙 위반', async () => {
+  it('async rule violation', async () => {
     try {
       await deserialize(AsyncRuleDto, { score: -1 });
       expect.unreachable();

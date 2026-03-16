@@ -68,8 +68,8 @@ const validInput = {
   tag: '  Frontend Dev  ',
 };
 
-describe('CreateUserDto — 역직렬화', () => {
-  it('유효한 입력 → 전체 필드 통과', async () => {
+describe('CreateUserDto — deserialization', () => {
+  it('valid input → all fields pass', async () => {
     const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     expect(user).toBeInstanceOf(CreateUserDto);
     expect(user.name).toBe('Alice Kim');
@@ -84,7 +84,7 @@ describe('CreateUserDto — 역직렬화', () => {
     expect(user.tag).toBe('frontend dev'); // trim + toLowerCase
   });
 
-  it('optional 필드 없이 통과', async () => {
+  it('passes without optional fields', async () => {
     const input = { ...validInput };
     delete (input as any).active;
     delete (input as any).addresses;
@@ -92,55 +92,55 @@ describe('CreateUserDto — 역직렬화', () => {
     expect(user.active).toBeUndefined();
   });
 
-  it('nullable → null 허용', async () => {
+  it('nullable → null allowed', async () => {
     const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     expect(user.bio).toBeNull();
   });
 });
 
-describe('CreateUserDto — 검증 실패', () => {
-  it('이름 너무 짧음', async () => {
+describe('CreateUserDto — validation failure', () => {
+  it('name too short', async () => {
     await expect(
       deserialize(CreateUserDto, { ...validInput, user_name: 'A' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('잘못된 이메일', async () => {
+  it('invalid email', async () => {
     await expect(
       deserialize(CreateUserDto, { ...validInput, email: 'not-email' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('나이 범위 초과', async () => {
+  it('age out of range', async () => {
     await expect(
       deserialize(CreateUserDto, { ...validInput, age: 200 }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('잘못된 enum 값', async () => {
+  it('invalid enum value', async () => {
     await expect(
       deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('중첩 DTO 검증 실패', async () => {
+  it('nested DTO validation failure', async () => {
     await expect(
       deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }),
     ).rejects.toThrow(BakerValidationError);
   });
 });
 
-describe('CreateUserDto — 직렬화', () => {
-  it('serialize → @Expose 방향별 키, @Exclude serializeOnly', async () => {
+describe('CreateUserDto — serialization', () => {
+  it('serialize → direction-specific keys, @Exclude serializeOnly', async () => {
     const dto = await deserialize<CreateUserDto>(CreateUserDto, validInput);
     const plain = await serialize(dto);
     // serializeOnly @Expose → userName
     expect(plain['userName']).toBe('Alice Kim');
     expect(plain['user_name']).toBeUndefined();
     expect(plain['name']).toBeUndefined();
-    // @Exclude serializeOnly → password 제외
+    // @Exclude serializeOnly → password excluded
     expect(plain['password']).toBeUndefined();
-    // 나머지 필드
+    // remaining fields
     expect(plain['email']).toBe('alice@example.com');
     expect(plain['age']).toBe(28);
     expect(plain['role']).toBe('admin');
@@ -148,7 +148,7 @@ describe('CreateUserDto — 직렬화', () => {
 });
 
 describe('CreateUserDto — toJsonSchema', () => {
-  it('스키마 필드 타입 매핑', () => {
+  it('schema field type mapping', () => {
     const schema = toJsonSchema(CreateUserDto, { direction: 'deserialize' });
     expect(schema.type).toBe('object');
     expect(schema.properties!.user_name).toBeDefined();
@@ -161,7 +161,7 @@ describe('CreateUserDto — toJsonSchema', () => {
     expect(schema.properties!.bio!.type).toEqual(['string', 'null']);
   });
 
-  it('중첩 → $ref + $defs', () => {
+  it('nested → $ref + $defs', () => {
     const schema = toJsonSchema(CreateUserDto);
     expect(schema.properties!.address!.$ref).toBe('#/$defs/AddressDto');
     expect(schema.$defs!.AddressDto).toBeDefined();

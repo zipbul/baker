@@ -20,78 +20,78 @@ class EnumDto { @Field(isEnum(Color)) color!: Color; }
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Equals', () => {
-  it('일치 통과', async () => {
+  it('match passes', async () => {
     const r = await deserialize<EqualsDto>(EqualsDto, { answer: 'yes' });
     expect(r.answer).toBe('yes');
   });
-  it('불일치 거부', async () => {
+  it('mismatch rejected', async () => {
     await expect(deserialize(EqualsDto, { answer: 'no' })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@NotEquals', () => {
-  it('불일치 통과', async () => {
+  it('mismatch passes', async () => {
     const r = await deserialize<NotEqualsDto>(NotEqualsDto, { answer: 'yes' });
     expect(r.answer).toBe('yes');
   });
-  it('일치 거부', async () => {
+  it('match rejected', async () => {
     await expect(deserialize(NotEqualsDto, { answer: 'no' })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@IsIn', () => {
-  it('목록 내 통과', async () => {
+  it('value in list passes', async () => {
     const r = await deserialize<IsInDto>(IsInDto, { choice: 'b' });
     expect(r.choice).toBe('b');
   });
-  it('목록 외 거부', async () => {
+  it('value not in list rejected', async () => {
     await expect(deserialize(IsInDto, { choice: 'z' })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@IsNotIn', () => {
-  it('목록 외 통과', async () => {
+  it('value not in list passes', async () => {
     const r = await deserialize<IsNotInDto>(IsNotInDto, { val: 5 });
     expect(r.val).toBe(5);
   });
-  it('목록 내 거부', async () => {
+  it('value in list rejected', async () => {
     await expect(deserialize(IsNotInDto, { val: 2 })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@IsEmpty', () => {
-  it('빈 문자열 통과', async () => {
+  it('empty string passes', async () => {
     const r = await deserialize<IsEmptyDto>(IsEmptyDto, { field: '' });
     expect(r.field).toBe('');
   });
-  it('비어있지 않은 값 거부', async () => {
+  it('non-empty value rejected', async () => {
     await expect(deserialize(IsEmptyDto, { field: 'hello' })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@IsNotEmpty', () => {
-  it('비어있지 않은 값 통과', async () => {
+  it('non-empty value passes', async () => {
     const r = await deserialize<IsNotEmptyDto>(IsNotEmptyDto, { field: 'hello' });
     expect(r.field).toBe('hello');
   });
-  it('빈 문자열 거부', async () => {
+  it('empty string rejected', async () => {
     await expect(deserialize(IsNotEmptyDto, { field: '' })).rejects.toThrow(BakerValidationError);
   });
 });
 
 describe('@IsEnum', () => {
-  it('enum 값 통과', async () => {
+  it('enum value passes', async () => {
     const r = await deserialize<EnumDto>(EnumDto, { color: 'red' });
     expect(r.color).toBe(Color.Red);
   });
-  it('다른 enum 값 통과', async () => {
+  it('another enum value passes', async () => {
     const r = await deserialize<EnumDto>(EnumDto, { color: 'blue' });
     expect(r.color).toBe(Color.Blue);
   });
-  it('enum 외 값 거부', async () => {
+  it('non-enum value rejected', async () => {
     await expect(deserialize(EnumDto, { color: 'purple' })).rejects.toThrow(BakerValidationError);
   });
-  it('숫자 enum 거부', async () => {
+  it('numeric enum rejected', async () => {
     await expect(deserialize(EnumDto, { color: 0 })).rejects.toThrow(BakerValidationError);
   });
 });

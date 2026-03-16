@@ -55,7 +55,7 @@ class PipelineDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('serialize pipeline — @Field({ name })', () => {
-  it('serialize 시 매핑된 키로 출력', async () => {
+  it('serialize outputs mapped key', async () => {
     const dto = Object.assign(new NameMappedDto(), { name: 'Alice', age: 25 });
     const result = await serialize(dto);
     expect(result['full_name']).toBe('Alice');
@@ -65,7 +65,7 @@ describe('serialize pipeline — @Field({ name })', () => {
 });
 
 describe('serialize pipeline — @Exclude', () => {
-  it('Exclude 필드 제외', async () => {
+  it('Exclude field excluded', async () => {
     const dto = Object.assign(new ExcludeSerDto(), { visible: 'yes', hidden: 'no' });
     const result = await serialize(dto);
     expect(result['visible']).toBe('yes');
@@ -74,45 +74,45 @@ describe('serialize pipeline — @Exclude', () => {
 });
 
 describe('serialize pipeline — @Transform direction', () => {
-  it('serializeOnly → serialize에만 적용', async () => {
+  it('serializeOnly → applied only on serialize', async () => {
     const dto = Object.assign(new SerOnlyTransformDto(), { price: 9 });
     const result = await serialize(dto);
     expect(result['price']).toBe(900);
   });
 
-  it('serializeOnly → deserialize에서는 미적용', async () => {
+  it('serializeOnly → not applied on deserialize', async () => {
     const result = await deserialize<SerOnlyTransformDto>(SerOnlyTransformDto, { price: 9 });
     expect(result.price).toBe(9);
   });
 
-  it('deserializeOnly → serialize에서는 미적용', async () => {
+  it('deserializeOnly → not applied on serialize', async () => {
     const dto = Object.assign(new DeserOnlyTransformDto(), { tag: '  hello  ' });
     const result = await serialize(dto);
     expect(result['tag']).toBe('  hello  ');
   });
 
-  it('deserializeOnly → deserialize에서 적용', async () => {
+  it('deserializeOnly → applied on deserialize', async () => {
     const result = await deserialize<DeserOnlyTransformDto>(DeserOnlyTransformDto, { tag: '  hello  ' });
     expect(result.tag).toBe('hello');
   });
 });
 
 describe('serialize pipeline — direction @Expose', () => {
-  it('serialize → serializeOnly @Expose name 사용', async () => {
+  it('serialize → serializeOnly @Expose name used', async () => {
     const dto = Object.assign(new DirectionExposeDto(), { name: 'Bob' });
     const result = await serialize(dto);
     expect(result['userName']).toBe('Bob');
     expect(result['user_name']).toBeUndefined();
   });
 
-  it('deserialize → deserializeOnly @Expose name 사용', async () => {
+  it('deserialize → deserializeOnly @Expose name used', async () => {
     const result = await deserialize<DirectionExposeDto>(DirectionExposeDto, { user_name: 'Carol' });
     expect(result.name).toBe('Carol');
   });
 });
 
-describe('serialize pipeline — @Expose + @Transform 조합', () => {
-  it('serialize: Transform 적용 후 매핑된 키로 출력', async () => {
+describe('serialize pipeline — @Expose + @Transform combination', () => {
+  it('serialize: Transform applied then output with mapped key', async () => {
     const dto = Object.assign(new PipelineDto(), { name: 'Dave' });
     const result = await serialize(dto);
     expect(result['display_name']).toBe('[Dave]');

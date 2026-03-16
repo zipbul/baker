@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isString — typeof 체크 (§4.8 A: 연산자 인라인)
+// isString — typeof check (§4.8 A: operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isString = (value: unknown): boolean => typeof value === 'string';
@@ -11,12 +11,12 @@ const _isString = (value: unknown): boolean => typeof value === 'string';
 
 (_isString as any).ruleName = 'isString';
 (_isString as any).constraints = {};
-// requiresType은 undefined — 자체 typeof 포함 (§4.7)
+// requiresType is undefined — includes its own typeof check (§4.7)
 
 export const isString = _isString as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNumber — typeof + NaN/Infinity/maxDecimalPlaces 옵션 (§4.8 A)
+// isNumber — typeof + NaN/Infinity/maxDecimalPlaces options (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IsNumberOptions {
@@ -32,9 +32,9 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
 
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'number') return false;
-    // NaN 먼저 체크 — isFinite(NaN)도 false이므로 순서가 중요
+    // Check NaN first — since isFinite(NaN) is also false, order matters
     if (isNaN(value)) return allowNaN;
-    // NaN이 아닌 비유한수 (Infinity / -Infinity)
+    // Non-NaN non-finite values (Infinity / -Infinity)
     if (!isFinite(value)) return allowInfinity;
     if (maxDecimalPlaces !== undefined) {
       const parts = value.toExponential().split('e');
@@ -51,7 +51,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
       code += `\nelse if (isNaN(${varName})) ${ctx.fail('isNumber')};`;
     }
     if (!allowInfinity) {
-      // !isFinite 대신 명시적 Infinity 체크 — isNaN(NaN)=false지만 !isFinite(NaN)=true이므로 분리 필요
+      // Explicit Infinity check instead of !isFinite — since isNaN(NaN)=false but !isFinite(NaN)=true, separation is needed
       code += `\nelse if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
     }
     if (maxDecimalPlaces !== undefined) {
@@ -62,13 +62,13 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
 
   (fn as any).ruleName = 'isNumber';
   (fn as any).constraints = { allowNaN: options?.allowNaN, allowInfinity: options?.allowInfinity, maxDecimalPlaces: options?.maxDecimalPlaces };
-  // requiresType은 undefined — 자체 typeof 포함
+  // requiresType is undefined — includes its own typeof check
 
   return fn as EmittableRule;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isBoolean — typeof 체크 (§4.8 A)
+// isBoolean — typeof check (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isBoolean = (value: unknown): boolean => typeof value === 'boolean';
@@ -82,7 +82,7 @@ const _isBoolean = (value: unknown): boolean => typeof value === 'boolean';
 export const isBoolean = _isBoolean as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isDate — instanceof Date + getTime() NaN 체크 (§4.8 A)
+// isDate — instanceof Date + getTime() NaN check (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isDate = (value: unknown): boolean =>
@@ -97,7 +97,7 @@ const _isDate = (value: unknown): boolean =>
 export const isDate = _isDate as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isEnum — factory: Object.values 배열로 indexOf 검사 (§4.8 C)
+// isEnum — factory: indexOf check using Object.values array (§4.8 C)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isEnum(entity: object): EmittableRule {
@@ -117,7 +117,7 @@ export function isEnum(entity: object): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isInt — typeof + Number.isInteger 체크 (§4.8 A)
+// isInt — typeof + Number.isInteger check (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isInt = (value: unknown): boolean =>
@@ -133,7 +133,7 @@ const _isInt = (value: unknown): boolean =>
 export const isInt = _isInt as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isArray — Array.isArray 체크 (§4.8 A: 연산자 인라인)
+// isArray — Array.isArray check (§4.8 A: operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isArray = (value: unknown): boolean => Array.isArray(value);
@@ -143,7 +143,7 @@ const _isArray = (value: unknown): boolean => Array.isArray(value);
 
 (_isArray as any).ruleName = 'isArray';
 (_isArray as any).constraints = {};
-// requiresType은 undefined — 자체 Array.isArray 체크 포함
+// requiresType is undefined — includes its own Array.isArray check
 
 export const isArray = _isArray as EmittableRule;
 
@@ -159,6 +159,6 @@ const _isObject = (value: unknown): boolean =>
 
 (_isObject as any).ruleName = 'isObject';
 (_isObject as any).constraints = {};
-// requiresType은 undefined — 자체 typeof + null + Array.isArray 체크 포함
+// requiresType is undefined — includes its own typeof + null + Array.isArray check
 
 export const isObject = _isObject as EmittableRule;

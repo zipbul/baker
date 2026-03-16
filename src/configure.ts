@@ -2,25 +2,25 @@ import type { SealOptions } from './interfaces';
 import { _isSealed } from './seal/seal';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerConfig — 글로벌 설정 (auto-seal 전에 호출)
+// BakerConfig — Global configuration (call before auto-seal)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface BakerConfig {
-  /** 타입 자동 변환 ("123" → 123). @default false */
+  /** Automatic type conversion ("123" → 123). @default false */
   autoConvert?: boolean;
-  /** input에 키 없으면 클래스 기본값 사용. @default false */
+  /** Use class default values when key is missing from input. @default false */
   allowClassDefaults?: boolean;
-  /** 첫 에러에서 중단. @default false */
+  /** Stop at first error. @default false */
   stopAtFirstError?: boolean;
-  /** 미선언 필드를 에러로 거부. @default false */
+  /** Reject undeclared fields with an error. @default false */
   forbidUnknown?: boolean;
   /**
-   * @deprecated `forbidUnknown`으로 이름이 변경됨. 이 옵션은 실제로 unknown 필드를
-   * 조용히 제거하는 것이 아니라 에러를 발생시킴. `forbidUnknown`을 사용할 것.
-   * `forbidUnknown`이 명시되면 `stripUnknown`은 무시됨.
+   * @deprecated Renamed to `forbidUnknown`. This option actually raises an error
+   * for unknown fields rather than silently removing them. Use `forbidUnknown` instead.
+   * If `forbidUnknown` is specified, `stripUnknown` is ignored.
    */
   stripUnknown?: boolean;
-  /** 생성 코드에 필드 제외 사유를 주석으로 포함. @default false */
+  /** Include field exclusion reasons as comments in generated code. @default false */
   debug?: boolean;
 }
 
@@ -31,10 +31,10 @@ export interface ConfigureResult {
 }
 
 /**
- * baker 글로벌 설정. 첫 auto-seal 전에 호출.
- * 안 하면 기본값 적용.
+ * Baker global configuration. Call before the first auto-seal.
+ * If not called, defaults are applied.
  *
- * @returns `{ warnings }` — seal 후 호출 시 경고 메시지 포함.
+ * @returns `{ warnings }` — contains warning messages if called after seal.
  */
 export function configure(config: BakerConfig): ConfigureResult {
   const warnings: string[] = [];
@@ -53,12 +53,12 @@ export function configure(config: BakerConfig): ConfigureResult {
   return { warnings };
 }
 
-/** @internal — seal에서 사용 */
+/** @internal — used by seal */
 export function _getGlobalOptions(): SealOptions {
   return _globalOptions;
 }
 
-/** @internal — unseal 시 기본값으로 리셋 */
+/** @internal — reset to defaults on unseal */
 export function _resetConfigForTesting(): void {
   _globalOptions = {};
 }

@@ -22,20 +22,20 @@ class ConditionalWithMinDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Field({ when }) — conditional validation', () => {
-  it('조건 true → 검증 적용', async () => {
+  it('condition true → validation applied', async () => {
     await expect(
       deserialize(ConditionalDto, { type: 'business' }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('조건 true + 유효 값 → 통과', async () => {
+  it('condition true + valid value → passes', async () => {
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'business', companyName: 'Acme',
     });
     expect(result.companyName).toBe('Acme');
   });
 
-  it('조건 false → 검증 skip', async () => {
+  it('condition false → validation skipped', async () => {
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'personal',
     });
@@ -43,21 +43,21 @@ describe('@Field({ when }) — conditional validation', () => {
     expect(result.companyName).toBeUndefined();
   });
 
-  it('조건 false → 값 있어도 skip (할당 안 됨)', async () => {
+  it('condition false → value present but skipped (not assigned)', async () => {
     const result = await deserialize<ConditionalDto>(ConditionalDto, {
       type: 'personal', companyName: 123 as any,
     });
     expect(result.type).toBe('personal');
   });
 
-  it('숫자 조건 + Min 검증', async () => {
-    // role >= 2 → Min(100) 적용 → budget 50 거부
+  it('numeric condition + Min validation', async () => {
+    // role >= 2 → Min(100) applied → budget 50 rejected
     await expect(
       deserialize(ConditionalWithMinDto, { role: 3, budget: 50 }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('숫자 조건 false → Min skip', async () => {
+  it('numeric condition false → Min skipped', async () => {
     const result = await deserialize<ConditionalWithMinDto>(ConditionalWithMinDto, {
       role: 1, budget: 5,
     });

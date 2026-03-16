@@ -18,10 +18,10 @@ import {
 import type { JsonSchema202012 } from '../../index';
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 타입 매핑
+// type mapping
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema 타입 매핑', () => {
+describe('toJsonSchema type mapping', () => {
   class TypesDto {
     @Field(isString)  str!: string;
     @Field(isNumber())  num!: number;
@@ -32,7 +32,7 @@ describe('toJsonSchema 타입 매핑', () => {
     @Field(isObject)  obj!: object;
   }
 
-  it('기본 타입 → JSON Schema type', () => {
+  it('basic types → JSON Schema type', () => {
     const s = toJsonSchema(TypesDto);
     expect(s.properties!.str).toEqual({ type: 'string' });
     expect(s.properties!.num).toEqual({ type: 'number' });
@@ -57,7 +57,7 @@ describe('toJsonSchema enum/const', () => {
     @Field(equals('fixed')) type!: string;
   }
 
-  it('enum, isIn, equals 매핑', () => {
+  it('enum, isIn, equals mapping', () => {
     const s = toJsonSchema(EnumDto);
     expect(s.properties!.role).toEqual({ enum: ['admin', 'user'] });
     expect(s.properties!.status).toEqual({ enum: ['a', 'b'] });
@@ -69,7 +69,7 @@ describe('toJsonSchema enum/const', () => {
     @Field(isNotIn([1,2]))   val2!: unknown;
   }
 
-  it('notEquals, isNotIn 매핑', () => {
+  it('notEquals, isNotIn mapping', () => {
     const s = toJsonSchema(NegDto);
     expect(s.properties!.val1).toEqual({ not: { const: 'bad' } });
     expect(s.properties!.val2).toEqual({ not: { enum: [1, 2] } });
@@ -77,10 +77,10 @@ describe('toJsonSchema enum/const', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 숫자 제약
+// number constraints
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema 숫자', () => {
+describe('toJsonSchema numbers', () => {
   class NumDto {
     @Field(isNumber(), min(0), max(100)) range!: number;
     @Field(isPositive)  pos!: number;
@@ -96,10 +96,10 @@ describe('toJsonSchema 숫자', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 문자열 제약 + format
+// string constraints + format
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema 문자열 + format', () => {
+describe('toJsonSchema string + format', () => {
   class StrDto {
     @Field(isString, minLength(1), maxLength(50)) name!: string;
     @Field(isString, matches(/^[a-z-]+$/)) slug!: string;
@@ -111,7 +111,7 @@ describe('toJsonSchema 문자열 + format', () => {
     @Field(isIP())      ipAny!: string;
   }
 
-  it('문자열 constraints + format 매핑', () => {
+  it('string constraints + format mapping', () => {
     const s = toJsonSchema(StrDto);
     expect(s.properties!.name).toEqual({ type: 'string', minLength: 1, maxLength: 50 });
     expect(s.properties!.slug!.pattern).toBe('^[a-z-]+$');
@@ -120,23 +120,23 @@ describe('toJsonSchema 문자열 + format', () => {
     expect(s.properties!.ts).toEqual({ format: 'date-time' });
     expect(s.properties!.ip4).toEqual({ format: 'ipv4' });
     expect(s.properties!.ip6).toEqual({ format: 'ipv6' });
-    // @IsIP() 버전 미지정 → format 매핑 없음
+    // @IsIP() without version → no format mapping
     expect(s.properties!.ipAny!.format).toBeUndefined();
   });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 배열 제약
+// array constraints
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema 배열', () => {
+describe('toJsonSchema arrays', () => {
   class ArrDto {
     @Field(isArray, arrayMinSize(1), arrayMaxSize(10), arrayUnique()) tags!: string[];
     @Field(arrayNotEmpty) items!: unknown[];
     @Field(arrayContains(['a','b'])) must!: string[];
   }
 
-  it('배열 constraints 매핑', () => {
+  it('array constraints mapping', () => {
     const s = toJsonSchema(ArrDto);
     expect(s.properties!.tags).toEqual({
       type: 'array', minItems: 1, maxItems: 10, uniqueItems: true,
@@ -147,7 +147,7 @@ describe('toJsonSchema 배열', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// each:true → items 서브스키마
+// each:true → items sub-schema
 // ═════════════════════════════════════════════════════════════════════════════
 
 describe('toJsonSchema each:true', () => {
@@ -156,7 +156,7 @@ describe('toJsonSchema each:true', () => {
     names!: string[];
   }
 
-  it('each 룰 → items에 매핑, non-each → 배열 레벨', () => {
+  it('each rules → mapped to items, non-each → array level', () => {
     const s = toJsonSchema(EachDto);
     expect(s.properties!.names).toEqual({
       type: 'array',
@@ -215,13 +215,13 @@ describe('toJsonSchema @Field({ schema })', () => {
     custom!: string;
   }
 
-  it('프로퍼티 레벨 객체형 → 오버라이드', () => {
+  it('property-level object schema → override', () => {
     const s = toJsonSchema(TitledDto);
-    expect(s.properties!.name!.minLength).toBe(3); // schema가 자동 매핑 1을 오버라이드
+    expect(s.properties!.name!.minLength).toBe(3); // schema overrides auto-mapped 1
     expect(s.properties!.name!.description).toBe('Display name');
   });
 
-  it('composition-aware → 자동 매핑이 base로 유지 (C-15)', () => {
+  it('composition-aware → auto-mapping retained as base (C-15)', () => {
     const s = toJsonSchema(TitledDto);
     expect(s.properties!.composed!.type).toBe('string');
     expect(s.properties!.composed!.allOf).toBeDefined();
@@ -243,7 +243,7 @@ describe('toJsonSchema groups', () => {
     score!: number;
   }
 
-  it('expose groups 불일치 → 필드 제외', () => {
+  it('expose groups mismatch → field excluded', () => {
     const s = toJsonSchema(GroupDto, { groups: ['user'] });
     expect(s.properties!.name).toBeDefined();
     expect(s.properties!.secret).toBeUndefined();
@@ -251,10 +251,10 @@ describe('toJsonSchema groups', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 순환 참조
+// circular reference
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema 순환 참조', () => {
+describe('toJsonSchema circular reference', () => {
   class TreeNode {
     @Field(isString) value!: string;
 
@@ -262,7 +262,7 @@ describe('toJsonSchema 순환 참조', () => {
     child?: TreeNode;
   }
 
-  it('자기 참조 → $ref + $defs', () => {
+  it('self-reference → $ref + $defs', () => {
     const s = toJsonSchema(TreeNode);
     expect(s.properties!.child).toEqual({ $ref: '#/$defs/TreeNode' });
     expect(s.$defs!.TreeNode).toBeDefined();
@@ -271,22 +271,22 @@ describe('toJsonSchema 순환 참조', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-// optional → required 제외
+// optional → excluded from required
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('toJsonSchema optional → required 제외', () => {
+describe('toJsonSchema optional → excluded from required', () => {
   class OptDto {
     @Field(isString) name!: string;
     @Field(isNumber(), { optional: true }) age?: number;
   }
 
-  it('required에 name만 포함, age 제외', () => {
+  it('required includes only name, excludes age', () => {
     const s = toJsonSchema(OptDto);
     expect(s.required).toContain('name');
     expect(s.required).not.toContain('age');
   });
 
-  it('age 프로퍼티는 스키마에 존재', () => {
+  it('age property exists in schema', () => {
     const s = toJsonSchema(OptDto);
     expect(s.properties!.age).toBeDefined();
     expect(s.properties!.age!.type).toBe('number');

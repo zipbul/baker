@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayContains(values) — 배열이 지정한 모든 값을 포함
+// arrayContains(values) — array contains all specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function arrayContains(values: unknown[]): EmittableRule {
@@ -22,7 +22,7 @@ export function arrayContains(values: unknown[]): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayNotContains(values) — 배열이 지정한 값을 포함하지 않음
+// arrayNotContains(values) — array does not contain any of the specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function arrayNotContains(values: unknown[]): EmittableRule {
@@ -42,7 +42,7 @@ export function arrayNotContains(values: unknown[]): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayMinSize(min) — 배열 최소 길이
+// arrayMinSize(min) — minimum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function arrayMinSize(min: number): EmittableRule {
@@ -58,7 +58,7 @@ export function arrayMinSize(min: number): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayMaxSize(max) — 배열 최대 길이
+// arrayMaxSize(max) — maximum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function arrayMaxSize(max: number): EmittableRule {
@@ -74,7 +74,7 @@ export function arrayMaxSize(max: number): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayUnique(identifier?) — 배열 내 중복 없음
+// arrayUnique(identifier?) — no duplicates in array
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
@@ -101,7 +101,7 @@ export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRu
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayNotEmpty — 배열이 비어있지 않음 (singleton)
+// arrayNotEmpty — array is not empty (singleton)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _arrayNotEmpty = (value: unknown): boolean =>

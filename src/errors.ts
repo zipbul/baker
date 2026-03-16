@@ -1,40 +1,40 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerError — 개별 필드 에러 (§12.2)
+// BakerError — Individual field error (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 개별 필드 에러 — 최소 계약(minimum contract).
+ * Individual field error — minimum contract.
  *
- * 예약 에러 코드:
- * - 'invalidInput': input이 null, 비객체, 배열일 때 (path='')
- * - 'isObject': 중첩 @Type 필드의 값이 객체가 아닐 때
- * - 'isArray': 배열 중첩 (each:true) 필드의 값이 배열이 아닐 때
- * - 'invalidDiscriminator': discriminator 값이 subTypes에 없을 때
- * - 'conversionFailed': enableImplicitConversion에서 타입 변환 실패 시
- * - 'whitelistViolation': whitelist: true에서 미선언 필드가 input에 존재할 때
+ * Reserved error codes:
+ * - 'invalidInput': when input is null, non-object, or array (path='')
+ * - 'isObject': when a nested @Type field's value is not an object
+ * - 'isArray': when an array-nested (each:true) field's value is not an array
+ * - 'invalidDiscriminator': when the discriminator value is not in subTypes
+ * - 'conversionFailed': when type conversion fails in enableImplicitConversion
+ * - 'whitelistViolation': when undeclared fields exist in input with whitelist: true
  *
- * 향후 확장 필드(message, expected, actual 등)는 반드시 Optional로 추가.
+ * Future extension fields (message, expected, actual, etc.) must be added as Optional.
  */
 export interface BakerError {
   readonly path: string;
   readonly code: string;
-  /** 사용자 정의 에러 메시지 — 데코레이터 message 옵션이 설정된 경우에만 포함 */
+  /** User-defined error message — included only when the decorator message option is set */
   readonly message?: string;
-  /** 사용자 정의 컨텍스트 — 데코레이터 context 옵션이 설정된 경우에만 포함 */
+  /** User-defined context — included only when the decorator context option is set */
   readonly context?: unknown;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerValidationError — Public API throw 에러 (§12.2)
+// BakerValidationError — Public API throw error (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * deserialize() 검증 실패 시 throw되는 에러.
- * errors 배열에 모든 필드 에러가 담겨 있다.
+ * Error thrown on deserialize() validation failure.
+ * The errors array contains all field errors.
  */
 export class BakerValidationError extends Error {
   readonly errors: BakerError[];
-  /** 검증 대상 DTO 클래스명 (DX-2) */
+  /** Target DTO class name for validation (DX-2) */
   readonly className?: string;
 
   constructor(errors: BakerError[], className?: string) {
@@ -47,13 +47,13 @@ export class BakerValidationError extends Error {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SealError — 봉인 관련 에러 (§12.2)
+// SealError — Seal-related error (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 봉인 관련 에러:
- * - seal() 2회 이상 호출 시
- * - 미봉인 클래스에 deserialize()/serialize() 호출 시
+ * Seal-related error:
+ * - When seal() is called more than once
+ * - When deserialize()/serialize() is called on an unsealed class
  */
 export class SealError extends Error {
   constructor(message: string) {

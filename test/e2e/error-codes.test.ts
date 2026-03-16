@@ -17,7 +17,7 @@ import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-/** 헬퍼: BakerValidationError에서 특정 path의 code를 추출 */
+/** Helper: extracts the error code for a specific path from BakerValidationError */
 async function getErrorCode(cls: new (...args: any[]) => any, input: unknown, path?: string): Promise<string> {
   try {
     await deserialize(cls, input);
@@ -32,9 +32,9 @@ async function getErrorCode(cls: new (...args: any[]) => any, input: unknown, pa
   }
 }
 
-// ─── 타입 체커 에러 코드 ────────────────────────────────────────────────────
+// ─── type checker error codes ────────────────────────────────────────────────
 
-describe('타입 체커 에러 코드', () => {
+describe('type checker error codes', () => {
   class StringDto { @Field(isString) v!: string; }
   class NumberDto { @Field(isNumber()) v!: number; }
   class BooleanDto { @Field(isBoolean) v!: boolean; }
@@ -55,9 +55,9 @@ describe('타입 체커 에러 코드', () => {
   it('isEnum', async () => { expect(await getErrorCode(EnumDto, { v: 'green' })).toBe('isEnum'); });
 });
 
-// ─── 공통 데코레이터 에러 코드 ──────────────────────────────────────────────
+// ─── common decorator error codes ──────────────────────────────────────────
 
-describe('공통 데코레이터 에러 코드', () => {
+describe('common decorator error codes', () => {
   class DefinedDto { @Field() v!: string; }
   class EqualsDto { @Field(equals('yes')) v!: string; }
   class NotEqualsDto { @Field(notEquals('no')) v!: string; }
@@ -75,9 +75,9 @@ describe('공통 데코레이터 에러 코드', () => {
   it('isNotEmpty', async () => { expect(await getErrorCode(NotEmptyDto, { v: '' })).toBe('isNotEmpty'); });
 });
 
-// ─── 숫자 데코레이터 에러 코드 ──────────────────────────────────────────────
+// ─── number decorator error codes ──────────────────────────────────────────
 
-describe('숫자 데코레이터 에러 코드', () => {
+describe('number decorator error codes', () => {
   class MinDto { @Field(min(5)) v!: number; }
   class MaxDto { @Field(max(10)) v!: number; }
   class PositiveDto { @Field(isPositive) v!: number; }
@@ -91,9 +91,9 @@ describe('숫자 데코레이터 에러 코드', () => {
   it('isDivisibleBy', async () => { expect(await getErrorCode(DivisibleDto, { v: 4 })).toBe('isDivisibleBy'); });
 });
 
-// ─── 문자열 데코레이터 에러 코드 ────────────────────────────────────────────
+// ─── string decorator error codes ────────────────────────────────────────
 
-describe('문자열 데코레이터 에러 코드', () => {
+describe('string decorator error codes', () => {
   class MinLenDto { @Field(minLength(3)) v!: string; }
   class MaxLenDto { @Field(maxLength(5)) v!: string; }
   class LenDto { @Field(length(2, 4)) v!: string; }
@@ -149,9 +149,9 @@ describe('문자열 데코레이터 에러 코드', () => {
   it('isFQDN', async () => { expect(await getErrorCode(FqdnDto, { v: 'x' })).toBe('isFQDN'); });
 });
 
-// ─── 날짜 데코레이터 에러 코드 ──────────────────────────────────────────────
+// ─── date decorator error codes ──────────────────────────────────────────
 
-describe('날짜 데코레이터 에러 코드', () => {
+describe('date decorator error codes', () => {
   const now = new Date();
   const past = new Date('2000-01-01');
   const future = new Date('2100-01-01');
@@ -162,9 +162,9 @@ describe('날짜 데코레이터 에러 코드', () => {
   it('maxDate', async () => { expect(await getErrorCode(MaxDateDto, { v: now })).toBe('maxDate'); });
 });
 
-// ─── 배열 데코레이터 에러 코드 ──────────────────────────────────────────────
+// ─── array decorator error codes ──────────────────────────────────────────
 
-describe('배열 데코레이터 에러 코드', () => {
+describe('array decorator error codes', () => {
   class ArrMinDto { @Field(arrayMinSize(3)) v!: number[]; }
   class ArrMaxDto { @Field(arrayMaxSize(2)) v!: number[]; }
   class ArrUniqueDto { @Field(arrayUnique()) v!: number[]; }
@@ -180,9 +180,9 @@ describe('배열 데코레이터 에러 코드', () => {
   it('arrayNotContains', async () => { expect(await getErrorCode(ArrNotContainsDto, { v: [99] })).toBe('arrayNotContains'); });
 });
 
-// ─── 객체 데코레이터 에러 코드 ──────────────────────────────────────────────
+// ─── object decorator error codes ──────────────────────────────────────────
 
-describe('객체 데코레이터 에러 코드', () => {
+describe('object decorator error codes', () => {
   class NotEmptyObjDto { @Field(isNotEmptyObject()) v!: object; }
   class InstanceDto { @Field(isInstance(Date)) v!: Date; }
 
@@ -190,9 +190,9 @@ describe('객체 데코레이터 에러 코드', () => {
   it('isInstance', async () => { expect(await getErrorCode(InstanceDto, { v: {} })).toBe('isInstance'); });
 });
 
-// ─── 예약 에러 코드 ─────────────────────────────────────────────────────────
+// ─── reserved error codes ─────────────────────────────────────────────────
 
-describe('예약 에러 코드', () => {
+describe('reserved error codes', () => {
   class SimpleDto { @Field(isString) v!: string; }
 
   it('invalidInput (null)', async () => { expect(await getErrorCode(SimpleDto, null, '')).toBe('invalidInput'); });

@@ -14,8 +14,8 @@ class SimpleDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('invalidInput 에러 코드', () => {
-  it('null 입력 → invalidInput', async () => {
+describe('invalidInput error code', () => {
+  it('null input → invalidInput', async () => {
     try {
       await deserialize(SimpleDto, null);
       expect.unreachable();
@@ -27,7 +27,7 @@ describe('invalidInput 에러 코드', () => {
     }
   });
 
-  it('undefined 입력 → invalidInput', async () => {
+  it('undefined input → invalidInput', async () => {
     try {
       await deserialize(SimpleDto, undefined);
       expect.unreachable();
@@ -37,7 +37,7 @@ describe('invalidInput 에러 코드', () => {
     }
   });
 
-  it('배열 입력 → invalidInput', async () => {
+  it('array input → invalidInput', async () => {
     try {
       await deserialize(SimpleDto, [1, 2, 3]);
       expect.unreachable();
@@ -47,7 +47,7 @@ describe('invalidInput 에러 코드', () => {
     }
   });
 
-  it('문자열 입력 → invalidInput', async () => {
+  it('string input → invalidInput', async () => {
     try {
       await deserialize(SimpleDto, 'hello');
       expect.unreachable();
@@ -57,7 +57,7 @@ describe('invalidInput 에러 코드', () => {
     }
   });
 
-  it('숫자 입력 → invalidInput', async () => {
+  it('number input → invalidInput', async () => {
     try {
       await deserialize(SimpleDto, 42);
       expect.unreachable();
@@ -67,7 +67,7 @@ describe('invalidInput 에러 코드', () => {
     }
   });
 
-  it('유효한 객체 → 통과', async () => {
+  it('valid object → passes', async () => {
     const result = await deserialize<SimpleDto>(SimpleDto, { name: 'Alice' });
     expect(result.name).toBe('Alice');
   });

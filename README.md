@@ -39,7 +39,7 @@ Baker gives you a **single `@Field()` decorator** that combines validation, tran
 - **Single decorator** — `@Field()` replaces 30+ individual decorators
 - **80+ built-in rules** — `isString`, `min()`, `isEmail()` and more, composed as arguments
 - **Inline code generation** — auto-seal compiles validators at first `deserialize()`/`serialize()` call
-- **Unified validate + transform** — `deserialize()` and `serialize()` in one async call
+- **Unified validate + transform** — `deserialize()` and `serialize()` in one call (sync DTOs skip async overhead)
 - **Zero reflect-metadata** — no `reflect-metadata` import needed
 - **Circular reference detection** — automatic static analysis at seal time
 - **Group-based validation** — apply different rules per request with `groups`
@@ -49,6 +49,8 @@ Baker gives you a **single `@Field()` decorator** that combines validation, tran
 - **Whitelist mode** — reject undeclared fields with `configure({ forbidUnknown: true })`
 - **Class inheritance** — child DTOs inherit parent `@Field()` decorators automatically
 - **Async transforms** — transform functions can be async
+- **Map/Set support** — auto-convert between `Map`/`Set` and JSON-compatible types
+- **Per-field error messages** — `message` and `context` options on `@Field()` for custom errors
 
 ---
 
@@ -161,16 +163,29 @@ interface FieldOptions {
   schema?: JsonSchemaOverride;                // JSON Schema metadata
   transform?: (params: FieldTransformParams) => unknown;
   transformDirection?: 'deserializeOnly' | 'serializeOnly';
+  message?: string | ((args: MessageArgs) => string); // Error message for all rules
+  context?: unknown;                                   // Error context for all rules
+  mapValue?: () => Constructor;                        // Map value DTO type
+  setValue?: () => Constructor;                        // Set element DTO type
 }
 ```
 
-### Per-rule Options (message, groups)
+### Per-field Error Messages
 
-Per-rule options like `message`, `groups`, and `context` are **not** passed as arguments to individual rule functions. Instead, they are controlled at the `@Field()` level:
+Use `message` and `context` to customize validation error output:
 
-- **`groups`** — set via `FieldOptions.groups` (applies to all rules on that field)
-- **`message`** / **`context`** — use `createRule()` for custom error messages, or handle via `BakerError.code`
-- **`each` (array element validation)** — use `arrayOf()` (see below)
+```typescript
+@Field(isString, minLength(3), { message: 'Name is invalid' })
+name!: string;
+
+@Field(isEmail(), {
+  message: ({ property, value }) => `${property} got bad value: ${value}`,
+  context: { severity: 'error' },
+})
+email!: string;
+```
+
+The `message` and `context` are applied to all rules on the field. They appear in `BakerError.message` and `BakerError.context` on validation failure.
 
 ### `arrayOf()` — Array Element Validation
 
@@ -445,6 +460,30 @@ class PetOwnerDto {
 ```
 
 Discriminator works in both directions — `deserialize()` switches on the property value, `serialize()` dispatches via `instanceof`.
+
+### Map / Set Collections
+
+Baker auto-converts between `Map`/`Set` and JSON-compatible types:
+
+```typescript
+// Set<primitive>: JSON array ↔ Set
+@Field({ type: () => Set })
+tags!: Set<string>;
+
+// Set<DTO>: JSON array of objects ↔ Set of DTO instances
+@Field({ type: () => Set, setValue: () => TagDto })
+tags!: Set<TagDto>;
+
+// Map<string, primitive>: JSON object ↔ Map
+@Field({ type: () => Map })
+config!: Map<string, unknown>;
+
+// Map<string, DTO>: JSON object ↔ Map of DTO instances
+@Field({ type: () => Map, mapValue: () => PriceDto })
+prices!: Map<string, PriceDto>;
+```
+
+Map keys are always strings (JSON constraint). JSON Schema maps `Set` to `{ type: 'array', uniqueItems: true }` and `Map` to `{ type: 'object', additionalProperties: ... }`.
 
 ---
 

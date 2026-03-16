@@ -20,26 +20,26 @@ class InclusiveDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Min/@Max exclusive', () => {
-  it('exclusive — 경계값 정확히 거부', async () => {
+  it('exclusive — boundary values exactly rejected', async () => {
     await expect(deserialize(ExclusiveDto, { score: 0 })).rejects.toThrow(BakerValidationError);
     await expect(deserialize(ExclusiveDto, { score: 100 })).rejects.toThrow(BakerValidationError);
   });
 
-  it('exclusive — 경계 바로 안쪽 통과', async () => {
+  it('exclusive — just inside boundary passes', async () => {
     const r1 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 0.001 });
     expect(r1.score).toBe(0.001);
     const r2 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 99.999 });
     expect(r2.score).toBe(99.999);
   });
 
-  it('inclusive — 경계값 포함', async () => {
+  it('inclusive — boundary values included', async () => {
     const r1 = await deserialize<InclusiveDto>(InclusiveDto, { value: 0 });
     expect(r1.value).toBe(0);
     const r2 = await deserialize<InclusiveDto>(InclusiveDto, { value: 100 });
     expect(r2.value).toBe(100);
   });
 
-  it('inclusive — 범위 밖 거부', async () => {
+  it('inclusive — out of range rejected', async () => {
     await expect(deserialize(InclusiveDto, { value: -1 })).rejects.toThrow(BakerValidationError);
     await expect(deserialize(InclusiveDto, { value: 101 })).rejects.toThrow(BakerValidationError);
   });
@@ -64,7 +64,7 @@ describe('@Min/@Max exclusive toJsonSchema', () => {
     });
   });
 
-  it('mixed — 한쪽만 exclusive', () => {
+  it('mixed — only one side exclusive', () => {
     class MixedDto {
       @Field(isNumber(), min(0, { exclusive: true }), max(100))
       val!: number;

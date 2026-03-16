@@ -38,19 +38,19 @@ class AsyncChainDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('async @Transform — deserialize', () => {
-  it('async trim → 결과 반환', async () => {
+  it('async trim → result returned', async () => {
     const result = await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' });
     expect(result.name).toBe('Alice');
   });
 
-  it('async 체이닝 (trim → toUpperCase)', async () => {
+  it('async chaining (trim → toUpperCase)', async () => {
     const result = await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' });
     expect(result.code).toBe('HELLO');
   });
 });
 
 describe('async @Transform — serialize', () => {
-  it('async serializeOnly → serialize에서 적용', async () => {
+  it('async serializeOnly → applied on serialize', async () => {
     const dto = Object.assign(new AsyncSerializeDto(), { tag: 'world' });
     const result = await serialize(dto);
     expect(result['tag']).toBe('[world]');
@@ -58,7 +58,7 @@ describe('async @Transform — serialize', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// E-10: async detection robustness (→ B-6)
+// E-10: async detection robustness
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('E-10: isAsyncFunction robustness', () => {
