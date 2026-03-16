@@ -456,23 +456,34 @@ const PRIMITIVE_TYPE_HINTS: Record<string, string> = {
   Number: 'number', Boolean: 'boolean', String: 'string', Date: 'date',
 };
 
+/** Asserter rule name → gate type mapping */
+const ASSERTER_TO_GATE: Record<string, string> = {
+  isString: 'string', isNumber: 'number', isBoolean: 'boolean', isDate: 'date', isInt: 'number',
+};
+
+/** Asserters whose gate check fully subsumes the rule (skip emit inside gate) */
+const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean']);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRulesCode — 타입 가드 + 마커 패턴 (§4.3, §4.10)
+// Decomposed into: categorizeRules → resolveTypeGate → emitTypedRules / emitGeneralRules / emitEachRules
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildRulesCode(
+/** Result of categorizeRules — each/nonEach split and typed dependency classification */
+interface CategorizedRules {
+  each: RuleDef[];
+  generalRules: RuleDef[];
+  /** The single typed dependency group (if any) after conflict check */
+  typedDeps: { type: 'string' | 'number' | 'boolean' | 'date'; deps: RuleDef[] } | undefined;
+}
+
+/** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts */
+function categorizeRules(
   fieldKey: string,
-  varName: string,
   validation: RawPropertyMeta['validation'],
-  collectErrors: boolean,
-  emitCtx: EmitContext,
-  ctx: FieldCodeContext,
-  meta?: RawPropertyMeta,
-): string {
+): CategorizedRules {
   const each = validation.filter(rd => rd.each);
   const nonEach = validation.filter(rd => !rd.each);
-
-  let code = '';
 
   // Separate by requiresType — 4-type gate support
   const stringDeps  = nonEach.filter(rd => rd.rule.requiresType === 'string');
@@ -482,26 +493,52 @@ function buildRulesCode(
   const generalRules = nonEach.filter(rd => !rd.rule.requiresType);
 
   // Mixed gate conflict detection
-  const typedDeps = [
+  const allTyped = [
     { type: 'string' as const, deps: stringDeps },
     { type: 'number' as const, deps: numberDeps },
     { type: 'boolean' as const, deps: booleanDeps },
     { type: 'date' as const, deps: dateDeps },
   ].filter(d => d.deps.length > 0);
-  if (typedDeps.length > 1) {
-    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${typedDeps.map(d => d.type).join(', ')}`);
+  if (allTyped.length > 1) {
+    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${allTyped.map(d => d.type).join(', ')}`);
   }
 
-  // Asserter → gate mapping
-  const ASSERTER_TO_GATE: Record<string, string> = {
-    isString: 'string', isNumber: 'number', isBoolean: 'boolean', isDate: 'date', isInt: 'number',
+  return {
+    each,
+    generalRules,
+    typedDeps: allTyped.length > 0 ? allTyped[0] : undefined,
   };
-  const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean']);
+}
 
-  const hasTypedDeps = typedDeps.length > 0;
-  const firstTyped = hasTypedDeps ? typedDeps[0] : undefined;
-  const gateType = firstTyped?.type ?? null;
-  const gateDeps = firstTyped?.deps ?? [];
+/** Result of resolveTypeGate — effective gate type and related metadata */
+interface ResolvedTypeGate {
+  effectiveGateType: string | null;
+  /** The typed dependency rules (from requiresType) */
+  gateDeps: RuleDef[];
+  /** Index of the type asserter within generalRules (-1 if none) */
+  typeAsserterIdx: number;
+  /** The type asserter rule def (if found) */
+  typeAsserter: RuleDef | undefined;
+  /** Whether conversion is enabled for this field */
+  enableConversion: boolean;
+  /** Whether this gate was inferred from asserter only (no typed deps) */
+  asserterInferredGate: string | null;
+  /** Whether this gate was inferred from @Type hint */
+  typeHintGate: string | null;
+}
+
+/** resolveTypeGate — determine effective gate type from asserters/conversion/type hints */
+function resolveTypeGate(
+  fieldKey: string,
+  categorized: CategorizedRules,
+  meta: RawPropertyMeta | undefined,
+  ctx: FieldCodeContext,
+): ResolvedTypeGate {
+  const { generalRules, typedDeps } = categorized;
+
+  const hasTypedDeps = !!typedDeps;
+  const gateType = typedDeps?.type ?? null;
+  const gateDeps = typedDeps?.deps ?? [];
 
   // Find type asserter in generalRules matching gate type
   let typeAsserterIdx = -1;
@@ -538,116 +575,145 @@ function buildRulesCode(
     } catch (e) { throw new SealError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`); }
   }
 
-  // Effective gate: typed deps > asserter inferred > @Type hint
-  const effectiveGateType = gateType ?? asserterInferredGate ?? typeHintGate;
+  return {
+    effectiveGateType: gateType ?? asserterInferredGate ?? typeHintGate,
+    gateDeps,
+    typeAsserterIdx,
+    typeAsserter,
+    enableConversion,
+    asserterInferredGate,
+    typeHintGate,
+  };
+}
 
-  if (hasTypedDeps || asserterInferredGate || typeHintGate) {
-    // Other general rules (excluding the type asserter)
-    const otherGeneral = typeAsserter
-      ? generalRules.filter((_, i) => i !== typeAsserterIdx)
-      : generalRules;
+/** Config object for emitTypedRules — bundles closure-captured vars into explicit parameter */
+interface TypeGateConfig {
+  effectiveGateType: string;
+  gateCondition: string;
+  gateErrorCode: string;
+  gateEmitCtx: EmitContext;
+  otherGeneral: RuleDef[];
+  gateDeps: RuleDef[];
+  typeAsserter: RuleDef | undefined;
+  enableConversion: boolean;
+}
 
-    // Generate type gate condition — date uses instanceof, others use typeof
-    let gateCondition: string;
-    let gateErrorCode: string;
+/** emitTypedRules — generate type gate + inner validation code */
+function emitTypedRules(
+  fieldKey: string,
+  varName: string,
+  collectErrors: boolean,
+  emitCtx: EmitContext,
+  ctx: FieldCodeContext,
+  config: TypeGateConfig,
+): string {
+  let code = '';
 
-    if (typeAsserter) {
-      gateErrorCode = typeAsserter.rule.ruleName;
-    } else if (gateDeps.length > 0) {
-      gateErrorCode = gateDeps[0]!.rule.ruleName;
-    } else {
-      gateErrorCode = 'conversionFailed'; // @Type hint only — no asserter or deps
+  const { effectiveGateType, gateCondition, gateErrorCode, gateEmitCtx, otherGeneral, gateDeps, typeAsserter, enableConversion } = config;
+
+  // Helper: emit inner validation rules
+  const emitInnerRules = (indent: string): string => {
+    let inner = '';
+    // typeAsserter emit — GATE_ONLY_ASSERTERS(isString,isBoolean)는 gate와 완전 중복이므로 스킵
+    if (typeAsserter && !GATE_ONLY_ASSERTERS.has(typeAsserter.rule.ruleName)) {
+      const taCode = wrapGroupsGuard(typeAsserter, typeAsserter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)));
+      inner += indent + taCode.replace(/\n/g, '\n' + indent) + '\n';
     }
-
-    if (effectiveGateType === 'date') {
-      gateCondition = `!(${varName} instanceof Date)`;
-    } else {
-      gateCondition = `typeof ${varName} !== '${effectiveGateType}'`;
+    for (const rd of otherGeneral) {
+      const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
+      inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
     }
+    for (const rd of gateDeps) {
+      const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
+      inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
+    }
+    return inner;
+  };
 
-    // 타입 게이트 fail — typeAsserter rd가 있으면 message/context 반영
-    const gateEmitCtx = typeAsserter
-      ? makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)
-      : emitCtx;
-
-    // Helper: emit inner validation rules
-    const emitInnerRules = (indent: string): string => {
-      let inner = '';
-      // typeAsserter emit — GATE_ONLY_ASSERTERS(isString,isBoolean)는 gate와 완전 중복이므로 스킵
-      if (typeAsserter && !GATE_ONLY_ASSERTERS.has(typeAsserter.rule.ruleName)) {
-        const taCode = wrapGroupsGuard(typeAsserter, typeAsserter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)));
-        inner += indent + taCode.replace(/\n/g, '\n' + indent) + '\n';
-      }
-      for (const rd of otherGeneral) {
-        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-        inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
-      }
-      for (const rd of gateDeps) {
-        const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-        inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
-      }
-      return inner;
-    };
-
-    if (collectErrors) {
-      if (enableConversion) {
-        // Conversion mode: try convert on gate failure, skip field if conversion fails
-        const skipVar = `${GEN.skip}${sanitizeKey(fieldKey)}`;
-        code += `var ${skipVar} = false;\n`;
-        code += `if (${gateCondition}) {\n`;
-        code += generateConversionCode(effectiveGateType!, varName, fieldKey, skipVar, true, emitCtx);
-        code += `}\n`;
-        code += `if (!${skipVar}) {\n`;
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
-        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
-        code += emitInnerRules('  ');
-        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-        code += `}\n`;
-      } else {
-        code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
-        code += `else {\n`;
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
-        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
-        code += emitInnerRules('  ');
-        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-        code += `}\n`;
-      }
+  if (collectErrors) {
+    if (enableConversion) {
+      // Conversion mode: try convert on gate failure, skip field if conversion fails
+      const skipVar = `${GEN.skip}${sanitizeKey(fieldKey)}`;
+      code += `var ${skipVar} = false;\n`;
+      code += `if (${gateCondition}) {\n`;
+      code += generateConversionCode(effectiveGateType, varName, fieldKey, skipVar, true, emitCtx);
+      code += `}\n`;
+      code += `if (!${skipVar}) {\n`;
+      const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+      code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+      code += emitInnerRules('  ');
+      code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      code += `}\n`;
     } else {
-      if (enableConversion) {
-        code += `if (${gateCondition}) {\n`;
-        code += generateConversionCode(effectiveGateType!, varName, fieldKey, null, false, emitCtx);
-        code += `}\n`;
-        code += emitInnerRules('');
-        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-      } else {
-        code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
-        code += emitInnerRules('');
-        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-      }
+      code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
+      code += `else {\n`;
+      const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+      code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+      code += emitInnerRules('  ');
+      code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      code += `}\n`;
     }
   } else {
-    // No type-specific rules and no @Type hint — all general
-    if (collectErrors) {
-      if (generalRules.length === 0) {
-        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-      } else {
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
-        code += `var ${markVar} = ${GEN.errList}.length;\n`;
-        for (const rd of generalRules) {
-          code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-        }
-        code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
-      }
+    if (enableConversion) {
+      code += `if (${gateCondition}) {\n`;
+      code += generateConversionCode(effectiveGateType, varName, fieldKey, null, false, emitCtx);
+      code += `}\n`;
+      code += emitInnerRules('');
+      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     } else {
-      for (const rd of generalRules) {
-        code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-      }
+      code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
+      code += emitInnerRules('');
       code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     }
   }
 
-  // each: true rules — Array + Set + Map 지원
-  for (const rd of each) {
+  return code;
+}
+
+/** emitGeneralRules — generate type-agnostic rule code */
+function emitGeneralRules(
+  fieldKey: string,
+  varName: string,
+  generalRules: RuleDef[],
+  collectErrors: boolean,
+  emitCtx: EmitContext,
+  ctx: FieldCodeContext,
+): string {
+  let code = '';
+
+  if (collectErrors) {
+    if (generalRules.length === 0) {
+      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    } else {
+      const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+      code += `var ${markVar} = ${GEN.errList}.length;\n`;
+      for (const rd of generalRules) {
+        code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
+      }
+      code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    }
+  } else {
+    for (const rd of generalRules) {
+      code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
+    }
+    code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+  }
+
+  return code;
+}
+
+/** emitEachRules — generate Array/Set/Map each code */
+function emitEachRules(
+  fieldKey: string,
+  varName: string,
+  eachRules: RuleDef[],
+  collectErrors: boolean,
+  emitCtx: EmitContext,
+  ctx: FieldCodeContext,
+): string {
+  let code = '';
+
+  for (const rd of eachRules) {
     const pathKey = JSON.stringify(fieldKey);
     const sk = sanitizeKey(fieldKey);
     const iVar = `${GEN.index}${sk}`;
@@ -703,6 +769,75 @@ function buildRulesCode(
     }
     code += eachGuardClose;
   }
+
+  return code;
+}
+
+/** buildRulesCode — orchestrator that composes categorize → resolve → emit phases */
+function buildRulesCode(
+  fieldKey: string,
+  varName: string,
+  validation: RawPropertyMeta['validation'],
+  collectErrors: boolean,
+  emitCtx: EmitContext,
+  ctx: FieldCodeContext,
+  meta?: RawPropertyMeta,
+): string {
+  // Phase 1: Categorize rules
+  const categorized = categorizeRules(fieldKey, validation);
+
+  // Phase 2: Resolve type gate
+  const resolved = resolveTypeGate(fieldKey, categorized, meta, ctx);
+
+  let code = '';
+
+  // Phase 3: Emit typed or general rules
+  const hasTypedDeps = !!categorized.typedDeps;
+  if (hasTypedDeps || resolved.asserterInferredGate || resolved.typeHintGate) {
+    // Other general rules (excluding the type asserter)
+    const otherGeneral = resolved.typeAsserter
+      ? categorized.generalRules.filter((_, i) => i !== resolved.typeAsserterIdx)
+      : categorized.generalRules;
+
+    // Generate type gate condition — date uses instanceof, others use typeof
+    let gateCondition: string;
+    let gateErrorCode: string;
+
+    if (resolved.typeAsserter) {
+      gateErrorCode = resolved.typeAsserter.rule.ruleName;
+    } else if (resolved.gateDeps.length > 0) {
+      gateErrorCode = resolved.gateDeps[0]!.rule.ruleName;
+    } else {
+      gateErrorCode = 'conversionFailed'; // @Type hint only — no asserter or deps
+    }
+
+    if (resolved.effectiveGateType === 'date') {
+      gateCondition = `!(${varName} instanceof Date)`;
+    } else {
+      gateCondition = `typeof ${varName} !== '${resolved.effectiveGateType}'`;
+    }
+
+    // 타입 게이트 fail — typeAsserter rd가 있으면 message/context 반영
+    const gateEmitCtx = resolved.typeAsserter
+      ? makeRuleEmitCtx(emitCtx, fieldKey, varName, resolved.typeAsserter, ctx)
+      : emitCtx;
+
+    code += emitTypedRules(fieldKey, varName, collectErrors, emitCtx, ctx, {
+      effectiveGateType: resolved.effectiveGateType!,
+      gateCondition,
+      gateErrorCode,
+      gateEmitCtx,
+      otherGeneral,
+      gateDeps: resolved.gateDeps,
+      typeAsserter: resolved.typeAsserter,
+      enableConversion: resolved.enableConversion,
+    });
+  } else {
+    code += emitGeneralRules(fieldKey, varName, categorized.generalRules, collectErrors, emitCtx, ctx);
+  }
+
+  // Phase 4: Emit each rules
+  code += emitEachRules(fieldKey, varName, categorized.each, collectErrors, emitCtx, ctx);
 
   return code;
 }
