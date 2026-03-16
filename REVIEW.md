@@ -572,7 +572,7 @@ return hasComposition
 ```
 또는 composition keywords만 특별 처리하여 auto schema와 병합.
 
-### [ ] C-16. `seal.ts:93-94` — RAW 삭제 후 미봉인 하위 클래스의 `mergeInheritance` 실패 `🟢 Low`
+### [ ] C-16. `seal.ts:93-94` — RAW 삭제 후 미봉인 하위 클래스의 `mergeInheritance` 실패 `🟢 Low` `보류`
 
 **현황**: 성공적 seal 후 모든 클래스에서 `delete (Class as any)[RAW]`가 실행된다. `mergeInheritance`는 프로토타입 체인을 따라 `RAW`를 읽는데, 부모 클래스가 seal되어 RAW가 삭제된 상태에서 아직 seal되지 않은 자식 클래스의 `mergeInheritance`를 호출하면 부모 메타데이터가 누락된다.
 
@@ -586,6 +586,8 @@ return hasComposition
 > - `_sealOnDemand()`의 `hasOwn(Class, RAW)` 가드는 SEALED 체크가 먼저 통과하므로 영향 없음
 > - `circular-analyzer`도 읽기 전용이므로 영향 없음
 > - 유일한 이론적 위험: 이미 seal된 클래스에 데코레이터를 추가하면 TypeError (strict mode) — 이는 지원하지 않는 패턴이며, 현재 delete 방식에서도 프로토타입 체인 corruption이 발생하는 동일하게 broken한 시나리오
+>
+> **보류 사유**: `sealOne()`이 `mergeInheritance()` 결과의 `meta.type` 객체를 in-place mutate (`isArray`, `resolvedClass` 할당)한다. `_merged`에 이 mutated 참조가 남아있어, `unseal()` → re-seal 사이클에서 stale 상태가 전파된다. freeze 자체는 shallow이므로 type 객체 수정은 차단되지 않지만, `_merged` 복원 시 이전 seal의 mutation이 다음 seal에 간섭한다. 해결하려면 `mergeInheritance`가 type 객체를 deep copy해야 하며, 이는 별도 리팩토링이 필요하다.
 
 ### [x] C-17. `deserialize-builder.ts:741-742` — nested array 레벨 룰에 커스텀 message/context 누락 `🟢 Low`
 
