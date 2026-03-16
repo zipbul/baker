@@ -20,19 +20,19 @@ class TypeDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Type / @Field({ type })', () => {
-  it('중첩 객체를 인스턴스로 변환', async () => {
+  it('converts nested object to instance', async () => {
     const r = await deserialize<TypeDto>(TypeDto, { address: { city: 'Seoul' } });
     expect(r.address).toBeInstanceOf(Address);
     expect(r.address.city).toBe('Seoul');
   });
 
-  it('중첩 검증 실패', async () => {
+  it('nested validation failure', async () => {
     await expect(
       deserialize(TypeDto, { address: { city: 123 } }),
     ).rejects.toThrow(BakerValidationError);
   });
 
-  it('discriminator 다형성', async () => {
+  it('discriminator polymorphism', async () => {
     class Cat {
       @Field(isString) name!: string;
     }
@@ -62,7 +62,7 @@ describe('@Type / @Field({ type })', () => {
     expect((dogResult.pet as Dog).age).toBe(3);
   });
 
-  it('serialize 시 중첩 객체 직렬화', async () => {
+  it('serializes nested object on serialize', async () => {
     const r = await deserialize<TypeDto>(TypeDto, { address: { city: 'Seoul' } });
     const s = await serialize(r);
     expect(s).toEqual({ address: { city: 'Seoul' } });

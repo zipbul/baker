@@ -84,7 +84,7 @@ class GroupsWithMessageDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Field message option — string', () => {
-  it('검증 실패 시 BakerError.message에 문자열 포함', async () => {
+  it('validation failure includes string in BakerError.message', async () => {
     try {
       await deserialize(StringMessageDto, { name: 42 });
       expect.unreachable('should have thrown');
@@ -96,7 +96,7 @@ describe('@Field message option — string', () => {
     }
   });
 
-  it('minLength 실패 시에도 message 포함', async () => {
+  it('minLength failure also includes message', async () => {
     try {
       await deserialize(StringMessageDto, { name: 'ab' });
       expect.unreachable('should have thrown');
@@ -110,7 +110,7 @@ describe('@Field message option — string', () => {
 });
 
 describe('@Field message option — function', () => {
-  it('검증 실패 시 함수가 호출되어 동적 메시지 생성', async () => {
+  it('validation failure calls function for dynamic message', async () => {
     try {
       await deserialize(FunctionMessageDto, { email: 123 });
       expect.unreachable('should have thrown');
@@ -123,7 +123,7 @@ describe('@Field message option — function', () => {
 });
 
 describe('@Field context option', () => {
-  it('검증 실패 시 BakerError.context에 값 포함', async () => {
+  it('validation failure includes value in BakerError.context', async () => {
     try {
       await deserialize(ContextDto, { tag: 999 });
       expect.unreachable('should have thrown');
@@ -135,8 +135,8 @@ describe('@Field context option', () => {
   });
 });
 
-describe('@Field message + context 동시 사용', () => {
-  it('message와 context 모두 에러에 포함', async () => {
+describe('@Field message + context used together', () => {
+  it('both message and context included in error', async () => {
     try {
       await deserialize(MessageAndContextDto, { count: 'not a number' });
       expect.unreachable('should have thrown');
@@ -149,8 +149,8 @@ describe('@Field message + context 동시 사용', () => {
   });
 });
 
-describe('@Field message — 여러 룰에 일괄 적용', () => {
-  it('필드의 모든 룰 실패에 동일 message 적용', async () => {
+describe('@Field message — applied to all rules uniformly', () => {
+  it('same message applied to all rule failures for the field', async () => {
     try {
       await deserialize(MultiRuleMessageDto, { username: 42 });
       expect.unreachable('should have thrown');
@@ -163,8 +163,8 @@ describe('@Field message — 여러 룰에 일괄 적용', () => {
   });
 });
 
-describe('@Field message — arrayOf와 함께 사용', () => {
-  it('each 룰 실패에도 message 적용', async () => {
+describe('@Field message — used with arrayOf', () => {
+  it('message applied to each rule failures', async () => {
     try {
       await deserialize(ArrayOfMessageDto, { tags: ['valid', '', 42] });
       expect.unreachable('should have thrown');
@@ -178,8 +178,8 @@ describe('@Field message — arrayOf와 함께 사용', () => {
   });
 });
 
-describe('@Field message 미설정 시', () => {
-  it('에러 객체에 message 프로퍼티 자체가 없음', async () => {
+describe('@Field message not set', () => {
+  it('error object does not have message property', async () => {
     try {
       await deserialize(NoMessageDto, { name: 42 });
       expect.unreachable('should have thrown');
@@ -189,7 +189,7 @@ describe('@Field message 미설정 시', () => {
     }
   });
 
-  it('에러 객체에 context 프로퍼티 자체가 없음', async () => {
+  it('error object does not have context property', async () => {
     try {
       await deserialize(NoMessageDto, { name: 42 });
       expect.unreachable('should have thrown');
@@ -200,8 +200,8 @@ describe('@Field message 미설정 시', () => {
   });
 });
 
-describe('@Field context — falsy 값 처리', () => {
-  it('context: 0 → 에러에 0 포함', async () => {
+describe('@Field context — falsy value handling', () => {
+  it('context: 0 → 0 included in error', async () => {
     try {
       await deserialize(FalsyContextZeroDto, { value: 42 });
       expect.unreachable('should have thrown');
@@ -211,7 +211,7 @@ describe('@Field context — falsy 값 처리', () => {
     }
   });
 
-  it('context: false → 에러에 false 포함', async () => {
+  it('context: false → false included in error', async () => {
     try {
       await deserialize(FalsyContextFalseDto, { value: 42 });
       expect.unreachable('should have thrown');
@@ -221,7 +221,7 @@ describe('@Field context — falsy 값 처리', () => {
     }
   });
 
-  it('context: "" → 에러에 빈 문자열 포함', async () => {
+  it('context: "" → empty string included in error', async () => {
     try {
       await deserialize(FalsyContextEmptyStringDto, { value: 42 });
       expect.unreachable('should have thrown');
@@ -232,8 +232,8 @@ describe('@Field context — falsy 값 처리', () => {
   });
 });
 
-describe('@Field message — 빈 문자열', () => {
-  it('message: "" → 빈 문자열도 에러에 포함', async () => {
+describe('@Field message — empty string', () => {
+  it('message: "" → empty string included in error', async () => {
     try {
       await deserialize(EmptyStringMessageDto, { value: 42 });
       expect.unreachable('should have thrown');
@@ -244,22 +244,22 @@ describe('@Field message — 빈 문자열', () => {
   });
 });
 
-describe('@Field message function — constraints 접근', () => {
-  it('constraints 객체에서 룰 파라미터 읽기', async () => {
+describe('@Field message function — constraints access', () => {
+  it('reads rule parameters from constraints object', async () => {
     try {
       await deserialize(ConstraintsAccessDto, { name: 'ab' });
       expect.unreachable('should have thrown');
     } catch (e) {
       const err = e as BakerValidationError;
       expect(err.errors.length).toBeGreaterThan(0);
-      // minLength(5)의 constraints에 min: 5가 있어야 한다
+      // minLength(5) should have constraints with min: 5
       expect(err.errors[0]!.message).toContain('5');
     }
   });
 });
 
-describe('@Field message + groups 조합', () => {
-  it('groups 일치 시 message 포함', async () => {
+describe('@Field message + groups combination', () => {
+  it('groups match → message included', async () => {
     try {
       await deserialize(GroupsWithMessageDto, { secret: 42, id: 1 }, { groups: ['admin'] });
       expect.unreachable('should have thrown');
@@ -271,7 +271,7 @@ describe('@Field message + groups 조합', () => {
     }
   });
 
-  it('groups 불일치 시 필드 자체 제외 → 에러 없음', async () => {
+  it('groups mismatch → field itself excluded → no error', async () => {
     const result = await deserialize(GroupsWithMessageDto, { secret: 42, id: 1 }, { groups: ['viewer'] });
     expect((result as any).secret).toBeUndefined();
     expect(result.id).toBe(1);

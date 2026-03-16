@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, BakerValidationError, Field } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
-/** 헬퍼: 에러 코드 추출 (없으면 null) */
+/** Helper: extract error codes (null if none) */
 async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
   try {
     const value = await deserialize(cls, input);
@@ -12,44 +12,44 @@ async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown):
   }
 }
 
-// ─── 매트릭스: 4개 데코레이터 상태 × 4개 입력값 ────────────────────────────
+// ─── Matrix: 4 decorator states x 4 input values ────────────────────────────
 
 /*
- * 데코레이터 상태:
+ * Decorator states:
  *   A: @Field(isString) — required (default)
  *   B: @Field(isString, { optional: true })
  *   C: @Field(isString, { nullable: true })
  *   D: @Field(isString, { optional: true, nullable: true })
  *
- * 입력값:
- *   1: undefined (키 누락)
+ * Input values:
+ *   1: undefined (key missing)
  *   2: null
- *   3: 유효 문자열
- *   4: 무효 (숫자)
+ *   3: valid string
+ *   4: invalid (number)
  */
 
 // ─── A: @Field(isString) (no Optional, no Nullable) ──────────────────────
 
-describe('A: isString만', () => {
+describe('A: isString only', () => {
   class Dto { @Field(isString) v!: string; }
 
-  it('undefined → 거부 (기본 가드)', async () => {
+  it('undefined → rejected (default guard)', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(false);
   });
 
-  it('null → 거부 (기본 가드)', async () => {
+  it('null → rejected (default guard)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(false);
   });
 
-  it('유효 문자열 → 통과', async () => {
+  it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('hello');
   });
 
-  it('숫자 → isString 거부', async () => {
+  it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('isString');
@@ -64,25 +64,25 @@ describe('B: optional + isString', () => {
     v?: string;
   }
 
-  it('undefined → 통과 (Optional)', async () => {
+  it('undefined → passes (Optional)', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBeUndefined();
   });
 
-  it('null → 통과 (Optional은 null/undefined 스킵)', async () => {
+  it('null → passes (Optional skips null/undefined)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    // optional은 null/undefined를 스킵 — 값은 그대로 undefined가 될 수 있음
+    // optional skips null/undefined — value may become undefined
   });
 
-  it('유효 문자열 → 통과', async () => {
+  it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('hello');
   });
 
-  it('숫자 → isString 거부', async () => {
+  it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('isString');
@@ -97,24 +97,24 @@ describe('C: nullable + isString', () => {
     v!: string | null;
   }
 
-  it('undefined → 거부 (Nullable는 undefined 허용 안 함)', async () => {
+  it('undefined → rejected (Nullable does not allow undefined)', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(false);
   });
 
-  it('null → 통과 (Nullable)', async () => {
+  it('null → passes (Nullable)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBeNull();
   });
 
-  it('유효 문자열 → 통과', async () => {
+  it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('hello');
   });
 
-  it('숫자 → isString 거부', async () => {
+  it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('isString');
@@ -129,25 +129,25 @@ describe('D: optional + nullable + isString', () => {
     v?: string | null;
   }
 
-  it('undefined → 통과', async () => {
+  it('undefined → passes', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBeUndefined();
   });
 
-  it('null → 통과', async () => {
+  it('null → passes', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBeNull();
   });
 
-  it('유효 문자열 → 통과', async () => {
+  it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('hello');
   });
 
-  it('숫자 → isString 거부', async () => {
+  it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('isString');
@@ -162,62 +162,62 @@ describe('E: nullable + isString (required by default)', () => {
     v!: string | null;
   }
 
-  it('undefined (누락) → 거부', async () => {
+  it('undefined (missing) → rejected', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(false);
   });
 
-  it('null → 통과 (nullable가 null 허용)', async () => {
+  it('null → passes (nullable allows null)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBeNull();
   });
 
-  it('유효 문자열 → 통과', async () => {
+  it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('hello');
   });
 
-  it('숫자 → isString 거부', async () => {
+  it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('isString');
   });
 });
 
-// ─── G: 빈 문자열("") 처리 ────────────────────────────────────────────────
+// ─── G: empty string ("") handling ────────────────────────────────────────
 
-describe('빈 문자열("") 처리', () => {
+describe('empty string ("") handling', () => {
   class StrDto { @Field(isString) v!: string; }
   class MinLenDto { @Field(isString, minLength(1)) v!: string; }
 
-  it('isString은 빈 문자열 허용', async () => {
+  it('isString allows empty string', async () => {
     const r = await tryDeserialize(StrDto, { v: '' });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe('');
   });
 
-  it('minLength(1)은 빈 문자열 거부', async () => {
+  it('minLength(1) rejects empty string', async () => {
     const r = await tryDeserialize(MinLenDto, { v: '' });
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.codes).toContain('minLength');
   });
 });
 
-// ─── H: false, 0 등 falsy 값 처리 ─────────────────────────────────────────
+// ─── H: false, 0 and other falsy value handling ──────────────────────────
 
-describe('falsy 값 처리', () => {
+describe('falsy value handling', () => {
   class NumDto { @Field(isNumber()) v!: number; }
   class BoolDto { @Field(isBoolean) v!: boolean; }
 
-  it('0은 isNumber 통과', async () => {
+  it('0 passes isNumber', async () => {
     const r = await tryDeserialize(NumDto, { v: 0 });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe(0);
   });
 
-  it('false는 isBoolean 통과', async () => {
+  it('false passes isBoolean', async () => {
     const r = await tryDeserialize(BoolDto, { v: false });
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.value.v).toBe(false);

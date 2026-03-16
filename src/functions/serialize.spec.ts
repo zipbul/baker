@@ -150,7 +150,7 @@ describe('serialize', () => {
     expect(r1).toBe(r2);
   });
 
-  // ── Sync/Async 분기 ──────────────────────────────────────────────────────
+  // ── Sync/Async branching ─────────────────────────────────────────────────
 
   it('should use sync path (Promise.resolve) when _isSerializeAsync is false', async () => {
     // Arrange

@@ -53,7 +53,7 @@ class OwnerKeepDiscDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('discriminator — invalidDiscriminator', () => {
-  it('존재하지 않는 subType → invalidDiscriminator 에러', async () => {
+  it('non-existent subType → invalidDiscriminator error', async () => {
     try {
       await deserialize(OwnerDto, {
         name: 'Alice',
@@ -67,7 +67,7 @@ describe('discriminator — invalidDiscriminator', () => {
     }
   });
 
-  it('discriminator 프로퍼티 누락 → 에러', async () => {
+  it('discriminator property missing → error', async () => {
     await expect(
       deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }),
     ).rejects.toThrow(BakerValidationError);
@@ -75,7 +75,7 @@ describe('discriminator — invalidDiscriminator', () => {
 });
 
 describe('discriminator — keepDiscriminatorProperty', () => {
-  it('keepDiscriminatorProperty: true → 결과에 discriminator 필드 유지', async () => {
+  it('keepDiscriminatorProperty: true → discriminator field retained in result', async () => {
     const result = await deserialize<OwnerKeepDiscDto>(OwnerKeepDiscDto, {
       pet: { kind: 'dog', breed: 'Poodle' },
     });
@@ -84,7 +84,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
     expect((result.pet as any).kind).toBe('dog');
   });
 
-  it('keepDiscriminatorProperty 미설정 → 결과에 discriminator 필드 없음', async () => {
+  it('keepDiscriminatorProperty not set → discriminator field absent from result', async () => {
     const result = await deserialize<OwnerDto>(OwnerDto, {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },
@@ -135,7 +135,7 @@ describe('discriminator — serialize', () => {
 });
 
 describe('discriminator — toJsonSchema', () => {
-  it('oneOf + const 매핑', () => {
+  it('oneOf + const mapping', () => {
     const schema = toJsonSchema(OwnerDto);
     const pet = schema.properties!.pet;
     expect(pet!.oneOf).toHaveLength(2);

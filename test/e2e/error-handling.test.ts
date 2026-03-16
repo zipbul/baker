@@ -56,7 +56,7 @@ class ClassNameDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('error handling — stopAtFirstError', () => {
-  it('stopAtFirstError: true → 에러 1개', async () => {
+  it('stopAtFirstError: true → only 1 error', async () => {
     configure({ stopAtFirstError: true });
     try {
       await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
@@ -66,7 +66,7 @@ describe('error handling — stopAtFirstError', () => {
     }
   });
 
-  it('stopAtFirstError: false (기본) → 전체 에러 수집', async () => {
+  it('stopAtFirstError: false (default) → collects all errors', async () => {
     try {
       await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
       expect.unreachable();
@@ -100,7 +100,7 @@ describe('error handling — custom message', () => {
 });
 
 describe('error handling — context', () => {
-  it('context 객체 포함', async () => {
+  it('includes context object', async () => {
     try {
       await deserialize(ContextDto, { email: 'not-email' });
       expect.unreachable();
@@ -112,7 +112,7 @@ describe('error handling — context', () => {
 });
 
 describe('error handling — className', () => {
-  it('BakerValidationError.className 포함', async () => {
+  it('includes BakerValidationError.className', async () => {
     try {
       await deserialize(ClassNameDto, { field: 42 });
       expect.unreachable();
@@ -122,7 +122,7 @@ describe('error handling — className', () => {
     }
   });
 
-  it('error message에 클래스명 포함', async () => {
+  it('error message includes class name', async () => {
     try {
       await deserialize(ClassNameDto, { field: 42 });
       expect.unreachable();

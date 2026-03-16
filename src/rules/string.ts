@@ -1115,7 +1115,7 @@ const _isCreditCard = (value: unknown): boolean => {
   return _luhn(value);
 };
 
-// emit: Luhn algorithm펼침 (§4.8 C 패턴)
+// emit: Luhn algorithm unrolled (§4.8 C pattern)
 (_isCreditCard as any).emit = (varName: string, ctx: EmitContext): string => `{
   var _cs=${varName}.replace(/[\\s-]/g,'');
   if(_cs.length===0||!/^\\d+$/.test(_cs)){${ctx.fail('isCreditCard')}}
@@ -1214,7 +1214,7 @@ export function isByteLength(min: number, max?: number): EmittableRule {
 // Group E: New Validators
 // ─────────────────────────────────────────────────────────────────────────────
 
-// isHash — hash algorithm별 hex 정규식 (§4.8 B: 정규식 인라인)
+// isHash — per-algorithm hex regex (§4.8 B: regex inline)
 
 const HASH_REGEXES: Record<string, RegExp> = {
   md5:        /^[a-f0-9]{32}$/i,
@@ -1247,7 +1247,7 @@ export function isHash(algorithm: string): EmittableRule {
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
     if (!re) {
-      // 알 수 없는 알고리즘 → 항상 실패
+      // Unknown algorithm — always fail
       return ctx.fail('isHash') + ';';
     }
     const i = ctx.addRegex(re);
@@ -1273,7 +1273,7 @@ export const isRFC3339 = makeStringRule(
   },
 );
 
-// isMilitaryTime — HH:MM 24시간 형식 (§4.8 B)
+// isMilitaryTime — HH:MM 24-hour format (§4.8 B)
 
 const MILITARY_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -1286,7 +1286,7 @@ export const isMilitaryTime = makeStringRule(
   },
 );
 
-// isLatitude — string 또는 number, -90 ~ 90 (requiresType none)
+// isLatitude — string or number, -90 to 90 (requiresType none)
 
 function _checkLatitude(value: unknown): boolean {
   if (typeof value === 'number') {
@@ -1312,11 +1312,11 @@ const _isLatitude = (value: unknown): boolean => _checkLatitude(value);
 };
 (_isLatitude as any).ruleName = 'isLatitude';
 (_isLatitude as any).constraints = {};
-// requiresType = undefined — string|number 모두 처리
+// requiresType = undefined — handles both string|number
 
 export const isLatitude = _isLatitude as EmittableRule;
 
-// isLongitude — string 또는 number, -180 ~ 180 (requiresType none)
+// isLongitude — string or number, -180 to 180 (requiresType none)
 
 function _checkLongitude(value: unknown): boolean {
   if (typeof value === 'number') {
@@ -1339,7 +1339,7 @@ const _isLongitude = (value: unknown): boolean => _checkLongitude(value);
 };
 (_isLongitude as any).ruleName = 'isLongitude';
 (_isLongitude as any).constraints = {};
-// requiresType = undefined — string|number 모두 처리
+// requiresType = undefined — handles both string|number
 
 export const isLongitude = _isLongitude as EmittableRule;
 
@@ -1373,7 +1373,7 @@ export const isBtcAddress = makeStringRule(
   },
 );
 
-// isISO4217CurrencyCode — ISO 4217 통화 코드 집합 (§4.8 C: ref 기반)
+// isISO4217CurrencyCode — ISO 4217 currency code set (§4.8 C: ref-based)
 
 const ISO4217_CODES = new Set([
   'AED','AFN','ALL','AMD','ANG','AOA','ARS','AUD','AWG','AZN',
@@ -1405,7 +1405,7 @@ export const isISO4217CurrencyCode = makeStringRule(
   },
 );
 
-// isPhoneNumber — E.164 국제 전화번호 (§4.8 B)
+// isPhoneNumber — E.164 international phone number (§4.8 B)
 
 const PHONE_E164_RE = /^\+[1-9]\d{6,14}$/;
 
@@ -1418,7 +1418,7 @@ export const isPhoneNumber = makeStringRule(
   },
 );
 
-// isStrongPassword — 강력한 비밀번호 체크 (§4.8 C: factory)
+// isStrongPassword — strong password check (§4.8 C: factory)
 
 export interface IsStrongPasswordOptions {
   minLength?: number;
@@ -1472,18 +1472,18 @@ export function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRu
   return fn as EmittableRule;
 }
 
-// isTaxId — 로케일별 세금 식별자 (§4.8 C: factory)
+// isTaxId — locale-specific tax identifier (§4.8 C: factory)
 
 const TAX_ID_REGEXES: Record<string, RegExp> = {
   US: /^\d{2}-\d{7}$/,                      // EIN format: XX-XXXXXXX
-  KR: /^\d{3}-\d{2}-\d{5}$/,                // 사업자등록번호: XXX-XX-XXXXX
-  DE: /^\d{11}$/,                            // Steuernummer: 11자리
-  FR: /^[0-9]{13}$/,                         // SIRET: 13자리
-  GB: /^\d{10}$/,                            // UTR: 10자리
+  KR: /^\d{3}-\d{2}-\d{5}$/,                // Business Registration Number: XXX-XX-XXXXX
+  DE: /^\d{11}$/,                            // Steuernummer: 11 digits
+  FR: /^[0-9]{13}$/,                         // SIRET: 13 digits
+  GB: /^\d{10}$/,                            // UTR: 10 digits
   IT: /^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i, // Codice Fiscale
   ES: /^[0-9A-Z]\d{7}[0-9A-Z]$/i,           // NIF/NIE/CIF
-  AU: /^\d{11}$/,                            // ABN: 11자리
-  CA: /^\d{9}$/,                             // BN: 9자리
+  AU: /^\d{11}$/,                            // ABN: 11 digits
+  CA: /^\d{9}$/,                             // BN: 9 digits
   IN: /^[A-Z]{5}\d{4}[A-Z]$/i,              // PAN: XXXXX9999X
 };
 

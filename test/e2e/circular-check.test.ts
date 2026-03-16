@@ -18,7 +18,7 @@ class TreeNode {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('circular reference detection', () => {
-  it('정상 트리 구조 → 통과', async () => {
+  it('normal tree structure → passes', async () => {
     const result = await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'leaf' },
@@ -28,9 +28,9 @@ describe('circular reference detection', () => {
     expect(result.child!.value).toBe('leaf');
   });
 
-  it('순환 참조 입력 → circular 에러', async () => {
+  it('circular reference input → circular error', async () => {
     const circular: any = { value: 'a', child: { value: 'b' } };
-    circular.child.child = circular; // 순환 참조
+    circular.child.child = circular; // circular reference
 
     try {
       await deserialize(TreeNode, circular);
@@ -42,7 +42,7 @@ describe('circular reference detection', () => {
     }
   });
 
-  it('auto 모드 (기본) → 순환 구조 DTO 자동 감지', async () => {
+  it('auto mode (default) → auto-detects circular structure DTO', async () => {
     const result = await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'child', child: { value: 'grandchild' } },

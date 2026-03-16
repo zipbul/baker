@@ -62,19 +62,19 @@ class NullableMapDto {
 // ─── Set<primitive> ──────────────────────────────────────────────────────────
 
 describe('Set<primitive> — deserialize', () => {
-  it('array → Set 변환', async () => {
+  it('array → Set conversion', async () => {
     const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'c'] });
     expect(result.tags).toBeInstanceOf(Set);
     expect([...result.tags]).toEqual(['a', 'b', 'c']);
   });
 
-  it('빈 배열 → 빈 Set', async () => {
+  it('empty array → empty Set', async () => {
     const result = await deserialize(PrimitiveSetDto, { tags: [] });
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(0);
   });
 
-  it('배열 아닌 입력 → 에러', async () => {
+  it('non-array input → error', async () => {
     await expect(
       deserialize(PrimitiveSetDto, { tags: 'not-array' }),
     ).rejects.toThrow();
@@ -82,7 +82,7 @@ describe('Set<primitive> — deserialize', () => {
 });
 
 describe('Set<primitive> — serialize', () => {
-  it('Set → array 변환', async () => {
+  it('Set → array conversion', async () => {
     const dto = Object.assign(new PrimitiveSetDto(), { tags: new Set(['x', 'y']) });
     const result = await serialize(dto);
     expect(result['tags']).toEqual(['x', 'y']);
@@ -104,7 +104,7 @@ describe('Set<DTO> — deserialize', () => {
     expect(arr[1]!.name).toBe('beta');
   });
 
-  it('nested DTO 검증 실패 → 에러에 인덱스 경로 포함', async () => {
+  it('nested DTO validation failure → error with index path', async () => {
     try {
       await deserialize(NestedSetDto, {
         tags: [{ name: 'ok' }, { name: '' }],
@@ -131,26 +131,26 @@ describe('Set<DTO> — serialize', () => {
 // ─── Map<string, primitive> ─────────────────────────────────────────────────
 
 describe('Map<string, primitive> — deserialize', () => {
-  it('plain object → Map 변환', async () => {
+  it('plain object → Map conversion', async () => {
     const result = await deserialize(PrimitiveMapDto, { config: { key1: 'val1', key2: 42 } });
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.get('key1')).toBe('val1');
     expect(result.config.get('key2')).toBe(42);
   });
 
-  it('빈 객체 → 빈 Map', async () => {
+  it('empty object → empty Map', async () => {
     const result = await deserialize(PrimitiveMapDto, { config: {} });
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.size).toBe(0);
   });
 
-  it('배열 입력 → 에러', async () => {
+  it('array input → error', async () => {
     await expect(
       deserialize(PrimitiveMapDto, { config: [1, 2] }),
     ).rejects.toThrow();
   });
 
-  it('null 입력 → 에러', async () => {
+  it('null input → error', async () => {
     await expect(
       deserialize(PrimitiveMapDto, { config: null }),
     ).rejects.toThrow();
@@ -158,7 +158,7 @@ describe('Map<string, primitive> — deserialize', () => {
 });
 
 describe('Map<string, primitive> — serialize', () => {
-  it('Map → plain object 변환', async () => {
+  it('Map → plain object conversion', async () => {
     const map = new Map<string, unknown>([['a', 1], ['b', 'two']]);
     const dto = Object.assign(new PrimitiveMapDto(), { config: map });
     const result = await serialize(dto);
@@ -180,7 +180,7 @@ describe('Map<string, DTO> — deserialize', () => {
     expect(result.prices.get('KRW')!.amount).toBe(130000);
   });
 
-  it('nested DTO 검증 실패 → 에러에 key 경로 포함', async () => {
+  it('nested DTO validation failure → error with key path', async () => {
     try {
       await deserialize(NestedMapDto, {
         prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
@@ -208,13 +208,13 @@ describe('Map<string, DTO> — serialize', () => {
 // ─── Set with validation ─────────────────────────────────────────────────────
 
 describe('Set with each validation', () => {
-  it('각 요소 검증 성공', async () => {
+  it('each element validation succeeds', async () => {
     const result = await deserialize(ValidatedSetDto, { items: ['ab', 'cd', 'ef'] });
     expect(result.items).toBeInstanceOf(Set);
     expect(result.items.size).toBe(3);
   });
 
-  it('각 요소 검증 실패 → 에러', async () => {
+  it('each element validation failure → error', async () => {
     await expect(
       deserialize(ValidatedSetDto, { items: ['ok', 'x'] }),
     ).rejects.toThrow();
@@ -224,24 +224,24 @@ describe('Set with each validation', () => {
 // ─── Optional / Nullable ────────────────────────────────────────────────────
 
 describe('Optional Set', () => {
-  it('undefined → 필드 없음', async () => {
+  it('undefined → field absent', async () => {
     const result = await deserialize(OptionalSetDto, {});
     expect(result.tags).toBeUndefined();
   });
 
-  it('값 있으면 Set 변환', async () => {
+  it('value present → Set conversion', async () => {
     const result = await deserialize(OptionalSetDto, { tags: ['a'] });
     expect(result.tags).toBeInstanceOf(Set);
   });
 });
 
 describe('Nullable Map', () => {
-  it('null → null 할당', async () => {
+  it('null → null assigned', async () => {
     const result = await deserialize(NullableMapDto, { data: null });
     expect(result.data).toBeNull();
   });
 
-  it('객체 → Map 변환', async () => {
+  it('object → Map conversion', async () => {
     const result = await deserialize(NullableMapDto, { data: { x: 1 } });
     expect(result.data).toBeInstanceOf(Map);
   });
@@ -283,8 +283,8 @@ describe('Collection JSON Schema', () => {
 
 // ─── Edge Cases ─────────────────────────────────────────────────────────────
 
-describe('Set — 중복 값 처리', () => {
-  it('입력 배열 중복 → Set이 자동 중복 제거', async () => {
+describe('Set — duplicate value handling', () => {
+  it('input array with duplicates → Set auto-deduplicates', async () => {
     const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'a', 'c', 'b'] });
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(3);
@@ -292,38 +292,38 @@ describe('Set — 중복 값 처리', () => {
   });
 });
 
-describe('Set<DTO> — null 요소', () => {
-  it('배열에 null 요소 → nested deserialize 시 에러', async () => {
+describe('Set<DTO> — null elements', () => {
+  it('null element in array → nested deserialize error', async () => {
     await expect(
       deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }),
     ).rejects.toThrow();
   });
 });
 
-describe('Map<string, DTO> — value에 null', () => {
-  it('Map value에 null → nested deserialize 에러', async () => {
+describe('Map<string, DTO> — null value', () => {
+  it('null Map value → nested deserialize error', async () => {
     await expect(
       deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }),
     ).rejects.toThrow();
   });
 });
 
-describe('빈 컬렉션 serialize', () => {
-  it('빈 Set → 빈 배열', async () => {
+describe('empty collection serialize', () => {
+  it('empty Set → empty array', async () => {
     const dto = Object.assign(new PrimitiveSetDto(), { tags: new Set() });
     const result = await serialize(dto);
     expect(result['tags']).toEqual([]);
   });
 
-  it('빈 Map → 빈 객체', async () => {
+  it('empty Map → empty object', async () => {
     const dto = Object.assign(new PrimitiveMapDto(), { config: new Map() });
     const result = await serialize(dto);
     expect(result['config']).toEqual({});
   });
 });
 
-describe('Set<DTO> serialize — null 요소', () => {
-  it('Set에 null 요소 → null 유지', async () => {
+describe('Set<DTO> serialize — null elements', () => {
+  it('null element in Set → null preserved', async () => {
     const tag = Object.assign(new TagDto(), { name: 'a' });
     const dto = Object.assign(new NestedSetDto(), { tags: new Set([tag, null as any]) });
     const result = await serialize(dto);
@@ -334,8 +334,8 @@ describe('Set<DTO> serialize — null 요소', () => {
   });
 });
 
-describe('Map — prototype 오염 방지', () => {
-  it('Object.create(null) 입력 → 정상 변환', async () => {
+describe('Map — prototype pollution prevention', () => {
+  it('Object.create(null) input → normal conversion', async () => {
     const input = Object.create(null);
     input.key1 = 'val1';
     const result = await deserialize(PrimitiveMapDto, { config: input });
@@ -343,7 +343,7 @@ describe('Map — prototype 오염 방지', () => {
     expect(result.config.get('key1')).toBe('val1');
   });
 
-  it('상속된 프로퍼티는 Map에 포함되지 않음', async () => {
+  it('inherited properties not included in Map', async () => {
     const proto = { inherited: 'should-not-appear' };
     const input = Object.create(proto);
     input.own = 'visible';
@@ -356,7 +356,7 @@ describe('Map — prototype 오염 방지', () => {
 describe('stopAtFirstError — collection', () => {
   afterEach(() => unseal());
 
-  it('Set<DTO> stopAtFirstError → 첫 번째 에러만 반환', async () => {
+  it('Set<DTO> stopAtFirstError → only first error returned', async () => {
     configure({ stopAtFirstError: true });
 
     class StopSetDto {
@@ -371,13 +371,13 @@ describe('stopAtFirstError — collection', () => {
       expect.unreachable('should have thrown');
     } catch (e: any) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      // stopAtFirstError: 에러가 1개만
+      // stopAtFirstError: only 1 error
       expect(e.errors.length).toBe(1);
       expect(e.errors[0].path).toContain('[0]');
     }
   });
 
-  it('Map<string, DTO> stopAtFirstError → 첫 번째 에러만 반환', async () => {
+  it('Map<string, DTO> stopAtFirstError → only first error returned', async () => {
     configure({ stopAtFirstError: true });
 
     class StopMapDto {
@@ -398,7 +398,7 @@ describe('stopAtFirstError — collection', () => {
 });
 
 describe('collectErrors — collection', () => {
-  it('Set<DTO> 모든 에러 수집', async () => {
+  it('Set<DTO> all errors collected', async () => {
     try {
       await deserialize(NestedSetDto, {
         tags: [{ name: '' }, { name: '' }],
@@ -406,12 +406,12 @@ describe('collectErrors — collection', () => {
       expect.unreachable('should have thrown');
     } catch (e: any) {
       expect(e).toBeInstanceOf(BakerValidationError);
-      // 2개 요소 모두 에러
+      // both elements have errors
       expect(e.errors.length).toBeGreaterThanOrEqual(2);
     }
   });
 
-  it('Map<string, DTO> 모든 에러 수집', async () => {
+  it('Map<string, DTO> all errors collected', async () => {
     try {
       await deserialize(NestedMapDto, {
         prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
@@ -420,7 +420,7 @@ describe('collectErrors — collection', () => {
     } catch (e: any) {
       expect(e).toBeInstanceOf(BakerValidationError);
       expect(e.errors.length).toBeGreaterThanOrEqual(2);
-      // 각 key 경로 포함
+      // each key path included
       const paths = e.errors.map((e: any) => e.path);
       expect(paths.some((p: string) => p.includes('USD'))).toBe(true);
       expect(paths.some((p: string) => p.includes('EUR'))).toBe(true);

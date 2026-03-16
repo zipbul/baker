@@ -24,7 +24,7 @@ afterEach(() => {
 });
 
 describe('@Field — metadata collection', () => {
-  // ── expose (name / 방향별 name) ──
+  // ── expose (name / per-direction name) ──
 
   it('@Field({ name }) stores name in expose stack', () => {
     const Cls = makeClass();

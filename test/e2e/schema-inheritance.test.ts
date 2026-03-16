@@ -7,7 +7,7 @@ import { isString, isNumber } from '../../src/rules/index';
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('schema inheritance merge', () => {
-  it('자식에 schema 없으면 부모 object schema 계승', () => {
+  it('child without schema inherits parent object schema', () => {
     class ParentFieldDto {
       @Field(isString, { schema: { description: 'parent name' } })
       name!: string;
@@ -21,7 +21,7 @@ describe('schema inheritance merge', () => {
     expect(nameSchema?.description).toBe('parent name');
   });
 
-  it('자식과 부모 모두 object schema — 부모 속성이 자식에 없으면 보충', () => {
+  it('both child and parent have object schema — parent properties fill in missing child properties', () => {
     class ParentMergeDto {
       @Field(isString, { schema: { description: 'from parent' } })
       name!: string;

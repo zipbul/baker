@@ -59,7 +59,7 @@ describe('auto-seal — integration', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// C1: async 아키텍처 — _isAsync / _isSerializeAsync 플래그
+// C1: async architecture — _isAsync / _isSerializeAsync flags
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SyncDto {

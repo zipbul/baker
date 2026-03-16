@@ -5,7 +5,7 @@ import type { BakerError } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// deserialize — Public API (throw 패턴) (§5.1)
+// deserialize — Public API (throw pattern) (§5.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function unwrapResult<T>(result: any, className: string): T {
@@ -16,12 +16,12 @@ function unwrapResult<T>(result: any, className: string): T {
 }
 
 /**
- * input → Class 인스턴스 변환 + 검증.
- * - 첫 호출 시 auto-seal (globalRegistry 전체 배치)
- * - async transform/rule이 없는 DTO → `async function` 없이 실행, Promise.resolve로 반환
- * - 성공: Promise<T> 반환
- * - 검증 실패: BakerValidationError (rejected promise)
- * - 데코레이터 없는 클래스: SealError throw
+ * Converts input to a Class instance + validates.
+ * - Auto-seals on first call (batches entire globalRegistry)
+ * - DTOs without async transform/rules run without `async function`, returned via Promise.resolve
+ * - Success: returns Promise<T>
+ * - Validation failure: BakerValidationError (rejected promise)
+ * - Class without decorators: throws SealError
  */
 export function deserialize<T>(
   Class: new (...args: any[]) => T,

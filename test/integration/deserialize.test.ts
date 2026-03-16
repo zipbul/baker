@@ -39,7 +39,7 @@ class IssnDto {
   issn!: string;
 }
 
-// ── H1: 내부 변수명 충돌 DTOs ─────────────────────────────────────────────
+// ── H1: Internal variable name collision DTOs ────────────────────────────
 
 class CollisionOutDto {
   @Field(isString)
@@ -73,13 +73,13 @@ class IsDefinedNumberDto {
   value!: number;
 }
 
-/** @Field 단독 — 다른 validation 없음 */
+/** @Field alone — no other validation */
 class IsDefinedOnlyDto {
   @Field()
   value!: any;
 }
 
-// ── C4: NaN/Infinity 게이트 DTOs ──────────────────────────────────────────────
+// ── C4: NaN/Infinity gate DTOs ───────────────────────────────────────────────
 
 class IsNumberOnlyDto {
   @Field(isNumber())
@@ -166,7 +166,7 @@ describe('deserialize — integration', () => {
     expect(result.issn).toBe('0378-5955');
   });
 
-  // ── H1: 내부 변수명 충돌 필드 (var _out, var _errors, var _groups) ────────
+  // ── H1: Internal variable name collision fields (var _out, var _errors, var _groups) ──
 
   it('should deserialize DTO when field name collides with internal variable "out"', async () => {
     const result = await deserialize<CollisionOutDto>(CollisionOutDto, { out: 'value' });
@@ -202,7 +202,7 @@ describe('deserialize — integration', () => {
     expect(result.value).toBe(0);
   });
 
-  // ── C4: NaN/Infinity 게이트 ────────────────────────────────────────────────
+  // ── C4: NaN/Infinity gate ──────────────────────────────────────────────────
 
   it('should throw when @Field(isNumber()) field receives NaN', async () => {
     await expect(deserialize(IsNumberOnlyDto, { value: NaN })).rejects.toThrow();
@@ -233,7 +233,7 @@ describe('deserialize — integration', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// M4: validation groups 런타임 필터링
+// M4: validation groups runtime filtering
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AdminOnlyDto {
@@ -245,23 +245,23 @@ class AdminOnlyDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sync API — async function 아닌 일반 함수로 동작
+// Sync API — operates as a regular function, not an async function
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('deserialize — sync path', () => {
   afterEach(() => unseal());
 
-  it('sync DTO는 async function 아닌 Promise.resolve로 반환', async () => {
-    // deserialize 자체가 async function이 아닌 일반 함수인지 확인
+  it('sync DTO returns via Promise.resolve, not async function', async () => {
+    // Verify that deserialize itself is a regular function, not an async function
     expect(deserialize.constructor.name).not.toBe('AsyncFunction');
   });
 
-  it('sync DTO 성공 시 Promise<T> 반환 + await 정상 동작', async () => {
+  it('sync DTO success returns Promise<T> and await works correctly', async () => {
     const result = await deserialize(SimpleDto, { name: 'Test', age: 1 });
     expect(result).toBeInstanceOf(SimpleDto);
   });
 
-  it('sync DTO 실패 시 rejected promise (동기 throw 아님)', () => {
+  it('sync DTO failure returns rejected promise (not a synchronous throw)', () => {
     const promise = deserialize(SimpleDto, { name: 123, age: 'bad' });
     expect(promise).toBeInstanceOf(Promise);
     return expect(promise).rejects.toThrow();
@@ -269,7 +269,7 @@ describe('deserialize — sync path', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Field message/context — 통합 테스트
+// @Field message/context — integration test
 // ─────────────────────────────────────────────────────────────────────────────
 
 class MessageIntegrationDto {
@@ -282,10 +282,10 @@ class ContextIntegrationDto {
   value!: number;
 }
 
-describe('deserialize — @Field message 통합', () => {
+describe('deserialize — @Field message integration', () => {
   afterEach(() => unseal());
 
-  it('검증 실패 시 BakerError.message에 필드 레벨 메시지 포함', async () => {
+  it('should include field-level message in BakerError.message on validation failure', async () => {
     try {
       await deserialize(MessageIntegrationDto, { name: 42 });
       expect.unreachable('should have thrown');
@@ -295,16 +295,16 @@ describe('deserialize — @Field message 통합', () => {
     }
   });
 
-  it('검증 성공 시 message 무관 정상 반환', async () => {
+  it('should return normally regardless of message on validation success', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 'Alice' });
     expect(result.name).toBe('Alice');
   });
 });
 
-describe('deserialize — @Field context 통합', () => {
+describe('deserialize — @Field context integration', () => {
   afterEach(() => unseal());
 
-  it('검증 실패 시 BakerError.context에 값 포함', async () => {
+  it('should include value in BakerError.context on validation failure', async () => {
     try {
       await deserialize(ContextIntegrationDto, { value: 'bad' });
       expect.unreachable('should have thrown');
@@ -318,25 +318,25 @@ describe('deserialize — @Field context 통합', () => {
 describe('M4 — validation groups runtime filtering', () => {
   afterEach(() => unseal());
 
-  it('groups 미제공 → groups 필드 제외 (가시성 제어)', async () => {
-    // groups=['admin'] 필드 → 런타임 groups 없으면 필드 자체가 제외
+  it('no groups provided → group-gated fields excluded (visibility control)', async () => {
+    // groups=['admin'] field → field itself is excluded when no runtime groups
     const result = await deserialize<AdminOnlyDto>(AdminOnlyDto, { secret: 123, id: 1 });
     expect((result as any).secret).toBeUndefined();
   });
 
-  it('groups 일치 → 필드 포함 + 규칙 실행', async () => {
+  it('groups match → field included + rules executed', async () => {
     await expect(
       deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }),
     ).rejects.toThrow();
   });
 
-  it('groups 불일치 → 필드 제외', async () => {
-    // runtime group 'viewer' doesn't match 'admin' → 필드 자체가 제외
+  it('groups mismatch → field excluded', async () => {
+    // runtime group 'viewer' doesn't match 'admin' → field itself is excluded
     const result = await deserialize<AdminOnlyDto>(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['viewer'] });
     expect((result as any).secret).toBeUndefined();
   });
 
-  it('groups 없는 필드는 항상 실행', async () => {
+  it('fields without groups are always executed', async () => {
     // @Field(isNumber()) on id has no groups — always validated
     await expect(
       deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' as any }, { groups: ['viewer'] }),

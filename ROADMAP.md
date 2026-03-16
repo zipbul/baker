@@ -1,17 +1,17 @@
-# Baker 로드맵
+# Baker Roadmap
 
-> 갱신일: 2026-03-17
-> 대상: @zipbul/baker 1.0.0+
+> Updated: 2026-03-17
+> Target: @zipbul/baker 1.0.0+
 
 ---
 
-## 1. Synchronous API — 완료
+## 1. Synchronous API — Complete
 
-`deserialize()` / `serialize()`가 `async function` 대신 일반 함수로 변경됨.
-sync DTO는 `Promise.resolve()`로 반환, async DTO는 executor의 Promise를 직접 반환.
-별도 `deserializeSync` / `serializeSync` 없이 단일 API로 동작.
+`deserialize()` / `serialize()` changed from `async function` to regular functions.
+Sync DTOs return via `Promise.resolve()`, async DTOs return the executor's Promise directly.
+Single API without separate `deserializeSync` / `serializeSync`.
 
-## 2. Map/Set 자동 변환 — 완료
+## 2. Map/Set Auto Conversion — Complete
 
 ```typescript
 // Set<primitive>: array ↔ Set
@@ -33,7 +33,7 @@ prices: Map<string, PriceDto>;
 
 JSON Schema: Set → `{ type: 'array', uniqueItems: true }`, Map → `{ type: 'object', additionalProperties: ... }`.
 
-## 3. Custom Error Message Per-Field — 완료
+## 3. Custom Error Message Per-Field — Complete
 
 ```typescript
 @Field(isString(), minLength(3), { message: 'Name is invalid' })

@@ -1,22 +1,22 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// EmitContext — 코드 생성 컨텍스트 (§4.7)
+// EmitContext — Code generation context (§4.7)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EmitContext {
-  /** RegExp 참조 배열에 등록, 인덱스 반환 */
+  /** Register a RegExp in the reference array, return its index */
   addRegex(re: RegExp): number;
-  /** 참조 배열에 등록, 인덱스 반환 — 함수, 배열, Set, 원시값 등 */
+  /** Register in the reference array, return its index — functions, arrays, Sets, primitives, etc. */
   addRef(value: unknown): number;
-  /** SealedExecutors 객체 참조 배열에 등록 — 중첩 @Type DTO용 */
+  /** Register a SealedExecutors object in the reference array — for nested @Type DTOs */
   addExecutor(executor: SealedExecutors<unknown>): number;
-  /** 에러 코드로 실패 처리 코드 문자열 생성 — path는 builder가 바인딩 */
+  /** Generate a failure code string from an error code — path is bound by the builder */
   fail(code: string): string;
-  /** 에러 수집 모드 여부 (= !stopAtFirstError) */
+  /** Whether error collection mode is enabled (= !stopAtFirstError) */
   collectErrors: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EmittableRule — 검증 함수 + .emit() (§4.7, §4.8)
+// EmittableRule — Validation function + .emit() (§4.7, §4.8)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface EmittableRule {
@@ -24,14 +24,14 @@ export interface EmittableRule {
   emit(varName: string, ctx: EmitContext): string;
   readonly ruleName: string;
   /**
-   * builder가 typeof 가드 삽입 여부를 판단하는 메타.
-   * 해당 타입을 전제하는 rule만 설정 (예: isEmail → 'string').
-   * @IsString 자체는 undefined (자체 typeof 포함).
+   * Meta for the builder to determine whether to insert a typeof guard.
+   * Only set for rules that assume a specific type (e.g., isEmail → 'string').
+   * @IsString itself is undefined (it includes its own typeof check).
    */
   readonly requiresType?: 'string' | 'number' | 'boolean' | 'date';
-  /** 룰 파라미터를 외부에서 읽을 수 있도록 노출 — toJsonSchema 매핑에 사용 */
+  /** Expose rule parameters for external reading — used for toJsonSchema mapping */
   readonly constraints?: Record<string, unknown>;
-  /** async validate 함수 사용 시 true — deserialize-builder가 await 코드를 생성 */
+  /** true when using an async validate function — deserialize-builder generates await code */
   readonly isAsync?: boolean;
 }
 
@@ -39,7 +39,7 @@ export interface EmittableRule {
 // RuleDef / TransformDef / ExposeDef / ExcludeDef / TypeDef (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 사용자 정의 메시지 콜백 인자 */
+/** Arguments for user-defined message callback */
 export interface MessageArgs {
   property: string;
   value: unknown;
@@ -50,19 +50,19 @@ export interface RuleDef {
   rule: EmittableRule;
   each?: boolean;
   groups?: string[];
-  /** 검증 실패 시 BakerError.message에 포함할 값 */
+  /** Value to include in BakerError.message on validation failure */
   message?: string | ((args: MessageArgs) => string);
-  /** 검증 실패 시 BakerError.context에 포함할 임의 값 */
+  /** Arbitrary value to include in BakerError.context on validation failure */
   context?: unknown;
 }
 
-/** @Transform 콜백 시그니처 */
+/** @Transform callback signature */
 export type TransformFunction = (params: TransformParams) => unknown;
 
 export interface TransformParams {
   value: unknown;
   key: string;
-  /** deserialize: input 원본 객체, serialize: class 인스턴스 */
+  /** deserialize: original input object, serialize: class instance */
   obj: Record<string, unknown>;
   type: 'deserialize' | 'serialize';
 }
@@ -95,15 +95,15 @@ export interface TypeDef {
     subTypes: { value: Function; name: string }[];
   };
   keepDiscriminatorProperty?: boolean;
-  /** seal() 정규화 결과 — fn()이 배열을 반환하면 true */
+  /** seal() normalization result — true if fn() returns an array */
   isArray?: boolean;
-  /** seal() 정규화 결과 — fn() 해석 후 캐시된 클래스 (프리미티브 제외, DTO만) */
+  /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
   resolvedClass?: new (...args: any[]) => any;
-  /** seal() 정규화 결과 — Map 또는 Set 컬렉션 타입 */
+  /** seal() normalization result — Map or Set collection type */
   collection?: 'Map' | 'Set';
-  /** Map value / Set element의 nested DTO 클래스 thunk */
+  /** Nested DTO class thunk for Map value / Set element */
   collectionValue?: () => new (...args: any[]) => any;
-  /** seal() 정규화 결과 — collectionValue 해석 후 캐시된 클래스 */
+  /** seal() normalization result — cached class after resolving collectionValue */
   resolvedCollectionValue?: new (...args: any[]) => any;
 }
 
@@ -112,22 +112,22 @@ export interface TypeDef {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PropertyFlags {
-  /** @IsOptional() — undefined/null 시 validation 전체 skip */
+  /** @IsOptional() — skip all validation when undefined/null */
   isOptional?: boolean;
-  /** @IsDefined() — undefined 불허 (@IsOptional 오버라이드). 현재 코드는 undefined만 거부, null은 후속 검증에 위임 */
+  /** @IsDefined() — disallow undefined (overrides @IsOptional). Current code rejects only undefined; null is delegated to subsequent validation */
   isDefined?: boolean;
-  /** @IsNullable() — null 허용+할당, undefined는 거부 */
+  /** @IsNullable() — allow and assign null, reject undefined */
   isNullable?: boolean;
-  /** @ValidateIf(cond) — false 시 필드 전체 검증 skip */
+  /** @ValidateIf(cond) — skip all field validation when false */
   validateIf?: (obj: any) => boolean;
-  /** @ValidateNested() — 중첩 DTO 재귀 검증 트리거. @Type과 함께 사용 */
+  /** @ValidateNested() — trigger recursive validation for nested DTOs. Used with @Type */
   validateNested?: boolean;
-  /** @ValidateNested({ each: true }) — 배열 원소별 중첩 DTO 검증 */
+  /** @ValidateNested({ each: true }) — validate nested DTOs per array element */
   validateNestedEach?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RawPropertyMeta — Class[RAW][propertyKey]에 저장되는 수집 데이터 (§2.1)
+// RawPropertyMeta — Collection data stored in Class[RAW][propertyKey] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface RawPropertyMeta {
@@ -145,7 +145,7 @@ export interface RawClassMeta {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SealedExecutors — Class[SEALED]에 저장되는 dual executor (§2.1)
+// SealedExecutors — Dual executor stored in Class[SEALED] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { RuntimeOptions } from './interfaces';
@@ -153,49 +153,49 @@ import type { BakerError } from './errors';
 import type { Result, ResultAsync } from '@zipbul/result';
 
 export interface SealedExecutors<T> {
-  /** 내부 executor — Result 패턴. deserialize()가 감싸서 throw로 변환 */
+  /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
   _deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
-  /** 내부 executor — 항상 성공. serialize는 무검증 전제 */
+  /** Internal executor — always succeeds. serialize assumes no validation */
   _serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
-  /** deserialize 방향에 async 규칙/transform/nested가 있으면 true */
+  /** true if the deserialize direction has async rules/transforms/nested */
   _isAsync: boolean;
-  /** serialize 방향에 async transform/nested가 있으면 true */
+  /** true if the serialize direction has async transforms/nested */
   _isSerializeAsync: boolean;
-  /** seal 시 병합된 메타데이터 캐시 — toJsonSchema에서 사용 (RAW 삭제 후에도 유효) */
+  /** Merged metadata cache at seal time — used by toJsonSchema (valid even after RAW is deleted) */
   _merged?: RawClassMeta;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JsonSchema202012 — JSON Schema Draft 2020-12 타입 인터페이스 (§6.7)
+// JsonSchema202012 — JSON Schema Draft 2020-12 type interface (§6.7)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface JsonSchema202012 {
-  // 핵심 구조
+  // Core structure
   $schema?: string;
   $id?: string;
   $ref?: string;
   $defs?: Record<string, JsonSchema202012>;
   $comment?: string;
 
-  // 타입
+  // Type
   type?: string | string[];
   enum?: unknown[];
   const?: unknown;
 
-  // 숫자
+  // Number
   minimum?: number;
   maximum?: number;
   exclusiveMinimum?: number;
   exclusiveMaximum?: number;
   multipleOf?: number;
 
-  // 문자열
+  // String
   minLength?: number;
   maxLength?: number;
   pattern?: string;
   format?: string;
 
-  // 배열
+  // Array
   items?: JsonSchema202012;
   prefixItems?: JsonSchema202012[];
   contains?: JsonSchema202012;
@@ -205,7 +205,7 @@ export interface JsonSchema202012 {
   maxItems?: number;
   uniqueItems?: boolean;
 
-  // 객체
+  // Object
   properties?: Record<string, JsonSchema202012>;
   required?: string[];
   additionalProperties?: boolean | JsonSchema202012;
@@ -217,7 +217,7 @@ export interface JsonSchema202012 {
   dependentRequired?: Record<string, string[]>;
   dependentSchemas?: Record<string, JsonSchema202012>;
 
-  // 조합
+  // Composition
   allOf?: JsonSchema202012[];
   anyOf?: JsonSchema202012[];
   oneOf?: JsonSchema202012[];
@@ -226,7 +226,7 @@ export interface JsonSchema202012 {
   then?: JsonSchema202012;
   else?: JsonSchema202012;
 
-  // 어노테이션
+  // Annotation
   title?: string;
   description?: string;
   default?: unknown;
@@ -235,12 +235,11 @@ export interface JsonSchema202012 {
   readOnly?: boolean;
   writeOnly?: boolean;
 
-  // 컨텐츠
+  // Content
   contentEncoding?: string;
   contentMediaType?: string;
   contentSchema?: JsonSchema202012;
 
-  // 확장 (사용자 커스텀)
+  // Extension (user custom)
   [key: string]: unknown;
 }
-

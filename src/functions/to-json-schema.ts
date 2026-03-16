@@ -9,41 +9,41 @@ import type { RawClassMeta, RawPropertyMeta, RuleDef, JsonSchema202012, SealedEx
 export interface ToJsonSchemaOptions {
   direction?: 'deserialize' | 'serialize';
   groups?: string[];
-  /** true: 모든 object 스키마에 unevaluatedProperties: false 추가 (seal의 whitelist 옵션 대응) */
+  /** true: adds unevaluatedProperties: false to all object schemas (corresponds to seal's whitelist option) */
   whitelist?: boolean;
-  /** 클래스 레벨 JSON Schema 메타데이터 (title, description 등) */
+  /** Class-level JSON Schema metadata (title, description, etc.) */
   title?: string;
   description?: string;
   $id?: string;
-  /** 매핑되지 않은 규칙에 대한 콜백 (기본: console.warn) */
+  /** Callback for unmapped rules (default: console.warn) */
   onUnmappedRule?: (ruleName: string, fieldKey: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 내부 컨텍스트 — toJsonSchema 호출 단위로 생성
+// Internal context — created per toJsonSchema invocation
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface SchemaContext {
   direction: 'deserialize' | 'serialize';
   groups?: string[];
   whitelist?: boolean;
-  /** 현재 재귀 스택에 있는 클래스 (순환 감지) */
+  /** Classes currently on the recursion stack (circular reference detection) */
   processing: Set<Function>;
-  /** Class → $defs 키 매핑 */
+  /** Class to $defs key mapping */
   defKeyMap: Map<Function, string>;
-  /** $defs 누적 */
+  /** Accumulated $defs */
   defs: Record<string, JsonSchema202012>;
-  /** 동명 클래스 disambiguation 카운터 */
+  /** Counter for disambiguating same-named classes */
   nameCounter: Map<string, number>;
-  /** 매핑되지 않은 규칙 콜백 */
+  /** Unmapped rule callback */
   onUnmappedRule?: (ruleName: string, fieldKey: string) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// composition-aware merge 키워드 (§6.5)
+// composition-aware merge keywords (§6.5)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** 모듈 레벨: 동일 ruleName에 대해 console.warn을 한 번만 출력 */
+/** Module-level: emit console.warn only once per ruleName */
 const _warnedRules = new Set<string>();
 
 const COMPOSITION_KEYWORDS = new Set([
@@ -51,11 +51,11 @@ const COMPOSITION_KEYWORDS = new Set([
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 매핑 테이블: ruleName → JSON Schema 키워드 (§6.3)
+// Mapping table: ruleName → JSON Schema keywords (§6.3)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const RULE_SCHEMA_MAP: Record<string, (c: Record<string, unknown>) => JsonSchema202012 | null> = {
-  // 타입
+  // Types
   isString:  () => ({ type: 'string' }),
   isNumber:  () => ({ type: 'number' }),
   isInt:     () => ({ type: 'integer' }),
@@ -71,7 +71,7 @@ const RULE_SCHEMA_MAP: Record<string, (c: Record<string, unknown>) => JsonSchema
   notEquals: (c) => ({ not: { const: c.value } }),
   isNotIn:  (c) => ({ not: { enum: c.values as unknown[] } }),
 
-  // 숫자
+  // Numbers
   min: (c) => c.exclusive
     ? { exclusiveMinimum: c.min as number }
     : { minimum: c.min as number },
@@ -82,13 +82,13 @@ const RULE_SCHEMA_MAP: Record<string, (c: Record<string, unknown>) => JsonSchema
   isNegative:    () => ({ exclusiveMaximum: 0 }),
   isDivisibleBy: (c) => ({ multipleOf: c.divisor as number }),
 
-  // 문자열
+  // Strings
   minLength: (c) => ({ minLength: c.min as number }),
   maxLength: (c) => ({ maxLength: c.max as number }),
   length:    (c) => ({ minLength: c.min as number, maxLength: c.max as number }),
   matches:   (c) => ({ pattern: c.pattern as string }),
 
-  // format 계열
+  // Format family
   isEmail:   () => ({ format: 'email' }),
   isURL:     () => ({ format: 'uri' }),
   isUUID:    () => ({ format: 'uuid' }),
@@ -96,29 +96,29 @@ const RULE_SCHEMA_MAP: Record<string, (c: Record<string, unknown>) => JsonSchema
   isIP: (c) => {
     if (c.version === 4) return { format: 'ipv4' };
     if (c.version === 6) return { format: 'ipv6' };
-    return null; // 버전 미지정 → 스키마 매핑 없음
+    return null; // Version not specified — no schema mapping
   },
 
-  // 배열
+  // Arrays
   arrayMinSize:  (c) => ({ minItems: c.min as number }),
   arrayMaxSize:  (c) => ({ maxItems: c.max as number }),
   arrayUnique:   () => ({ uniqueItems: true }),
   arrayNotEmpty: () => ({ minItems: 1 }),
   arrayContains: (c) => ({ contains: { enum: c.values as unknown[] } }),
 
-  // 객체
+  // Objects
   isNotEmptyObject: () => ({ minProperties: 1 }),
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// toJsonSchema() — 엔트리포인트 (§6.1)
+// toJsonSchema() — entry point (§6.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 등록된 DTO 클래스를 JSON Schema Draft 2020-12 형식으로 변환한다.
- * - 루트 클래스는 인라인, 중첩 클래스는 $defs에 배치
- * - 순환 참조는 $ref로 안전 처리
- * - seal() 이전에도 호출 가능 (RAW 메타데이터 직접 사용)
+ * Converts a registered DTO class to JSON Schema Draft 2020-12 format.
+ * - Root class is inlined, nested classes are placed in $defs
+ * - Circular references are safely handled via $ref
+ * - Can be called before seal() (uses RAW metadata directly)
  */
 export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): JsonSchema202012 {
   const ctx: SchemaContext = {
@@ -132,17 +132,17 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     onUnmappedRule: options?.onUnmappedRule,
   };
 
-  // 루트 클래스 인라인 구축 (processNestedClass가 아닌 직접 호출)
+  // Build root class inline (direct call, not processNestedClass)
   ctx.processing.add(Class);
   const bodySchema = buildClassSchema(Class, ctx);
   ctx.processing.delete(Class);
 
-  // 순환 참조로 루트가 $ref된 경우 → $defs에도 등록
+  // If root was $ref'd due to circular reference — also register in $defs
   if (ctx.defKeyMap.has(Class)) {
     ctx.defs[ctx.defKeyMap.get(Class)!] = bodySchema;
   }
 
-  // 최종 루트 스키마 조립
+  // Assemble final root schema
   const rootSchema: JsonSchema202012 = { ...bodySchema };
   rootSchema.$schema = 'https://json-schema.org/draft/2020-12/schema';
 
@@ -150,7 +150,7 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     rootSchema.$defs = ctx.defs;
   }
 
-  // 클래스 레벨 @Schema 병합 (키별 deep merge)
+  // Merge class-level @Schema (per-key deep merge)
   const classSchema = (Class as any)[RAW_CLASS_SCHEMA] as Record<string, unknown> | undefined;
   if (classSchema) {
     for (const [key, val] of Object.entries(classSchema)) {
@@ -164,7 +164,7 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
     }
   }
 
-  // toJsonSchema 호출 시 전달된 클래스 레벨 메타데이터
+  // Class-level metadata passed via toJsonSchema call
   if (options?.title) rootSchema.title = options.title;
   if (options?.description) rootSchema.description = options.description;
   if (options?.$id) rootSchema.$id = options.$id;
@@ -173,7 +173,7 @@ export function toJsonSchema(Class: Function, options?: ToJsonSchemaOptions): Js
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getDefKey — 동명 클래스 disambiguation (§6.2)
+// getDefKey — same-named class disambiguation (§6.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getDefKey(C: Function, ctx: SchemaContext): string {
@@ -189,23 +189,23 @@ function getDefKey(C: Function, ctx: SchemaContext): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// processNestedClass — 중첩 DTO → $ref (§6.2)
+// processNestedClass — nested DTO → $ref (§6.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function processNestedClass(C: Function, ctx: SchemaContext): JsonSchema202012 {
-  // 이미 완료 → $ref
+  // Already processed — $ref
   const existingKey = ctx.defKeyMap.get(C);
   if (existingKey !== undefined && existingKey in ctx.defs) {
     return { $ref: `#/$defs/${existingKey}` };
   }
 
-  // 순환 감지: 현재 스택에 있으면 $ref (스키마는 나중에 채워짐)
+  // Circular detection: if on current stack, emit $ref (schema will be filled later)
   if (ctx.processing.has(C)) {
     const defKey = getDefKey(C, ctx);
     return { $ref: `#/$defs/${defKey}` };
   }
 
-  // 새 클래스 처리
+  // Process new class
   const defKey = getDefKey(C, ctx);
   ctx.processing.add(C);
   const schema = buildClassSchema(C, ctx);
@@ -216,7 +216,7 @@ function processNestedClass(C: Function, ctx: SchemaContext): JsonSchema202012 {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildClassSchema — 클래스 → { type: "object", properties, required } (§6.1)
+// buildClassSchema — class → { type: "object", properties, required } (§6.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
@@ -226,11 +226,11 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
   const required: string[] = [];
 
   for (const [fieldKey, meta] of Object.entries(merged)) {
-    // @Exclude 방향 필터링 + @Expose name 결정 (§6.9)
+    // @Exclude direction filtering + @Expose name resolution (§6.9)
     const schemaKey = getSchemaKey(meta, fieldKey, ctx.direction);
     if (schemaKey === null) continue;
 
-    // @Expose groups 필터링 (§6.4)
+    // @Expose groups filtering (§6.4)
     if (ctx.groups) {
       const dirExposes = meta.expose.filter(e => {
         if (ctx.direction === 'deserialize' && e.serializeOnly) return false;
@@ -244,7 +244,7 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
         });
         if (!anyMatch) continue;
       } else if (meta.validation.length > 0 && meta.validation.every(rd => rd.groups && rd.groups.length > 0)) {
-        // 모든 규칙이 groups 지정 → 필드 레벨 groups 필터 적용
+        // All rules specify groups — apply field-level groups filter
         const anyRuleMatch = meta.validation.some(rd =>
           rd.groups!.some(g => ctx.groups!.includes(g)),
         );
@@ -252,11 +252,11 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
       }
     }
 
-    // 프로퍼티 스키마 구축
+    // Build property schema
     const propSchema = buildPropertySchema(meta, ctx, fieldKey);
     properties[schemaKey] = propSchema;
 
-    // required 결정: @IsOptional이 아니면 required
+    // Determine required: required unless @IsOptional
     if (!meta.flags.isOptional) {
       required.push(schemaKey);
     }
@@ -270,20 +270,20 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// getSchemaKey — @Exclude/@Expose 방향 인식 키 결정 (§6.9)
+// getSchemaKey — direction-aware key resolution for @Exclude/@Expose (§6.9)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function getSchemaKey(
   meta: RawPropertyMeta, fieldKey: string, direction: string,
 ): string | null {
-  // @Exclude 필터링
+  // @Exclude filtering
   if (meta.exclude) {
     if (!meta.exclude.deserializeOnly && !meta.exclude.serializeOnly) return null;
     if (direction === 'deserialize' && !meta.exclude.serializeOnly) return null;
     if (direction === 'serialize' && !meta.exclude.deserializeOnly) return null;
   }
 
-  // @Expose name (방향 매칭 — 첫 번째 매칭 사용)
+  // @Expose name (direction matching — use first match)
   const expose = meta.expose.find(e => {
     if (direction === 'deserialize' && e.serializeOnly) return false;
     if (direction === 'serialize' && e.deserializeOnly) return false;
@@ -293,21 +293,21 @@ function getSchemaKey(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildPropertySchema — 프로퍼티 메타 → JSON Schema (§6.3, §6.10, §6.11)
+// buildPropertySchema — property meta → JSON Schema (§6.3, §6.10, §6.11)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
-  // Collection (Map/Set) → 특수 스키마
+  // Collection (Map/Set) → special schema
   if (meta.type?.collection) {
     return buildCollectionSchema(meta, ctx, fieldKey);
   }
 
-  // @Type/@Nested → $ref 또는 discriminator
+  // @Type/@Nested → $ref or discriminator
   if (meta.type) {
     return buildNestedTypeSchema(meta, ctx, fieldKey);
   }
 
-  // each / non-each 룰 분리 (§6.10)
+  // Separate each / non-each rules (§6.10)
   const nonEachRules = filterByGroups(
     meta.validation.filter(rd => !rd.each), ctx.groups,
   );
@@ -315,10 +315,10 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey
     meta.validation.filter(rd => rd.each), ctx.groups,
   );
 
-  // 자동 매핑
+  // Auto-mapping
   const autoSchema = mapRulesToSchema(nonEachRules, ctx, fieldKey);
 
-  // each:true → items 서브스키마
+  // each:true → items sub-schema
   if (eachRules.length > 0) {
     const itemSchema = mapRulesToSchema(eachRules, ctx, fieldKey);
     if (Object.keys(itemSchema).length > 0) {
@@ -326,12 +326,12 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey
     }
   }
 
-  // @IsNullable → type 배열 (§6.11)
+  // @IsNullable → type array (§6.11)
   if (meta.flags.isNullable) {
     applyNullable(autoSchema);
   }
 
-  // @Schema 병합 (§6.5, §6.6)
+  // @Schema merge (§6.5, §6.6)
   return applyUserSchema(meta, autoSchema);
 }
 
@@ -373,7 +373,7 @@ function buildNestedTypeSchema(
   let innerSchema: JsonSchema202012;
 
   if (meta.type!.discriminator) {
-    // discriminator → oneOf + const 패턴
+    // discriminator → oneOf + const pattern
     const { property, subTypes } = meta.type!.discriminator;
     const oneOf: JsonSchema202012[] = subTypes.map(sub => {
       const ref = processNestedClass(sub.value as Function, ctx);
@@ -386,17 +386,17 @@ function buildNestedTypeSchema(
     });
     innerSchema = { oneOf };
   } else {
-    // 단순 중첩 참조
+    // Simple nested reference
     const nestedClass = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
     innerSchema = processNestedClass(nestedClass, ctx);
   }
 
-  // each:true / validateNestedEach → 배열 래핑
+  // each:true / validateNestedEach → array wrapping
   const isArray = meta.type?.isArray || meta.flags.validateNestedEach;
   if (isArray) {
     const schema: JsonSchema202012 = { type: 'array', items: innerSchema };
 
-    // 배열 레벨 룰 (minItems, maxItems, uniqueItems)
+    // Array-level rules (minItems, maxItems, uniqueItems)
     const arrayRules = filterByGroups(
       meta.validation.filter(rd => !rd.each), ctx.groups,
     );
@@ -424,7 +424,7 @@ function buildNestedTypeSchema(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 유틸리티 함수
+// Utility functions
 // ─────────────────────────────────────────────────────────────────────────────
 
 function filterByGroups(rules: RuleDef[], groups?: string[]): RuleDef[] {
@@ -474,11 +474,11 @@ function applyUserSchema(
   if (meta.schema == null) return autoSchema;
 
   if (typeof meta.schema === 'function') {
-    // 함수형: auto 스키마를 인자로 전달, 결과 반환
+    // Function form: pass auto schema as argument, return result
     return meta.schema(autoSchema) as JsonSchema202012;
   }
 
-  // 객체형: composition-aware merge (§6.5)
+  // Object form: composition-aware merge (§6.5)
   const userSchema = meta.schema as JsonSchema202012;
   const hasComposition = Object.keys(userSchema).some(k => COMPOSITION_KEYWORDS.has(k));
   return hasComposition ? { ...autoSchema, ...userSchema } : { ...autoSchema, ...userSchema };

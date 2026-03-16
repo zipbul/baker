@@ -5,7 +5,7 @@ import { ensureMeta, collectSchema, collectClassSchema } from '../collect';
 import { toJsonSchema } from './to-json-schema';
 import type { JsonSchema202012 } from '../types';
 
-// 테스트에서 사용한 모든 클래스를 추적하여 afterEach에서 정리
+// Track all classes used in tests for cleanup in afterEach
 const trackedClasses: Function[] = [];
 
 function makeClass(name = 'TestDto'): new (...args: any[]) => any {
@@ -16,7 +16,7 @@ function makeClass(name = 'TestDto'): new (...args: any[]) => any {
   return ctor;
 }
 
-/** 룰을 RuleDef에 맞게 생성하는 헬퍼 */
+/** Helper to create rules conforming to RuleDef */
 function fakeRule(ruleName: string, constraints: Record<string, unknown> = {}, each = false) {
   const fn = () => true;
   (fn as any).ruleName = ruleName;
@@ -35,13 +35,13 @@ afterEach(() => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 기본 구조
+// Basic structure
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 기본 구조', () => {
-  it('빈 DTO → { type: "object", properties: {} }', () => {
+describe('toJsonSchema — basic structure', () => {
+  it('empty DTO → { type: "object", properties: {} }', () => {
     const Dto = makeClass('EmptyDto');
-    // ensureMeta를 호출하지 않아도 mergeInheritance가 빈 객체 반환
+    // mergeInheritance returns empty object even without calling ensureMeta
     const schema = toJsonSchema(Dto);
     expect(schema.$schema).toBe('https://json-schema.org/draft/2020-12/schema');
     expect(schema.type).toBe('object');
@@ -49,7 +49,7 @@ describe('toJsonSchema — 기본 구조', () => {
     expect(schema.required).toBeUndefined();
   });
 
-  it('단일 문자열 필드', () => {
+  it('single string field', () => {
     const Dto = makeClass('StringDto');
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));
@@ -59,7 +59,7 @@ describe('toJsonSchema — 기본 구조', () => {
     expect(schema.required).toEqual(['name']);
   });
 
-  it('다중 필드 + required 결정', () => {
+  it('multiple fields + required determination', () => {
     const Dto = makeClass('MultiDto');
     const meta1 = ensureMeta(Dto, 'name');
     meta1.validation.push(fakeRule('isString'));
@@ -81,10 +81,10 @@ describe('toJsonSchema — 기본 구조', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 타입 매핑
+// Type mapping
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 타입 매핑', () => {
+describe('toJsonSchema — type mapping', () => {
   it.each([
     ['isString', {}, { type: 'string' }],
     ['isNumber', {}, { type: 'number' }],
@@ -155,10 +155,10 @@ describe('toJsonSchema — enum / const', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 숫자 제약
+// Number constraints
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 숫자', () => {
+describe('toJsonSchema — numbers', () => {
   it('min/max (inclusive)', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'age');
@@ -207,10 +207,10 @@ describe('toJsonSchema — 숫자', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 문자열 제약
+// String constraints
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 문자열', () => {
+describe('toJsonSchema — strings', () => {
   it('minLength / maxLength', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'name');
@@ -244,7 +244,7 @@ describe('toJsonSchema — 문자열', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// format 매핑
+// Format mapping
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('toJsonSchema — format', () => {
@@ -265,7 +265,7 @@ describe('toJsonSchema — format', () => {
     expect(schema.properties!.field!.format).toBe(expectedFormat);
   });
 
-  it('isIP (버전 미지정) → 스키마 매핑 없음', () => {
+  it('isIP (version unspecified) → no schema mapping', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'ip');
     meta.validation.push(fakeRule('isString'));
@@ -277,10 +277,10 @@ describe('toJsonSchema — format', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 배열 제약
+// Array constraints
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 배열', () => {
+describe('toJsonSchema — arrays', () => {
   it('arrayMinSize / arrayMaxSize / arrayUnique', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'tags');
@@ -317,10 +317,10 @@ describe('toJsonSchema — 배열', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 객체 제약
+// Object constraints
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 객체', () => {
+describe('toJsonSchema — objects', () => {
   it('isNotEmptyObject → minProperties: 1', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'obj');
@@ -332,11 +332,11 @@ describe('toJsonSchema — 객체', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @IsOptional / @IsDefined / @IsNullable
+// @IsOptional / @IsDefined / @IsNullable flags
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 플래그', () => {
-  it('@IsOptional → required 배열에서 제외', () => {
+describe('toJsonSchema — flags', () => {
+  it('@IsOptional → excluded from required array', () => {
     const Dto = makeClass();
     const m1 = ensureMeta(Dto, 'required');
     m1.validation.push(fakeRule('isString'));
@@ -348,7 +348,7 @@ describe('toJsonSchema — 플래그', () => {
     expect(schema.required).toEqual(['required']);
   });
 
-  it('@IsNullable → type 배열에 "null" 추가', () => {
+  it('@IsNullable → adds "null" to type array', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'field');
     meta.validation.push(fakeRule('isString'));
@@ -360,7 +360,7 @@ describe('toJsonSchema — 플래그', () => {
     });
   });
 
-  it('@IsNullable (type 미지정) → type: ["null"]', () => {
+  it('@IsNullable (no type specified) → type: ["null"]', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'field');
     meta.flags.isNullable = true;
@@ -400,11 +400,11 @@ describe('toJsonSchema — 플래그', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// each:true → items 서브스키마 (§6.10)
+// each:true → items sub-schema (§6.10)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('toJsonSchema — each:true', () => {
-  it('each 룰 → items에 매핑', () => {
+  it('each rules → mapped to items', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'emails');
     meta.validation.push(fakeRule('isArray'));
@@ -422,11 +422,11 @@ describe('toJsonSchema — each:true', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Exclude 방향 인식 (§6.9)
+// @Exclude direction awareness (§6.9)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('toJsonSchema — @Exclude', () => {
-  it('@Exclude() → 양방향 제외', () => {
+  it('@Exclude() → excluded in both directions', () => {
     const Dto = makeClass();
     const m1 = ensureMeta(Dto, 'visible');
     m1.validation.push(fakeRule('isString'));
@@ -440,7 +440,7 @@ describe('toJsonSchema — @Exclude', () => {
     expect(ser.properties!.hidden).toBeUndefined();
   });
 
-  it('@Exclude({ deserializeOnly: true }) → serialize에서 포함', () => {
+  it('@Exclude({ deserializeOnly: true }) → included in serialize', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'secret');
     meta.validation.push(fakeRule('isString'));
@@ -452,7 +452,7 @@ describe('toJsonSchema — @Exclude', () => {
     expect(ser.properties!.secret).toEqual({ type: 'string' });
   });
 
-  it('@Exclude({ serializeOnly: true }) → deserialize에서 포함', () => {
+  it('@Exclude({ serializeOnly: true }) → included in deserialize', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'password');
     meta.validation.push(fakeRule('isString'));
@@ -470,7 +470,7 @@ describe('toJsonSchema — @Exclude', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('toJsonSchema — @Expose', () => {
-  it('@Expose({ name }) → 스키마 키 변경', () => {
+  it('@Expose({ name }) → schema key renamed', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'userName');
     meta.validation.push(fakeRule('isString'));
@@ -482,7 +482,7 @@ describe('toJsonSchema — @Expose', () => {
     expect(schema.required).toEqual(['user_name']);
   });
 
-  it('@Expose 방향별 name 매핑', () => {
+  it('@Expose per-direction name mapping', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'firstName');
     meta.validation.push(fakeRule('isString'));
@@ -495,7 +495,7 @@ describe('toJsonSchema — @Expose', () => {
     expect(ser.properties!.firstName).toEqual({ type: 'string' });
   });
 
-  it('@Expose({ groups }) → groups 필터링', () => {
+  it('@Expose({ groups }) → groups filtering', () => {
     const Dto = makeClass();
     const m1 = ensureMeta(Dto, 'public');
     m1.validation.push(fakeRule('isString'));
@@ -523,8 +523,8 @@ describe('toJsonSchema — @Expose', () => {
 // @Type/@Nested → $ref (§6.3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 중첩 DTO', () => {
-  it('단순 @Type → $ref + $defs', () => {
+describe('toJsonSchema — nested DTOs', () => {
+  it('simple @Type → $ref + $defs', () => {
     const AddressDto = makeClass('AddressDto');
     const addrMeta = ensureMeta(AddressDto, 'city');
     addrMeta.validation.push(fakeRule('isString'));
@@ -641,11 +641,11 @@ describe('toJsonSchema — 중첩 DTO', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 순환 참조 (§6.2)
+// Circular references (§6.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 순환 참조', () => {
-  it('A → B → A 순환', () => {
+describe('toJsonSchema — circular references', () => {
+  it('A → B → A cycle', () => {
     const A = makeClass('A');
     const B = makeClass('B');
 
@@ -659,14 +659,14 @@ describe('toJsonSchema — 순환 참조', () => {
 
     const schema = toJsonSchema(A);
 
-    // A는 루트에 인라인되며, 순환 때문에 $defs에도 등록
+    // A is inlined at root, and also registered in $defs due to circular reference
     expect(schema.type).toBe('object');
     expect(schema.properties!.b).toEqual({ $ref: '#/$defs/B' });
     expect(schema.$defs!.B!.properties!.a).toEqual({ $ref: '#/$defs/A' });
     expect(schema.$defs!.A).toBeDefined();
   });
 
-  it('자기 참조', () => {
+  it('self-reference', () => {
     const Node = makeClass('Node');
     const childMeta = ensureMeta(Node, 'child');
     childMeta.type = { fn: () => Node as any };
@@ -678,7 +678,7 @@ describe('toJsonSchema — 순환 참조', () => {
     expect(schema.$defs!.Node).toBeDefined();
   });
 
-  it('동명 클래스 disambiguation', () => {
+  it('same-named class disambiguation', () => {
     const A1 = makeClass('Item');
     const A2 = makeClass('Item');
     const nameMeta1 = ensureMeta(A1, 'x');
@@ -701,11 +701,11 @@ describe('toJsonSchema — 순환 참조', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Schema — 프로퍼티 레벨 (§6.5, §6.6)
+// @Schema — property level (§6.5, §6.6)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — @Schema (프로퍼티)', () => {
-  it('객체형: 자동 매핑 오버라이드', () => {
+describe('toJsonSchema — @Schema (property)', () => {
+  it('object form: override auto-mapping', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));
@@ -713,13 +713,13 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     collectSchema(Dto.prototype, 'name', { minLength: 5, description: 'User name' });
 
     const schema = toJsonSchema(Dto);
-    // @Schema 우선 → minLength는 5 (자동 매핑 1을 오버라이드)
+    // @Schema takes priority → minLength is 5 (overrides auto-mapped 1)
     expect(schema.properties!.name).toEqual({
       type: 'string', minLength: 5, description: 'User name',
     });
   });
 
-  it('함수형: auto 스키마 제어', () => {
+  it('function form: control auto schema', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'value');
     meta.validation.push(fakeRule('isString'));
@@ -734,7 +734,7 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     ]);
   });
 
-  it('composition-aware merge: allOf 있으면 자동 매핑 억제', () => {
+  it('composition-aware merge: auto-mapping preserved with allOf', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'field');
     meta.validation.push(fakeRule('isString'));
@@ -744,7 +744,7 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
     });
 
     const schema = toJsonSchema(Dto);
-    // C-15: composition 키워드가 있어도 자동 매핑(type, minLength)이 base로 유지됨
+    // C-15: auto-mapping (type, minLength) is preserved as base even with composition keywords
     expect(schema.properties!.field).toEqual({
       type: 'string', minLength: 3,
       allOf: [{ minLength: 1 }, { maxLength: 100 }],
@@ -754,11 +754,11 @@ describe('toJsonSchema — @Schema (프로퍼티)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Schema — 클래스 레벨 (§6.8)
+// @Schema — class level (§6.8)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — @Schema (클래스)', () => {
-  it('클래스 레벨 메타데이터 루트에 병합', () => {
+describe('toJsonSchema — @Schema (class)', () => {
+  it('class-level metadata merged into root', () => {
     const Dto = makeClass('CreateUserDto');
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));
@@ -775,11 +775,11 @@ describe('toJsonSchema — @Schema (클래스)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 매핑되지 않는 룰 → 자동 스킵
+// Unmapped rules → auto-skip
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('toJsonSchema — 미등록 룰 스킵', () => {
-  it('커스텀 룰은 에러 없이 무시', () => {
+describe('toJsonSchema — unregistered rule skip', () => {
+  it('custom rules are silently ignored', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'field');
     meta.validation.push(fakeRule('isString'));
@@ -791,7 +791,7 @@ describe('toJsonSchema — 미등록 룰 스킵', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// groups 필터링 (§6.4)
+// Groups filtering (§6.4)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -808,7 +808,7 @@ describe('toJsonSchema — whitelist', () => {
     expect(schema.unevaluatedProperties).toBe(false);
   });
 
-  it('whitelist: false (기본) → unevaluatedProperties 미출력', () => {
+  it('whitelist: false (default) → unevaluatedProperties not emitted', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));
@@ -817,7 +817,7 @@ describe('toJsonSchema — whitelist', () => {
     expect(schema.unevaluatedProperties).toBeUndefined();
   });
 
-  it('whitelist: $defs 내 중첩 스키마에도 적용', () => {
+  it('whitelist: also applied to nested schemas in $defs', () => {
     const Inner = makeClass('Inner');
     const iMeta = ensureMeta(Inner, 'x');
     iMeta.validation.push(fakeRule('isNumber'));
@@ -858,7 +858,7 @@ describe('toJsonSchema — exclusive min/max', () => {
 });
 
 describe('toJsonSchema — groups', () => {
-  it('groups 필터링으로 특정 그룹의 룰만 포함', () => {
+  it('groups filtering includes only rules of specific group', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));
@@ -882,7 +882,7 @@ describe('toJsonSchema — groups', () => {
     });
   });
 
-  it('groups 미지정 → 모든 룰 포함', () => {
+  it('no groups specified → all rules included', () => {
     const Dto = makeClass();
     const meta = ensureMeta(Dto, 'name');
     meta.validation.push(fakeRule('isString'));

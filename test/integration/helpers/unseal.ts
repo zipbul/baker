@@ -6,17 +6,17 @@ import { _resetConfigForTesting } from '../../../src/configure';
 import type { SealedExecutors } from '../../../src/types';
 
 /**
- * 테스트 전용: 봉인 상태 + 글로벌 설정을 초기화한다.
- * - _merged 캐시에서 RAW 복원 + globalRegistry 재등록
- * - 모든 Class[SEALED] 제거
- * - _sealed 플래그 false로 리셋
- * - configure() 글로벌 옵션 리셋
- * - 프로덕션에서 사용 금지
+ * Testing only: resets seal state + global configuration.
+ * - Restores RAW from _merged cache + re-registers in globalRegistry
+ * - Removes Class[SEALED] from all classes
+ * - Resets _sealed flag to false
+ * - Resets configure() global options
+ * - Do NOT use in production
  */
 export function unseal(): void {
   for (const Class of _sealedClasses) {
     const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
-    // _merged에서 RAW 복원 (re-seal 가능하게) — frozen RAW도 덮어씀
+    // Restore RAW from _merged (to allow re-seal) — overwrites frozen RAW too
     if (sealed?._merged) {
       (Class as any)[RAW] = sealed._merged;
     }

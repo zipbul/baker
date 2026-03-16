@@ -11,7 +11,7 @@ import { globalRegistry } from './registry';
 
 const RAW = Symbol.for('baker:raw');
 
-// 테스트에서 생성한 클래스를 추적하여 afterEach에서 globalRegistry를 정리한다.
+// Track classes created in tests so globalRegistry can be cleaned up in afterEach.
 const createdCtors: Function[] = [];
 function tracked<T extends new (...args: any[]) => any>(ctor: T): T {
   createdCtors.push(ctor);

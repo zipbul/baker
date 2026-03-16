@@ -61,11 +61,11 @@ describe('serialize — integration', () => {
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
   });
 
-  it('serialize는 async function이 아닌 일반 함수', () => {
+  it('serialize is a regular function, not an async function', () => {
     expect(serialize.constructor.name).not.toBe('AsyncFunction');
   });
 
-  it('sync DTO serialize는 Promise를 반환', () => {
+  it('sync DTO serialize returns a Promise', () => {
     const dto = Object.assign(new SimpleSerializeDto(), { name: 'Test', age: 1 });
     const result = serialize(dto);
     expect(result).toBeInstanceOf(Promise);

@@ -11,7 +11,7 @@ import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-/** 헬퍼: errors 배열 추출 */
+/** Helper: extract errors array */
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   try {
     await deserialize(cls, input);
@@ -24,40 +24,40 @@ async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
 
 // ─── 1. @IsString + @MinLength + @MaxLength + @Matches ─────────────────────
 
-describe('@IsString + @MinLength + @MaxLength + @Matches 스택', () => {
+describe('@IsString + @MinLength + @MaxLength + @Matches stack', () => {
   class UsernameDto {
     @Field(isString, minLength(3), maxLength(20), matches(/^[a-z0-9_]+$/))
     username!: string;
   }
 
-  it('모든 조건 통과', async () => {
+  it('all conditions pass', async () => {
     const r = await deserialize<UsernameDto>(UsernameDto, { username: 'john_doe123' });
     expect(r.username).toBe('john_doe123');
   });
 
-  it('타입 실패 → isString', async () => {
+  it('type failure → isString', async () => {
     const errors = await getErrors(UsernameDto, { username: 123 });
     expect(errors.some(e => e.code === 'isString')).toBe(true);
   });
 
-  it('너무 짧음 → minLength', async () => {
+  it('too short → minLength', async () => {
     const errors = await getErrors(UsernameDto, { username: 'ab' });
     expect(errors.some(e => e.code === 'minLength')).toBe(true);
   });
 
-  it('너무 김 → maxLength', async () => {
+  it('too long → maxLength', async () => {
     const errors = await getErrors(UsernameDto, { username: 'a'.repeat(21) });
     expect(errors.some(e => e.code === 'maxLength')).toBe(true);
   });
 
-  it('패턴 불일치 → matches', async () => {
+  it('pattern mismatch → matches', async () => {
     const errors = await getErrors(UsernameDto, { username: 'UPPER' });
     expect(errors.some(e => e.code === 'matches')).toBe(true);
   });
 
-  it('길이 + 패턴 동시 실패 시 두 에러 수집', async () => {
+  it('length + pattern simultaneous failure collects both errors', async () => {
     const errors = await getErrors(UsernameDto, { username: 'A!' });
-    // minLength(3) 실패 + matches 실패
+    // minLength(3) failure + matches failure
     expect(errors.length).toBeGreaterThanOrEqual(2);
     const codes = errors.map(e => e.code);
     expect(codes).toContain('minLength');
@@ -67,7 +67,7 @@ describe('@IsString + @MinLength + @MaxLength + @Matches 스택', () => {
 
 // ─── 2. @IsOptional + @Min + @Transform ────────────────────────────────────
 
-describe('@IsOptional + @Min + @Transform 조합', () => {
+describe('@IsOptional + @Min + @Transform combination', () => {
   class ScoreDto {
     @Field(isNumber(), min(0), {
       optional: true,
@@ -76,17 +76,17 @@ describe('@IsOptional + @Min + @Transform 조합', () => {
     score?: number;
   }
 
-  it('undefined 시 통과 (Optional)', async () => {
+  it('undefined → passes (Optional)', async () => {
     const r = await deserialize<ScoreDto>(ScoreDto, {});
     expect(r.score).toBeUndefined();
   });
 
-  it('문자열 "42" → Transform → 숫자 42 + Min(0) 통과', async () => {
+  it('string "42" → Transform → number 42 + Min(0) passes', async () => {
     const r = await deserialize<ScoreDto>(ScoreDto, { score: '42' });
     expect(r.score).toBe(42);
   });
 
-  it('문자열 "-5" → Transform → -5 → Min(0) 거부', async () => {
+  it('string "-5" → Transform → -5 → Min(0) rejected', async () => {
     const errors = await getErrors(ScoreDto, { score: '-5' });
     expect(errors.some(e => e.code === 'min')).toBe(true);
   });
@@ -94,23 +94,23 @@ describe('@IsOptional + @Min + @Transform 조합', () => {
 
 // ─── 3. @IsDefined + @IsNullable (null OK, undefined NOT OK) ──────────────
 
-describe('@IsDefined + @IsNullable 조합', () => {
+describe('@IsDefined + @IsNullable combination', () => {
   class RequiredNullableDto {
     @Field(isString, { nullable: true })
     value!: string | null;
   }
 
-  it('유효한 문자열 통과', async () => {
+  it('valid string passes', async () => {
     const r = await deserialize<RequiredNullableDto>(RequiredNullableDto, { value: 'hello' });
     expect(r.value).toBe('hello');
   });
 
-  it('null 통과 (@IsNullable)', async () => {
+  it('null passes (@IsNullable)', async () => {
     const r = await deserialize<RequiredNullableDto>(RequiredNullableDto, { value: null });
     expect(r.value).toBeNull();
   });
 
-  it('undefined (누락) 거부 (@IsDefined)', async () => {
+  it('undefined (missing) rejected (@IsDefined)', async () => {
     const errors = await getErrors(RequiredNullableDto, {});
     expect(errors.some(e => e.code === 'isDefined')).toBe(true);
   });
@@ -118,7 +118,7 @@ describe('@IsDefined + @IsNullable 조합', () => {
 
 // ─── 4. @Transform + @IsEnum ───────────────────────────────────────────────
 
-describe('@Transform + @IsEnum 조합', () => {
+describe('@Transform + @IsEnum combination', () => {
   enum Status { Active = 'active', Inactive = 'inactive' }
 
   class StatusDto {
@@ -128,20 +128,20 @@ describe('@Transform + @IsEnum 조합', () => {
     status!: Status;
   }
 
-  it('"ACTIVE" → lowercase Transform → "active" → enum 통과', async () => {
+  it('"ACTIVE" → lowercase Transform → "active" → enum passes', async () => {
     const r = await deserialize<StatusDto>(StatusDto, { status: 'ACTIVE' });
     expect(r.status as string).toBe('active');
   });
 
-  it('"unknown" → lowercase → enum 거부', async () => {
+  it('"unknown" → lowercase → enum rejected', async () => {
     const errors = await getErrors(StatusDto, { status: 'unknown' });
     expect(errors.some(e => e.code === 'isEnum')).toBe(true);
   });
 });
 
-// ─── 5. @ValidateIf + @IsNumber 조합 ──────────────────────────────────────
+// ─── 5. @ValidateIf + @IsNumber combination ──────────────────────────────
 
-describe('@ValidateIf + @IsNumber 조합', () => {
+describe('@ValidateIf + @IsNumber combination', () => {
   class ConditionalDto {
     @Field(isBoolean) hasDiscount!: boolean;
 
@@ -151,23 +151,23 @@ describe('@ValidateIf + @IsNumber 조합', () => {
     discountPercent!: number;
   }
 
-  it('hasDiscount=true + 유효 discount 통과', async () => {
+  it('hasDiscount=true + valid discount passes', async () => {
     const r = await deserialize<ConditionalDto>(ConditionalDto, { hasDiscount: true, discountPercent: 15 });
     expect(r.discountPercent).toBe(15);
   });
 
-  it('hasDiscount=true + 무효 discount 거부', async () => {
+  it('hasDiscount=true + invalid discount rejected', async () => {
     const errors = await getErrors(ConditionalDto, { hasDiscount: true, discountPercent: 150 });
     expect(errors.some(e => e.code === 'max')).toBe(true);
   });
 
-  it('hasDiscount=false + 무효 discount 스킵', async () => {
+  it('hasDiscount=false + invalid discount skipped', async () => {
     const r = await deserialize<ConditionalDto>(ConditionalDto, { hasDiscount: false, discountPercent: 'bad' });
-    // discountPercent 검증 스킵
+    // discountPercent validation skipped
     expect(r.hasDiscount).toBe(false);
   });
 
-  it('hasDiscount=false + discount 누락 스킵', async () => {
+  it('hasDiscount=false + discount missing skipped', async () => {
     const r = await deserialize<ConditionalDto>(ConditionalDto, { hasDiscount: false });
     expect(r.hasDiscount).toBe(false);
   });
@@ -175,7 +175,7 @@ describe('@ValidateIf + @IsNumber 조합', () => {
 
 // ─── 6. @Exclude(deserializeOnly) + @Transform(serializeOnly) ─────────────
 
-describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) 동일 필드', () => {
+describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () => {
   class MixedDto {
     @Field(isString) name!: string;
 
@@ -187,10 +187,10 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) 동일 필드', 
     secret!: string;
   }
 
-  it('deserialize 시 secret 제외', async () => {
+  it('deserialize excludes secret', async () => {
     const r = await deserialize<MixedDto>(MixedDto, { name: 'test', secret: 'hidden' });
     expect(r.name).toBe('test');
-    // Exclude deserializeOnly → deserialize 시 secret 무시
+    // Exclude deserializeOnly → secret ignored during deserialize
     expect(r.secret).toBeUndefined();
   });
 });
@@ -212,12 +212,12 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
     tags?: Tag[];
   }
 
-  it('tags 누락 → Optional 통과', async () => {
+  it('tags missing → Optional passes', async () => {
     const r = await deserialize<ArticleDto>(ArticleDto, { title: 'Hello' });
     expect(r.tags).toBeUndefined();
   });
 
-  it('유효 tags 배열 통과', async () => {
+  it('valid tags array passes', async () => {
     const r = await deserialize<ArticleDto>(ArticleDto, {
       title: 'Hello',
       tags: [{ label: 'news' }, { label: 'tech' }],
@@ -226,12 +226,12 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
     expect(r.tags![0]!.label).toBe('news');
   });
 
-  it('빈 tags 배열 → ArrayMinSize 거부', async () => {
+  it('empty tags array → ArrayMinSize rejected', async () => {
     const errors = await getErrors(ArticleDto, { title: 'Hello', tags: [] });
     expect(errors.some(e => e.code === 'arrayMinSize')).toBe(true);
   });
 
-  it('tags 배열 내 무효 항목 → isString 에러 경로 포함', async () => {
+  it('invalid item in tags array → isString error path included', async () => {
     const errors = await getErrors(ArticleDto, {
       title: 'Hello',
       tags: [{ label: 'ok' }, { label: 123 }],
@@ -240,9 +240,9 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
   });
 });
 
-// ─── 8. 깊은 스택: @Expose + @Transform + @IsString + @MinLength ──────────
+// ─── 8. deep stack: @Expose + @Transform + @IsString + @MinLength ──────────
 
-describe('@Expose + @Transform + @IsString + @MinLength 깊은 스택', () => {
+describe('@Expose + @Transform + @IsString + @MinLength deep stack', () => {
   class DeepStackDto {
     @Field(isString, minLength(2), {
       name: 'raw_input',
@@ -251,26 +251,26 @@ describe('@Expose + @Transform + @IsString + @MinLength 깊은 스택', () => {
     processedInput!: string;
   }
 
-  it('raw_input → trim+lowercase → MinLength 통과', async () => {
+  it('raw_input → trim+lowercase → MinLength passes', async () => {
     const r = await deserialize<DeepStackDto>(DeepStackDto, { raw_input: '  HELLO  ' });
     expect(r.processedInput).toBe('hello');
   });
 
-  it('serialize 시 Expose name 사용', async () => {
+  it('serialize uses Expose name', async () => {
     const r = await deserialize<DeepStackDto>(DeepStackDto, { raw_input: 'TEST' });
     const plain = await serialize(r);
     expect(plain).toHaveProperty('raw_input');
   });
 
-  it('trim 후 1자 → MinLength 거부', async () => {
+  it('trimmed to 1 char → MinLength rejected', async () => {
     const errors = await getErrors(DeepStackDto, { raw_input: ' X ' });
     expect(errors.some(e => e.code === 'minLength')).toBe(true);
   });
 });
 
-// ─── 9. @ValidateIf + @Transform 상호작용 ─────────────────────────────────
+// ─── 9. @ValidateIf + @Transform interaction ─────────────────────────────
 
-describe('@ValidateIf + @Transform 상호작용', () => {
+describe('@ValidateIf + @Transform interaction', () => {
   class CondTransformDto {
     @Field(isBoolean) enabled!: boolean;
 
@@ -281,14 +281,14 @@ describe('@ValidateIf + @Transform 상호작용', () => {
     data!: string;
   }
 
-  it('enabled=true → Transform 실행 + 검증', async () => {
+  it('enabled=true → Transform executed + validated', async () => {
     const r = await deserialize<CondTransformDto>(CondTransformDto, { enabled: true, data: 'hello' });
     expect(r.data).toBe('HELLO');
   });
 
-  it('enabled=false → 검증 스킵 (Transform도 적용되지만 검증은 안 함)', async () => {
+  it('enabled=false → validation skipped (Transform may apply but validation does not)', async () => {
     const r = await deserialize<CondTransformDto>(CondTransformDto, { enabled: false, data: 123 });
-    // ValidateIf false → 검증 스킵이므로 통과
+    // ValidateIf false → validation skipped so it passes
     expect(r.enabled).toBe(false);
   });
 });

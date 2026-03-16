@@ -27,8 +27,8 @@ class NullableNumberDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('nullable 역직렬화', () => {
-  it('null 값 허용', async () => {
+describe('nullable deserialization', () => {
+  it('null value allowed', async () => {
     const result = await deserialize<NullableStringDto>(NullableStringDto, {
       nickname: null, name: 'Alice',
     });
@@ -36,20 +36,20 @@ describe('nullable 역직렬화', () => {
     expect(result.name).toBe('Alice');
   });
 
-  it('유효 값 통과', async () => {
+  it('valid value passes', async () => {
     const result = await deserialize<NullableStringDto>(NullableStringDto, {
       nickname: 'bob', name: 'Alice',
     });
     expect(result.nickname).toBe('bob');
   });
 
-  it('undefined → 거부 (nullable without optional)', async () => {
+  it('undefined → rejected (nullable without optional)', async () => {
     await expect(
       deserialize(NullableStringDto, { name: 'Alice' }),
     ).rejects.toThrow();
   });
 
-  it('nullable + optional → null과 undefined 모두 허용', async () => {
+  it('nullable + optional → both null and undefined allowed', async () => {
     const r1 = await deserialize<NullableOptionalDto>(NullableOptionalDto, { bio: null });
     expect(r1.bio).toBeNull();
 
@@ -57,7 +57,7 @@ describe('nullable 역직렬화', () => {
     expect(r2.bio).toBeUndefined();
   });
 
-  it('nullable number null → 할당, 유효 값 → 검증 통과', async () => {
+  it('nullable number null → assigned, valid value → validation passes', async () => {
     const r1 = await deserialize<NullableNumberDto>(NullableNumberDto, { age: null });
     expect(r1.age).toBeNull();
 
@@ -65,13 +65,13 @@ describe('nullable 역직렬화', () => {
     expect(r2.age).toBe(25);
   });
 
-  it('nullable number 범위 위반 → 에러', async () => {
+  it('nullable number range violation → error', async () => {
     await expect(deserialize(NullableNumberDto, { age: -1 })).rejects.toThrow();
   });
 });
 
 describe('nullable toJsonSchema', () => {
-  it('type 배열에 "null" 추가', () => {
+  it('"null" added to type array', () => {
     const schema = toJsonSchema(NullableStringDto);
     expect(schema.properties!.nickname).toEqual({ type: ['string', 'null'] });
     expect(schema.properties!.name).toEqual({ type: 'string' });

@@ -25,20 +25,20 @@ function _circularPlaceholder(className: string): SealedExecutors<unknown> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// analyzeAsync — sealed DTO가 async executor를 필요로 하는지 정적 분석 (C1)
+// analyzeAsync — static analysis to determine if a sealed DTO requires an async executor (C1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serialize', visited?: Set<Function>): boolean {
   const v = visited ?? new Set<Function>();
   for (const meta of Object.values(merged)) {
-    // 1. createRule async (deserialize 방향만)
+    // 1. createRule async (deserialize direction only)
     if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) return true;
     // 2. @Transform async
     const transforms = direction === 'deserialize'
       ? meta.transform.filter(td => !td.options?.serializeOnly)
       : meta.transform.filter(td => !td.options?.deserializeOnly);
     if (transforms.some(td => isAsyncFunction(td.fn))) return true;
-    // 3. nested DTO async — resolvedClass 사용 (정규화 이후), 미정규화 시 fn() fallback
+    // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
     if (meta.type?.resolvedClass || meta.type?.fn) {
       let nestedClass: Function;
       if (meta.type.resolvedClass) {
@@ -71,24 +71,24 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 봉인 상태 플래그
+// Seal state flag
 // ─────────────────────────────────────────────────────────────────────────────
 
 let _sealed = false;
 
-/** @internal — configure()에서 사후 호출 경고용 */
+/** @internal — used by configure() to warn about post-seal calls */
 export function _isSealed(): boolean { return _sealed; }
 
-/** seal 완료된 클래스 목록 — unseal에서 SEALED 제거 시 사용 */
+/** List of sealed classes — used by unseal to remove SEALED */
 export const _sealedClasses = new Set<Function>();
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _autoSeal — 첫 deserialize/serialize 호출 시 globalRegistry 전체 배치 seal
+// _autoSeal — batch-seal the entire globalRegistry on first deserialize/serialize call
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * @internal — deserialize/serialize에서 호출.
- * 이미 sealed면 no-op.
+ * @internal — called from deserialize/serialize.
+ * No-op if already sealed.
  */
 export function _autoSeal(): void {
   if (_sealed) return;
@@ -100,7 +100,7 @@ export function _autoSeal(): void {
       sealOne(Class, options);
     }
   } catch (e) {
-    // 실패 시 stale placeholder 정리 — 부분 seal 상태 방지
+    // On failure, clean up stale placeholders — prevent partial seal state
     for (const Class of globalRegistry) {
       if (Object.hasOwn(Class as object, SEALED)) {
         delete (Class as any)[SEALED];
@@ -119,8 +119,8 @@ export function _autoSeal(): void {
 }
 
 /**
- * @internal — 동적 import로 auto-seal 이후에 등록된 클래스를 즉석 seal.
- * Class[RAW]가 있고 Class[SEALED]가 없는 경우에만 동작.
+ * @internal — on-demand seal for classes registered after auto-seal via dynamic import.
+ * Only operates when Class[RAW] exists and Class[SEALED] does not.
  */
 export function _sealOnDemand(Class: Function): void {
   if (Object.hasOwn(Class as object, SEALED)) return;
@@ -130,12 +130,12 @@ export function _sealOnDemand(Class: Function): void {
   const options = _getGlobalOptions();
   sealOne(Class, options);
 
-  // sealOne이 재귀적으로 seal한 nested DTO도 정리
+  // Also clean up nested DTOs recursively sealed by sealOne
   _sealedClasses.add(Class);
   Object.freeze((Class as any)[RAW]);
   globalRegistry.delete(Class);
 
-  // 재귀로 seal된 추가 클래스 정리 (RAW 삭제 + registry 제거) — snapshot 후 삭제
+  // Clean up additional classes sealed recursively (freeze RAW + remove from registry) — delete after snapshot
   const newlySealed = [...globalRegistry].filter(
     C => Object.hasOwn(C as object, SEALED) && !before.has(C),
   );
@@ -147,7 +147,7 @@ export function _sealOnDemand(Class: Function): void {
 }
 
 /**
- * @internal 테스트 전용 — testing.ts의 unseal()에서 호출
+ * @internal testing only — called by unseal() in testing.ts
  */
 export function _resetForTesting(): void {
   _sealed = false;
@@ -155,7 +155,7 @@ export function _resetForTesting(): void {
 }
 
 /**
- * @internal — serialize/deserialize에서 사용. sealed executor를 보장하여 반환.
+ * @internal — used by serialize/deserialize. Ensures and returns a sealed executor.
  */
 export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
   let sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
@@ -174,37 +174,37 @@ export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// sealOne() — 개별 클래스 봉인 (§4.1)
+// sealOne() — seal an individual class (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 function sealOne(Class: Function, options?: SealOptions): void {
-  if (Object.hasOwn(Class as object, SEALED)) return; // 이미 봉인됨 (순환 참조 중 재귀 방지)
+  if (Object.hasOwn(Class as object, SEALED)) return; // already sealed (prevent recursion during circular references)
 
-  // 0. placeholder 등록 — 순환 참조 시 무한 재귀 방지
+  // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = _circularPlaceholder(Class.name);
   (Class as any)[SEALED] = placeholder;
 
-  // 1. 상속 메타데이터 병합
+  // 1. Merge inheritance metadata
   const merged = mergeInheritance(Class);
 
-  // 1a. 금지된 필드명 검사 — prototype pollution 방지 (C5)
+  // 1a. Banned field name check — prevent prototype pollution (C5)
   for (const key of Object.keys(merged)) {
     if (BANNED_FIELD_NAMES.has(key)) {
       throw new SealError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
     }
   }
 
-  // 1b. TypeDef 정규화 — @Type/@Field type fn() 해석, 배열 감지, DTO 자동 nested 추론
-  //     원본 RAW 오염 방지: type/flags를 복사 후 mutate (C-16 근본 해결)
+  // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
+  //     Prevent original RAW mutation: copy type/flags before mutating (C-16 root fix)
   for (const [key, meta] of Object.entries(merged)) {
     if (!meta.type?.fn) continue;
     const typeResult = meta.type.fn();
 
-    // Map/Set collection 감지
+    // Detect Map/Set collection
     if (typeResult === Map || typeResult === Set) {
       const collection = typeResult === Map ? 'Map' as const : 'Set' as const;
       const typeCopy = { ...meta.type, collection, isArray: false };
-      // collectionValue thunk → resolvedCollectionValue 캐싱
+      // collectionValue thunk → cache resolvedCollectionValue
       if (meta.type.collectionValue) {
         const valCls = meta.type.collectionValue();
         if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls)) {
@@ -220,11 +220,11 @@ function sealOne(Class: Function, options?: SealOptions): void {
     if (resolved == null || typeof resolved !== 'function') {
       throw new SealError(`${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`);
     }
-    // type 객체 복사 후 mutate — 원본 RAW의 type 참조 보존
+    // Copy type object before mutating — preserve original RAW type reference
     const typeCopy = { ...meta.type, isArray };
     if (!PRIMITIVE_CTORS.has(resolved)) {
       typeCopy.resolvedClass = resolved;
-      // DTO 클래스면 자동으로 validateNested 플래그 설정
+      // Automatically set validateNested flags for DTO classes
       if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
         meta.flags = { ...meta.flags };
         if (!meta.flags.validateNested) meta.flags.validateNested = true;
@@ -234,13 +234,13 @@ function sealOne(Class: Function, options?: SealOptions): void {
     merged[key] = { ...meta, type: typeCopy };
   }
 
-  // 2. @Expose 스택 정적 검증 (실패 시 SealError throw)
+  // 2. Static validation of @Expose stacks (throws SealError on failure)
   validateExposeStacks(merged, Class.name);
 
-  // 3. 순환 참조 정적 분석
+  // 3. Static analysis for circular references
   const needsCircularCheck = analyzeCircular(Class);
 
-  // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass / resolvedCollectionValue 사용
+  // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
   for (const meta of Object.values(merged)) {
     if (meta.type?.resolvedClass) {
       sealOne(meta.type.resolvedClass, options);
@@ -255,17 +255,17 @@ function sealOne(Class: Function, options?: SealOptions): void {
     }
   }
 
-  // 5. async 분석
+  // 5. Async analysis
   const isAsync = analyzeAsync(merged, 'deserialize');
   const isSerializeAsync = analyzeAsync(merged, 'serialize');
 
-  // 6. deserialize executor 코드 생성
+  // 6. Generate deserialize executor code
   const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
 
-  // 7. serialize executor 코드 생성
+  // 7. Generate serialize executor code
   const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
 
-  // 8. placeholder를 실제 executor로 in-place 교체 (Object.assign으로 참조 무결성 보장)
+  // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
   Object.assign(placeholder, {
     _deserialize: deserializeExecutor,
     _serialize: serializeExecutor,
@@ -276,22 +276,22 @@ function sealOne(Class: Function, options?: SealOptions): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// mergeInheritance() — 상속 메타데이터 병합 (§4.2)
+// mergeInheritance() — merge inheritance metadata (§4.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Class의 prototype chain을 따라 RAW 메타데이터를 child-first로 병합한다.
+ * Merges RAW metadata child-first along the prototype chain of Class.
  *
- * 병합 규칙:
- * - validation: union merge (부모+자식 모두 적용, 중복 rule 제거)
- * - transform: 자식 우선, 자식에 없으면 부모 계승
- * - expose: 자식 우선, 자식에 없으면 부모 계승
- * - exclude: 자식 우선, 자식에 없으면 부모 계승
- * - type: 자식 우선, 자식에 없으면 부모 계승
- * - flags: 자식 우선, 자식에 없는 각 플래그만 부모에서 보충
+ * Merge rules:
+ * - validation: union merge (both parent and child apply, duplicate rules removed)
+ * - transform: child takes priority, inherits from parent if absent in child
+ * - expose: child takes priority, inherits from parent if absent in child
+ * - exclude: child takes priority, inherits from parent if absent in child
+ * - type: child takes priority, inherits from parent if absent in child
+ * - flags: child takes priority, only missing flags are supplemented from parent
  */
 export function mergeInheritance(Class: Function): RawClassMeta {
-  // prototype chain을 따라 RAW가 있는 클래스 수집 (array 순서: child first)
+  // Collect classes with RAW along the prototype chain (array order: child first)
   const chain: Function[] = [];
   let current: Function | null = Class;
   while (current && current !== Object) {
@@ -307,7 +307,7 @@ export function mergeInheritance(Class: Function): RawClassMeta {
     const raw = (ctor as any)[RAW] as RawClassMeta;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
-        // 필드 최초 등장 → shallow copy
+        // First occurrence of field → shallow copy
         merged[key] = {
           validation: [...meta.validation],
           transform: [...meta.transform],
@@ -318,38 +318,38 @@ export function mergeInheritance(Class: Function): RawClassMeta {
           schema: typeof meta.schema === 'function' ? meta.schema : (meta.schema ? { ...meta.schema } : null),
         };
       } else {
-        // 이미 자식에 존재 → 카테고리별 독립 병합 (§4.2)
+        // Already exists in child → independent merge per category (§4.2)
         const m = merged[key];
         const p = meta;
 
-        // validation: union merge (중복 rule 제거)
+        // validation: union merge (remove duplicate rules)
         for (const rd of p.validation) {
           if (!m.validation.some(d => d.rule === rd.rule)) {
             m.validation.push(rd);
           }
         }
 
-        // transform: 자식에 없으면 부모 계승
+        // transform: inherit from parent if absent in child
         if (m.transform.length === 0 && p.transform.length > 0) {
           m.transform = [...p.transform];
         }
 
-        // expose: 자식에 없으면 부모 계승
+        // expose: inherit from parent if absent in child
         if (m.expose.length === 0 && p.expose.length > 0) {
           m.expose = [...p.expose];
         }
 
-        // exclude: 자식에 없으면 부모 계승
+        // exclude: inherit from parent if absent in child
         if (m.exclude === null && p.exclude !== null) {
           m.exclude = p.exclude;
         }
 
-        // type: 자식에 없으면 부모 계승
+        // type: inherit from parent if absent in child
         if (m.type === null && p.type !== null) {
           m.type = p.type;
         }
 
-        // flags: 자식 우선, 자식에 없는 플래그만 부모 보충
+        // flags: child takes priority, only supplement missing flags from parent
         const mf = m.flags;
         const pf = p.flags;
         if (pf.isOptional !== undefined && mf.isOptional === undefined) mf.isOptional = pf.isOptional;
@@ -359,12 +359,12 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         if (pf.validateNested !== undefined && mf.validateNested === undefined) mf.validateNested = pf.validateNested;
         if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) mf.validateNestedEach = pf.validateNestedEach;
 
-        // schema: 자식 우선, 자식에 없으면 부모 계승
+        // schema: child takes priority, inherit from parent if absent in child
         if (m.schema == null && p.schema != null) {
           m.schema = typeof p.schema === 'function' ? p.schema : { ...p.schema };
         } else if (m.schema != null && p.schema != null) {
-          if (typeof m.schema === 'function') { /* 자식 함수형 유지 */ }
-          else if (typeof p.schema === 'function') { /* 자식 객체형 유지 */ }
+          if (typeof m.schema === 'function') { /* keep child function-type */ }
+          else if (typeof p.schema === 'function') { /* keep child object-type */ }
           else {
             for (const [sk, sv] of Object.entries(p.schema)) {
               if (!(sk in m.schema)) m.schema[sk] = sv;
@@ -379,7 +379,7 @@ export function mergeInheritance(Class: Function): RawClassMeta {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// __testing__ — 테스트 전용 export (TST-ACCESS 준수)
+// __testing__ — test-only export (TST-ACCESS compliant)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const __testing__ = {

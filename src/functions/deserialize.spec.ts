@@ -4,8 +4,8 @@ import { SEALED } from '../symbols';
 import { BakerValidationError, SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { _resetForTesting } from '../seal/seal';
-// SUT을 동적으로 import — 모듈 레벨에서 테스트 더블 설정 후 import
-// 간단 구현이므로 직접 import 사용
+// Dynamically import SUT — set up test doubles at module level before import
+// Simple implementation, so using direct import
 import { deserialize } from './deserialize';
 import type { RuntimeOptions } from '../interfaces';
 
@@ -221,7 +221,7 @@ describe('deserialize', () => {
     expect(r2).toBe(instances[1]);
   });
 
-  // ── Sync/Async 분기 ──────────────────────────────────────────────────────
+  // ── Sync/Async branching ─────────────────────────────────────────────────
 
   it('should use sync path (Promise.resolve) when _isAsync is false', async () => {
     // Arrange
@@ -230,7 +230,7 @@ describe('deserialize', () => {
     attachSealed(Dto, () => instance, { isAsync: false });
     // Act
     const result = deserialize(Dto, {});
-    // Assert — 항상 Promise 반환
+    // Assert — always returns a Promise
     expect(result).toBeInstanceOf(Promise);
     expect(await result).toBe(instance);
   });
@@ -265,7 +265,7 @@ describe('deserialize', () => {
   it('should reject with SealError via promise (not sync throw) when class is not sealed', async () => {
     // Arrange
     const Dto = makeClass('NotSealedDto');
-    // Act — SealError가 sync throw가 아닌 rejected promise로 전달됨
+    // Act — SealError is delivered as a rejected promise, not a sync throw
     const promise = deserialize(Dto, {});
     expect(promise).toBeInstanceOf(Promise);
     await expect(promise).rejects.toThrow(SealError);

@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// min — v >= n 검사. requiresType='number' (§4.7, §4.8 A)
+// min — v >= n check. requiresType='number' (§4.7, §4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
@@ -25,7 +25,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// max — v <= n 검사. requiresType='number' (§4.7, §4.8 A)
+// max — v <= n check. requiresType='number' (§4.7, §4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
@@ -49,7 +49,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isPositive — v > 0 (0 포함 불가). requiresType='number' (§4.8 A)
+// isPositive — v > 0 (0 not included). requiresType='number' (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isPositive = (value: unknown): boolean => (value as number) > 0;
@@ -64,7 +64,7 @@ const _isPositive = (value: unknown): boolean => (value as number) > 0;
 export const isPositive = _isPositive as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNegative — v < 0 (0 포함 불가). requiresType='number' (§4.8 A)
+// isNegative — v < 0 (0 not included). requiresType='number' (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const _isNegative = (value: unknown): boolean => (value as number) < 0;
@@ -79,7 +79,7 @@ const _isNegative = (value: unknown): boolean => (value as number) < 0;
 export const isNegative = _isNegative as EmittableRule;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isDivisibleBy — v % n === 0 검사. requiresType='number' (§4.8 A)
+// isDivisibleBy — v % n === 0 check. requiresType='number' (§4.8 A)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isDivisibleBy(n: number): EmittableRule {

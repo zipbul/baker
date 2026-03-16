@@ -7,7 +7,7 @@ import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-/** 헬퍼: BakerValidationError에서 errors 배열 추출 */
+/** Helper: extracts errors array from BakerValidationError */
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   try {
     await deserialize(cls, input);
@@ -18,31 +18,31 @@ async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   }
 }
 
-// ─── 기본 필드 경로 ─────────────────────────────────────────────────────────
+// ─── basic field paths ─────────────────────────────────────────────────────
 
-describe('단일 필드 에러 경로', () => {
+describe('single field error paths', () => {
   class Dto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
   }
 
-  it('path가 필드명과 일치', async () => {
+  it('path matches field name', async () => {
     const errors = await getErrors(Dto, { name: 123, age: 'abc' });
     expect(errors).toHaveLength(2);
     const paths = errors.map(e => e.path).sort();
     expect(paths).toEqual(['age', 'name']);
   });
 
-  it('각 에러 code 확인', async () => {
+  it('each error code verified', async () => {
     const errors = await getErrors(Dto, { name: 123, age: 'abc' });
     expect(errors.find(e => e.path === 'name')!.code).toBe('isString');
     expect(errors.find(e => e.path === 'age')!.code).toBe('isNumber');
   });
 });
 
-// ─── 중첩 객체 에러 경로 ────────────────────────────────────────────────────
+// ─── nested object error paths ──────────────────────────────────────────────
 
-describe('중첩 객체 에러 경로', () => {
+describe('nested object error paths', () => {
   class Address {
     @Field(isString) city!: string;
     @Field(isString) street!: string;
@@ -53,21 +53,21 @@ describe('중첩 객체 에러 경로', () => {
     @Field({ type: () => Address }) address!: Address;
   }
 
-  it('중첩 필드 path = "address.city"', async () => {
+  it('nested field path = "address.city"', async () => {
     const errors = await getErrors(UserDto, { name: 'John', address: { city: 123, street: 'Main' } });
     expect(errors).toHaveLength(1);
     expect(errors[0]!.path).toBe('address.city');
     expect(errors[0]!.code).toBe('isString');
   });
 
-  it('여러 중첩 필드 실패', async () => {
+  it('multiple nested field failures', async () => {
     const errors = await getErrors(UserDto, { name: 'John', address: { city: 123, street: 456 } });
     expect(errors).toHaveLength(2);
     const paths = errors.map(e => e.path).sort();
     expect(paths).toEqual(['address.city', 'address.street']);
   });
 
-  it('부모 + 중첩 동시 실패', async () => {
+  it('parent + nested simultaneous failure', async () => {
     const errors = await getErrors(UserDto, { name: 123, address: { city: 456, street: 'ok' } });
     expect(errors).toHaveLength(2);
     const paths = errors.map(e => e.path).sort();
@@ -75,9 +75,9 @@ describe('중첩 객체 에러 경로', () => {
   });
 });
 
-// ─── 깊은 중첩 (3 레벨) ────────────────────────────────────────────────────
+// ─── deep nesting (3 levels) ────────────────────────────────────────────────
 
-describe('깊은 중첩 에러 경로 (3 레벨)', () => {
+describe('deep nesting error paths (3 levels)', () => {
   class Zip { @Field(isString) code!: string; }
   class City { @Field({ type: () => Zip }) zip!: Zip; }
   class Company { @Field({ type: () => City }) city!: City; }
@@ -90,14 +90,14 @@ describe('깊은 중첩 에러 경로 (3 레벨)', () => {
   });
 });
 
-// ─── 배열 each:true 에러 경로 ───────────────────────────────────────────────
+// ─── array each:true error paths ─────────────────────────────────────────────
 
-describe('배열 each:true 에러 경로', () => {
+describe('array each:true error paths', () => {
   class TagsDto {
     @Field(arrayOf(isString)) tags!: string[];
   }
 
-  it('실패한 원소 인덱스 포함 path = "tags[1]"', async () => {
+  it('failed element index included in path = "tags[1]"', async () => {
     const errors = await getErrors(TagsDto, { tags: ['ok', 123, 'fine', 456] });
     expect(errors.length).toBeGreaterThanOrEqual(2);
     const paths = errors.map(e => e.path).sort();
@@ -105,16 +105,16 @@ describe('배열 each:true 에러 경로', () => {
     expect(paths).toContain('tags[3]');
   });
 
-  it('모든 실패 인덱스 반환 (첫번째만이 아닌)', async () => {
+  it('all failed indices returned (not just the first)', async () => {
     const errors = await getErrors(TagsDto, { tags: [1, 2, 3] });
     expect(errors).toHaveLength(3);
     expect(errors.map(e => e.path).sort()).toEqual(['tags[0]', 'tags[1]', 'tags[2]']);
   });
 });
 
-// ─── 중첩 배열 에러 경로 ────────────────────────────────────────────────────
+// ─── nested array error paths ────────────────────────────────────────────────
 
-describe('Nested 배열 에러 경로', () => {
+describe('nested array error paths', () => {
   class Item {
     @Field(isString) label!: string;
     @Field(isNumber()) price!: number;
@@ -138,7 +138,7 @@ describe('Nested 배열 에러 경로', () => {
     expect(paths).toContain('items[1].price');
   });
 
-  it('여러 원소 동시 실패', async () => {
+  it('multiple elements fail simultaneously', async () => {
     const errors = await getErrors(OrderDto, {
       items: [
         { label: 111, price: 10 },
@@ -149,35 +149,35 @@ describe('Nested 배열 에러 경로', () => {
     const paths = errors.map(e => e.path);
     expect(paths).toContain('items[0].label');
     expect(paths).toContain('items[2].label');
-    // index 1은 에러 없어야 함
+    // index 1 should have no errors
     expect(paths.filter(p => p.startsWith('items[1]'))).toHaveLength(0);
   });
 });
 
-// ─── 한 필드에 여러 에러 ────────────────────────────────────────────────────
+// ─── multiple errors per field ──────────────────────────────────────────────
 
-describe('한 필드 다중 에러 (collectErrors 모드)', () => {
+describe('multiple errors per field (collectErrors mode)', () => {
   class MultiDto {
     @Field(isInt, min(10))
     v!: number;
   }
 
-  it('isInt + min 동시 실패 시 두 에러 모두 수집', async () => {
+  it('isInt + min simultaneous failure collects both errors', async () => {
     const errors = await getErrors(MultiDto, { v: 3.5 });
-    // 3.5는 정수가 아니므로 isInt 실패. 또한 10보다 작으므로 min도 실패할 수 있음
-    // (단, 타입 체커가 먼저 거부하면 이후 규칙이 안 돌 수 있음 — 구현에 따라 다름)
+    // 3.5 is not an integer so isInt fails. Also less than 10 so min may also fail
+    // (however, if type checker rejects first, subsequent rules may not run — depends on implementation)
     expect(errors.length).toBeGreaterThanOrEqual(1);
     expect(errors[0]!.path).toBe('v');
     expect(errors.some(e => e.code === 'isInt')).toBe(true);
   });
 });
 
-// ─── 에러 className ─────────────────────────────────────────────────────────
+// ─── error className ─────────────────────────────────────────────────────────
 
 describe('BakerValidationError className', () => {
   class UserProfile { @Field(isString) name!: string; }
 
-  it('className이 DTO 클래스명', async () => {
+  it('className matches DTO class name', async () => {
     try {
       await deserialize(UserProfile, { name: 123 });
       throw new Error('expected rejection');
@@ -190,16 +190,16 @@ describe('BakerValidationError className', () => {
   });
 });
 
-// ─── 에러 message 포맷 ─────────────────────────────────────────────────────
+// ─── error message format ─────────────────────────────────────────────────
 
-describe('BakerValidationError message 포맷', () => {
+describe('BakerValidationError message format', () => {
   class Multi {
     @Field(isString) a!: string;
     @Field(isString) b!: string;
     @Field(isString) c!: string;
   }
 
-  it('에러 개수가 message에 반영', async () => {
+  it('error count reflected in message', async () => {
     try {
       await deserialize(Multi, { a: 1, b: 2, c: 3 });
       throw new Error('expected rejection');

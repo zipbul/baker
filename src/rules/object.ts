@@ -1,11 +1,11 @@
 import type { EmitContext, EmittableRule } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotEmptyObject(options?) — 빈 객체가 아님 (최소 1개의 key)
+// isNotEmptyObject(options?) — not an empty object (at least 1 key)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IsNotEmptyObjectOptions {
-  /** null/undefined 값을 가진 키를 무시할지 여부 (기본: false → 무시하지 않음) */
+  /** Whether to ignore keys with null/undefined values (default: false — do not ignore) */
   nullable?: boolean;
 }
 
@@ -33,7 +33,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isInstance(targetType) — 특정 클래스 인스턴스인지 확인
+// isInstance(targetType) — checks if value is an instance of a specific class
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isInstance(targetType: new (...args: any[]) => any): EmittableRule {

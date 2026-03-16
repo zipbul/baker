@@ -6,11 +6,11 @@ import type { RuntimeOptions } from '../interfaces';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Class 인스턴스 → plain 객체 변환.
- * - 첫 호출 시 auto-seal (globalRegistry 전체 배치)
- * - async transform이 없는 DTO → `async function` 없이 실행, Promise.resolve로 반환
- * - 무검증 전제 — 항상 Record<string, unknown> 반환
- * - 데코레이터 없는 클래스: SealError throw
+ * Converts a Class instance to a plain object.
+ * - Auto-seals on first call (batches entire globalRegistry)
+ * - DTOs without async transforms run without `async function`, returned via Promise.resolve
+ * - No validation — always returns Record<string, unknown>
+ * - Class without decorators: throws SealError
  */
 export function serialize<T>(
   instance: T,

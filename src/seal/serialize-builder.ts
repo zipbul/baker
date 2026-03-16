@@ -7,18 +7,18 @@ import type { SealOptions, RuntimeOptions } from '../interfaces';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** serialize 방향의 출력 키 결정 */
+/** Determine the output key for serialize direction */
 function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['expose']): string {
-  // serializeOnly @Expose with name → 해당 name 사용
+  // serializeOnly @Expose with name → use that name
   const serDef = exposeStack.find(e => e.serializeOnly && e.name);
   if (serDef) return serDef.name!;
-  // 방향 미지정 @Expose with name → 양방향 사용
+  // Non-directional @Expose with name → use for both directions
   const biDef = exposeStack.find(e => !e.deserializeOnly && !e.serializeOnly && e.name);
   if (biDef) return biDef.name!;
   return fieldKey;
 }
 
-/** serialize 방향의 expose groups 결정 — 무조건 노출 엔트리가 하나라도 있으면 undefined (제한 없음) */
+/** Determine expose groups for serialize direction — returns undefined (no restriction) if any unconditional expose entry exists */
 function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
   const serEntries = exposeStack.filter(e => !e.deserializeOnly);
   if (serEntries.length === 0) return undefined;
@@ -29,12 +29,12 @@ function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): strin
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// buildSerializeCode — new Function 기반 serialize executor 생성 (§4.3 serialize 파이프라인)
+// buildSerializeCode — new Function-based serialize executor generation (§4.3 serialize pipeline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * serialize executor 코드 생성.
- * 무검증 전제 — 항상 Record<string, unknown> 반환 (§4.3).
+ * Generate serialize executor code.
+ * Assumes no validation — always returns Record<string, unknown> (§4.3).
  */
 export function buildSerializeCode<T>(
   Class: Function,
@@ -45,12 +45,12 @@ export function buildSerializeCode<T>(
   const refs: unknown[] = [];
   const execs: SealedExecutors<unknown>[] = [];
 
-  // ── 코드 생성 ─────────────────────────────────────────────────────────────
+  // ── Code generation ────────────────────────────────────────────────────────
 
   let body = '\'use strict\';\n';
   body += 'var __bk$out = {};\n';
 
-  // groups 변수 — groups를 참조하는 필드가 있을 때만
+  // Groups variable — only when fields referencing groups exist
   const hasGroupsField = Object.values(merged).some(meta => {
     const groups = getSerializeExposeGroups(meta.expose);
     return groups && groups.length > 0;
@@ -69,7 +69,7 @@ export function buildSerializeCode<T>(
   // sourceURL (§4.9)
   body += `//# sourceURL=baker://${Class.name}/serialize\n`;
 
-  // ── new Function 실행 ─────────────────────────────────────────────────────
+  // ── Execute new Function ───────────────────────────────────────────────────
 
   const fnKeyword = isAsync ? 'async function' : 'function';
   const executor = new Function(
@@ -81,7 +81,7 @@ export function buildSerializeCode<T>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 필드별 serialize 코드 생성
+// Per-field serialize code generation
 // ─────────────────────────────────────────────────────────────────────────────
 
 function generateSerializeFieldCode(
@@ -127,7 +127,7 @@ function generateSerializeFieldCode(
 
   let innerCode = '';
 
-  // ② @IsOptional → undefined 면 출력 생략 (§4.3 serialize ②)
+  // ② @IsOptional → skip output if undefined (§4.3 serialize step 2)
   const useOptionalGuard = meta.flags.isOptional;
 
   // ③a Collection (Map/Set) serialize — Set → Array, Map → plain object
@@ -176,10 +176,10 @@ function generateSerializeFieldCode(
     return fieldCode;
   }
 
-  // ③b nested @Type 처리 (H4) — @Transform 없는 경우에만 (§4.3 serialize 파이프라인)
+  // ③b nested @Type handling (H4) — only when no @Transform present (§4.3 serialize pipeline)
   if ((meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
 
-    // 배열/each 여부 판단
+    // Determine array/each mode
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
     const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
 
@@ -190,14 +190,14 @@ function generateSerializeFieldCode(
       const { property, subTypes } = meta.type!.discriminator;
       const keepDisc = meta.type!.keepDiscriminatorProperty !== false; // default true for round-trip
 
-      // most-specific-first 정렬 (상속 관계 시 하위 클래스 우선)
+      // Sort most-specific-first (subclasses take priority in inheritance relationships)
       const sorted = [...subTypes].sort((a, b) => {
         if ((a.value as any).prototype instanceof b.value) return -1;
         if ((b.value as any).prototype instanceof a.value) return 1;
         return 0;
       });
 
-      // instanceof 분기 코드 생성 헬퍼
+      // Helper for generating instanceof branch code
       const buildInstanceofChain = (itemVar: string, awaitKw: string): string => {
         let code = '';
         for (let i = 0; i < sorted.length; i++) {
@@ -238,7 +238,7 @@ function generateSerializeFieldCode(
         nestedCode += `${outputTarget} = __bk$out_item;`;
       }
     } else {
-      // 기존 단순 nested 로직
+      // Existing simple nested logic
       const nestedCls = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
       const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
       const execIdx = execs.length;
@@ -262,7 +262,7 @@ function generateSerializeFieldCode(
       innerCode = `if (instance[${JSON.stringify(fieldKey)}] != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = instance[${JSON.stringify(fieldKey)}];\n}\n`;
     }
   } else {
-    // 기존 @Transform or direct assign 처리
+    // Existing @Transform or direct assign handling
     const outputExpr = buildSerializeOutputExpr(fieldKey, outputKey, meta, refs, isAsync);
 
     if (useOptionalGuard) {
@@ -279,8 +279,8 @@ function generateSerializeFieldCode(
 }
 
 /**
- * 필드 출력 표현식 빌드.
- * @Transform 있으면 _refs[i](params) 호출, 없으면 직접 할당.
+ * Build field output expression.
+ * If @Transform exists, call _refs[i](params); otherwise, direct assignment.
  */
 function buildSerializeOutputExpr(
   fieldKey: string,

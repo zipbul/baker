@@ -21,14 +21,14 @@ class DefaultsDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('exposeDefaultValues', () => {
-  it('true → 누락 필드에 클래스 기본값 사용', async () => {
+  it('true → uses class default values for missing fields', async () => {
     configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {});
     expect(result.name).toBe('anonymous');
     expect(result.score).toBe(100);
   });
 
-  it('true → 입력 값이 있으면 기본값 무시', async () => {
+  it('true → ignores default when input value is present', async () => {
     configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Alice', score: 50,
@@ -37,20 +37,20 @@ describe('exposeDefaultValues', () => {
     expect(result.score).toBe(50);
   });
 
-  it('false (기본) → 누락 필드는 undefined → isDefined 에러', async () => {
+  it('false (default) → missing fields are undefined → isDefined error', async () => {
     configure({ allowClassDefaults: false });
     await expect(
       deserialize(DefaultsDto, {}),
     ).rejects.toThrow();
   });
 
-  it('true + optional → optional 필드도 기본값 사용', async () => {
+  it('true + optional → optional fields also use default values', async () => {
     configure({ allowClassDefaults: true });
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Bob', score: 80,
     });
-    // optional이므로 undefined/null이면 skip, 기본값 유지될 수 있음
-    // 하지만 allowClassDefaults는 optional 아닌 필드에만 적용
+    // optional so undefined/null would skip, default value may be retained
+    // but allowClassDefaults applies only to non-optional fields
     expect(result.name).toBe('Bob');
   });
 });

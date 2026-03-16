@@ -2,28 +2,28 @@ import type { EmittableRule, EmitContext } from './types';
 import { isAsyncFunction } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// createRule — 커스텀 검증 규칙 생성 Public API (§1.1)
+// createRule — Custom validation rule creation Public API (§1.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface CreateRuleOptions {
-  /** 규칙 이름. 에러 코드로 사용됨. */
+  /** Rule name. Used as the error code. */
   name: string;
-  /** 검증 함수 — true: 통과, false: 실패. async 함수 허용 (Promise<boolean> 반환 시 자동으로 async 룰로 등록). */
+  /** Validation function — true: pass, false: fail. Async functions allowed (automatically registered as async rule when returning Promise<boolean>). */
   validate: (value: unknown) => boolean | Promise<boolean>;
-  /** 룰 파라미터 — toJsonSchema 매핑에 사용 */
+  /** Rule parameters — used for toJsonSchema mapping */
   constraints?: Record<string, unknown>;
-  /** 이 룰이 전제하는 타입 — 타입 게이트 최적화에 사용 */
+  /** Type assumed by this rule — used for type gate optimization */
   requiresType?: 'string' | 'number' | 'boolean' | 'date';
 }
 
 /**
- * 사용자 정의 검증 규칙을 생성한다.
+ * Creates a user-defined validation rule.
  *
  * @example
- * // 간단 형태
+ * // Simple form
  * const koreanPhone = createRule('koreanPhone', (v) => /^01[016789]/.test(v as string));
  *
- * // 옵션 형태
+ * // Options form
  * const isEven = createRule({
  *   name: 'isEven',
  *   validate: (v) => typeof v === 'number' && v % 2 === 0,
@@ -40,15 +40,15 @@ export function createRule(
   const constraints = typeof nameOrOptions === 'object' ? nameOrOptions.constraints : undefined;
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
 
-  // async 함수 여부 자동 감지
+  // Auto-detect whether the function is async
   const isAsyncFn = isAsyncFunction(validate);
 
-  // 검증 함수 래퍼 — validate에 직접 위임
+  // Validation function wrapper — delegates directly to validate
   const fn = function (value: unknown): boolean | Promise<boolean> {
     return validate(value);
   } as EmittableRule;
 
-  // .emit() — refs 배열을 통한 함수 호출 코드 생성
+  // .emit() — generates function call code via the refs array
   fn.emit = function (varName: string, ctx: EmitContext): string {
     const i = ctx.addRef(validate);
     if (isAsyncFn) {

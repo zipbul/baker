@@ -7,16 +7,16 @@ import {
   isString, isNumber, isBoolean, isEmail,
   min, minLength, arrayMinSize,
 } from '../../src/rules/index';
-// ─── 1. 단순 플랫 DTO 라운드트립 ───────────────────────────────────────────
+// ─── 1. simple flat DTO roundtrip ────────────────────────────────────────────
 
-describe('플랫 DTO 라운드트립', () => {
+describe('flat DTO roundtrip', () => {
   class FlatDto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
     @Field(isBoolean) active!: boolean;
   }
 
-  it('deserialize → serialize → deserialize 동일', async () => {
+  it('deserialize → serialize → deserialize identical', async () => {
     const input = { name: 'Alice', age: 30, active: true };
     const obj1 = await deserialize<FlatDto>(FlatDto, input);
     const plain = await serialize(obj1);
@@ -27,9 +27,9 @@ describe('플랫 DTO 라운드트립', () => {
   });
 });
 
-// ─── 2. 중첩 DTO 라운드트립 ────────────────────────────────────────────────
+// ─── 2. nested DTO roundtrip ────────────────────────────────────────────────
 
-describe('중첩 DTO 라운드트립', () => {
+describe('nested DTO roundtrip', () => {
   class Address {
     @Field(isString) city!: string;
     @Field(isString) zip!: string;
@@ -40,7 +40,7 @@ describe('중첩 DTO 라운드트립', () => {
     @Field({ type: () => Address }) address!: Address;
   }
 
-  it('deserialize → serialize → deserialize 동일', async () => {
+  it('deserialize → serialize → deserialize identical', async () => {
     const input = { name: 'Bob', address: { city: 'Seoul', zip: '06000' } };
     const obj1 = await deserialize<PersonDto>(PersonDto, input);
     const plain = await serialize(obj1);
@@ -51,9 +51,9 @@ describe('중첩 DTO 라운드트립', () => {
   });
 });
 
-// ─── 3. @Field({ name }) 매핑 라운드트립 ───────────────────────────────────
+// ─── 3. @Field({ name }) mapping roundtrip ──────────────────────────────────
 
-describe('@Field({ name }) 매핑 라운드트립', () => {
+describe('@Field({ name }) mapping roundtrip', () => {
   class MappedDto {
     @Field(isString, { name: 'user_name' })
     userName!: string;
@@ -62,7 +62,7 @@ describe('@Field({ name }) 매핑 라운드트립', () => {
     userAge!: number;
   }
 
-  it('snake_case 입력 → 직렬화 → 재역직렬화', async () => {
+  it('snake_case input → serialize → re-deserialize', async () => {
     const input = { user_name: 'Carol', user_age: 25 };
     const obj1 = await deserialize<MappedDto>(MappedDto, input);
     expect(obj1.userName).toBe('Carol');
@@ -75,9 +75,9 @@ describe('@Field({ name }) 매핑 라운드트립', () => {
   });
 });
 
-// ─── 4. @Transform 포함 라운드트립 ─────────────────────────────────────────
+// ─── 4. @Transform roundtrip ────────────────────────────────────────────────
 
-describe('@Transform 포함 라운드트립', () => {
+describe('@Transform roundtrip', () => {
   class TrimDto {
     @Field(isString, {
       transform: ({ value, direction }) => {
@@ -103,15 +103,15 @@ describe('@Transform 포함 라운드트립', () => {
   });
 });
 
-// ─── 5. optional + nullable 라운드트립 ──────────────────────────────────
+// ─── 5. optional + nullable roundtrip ────────────────────────────────────
 
-describe('optional + nullable 라운드트립', () => {
+describe('optional + nullable roundtrip', () => {
   class NullableDto {
     @Field(isString) name!: string;
     @Field(isString, { optional: true, nullable: true }) nickname?: string | null;
   }
 
-  it('nickname 존재 시 라운드트립', async () => {
+  it('nickname present roundtrip', async () => {
     const input = { name: 'Dave', nickname: 'D' };
     const obj = await deserialize<NullableDto>(NullableDto, input);
     const plain = await serialize(obj);
@@ -119,7 +119,7 @@ describe('optional + nullable 라운드트립', () => {
     expect(obj2.nickname).toBe('D');
   });
 
-  it('nickname = null 라운드트립', async () => {
+  it('nickname = null roundtrip', async () => {
     const input = { name: 'Dave', nickname: null };
     const obj = await deserialize<NullableDto>(NullableDto, input);
     expect(obj.nickname).toBeNull();
@@ -128,7 +128,7 @@ describe('optional + nullable 라운드트립', () => {
     expect(obj2.nickname).toBeNull();
   });
 
-  it('nickname 누락 라운드트립', async () => {
+  it('nickname missing roundtrip', async () => {
     const input = { name: 'Dave' };
     const obj = await deserialize<NullableDto>(NullableDto, input);
     expect(obj.nickname).toBeUndefined();
@@ -138,9 +138,9 @@ describe('optional + nullable 라운드트립', () => {
   });
 });
 
-// ─── 6. Nested 배열 라운드트립 ─────────────────────────────────────────────
+// ─── 6. nested array roundtrip ──────────────────────────────────────────────
 
-describe('Nested 배열 라운드트립', () => {
+describe('nested array roundtrip', () => {
   class LineItem {
     @Field(isString) product!: string;
     @Field(isNumber(), min(1)) qty!: number;
@@ -152,7 +152,7 @@ describe('Nested 배열 라운드트립', () => {
     items!: LineItem[];
   }
 
-  it('배열 항목 전체 라운드트립', async () => {
+  it('all array items roundtrip', async () => {
     const input = {
       orderId: 'ORD-001',
       items: [
@@ -172,26 +172,26 @@ describe('Nested 배열 라운드트립', () => {
   });
 });
 
-// ─── 7. @Exclude 필드 라운드트립 ───────────────────────────────────────────
+// ─── 7. @Exclude field roundtrip ────────────────────────────────────────────
 
-describe('@Exclude 필드 라운드트립', () => {
+describe('@Exclude field roundtrip', () => {
   class SecretDto {
     @Field(isString) username!: string;
     @Field(isString, { exclude: true }) password!: string;
   }
 
-  it('Exclude 필드는 양방향 제외', async () => {
+  it('Exclude field excluded in both directions', async () => {
     const obj = await deserialize<SecretDto>(SecretDto, { username: 'admin', password: 'secret' });
-    // @Exclude() 기본은 양방향 → deserialize에서도 제외
+    // @Exclude() default is both directions → excluded from deserialize too
     expect(obj.password).toBeUndefined();
     const plain = await serialize(obj);
     expect(plain).not.toHaveProperty('password');
   });
 });
 
-// ─── 8. 복합 DTO 전체 라운드트립 ───────────────────────────────────────────
+// ─── 8. complex DTO full roundtrip ──────────────────────────────────────────
 
-describe('복합 DTO 전체 라운드트립', () => {
+describe('complex DTO full roundtrip', () => {
   class ContactInfo {
     @Field(isEmail()) email!: string;
     @Field(isString, { optional: true }) phone?: string;
@@ -211,7 +211,7 @@ describe('복합 DTO 전체 라운드트립', () => {
     bio?: string | null;
   }
 
-  it('완전한 라운드트립 데이터 무결성', async () => {
+  it('complete roundtrip data integrity', async () => {
     const input = {
       full_name: 'Test User',
       age: 28,
@@ -229,7 +229,7 @@ describe('복합 DTO 전체 라운드트립', () => {
     expect(obj2.bio).toBe('Hello World');
   });
 
-  it('nullable bio=null 라운드트립', async () => {
+  it('nullable bio=null roundtrip', async () => {
     const input = {
       full_name: 'Test User',
       age: 28,

@@ -22,18 +22,18 @@ class InstanceDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@IsInstance', () => {
-  it('올바른 인스턴스 통과', async () => {
+  it('correct instance passes', async () => {
     const r = await deserialize<InstanceDto>(InstanceDto, { date: '2024-01-01' });
     expect(r.date).toBeInstanceOf(MyDate);
   });
 
-  it('잘못된 타입 거부', async () => {
+  it('wrong type rejected', async () => {
     class WrongDto {
       @Field(isInstance(MyDate))
       date!: MyDate;
     }
 
-    // 문자열은 MyDate 인스턴스가 아님 (Transform 없이 raw string 전달)
+    // A string is not a MyDate instance (raw string passed without Transform)
     await expect(
       deserialize(WrongDto, { date: '2024-01-01' }),
     ).rejects.toThrow(BakerValidationError);
