@@ -1,6 +1,6 @@
 import { ensureMeta } from '../collect';
 import { isAsyncFunction } from '../utils';
-import type { EmittableRule, TypeDef } from '../types';
+import type { EmittableRule, RawPropertyMeta, TypeDef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — 배열 원소 검증 마커 (each: true 대체)
@@ -106,10 +106,106 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// @Field — 필드 데코레이터 (4가지 오버로드)
+// 내부 헬퍼 — Field() 데코레이터 분해
 // ─────────────────────────────────────────────────────────────────────────────
 
 type RuleArg = EmittableRule | ArrayOfMarker;
+
+/** 4가지 오버로드 시그니처를 `{ rules, options }`로 정규화 */
+function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions } {
+  if (args.length === 0) {
+    // Form 1: @Field()
+    return { rules: [], options: {} };
+  }
+  if (args.length === 1 && isFieldOptions(args[0])) {
+    // Form 3: @Field({ type: () => Dto })
+    const options = args[0] as FieldOptions;
+    return { rules: options.rules ?? [], options };
+  }
+  // Form 2 or 4
+  const lastArg = args[args.length - 1];
+  if (isFieldOptions(lastArg)) {
+    // Form 4: @Field(isString(), { optional: true })
+    const options = lastArg as FieldOptions;
+    let rules: RuleArg[] = args.slice(0, -1);
+    if (options.rules) rules = [...rules, ...options.rules];
+    return { rules, options };
+  }
+  // Form 2: @Field(isString(), email())
+  return { rules: args, options: {} };
+}
+
+/** validation 규칙 등록 + arrayOf 처리 */
+function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: FieldOptions): void {
+  for (const rule of rules) {
+    if (isArrayOfMarker(rule)) {
+      for (const innerRule of rule.rules) {
+        meta.validation.push({
+          rule: innerRule,
+          each: true,
+          groups: options.groups,
+        });
+      }
+    } else {
+      meta.validation.push({
+        rule: rule as EmittableRule,
+        groups: options.groups,
+      });
+    }
+  }
+}
+
+/** expose 5-branch 로직 처리 */
+function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
+  if (options.name) {
+    meta.expose.push({ name: options.name, groups: options.groups });
+  } else if (options.deserializeName || options.serializeName) {
+    if (options.deserializeName) {
+      meta.expose.push({ name: options.deserializeName, deserializeOnly: true, groups: options.groups });
+    }
+    if (options.serializeName) {
+      meta.expose.push({ name: options.serializeName, serializeOnly: true, groups: options.groups });
+    }
+  } else if (options.groups) {
+    meta.expose.push({ groups: options.groups });
+  } else {
+    meta.expose.push({});
+  }
+}
+
+/** async 감지 + direction 래핑 + transform 등록 */
+function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
+  if (!options.transform) return;
+  const userFn = options.transform;
+  const isAsync = isAsyncFunction(userFn);
+  const wrapperFn = isAsync
+    ? async (params: any) => userFn({
+        value: params.value,
+        key: params.key,
+        obj: params.obj,
+        direction: params.type,
+      })
+    : (params: any) => userFn({
+        value: params.value,
+        key: params.key,
+        obj: params.obj,
+        direction: params.type,
+      });
+  if (options.transformDirection && options.transformDirection !== 'deserializeOnly' && options.transformDirection !== 'serializeOnly') {
+    throw new Error(`Invalid transformDirection: "${options.transformDirection}". Expected 'deserializeOnly' or 'serializeOnly'.`);
+  }
+  const transformOptions: any = {};
+  if (options.transformDirection === 'deserializeOnly') transformOptions.deserializeOnly = true;
+  if (options.transformDirection === 'serializeOnly') transformOptions.serializeOnly = true;
+  meta.transform.push({
+    fn: wrapperFn,
+    options: Object.keys(transformOptions).length > 0 ? transformOptions : undefined,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @Field — 필드 데코레이터 (4가지 오버로드)
+// ─────────────────────────────────────────────────────────────────────────────
 
 /** @Field() — 빈 필드 등록 */
 export function Field(): PropertyDecorator;
@@ -125,47 +221,9 @@ export function Field(...args: any[]): PropertyDecorator {
     const propertyKey = key as string;
     const meta = ensureMeta(ctor, propertyKey);
 
-    // ── 인자 파싱 ──
-    let options: FieldOptions = {};
-    let ruleArgs: RuleArg[] = [];
+    const { rules, options } = parseFieldArgs(args);
 
-    if (args.length === 0) {
-      // Form 1: @Field()
-    } else if (args.length === 1 && isFieldOptions(args[0])) {
-      // Form 3: @Field({ type: () => Dto })
-      options = args[0];
-      ruleArgs = options.rules ?? [];
-    } else {
-      // Form 2 or 4
-      const lastArg = args[args.length - 1];
-      if (isFieldOptions(lastArg)) {
-        // Form 4: @Field(isString(), { optional: true })
-        options = lastArg;
-        ruleArgs = args.slice(0, -1);
-        if (options.rules) ruleArgs = [...ruleArgs, ...options.rules];
-      } else {
-        // Form 2: @Field(isString(), email())
-        ruleArgs = args;
-      }
-    }
-
-    // ── validation 등록 ──
-    for (const rule of ruleArgs) {
-      if (isArrayOfMarker(rule)) {
-        for (const innerRule of rule.rules) {
-          meta.validation.push({
-            rule: innerRule,
-            each: true,
-            groups: options.groups,
-          });
-        }
-      } else {
-        meta.validation.push({
-          rule: rule as EmittableRule,
-          groups: options.groups,
-        });
-      }
-    }
+    applyValidation(meta, rules, options);
 
     // ── flags ──
     if (options.optional) meta.flags.isOptional = true;
@@ -181,21 +239,7 @@ export function Field(...args: any[]): PropertyDecorator {
       };
     }
 
-    // ── expose ──
-    if (options.name) {
-      meta.expose.push({ name: options.name, groups: options.groups });
-    } else if (options.deserializeName || options.serializeName) {
-      if (options.deserializeName) {
-        meta.expose.push({ name: options.deserializeName, deserializeOnly: true, groups: options.groups });
-      }
-      if (options.serializeName) {
-        meta.expose.push({ name: options.serializeName, serializeOnly: true, groups: options.groups });
-      }
-    } else if (options.groups) {
-      meta.expose.push({ groups: options.groups });
-    } else {
-      meta.expose.push({});
-    }
+    applyExpose(meta, options);
 
     // ── exclude ──
     if (options.exclude) {
@@ -208,34 +252,7 @@ export function Field(...args: any[]): PropertyDecorator {
       }
     }
 
-    // ── transform ──
-    if (options.transform) {
-      const userFn = options.transform;
-      const isAsync = isAsyncFunction(userFn);
-      const wrapperFn = isAsync
-        ? async (params: any) => userFn({
-            value: params.value,
-            key: params.key,
-            obj: params.obj,
-            direction: params.type,
-          })
-        : (params: any) => userFn({
-            value: params.value,
-            key: params.key,
-            obj: params.obj,
-            direction: params.type,
-          });
-      if (options.transformDirection && options.transformDirection !== 'deserializeOnly' && options.transformDirection !== 'serializeOnly') {
-        throw new Error(`Invalid transformDirection: "${options.transformDirection}". Expected 'deserializeOnly' or 'serializeOnly'.`);
-      }
-      const transformOptions: any = {};
-      if (options.transformDirection === 'deserializeOnly') transformOptions.deserializeOnly = true;
-      if (options.transformDirection === 'serializeOnly') transformOptions.serializeOnly = true;
-      meta.transform.push({
-        fn: wrapperFn,
-        options: Object.keys(transformOptions).length > 0 ? transformOptions : undefined,
-      });
-    }
+    applyTransform(meta, options);
 
     // ── schema ──
     if (options.schema) {
