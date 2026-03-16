@@ -587,7 +587,8 @@ return hasComposition
 > - `circular-analyzer`도 읽기 전용이므로 영향 없음
 > - 유일한 이론적 위험: 이미 seal된 클래스에 데코레이터를 추가하면 TypeError (strict mode) — 이는 지원하지 않는 패턴이며, 현재 delete 방식에서도 프로토타입 체인 corruption이 발생하는 동일하게 broken한 시나리오
 >
-> **보류 사유**: `sealOne()`이 `mergeInheritance()` 결과의 `meta.type` 객체를 in-place mutate (`isArray`, `resolvedClass` 할당)한다. `_merged`에 이 mutated 참조가 남아있어, `unseal()` → re-seal 사이클에서 stale 상태가 전파된다. freeze 자체는 shallow이므로 type 객체 수정은 차단되지 않지만, `_merged` 복원 시 이전 seal의 mutation이 다음 seal에 간섭한다. 해결하려면 `mergeInheritance`가 type 객체를 deep copy해야 하며, 이는 별도 리팩토링이 필요하다.
+> **보류 사유** (type mutation은 해결됨 — sealOne이 type/flags를 복사 후 mutate하도록 수정):
+> freeze 적용 시 `unseal()`의 RAW 복원이 깨진다. `unseal()`은 `_merged`(병합+정규화된 데이터)를 per-class RAW로 복원하는데, freeze하면 `hasOwnProperty(Class, RAW)`이 true여서 복원을 스킵한다. 조건을 제거하면 `_merged`(parent 포함 병합 데이터)가 per-class RAW가 되어 다음 `mergeInheritance`에서 parent 필드가 중복 병합된다. 근본 해결: `unseal()`이 `_merged` 대신 seal 전 원본 per-class RAW snapshot을 복원해야 한다. 이를 위해 `_rawSnapshots` Map 도입을 시도했으나, `_autoSeal` 실패 시 poison 클래스(banned field)가 registry에 잔류하는 별도 격리 문제와 결합되어 연쇄 실패 발생. `unseal()` 아키텍처 재설계가 필요하다.
 
 ### [x] C-17. `deserialize-builder.ts:741-742` — nested array 레벨 룰에 커스텀 message/context 누락 `🟢 Low`
 

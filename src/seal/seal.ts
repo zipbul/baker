@@ -195,7 +195,8 @@ function sealOne(Class: Function, options?: SealOptions): void {
   }
 
   // 1b. TypeDef 정규화 — @Type/@Field type fn() 해석, 배열 감지, DTO 자동 nested 추론
-  for (const meta of Object.values(merged)) {
+  //     원본 RAW 오염 방지: type/flags를 복사 후 mutate (C-16 근본 해결)
+  for (const [key, meta] of Object.entries(merged)) {
     if (!meta.type?.fn) continue;
     const typeResult = meta.type.fn();
     const isArray = Array.isArray(typeResult);
@@ -203,13 +204,18 @@ function sealOne(Class: Function, options?: SealOptions): void {
     if (resolved == null || typeof resolved !== 'function') {
       throw new SealError(`${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`);
     }
-    meta.type.isArray = isArray;
+    // type 객체 복사 후 mutate — 원본 RAW의 type 참조 보존
+    const typeCopy = { ...meta.type, isArray };
     if (!PRIMITIVE_CTORS.has(resolved)) {
-      meta.type.resolvedClass = resolved;
+      typeCopy.resolvedClass = resolved;
       // DTO 클래스면 자동으로 validateNested 플래그 설정
-      if (!meta.flags.validateNested) meta.flags.validateNested = true;
-      if (isArray && !meta.flags.validateNestedEach) meta.flags.validateNestedEach = true;
+      if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
+        meta.flags = { ...meta.flags };
+        if (!meta.flags.validateNested) meta.flags.validateNested = true;
+        if (isArray && !meta.flags.validateNestedEach) meta.flags.validateNestedEach = true;
+      }
     }
+    merged[key] = { ...meta, type: typeCopy };
   }
 
   // 2. @Expose 스택 정적 검증 (실패 시 SealError throw)
