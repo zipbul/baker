@@ -12,14 +12,12 @@ import type { RawPropertyMeta, RuleDef, TransformDef, ExposeDef, ExcludeDef, Typ
  * - 전역 레지스트리에 ctor를 자동 등록한다 (데코레이터가 1개라도 있으면 등록).
  */
 export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
-  // 전역 레지스트리에 자동 등록
-  globalRegistry.add(ctor);
-
   // Class[RAW] 없으면 생성 (null prototype 사용 — 프로토타입 체인 간섭 0)
   // 주의: hasOwnProperty 체크 필수 — 클래스 상속 시 ctor.__proto__ === ParentClass 이므로
   // ??= 연산자가 부모의 [RAW]를 찾아 자식의 필드를 부모 RAW에 저장하는 오염 발생 방지
   if (!Object.prototype.hasOwnProperty.call(ctor, RAW)) {
     (ctor as any)[RAW] = Object.create(null) as Record<string, RawPropertyMeta>;
+    globalRegistry.add(ctor);
   }
   const raw = (ctor as any)[RAW] as Record<string, RawPropertyMeta>;
 

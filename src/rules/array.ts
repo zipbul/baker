@@ -7,7 +7,8 @@ import type { EmitContext, EmittableRule } from '../types';
 export function arrayContains(values: unknown[]): EmittableRule {
   const fn = (value: unknown): boolean => {
     if (!Array.isArray(value)) return false;
-    return values.every((v) => value.includes(v));
+    const valueSet = new Set(value);
+    return values.every((v) => valueSet.has(v));
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {

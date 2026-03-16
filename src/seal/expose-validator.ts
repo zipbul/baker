@@ -42,7 +42,8 @@ function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: st
       const aGroups = entries[i]!.groups ?? [];
       const bGroups = entries[j]!.groups ?? [];
       if (_groupsOverlap(aGroups, bGroups)) {
-        const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bGroups.includes(g));
+        const bSet = new Set(bGroups);
+        const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bSet.has(g));
         throw new SealError(
           `@Expose conflict on '${key}': 2 @Expose stacks with '${direction}' direction and overlapping groups [${overlapping.join(', ')}]. Each direction must have at most one @Expose per group set.`,
         );

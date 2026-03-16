@@ -276,11 +276,11 @@ export const isHalfWidth = makeStringRule(
 // Variable-width: must contain both full-width AND half-width
 export const isVariableWidth = makeStringRule(
   'isVariableWidth',
-  (v) => FULLWIDTH_RE.test(v) && HALFWIDTH_RE.test(v),
+  (v) => v.length > 0 && FULLWIDTH_RE.test(v) && HALFWIDTH_RE.test(v),
   (varName, ctx) => {
     const i1 = ctx.addRegex(FULLWIDTH_RE);
     const i2 = ctx.addRegex(HALFWIDTH_RE);
-    return `if (!_re[${i1}].test(${varName}) || !_re[${i2}].test(${varName})) ${ctx.fail('isVariableWidth')};`;
+    return `if (${varName}.length === 0 || !_re[${i1}].test(${varName}) || !_re[${i2}].test(${varName})) ${ctx.fail('isVariableWidth')};`;
   },
 );
 (isVariableWidth as any).constraints = {};

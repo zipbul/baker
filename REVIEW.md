@@ -15,7 +15,7 @@
 | **1단계: 즉시** | 🔴 Critical | C-1, C-2, C-5, C-7, C-8, C-9 | 6/6 | 런타임에 잘못된 결과를 반환하거나 기능 손실을 유발하는 실제 버그 |
 | **2단계: 곧** | 🟠 High | C-3, C-6, C-10, C-11, C-12, B-6, B-1, B-3, B-7, B-9 | 9/10 | 스펙 위반, 안전장치 누락, 잠재적 크래시, API 의미 불일치 |
 | **3단계: 안정화** | 🟡 Medium | B-2, B-4, B-8, B-11, C-13, C-14, C-15, D-1, D-4 | 6/9 | Silent failure 제거 + 버그 원인이 된 코드 중복 제거 |
-| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 3/17 | 설계 개선, 리팩토링, 코드 품질 |
+| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 7/17 | 설계 개선, 리팩토링, 코드 품질 |
 
 > **Breaking change 포함 항목**: A-1 (SealOptions 필드 삭제), B-10 (throw 전환 — 대안 검토 필요).
 > 이들은 다음 major 버전(0.2.0)에 묶어서 릴리스하되, CHANGELOG에 마이그레이션 가이드를 포함한다.
@@ -319,7 +319,7 @@ return {
 
 세 곳 모두 `allOf` 래핑 구조로 expect 값을 수정해야 한다.
 
-### [ ] C-4. `rules/string.ts:267` — `isVariableWidth` emit 빈 문자열 가드 불일치 `🟢 Low` `스타일`
+### [x] C-4. `rules/string.ts:267` — `isVariableWidth` emit 빈 문자열 가드 불일치 `🟢 Low` `스타일`
 
 **현황**: `isFullWidth`/`isHalfWidth`는 runtime과 emit 모두에서 `v.length === 0` 명시적 체크를 포함하지만, `isVariableWidth`는 누락.
 
@@ -952,7 +952,7 @@ Bun 벤치마크 결과 성능 동등 (~8.5ms/10M). `Object.hasOwn`은 ES2022 / 
 
 **수정 계획**: 전체를 `Object.hasOwn()`으로 통일. 프로젝트가 이미 `Object.hasOwn`을 사용하고 있으므로 호환성 문제 없음.
 
-### [ ] F-2. `collect.ts:16` — 불필요한 `globalRegistry.add()` 반복 `🟢 Low`
+### [x] F-2. `collect.ts:16` — 불필요한 `globalRegistry.add()` 반복 `🟢 Low`
 
 **현황**: 매 데코레이터 호출마다 `globalRegistry.add(ctor)` 실행. `collectClassSchema` (line 81)에서도 별도로 `globalRegistry.add(target)` 호출.
 
@@ -975,7 +975,7 @@ Bun 벤치마크 결과 성능 동등 (~8.5ms/10M). `Object.hasOwn`은 ES2022 / 
 >
 > 제안된 "`globalRegistry.size`만 기록" 대안은 Set이 삽입 순서를 보장하더라도 "뒤에서 N개만 순회" 연산이 불가능하므로 실현 불가능하거나 오히려 복잡해진다.
 
-### [ ] F-4. `expose-validator.ts:45` — 그룹 겹침 탐지 Set 사용 `🟢 Low`
+### [x] F-4. `expose-validator.ts:45` — 그룹 겹침 탐지 Set 사용 `🟢 Low`
 
 **현황**: `aGroups.some(g => bGroups.includes(g))` — O(n×m).
 
@@ -987,7 +987,7 @@ const bSet = new Set(bGroups);
 const overlapping = aGroups.filter(g => bSet.has(g));
 ```
 
-### [ ] F-5. `rules/array.ts` — `arrayContains` O(n×m) → Set `🟢 Low`
+### [x] F-5. `rules/array.ts` — `arrayContains` O(n×m) → Set `🟢 Low`
 
 **현황**: `values.every(v => array.includes(v))`.
 
