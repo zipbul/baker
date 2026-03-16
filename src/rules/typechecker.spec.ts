@@ -526,4 +526,30 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     expect(fn(5, regexes, refs)).toEqual([]);
     expect(fn(3.14, regexes, refs).length).toBeGreaterThan(0);
   });
+
+  it('min(5) — accepts 5 and 10, rejects 4', () => {
+    const { min } = require('../rules/number') as typeof import('../rules/number');
+    const rule = min(5);
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = rule.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn(5, regexes, refs)).toEqual([]);
+    expect(fn(10, regexes, refs)).toEqual([]);
+    expect(fn(4, regexes, refs).length).toBeGreaterThan(0);
+    expect(fn(4, regexes, refs)[0]!.code).toBe('min');
+  });
+
+  it('minLength(3) — accepts "abc", rejects "ab"', () => {
+    const { minLength } = require('../rules/string') as typeof import('../rules/string');
+    const rule = minLength(3);
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = rule.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn('abc', regexes, refs)).toEqual([]);
+    expect(fn('abcd', regexes, refs)).toEqual([]);
+    expect(fn('ab', regexes, refs).length).toBeGreaterThan(0);
+    expect(fn('ab', regexes, refs)[0]!.code).toBe('minLength');
+  });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { toJsonSchema, Field } from '../../index';
+import { toJsonSchema, Field, createRule } from '../../index';
 import { isString, isNumber, isDivisibleBy, isNotEmptyObject } from '../../src/rules/index';
 import { collectClassSchema } from '../../src/collect';
 import { RAW_CLASS_SCHEMA } from '../../src/symbols';
@@ -145,5 +145,106 @@ describe('E-27: class-level @Schema deep merge', () => {
 
     // cleanup
     delete (TitledDto as any)[RAW_CLASS_SCHEMA];
+  });
+});
+
+// ─── groups filtering: all validation rules have groups, none match ──────────
+
+describe('toJsonSchema — groups filtering via validation rules', () => {
+  it('field with only grouped validation rules is excluded when no group matches', () => {
+    class GroupedRulesDto {
+      @Field(isString) name!: string;
+
+      @Field(isNumber(), { groups: ['admin'] })
+      secret!: number;
+    }
+    const schema = toJsonSchema(GroupedRulesDto, { groups: ['user'] });
+    expect(schema.properties!['name']).toBeDefined();
+    // secret has only 'admin' group rules, ctx.groups=['user'] → excluded
+    expect(schema.properties!['secret']).toBeUndefined();
+  });
+
+  it('field with grouped validation rules is included when group matches', () => {
+    class GroupedRulesDto2 {
+      @Field(isString) name!: string;
+
+      @Field(isNumber(), { groups: ['admin'] })
+      secret!: number;
+    }
+    const schema = toJsonSchema(GroupedRulesDto2, { groups: ['admin'] });
+    expect(schema.properties!['name']).toBeDefined();
+    expect(schema.properties!['secret']).toBeDefined();
+  });
+
+  it('serializeOnly expose + grouped rules: excluded from deserialize schema when no rule group matches', () => {
+    // dirExposes.length === 0 (serializeOnly filtered out in deserialize direction)
+    // + all validation rules have groups → groups filtering via rules
+    class SerializeGroupDto {
+      @Field(isString) name!: string;
+
+      @Field(isNumber(), { serializeName: 'out_val', groups: ['admin'] })
+      val!: number;
+    }
+    const schema = toJsonSchema(SerializeGroupDto, { direction: 'deserialize', groups: ['user'] });
+    expect(schema.properties!['name']).toBeDefined();
+    // val: serializeOnly expose filtered → dirExposes.length=0; all rules have groups=['admin'], ctx groups=['user'] → no match → excluded
+    expect(schema.properties!['val']).toBeUndefined();
+  });
+});
+
+// ─── nullable discriminator → oneOf + null ──────────────────────────────────
+
+describe('toJsonSchema — nullable discriminator nested type', () => {
+  class CatDto {
+    @Field(isString) meow!: string;
+  }
+  class DogDto {
+    @Field(isString) bark!: string;
+  }
+
+  it('nullable discriminator field → oneOf includes null', () => {
+    class PetOwnerDto {
+      @Field(isString) name!: string;
+
+      @Field({
+        type: () => CatDto,
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: CatDto, name: 'cat' },
+            { value: DogDto, name: 'dog' },
+          ],
+        },
+        nullable: true,
+      })
+      pet!: CatDto | DogDto | null;
+    }
+    const schema = toJsonSchema(PetOwnerDto);
+    const petSchema = schema.properties!['pet'];
+    // discriminator produces oneOf; nullable adds { type: 'null' } to oneOf
+    expect(petSchema.oneOf).toBeDefined();
+    const nullEntry = petSchema.oneOf!.find((s: any) => s.type === 'null');
+    expect(nullEntry).toEqual({ type: 'null' });
+  });
+});
+
+// ─── onUnmappedRule callback ────────────────────────────────────────────────
+
+describe('toJsonSchema — onUnmappedRule callback', () => {
+  it('calls onUnmappedRule for rules without schema mapping', () => {
+    const customRule = createRule('myCustomCheck', (v: unknown) => typeof v === 'string');
+
+    class CustomRuleDto {
+      @Field(customRule)
+      value!: string;
+    }
+
+    const unmapped: [string, string][] = [];
+    toJsonSchema(CustomRuleDto, {
+      onUnmappedRule: (ruleName, fieldKey) => {
+        unmapped.push([ruleName, fieldKey]);
+      },
+    });
+    expect(unmapped).toContainEqual(['myCustomCheck', 'value']);
   });
 });

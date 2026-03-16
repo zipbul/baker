@@ -1031,4 +1031,64 @@ describe('analyzeAsync — discriminator', () => {
     expect(() => _autoSeal()).not.toThrow();
     expect((CircParent as any)[SEALED]).toBeDefined();
   });
+
+  // ── E-14: 3 discriminator subTypes A→B→C→A circular — analyzeAsync terminates ──
+
+  it('should terminate normally with 3 discriminator subTypes in A→B→C→A circular chain', () => {
+    // Arrange — A uses discriminator with subTypes [B, C], B→C, C→A (full cycle)
+    class DiscA {}
+    class DiscB {}
+    class DiscC {}
+
+    registerClass(DiscB, {
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      ref: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => DiscC as any },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+    registerClass(DiscC, {
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      ref: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => DiscA as any },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+    registerClass(DiscA, {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: {
+          fn: () => DiscB as any,
+          discriminator: {
+            property: 'kind',
+            subTypes: [
+              { name: 'b', value: DiscB },
+              { name: 'c', value: DiscC },
+            ],
+          },
+        },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+
+    // Act / Assert — should not throw or infinite loop (visited Set shared across recursion)
+    expect(() => _autoSeal()).not.toThrow();
+    expect((DiscA as any)[SEALED]).toBeDefined();
+    expect((DiscB as any)[SEALED]).toBeDefined();
+    expect((DiscC as any)[SEALED]).toBeDefined();
+  });
 });
