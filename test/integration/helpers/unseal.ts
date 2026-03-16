@@ -16,8 +16,8 @@ import type { SealedExecutors } from '../../../src/types';
 export function unseal(): void {
   for (const Class of _sealedClasses) {
     const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
-    // _merged에서 RAW 복원 (re-seal 가능하게)
-    if (sealed?._merged && !Object.prototype.hasOwnProperty.call(Class, RAW)) {
+    // _merged에서 RAW 복원 (re-seal 가능하게) — frozen RAW도 덮어씀
+    if (sealed?._merged) {
       (Class as any)[RAW] = sealed._merged;
     }
     delete (Class as any)[SEALED];

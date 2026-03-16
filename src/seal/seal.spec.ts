@@ -405,11 +405,11 @@ describe('_autoSeal', () => {
     // Act — _sealOnDemand should seal ParentLate AND recursively seal NestedLate
     _sealOnDemand(ParentLate);
 
-    // Assert — both sealed, RAW removed, removed from registry
+    // Assert — both sealed, RAW frozen, removed from registry
     expect((ParentLate as any)[SEALED]).toBeDefined();
     expect((NestedLate as any)[SEALED]).toBeDefined();
-    expect((ParentLate as any)[RAW]).toBeUndefined();
-    expect((NestedLate as any)[RAW]).toBeUndefined();
+    expect(Object.isFrozen((ParentLate as any)[RAW])).toBe(true);
+    expect(Object.isFrozen((NestedLate as any)[RAW])).toBe(true);
     expect(globalRegistry.has(ParentLate)).toBe(false);
     expect(globalRegistry.has(NestedLate)).toBe(false);
   });

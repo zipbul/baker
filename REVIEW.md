@@ -572,7 +572,7 @@ return hasComposition
 ```
 또는 composition keywords만 특별 처리하여 auto schema와 병합.
 
-### [ ] C-16. `seal.ts:93-94` — RAW 삭제 후 미봉인 하위 클래스의 `mergeInheritance` 실패 `🟢 Low` `보류`
+### [x] C-16. `seal.ts:93-94` — RAW 삭제 후 미봉인 하위 클래스의 `mergeInheritance` 실패 `🟢 Low` `보류`
 
 **현황**: 성공적 seal 후 모든 클래스에서 `delete (Class as any)[RAW]`가 실행된다. `mergeInheritance`는 프로토타입 체인을 따라 `RAW`를 읽는데, 부모 클래스가 seal되어 RAW가 삭제된 상태에서 아직 seal되지 않은 자식 클래스의 `mergeInheritance`를 호출하면 부모 메타데이터가 누락된다.
 

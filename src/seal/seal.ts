@@ -111,7 +111,7 @@ export function _autoSeal(): void {
 
   for (const Class of globalRegistry) {
     _sealedClasses.add(Class);
-    delete (Class as any)[RAW];
+    Object.freeze((Class as any)[RAW]);
   }
   globalRegistry.clear();
 
@@ -132,7 +132,7 @@ export function _sealOnDemand(Class: Function): void {
 
   // sealOne이 재귀적으로 seal한 nested DTO도 정리
   _sealedClasses.add(Class);
-  delete (Class as any)[RAW];
+  Object.freeze((Class as any)[RAW]);
   globalRegistry.delete(Class);
 
   // 재귀로 seal된 추가 클래스 정리 (RAW 삭제 + registry 제거) — snapshot 후 삭제
@@ -141,7 +141,7 @@ export function _sealOnDemand(Class: Function): void {
   );
   for (const C of newlySealed) {
     _sealedClasses.add(C);
-    delete (C as any)[RAW];
+    Object.freeze((C as any)[RAW]);
     globalRegistry.delete(C);
   }
 }
