@@ -297,6 +297,11 @@ function getSchemaKey(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
+  // Collection (Map/Set) → 특수 스키마
+  if (meta.type?.collection) {
+    return buildCollectionSchema(meta, ctx, fieldKey);
+  }
+
   // @Type/@Nested → $ref 또는 discriminator
   if (meta.type) {
     return buildNestedTypeSchema(meta, ctx, fieldKey);
@@ -331,6 +336,34 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// buildCollectionSchema — Map/Set → JSON Schema
+
+function buildCollectionSchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
+  const collection = meta.type!.collection!;
+  let schema: JsonSchema202012;
+
+  if (collection === 'Set') {
+    // Set<T> → { type: 'array', items: ..., uniqueItems: true }
+    let items: JsonSchema202012 | undefined;
+    if (meta.type!.resolvedCollectionValue) {
+      items = processNestedClass(meta.type!.resolvedCollectionValue, ctx);
+    }
+    schema = { type: 'array', uniqueItems: true };
+    if (items) schema.items = items;
+  } else {
+    // Map<string, T> → { type: 'object', additionalProperties: ... }
+    let valueSchema: JsonSchema202012 | undefined;
+    if (meta.type!.resolvedCollectionValue) {
+      valueSchema = processNestedClass(meta.type!.resolvedCollectionValue, ctx);
+    }
+    schema = { type: 'object' };
+    if (valueSchema) schema.additionalProperties = valueSchema;
+  }
+
+  if (meta.flags.isNullable) applyNullable(schema);
+  return applyUserSchema(meta, schema);
+}
+
 // buildNestedTypeSchema — @Type/@Nested → $ref / discriminator (§6.3)
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 import { ensureMeta } from '../collect';
 import { isAsyncFunction } from '../utils';
-import type { EmittableRule, RawPropertyMeta, TypeDef } from '../types';
+import type { EmittableRule, RawPropertyMeta, RuleDef, TypeDef } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — 배열 원소 검증 마커 (each: true 대체)
@@ -83,6 +83,14 @@ export interface FieldOptions {
   transform?: (params: FieldTransformParams) => unknown;
   /** transform 방향 제한 */
   transformDirection?: 'deserializeOnly' | 'serializeOnly';
+  /** 검증 실패 시 에러 메시지 — 필드의 모든 룰에 일괄 적용 (룰 자체 message가 우선) */
+  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
+  /** 검증 실패 시 에러 컨텍스트 — 필드의 모든 룰에 일괄 적용 (룰 자체 context가 우선) */
+  context?: unknown;
+  /** Map value의 nested DTO 클래스 thunk — type: () => Map 과 함께 사용 */
+  mapValue?: () => new (...args: any[]) => any;
+  /** Set element의 nested DTO 클래스 thunk — type: () => Set 과 함께 사용 */
+  setValue?: () => new (...args: any[]) => any;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,6 +101,7 @@ const FIELD_OPTION_KEYS = new Set([
   'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
   'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
   'exclude', 'groups', 'when', 'schema', 'transform', 'transformDirection',
+  'message', 'context', 'mapValue', 'setValue',
 ]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
@@ -140,17 +149,16 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
   for (const rule of rules) {
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
-        meta.validation.push({
-          rule: innerRule,
-          each: true,
-          groups: options.groups,
-        });
+        const rd: RuleDef = { rule: innerRule, each: true, groups: options.groups };
+        if (options.message !== undefined) rd.message = options.message;
+        if (options.context !== undefined) rd.context = options.context;
+        meta.validation.push(rd);
       }
     } else {
-      meta.validation.push({
-        rule: rule as EmittableRule,
-        groups: options.groups,
-      });
+      const rd: RuleDef = { rule: rule as EmittableRule, groups: options.groups };
+      if (options.message !== undefined) rd.message = options.message;
+      if (options.context !== undefined) rd.context = options.context;
+      meta.validation.push(rd);
     }
   }
 }
@@ -230,12 +238,13 @@ export function Field(...args: any[]): PropertyDecorator {
     if (options.nullable) meta.flags.isNullable = true;
     if (options.when) meta.flags.validateIf = options.when;
 
-    // ── type (중첩 DTO + discriminator) ──
+    // ── type (중첩 DTO + discriminator + collection) ──
     if (options.type) {
       meta.type = {
         fn: options.type as TypeDef['fn'],
         discriminator: options.discriminator,
         keepDiscriminatorProperty: options.keepDiscriminatorProperty,
+        collectionValue: options.mapValue ?? options.setValue,
       };
     }
 

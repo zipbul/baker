@@ -130,7 +130,53 @@ function generateSerializeFieldCode(
   // ② @IsOptional → undefined 면 출력 생략 (§4.3 serialize ②)
   const useOptionalGuard = meta.flags.isOptional;
 
-  // ③ nested @Type 처리 (H4) — @Transform 없는 경우에만 (§4.3 serialize 파이프라인)
+  // ③a Collection (Map/Set) serialize — Set → Array, Map → plain object
+  if (meta.type?.collection && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
+    const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
+    const collection = meta.type.collection;
+    let nestedCode: string;
+
+    if (collection === 'Set') {
+      if (meta.type.resolvedCollectionValue) {
+        const nestedSealed = (meta.type.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        if (isAsync) {
+          nestedCode = `${outputTarget} = await Promise.all(Array.from(instance[${JSON.stringify(fieldKey)}]).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+        } else {
+          nestedCode = `${outputTarget} = Array.from(instance[${JSON.stringify(fieldKey)}]).map(function(__ser_item) { return __ser_item == null ? __ser_item : _execs[${execIdx}]._serialize(__ser_item, _opts); });`;
+        }
+      } else {
+        nestedCode = `${outputTarget} = Array.from(instance[${JSON.stringify(fieldKey)}]);`;
+      }
+    } else {
+      // Map → plain object
+      if (meta.type.resolvedCollectionValue) {
+        const nestedSealed = (meta.type.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        const awaitKw = isAsync ? 'await ' : '';
+        nestedCode = `var __bk$m = {};\n`;
+        nestedCode += `  for (var __bk$me of instance[${JSON.stringify(fieldKey)}]) {\n`;
+        nestedCode += `    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : ${awaitKw}_execs[${execIdx}]._serialize(__bk$me[1], _opts);\n`;
+        nestedCode += `  }\n`;
+        nestedCode += `  ${outputTarget} = __bk$m;`;
+      } else {
+        nestedCode = `${outputTarget} = Object.fromEntries(instance[${JSON.stringify(fieldKey)}]);`;
+      }
+    }
+
+    if (useOptionalGuard) {
+      innerCode = `if (instance[${JSON.stringify(fieldKey)}] !== undefined && instance[${JSON.stringify(fieldKey)}] !== null) {\n  ${nestedCode}\n} else if (instance[${JSON.stringify(fieldKey)}] === null) {\n  ${outputTarget} = null;\n}\n`;
+    } else {
+      innerCode = `if (instance[${JSON.stringify(fieldKey)}] != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = instance[${JSON.stringify(fieldKey)}];\n}\n`;
+    }
+
+    fieldCode += fieldStart + innerCode + fieldEnd;
+    return fieldCode;
+  }
+
+  // ③b nested @Type 처리 (H4) — @Transform 없는 경우에만 (§4.3 serialize 파이프라인)
   if ((meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
 
     // 배열/each 여부 판단

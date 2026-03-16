@@ -99,6 +99,12 @@ export interface TypeDef {
   isArray?: boolean;
   /** seal() 정규화 결과 — fn() 해석 후 캐시된 클래스 (프리미티브 제외, DTO만) */
   resolvedClass?: new (...args: any[]) => any;
+  /** seal() 정규화 결과 — Map 또는 Set 컬렉션 타입 */
+  collection?: 'Map' | 'Set';
+  /** Map value / Set element의 nested DTO 클래스 thunk */
+  collectionValue?: () => new (...args: any[]) => any;
+  /** seal() 정규화 결과 — collectionValue 해석 후 캐시된 클래스 */
+  resolvedCollectionValue?: new (...args: any[]) => any;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -244,6 +244,77 @@ class AdminOnlyDto {
   id!: number;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sync API — async function 아닌 일반 함수로 동작
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('deserialize — sync path', () => {
+  afterEach(() => unseal());
+
+  it('sync DTO는 async function 아닌 Promise.resolve로 반환', async () => {
+    // deserialize 자체가 async function이 아닌 일반 함수인지 확인
+    expect(deserialize.constructor.name).not.toBe('AsyncFunction');
+  });
+
+  it('sync DTO 성공 시 Promise<T> 반환 + await 정상 동작', async () => {
+    const result = await deserialize(SimpleDto, { name: 'Test', age: 1 });
+    expect(result).toBeInstanceOf(SimpleDto);
+  });
+
+  it('sync DTO 실패 시 rejected promise (동기 throw 아님)', () => {
+    const promise = deserialize(SimpleDto, { name: 123, age: 'bad' });
+    expect(promise).toBeInstanceOf(Promise);
+    return expect(promise).rejects.toThrow();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// @Field message/context — 통합 테스트
+// ─────────────────────────────────────────────────────────────────────────────
+
+class MessageIntegrationDto {
+  @Field(isString, { message: 'Invalid name field' })
+  name!: string;
+}
+
+class ContextIntegrationDto {
+  @Field(isNumber(), { context: { errorCode: 'E001' } })
+  value!: number;
+}
+
+describe('deserialize — @Field message 통합', () => {
+  afterEach(() => unseal());
+
+  it('검증 실패 시 BakerError.message에 필드 레벨 메시지 포함', async () => {
+    try {
+      await deserialize(MessageIntegrationDto, { name: 42 });
+      expect.unreachable('should have thrown');
+    } catch (e: any) {
+      expect(e.errors.length).toBeGreaterThan(0);
+      expect(e.errors[0].message).toBe('Invalid name field');
+    }
+  });
+
+  it('검증 성공 시 message 무관 정상 반환', async () => {
+    const result = await deserialize(MessageIntegrationDto, { name: 'Alice' });
+    expect(result.name).toBe('Alice');
+  });
+});
+
+describe('deserialize — @Field context 통합', () => {
+  afterEach(() => unseal());
+
+  it('검증 실패 시 BakerError.context에 값 포함', async () => {
+    try {
+      await deserialize(ContextIntegrationDto, { value: 'bad' });
+      expect.unreachable('should have thrown');
+    } catch (e: any) {
+      expect(e.errors.length).toBeGreaterThan(0);
+      expect(e.errors[0].context).toEqual({ errorCode: 'E001' });
+    }
+  });
+});
+
 describe('M4 — validation groups runtime filtering', () => {
   afterEach(() => unseal());
 

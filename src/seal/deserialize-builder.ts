@@ -369,6 +369,12 @@ function generateValidationCode(
     }
   }
 
+  // Collection (Map/Set) 자동 변환
+  if (meta.type?.collection) {
+    code += generateCollectionCode(fieldKey, varName, meta, ctx, emitCtx);
+    return code;
+  }
+
   // @ValidateNested + @Type (§8.1)
   if (meta.flags.validateNested && meta.type?.fn) {
     code += generateNestedCode(fieldKey, varName, meta, ctx, emitCtx);
@@ -873,6 +879,125 @@ function buildRulesCode(
 
   // Phase 4: Emit each rules
   code += emitEachRules(fieldKey, varName, categorized.each, collectErrors, emitCtx, ctx);
+
+  return code;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateCollectionCode — Map/Set 자동 변환
+// ─────────────────────────────────────────────────────────────────────────────
+
+function generateCollectionCode(
+  fieldKey: string,
+  varName: string,
+  meta: RawPropertyMeta,
+  ctx: FieldCodeContext,
+  emitCtx: EmitContext,
+): string {
+  const { collectErrors, execs } = ctx;
+  const sk = sanitizeKey(fieldKey);
+  const collection = meta.type!.collection!;
+  const awaitKw = ctx.isAsync ? 'await ' : '';
+
+  // nested DTO executor (있으면)
+  let execIdx = -1;
+  if (meta.type!.resolvedCollectionValue) {
+    const nestedSealed = (meta.type!.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
+    execIdx = execs.length;
+    execs.push(nestedSealed);
+  }
+
+  let code = '';
+
+  if (collection === 'Set') {
+    // input: array → Set
+    code += `if (Array.isArray(${varName})) {\n`;
+
+    // array-level validation rules (e.g. arrayMinSize)
+    const nonEachRules = meta.validation.filter(rd => !rd.each);
+    for (const rd of nonEachRules) {
+      const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
+      code += `  ${rd.rule.emit(varName, ruleEmitCtx)}\n`;
+    }
+
+    if (execIdx >= 0) {
+      // nested DTO Set
+      const iVar = `${GEN.index}${sk}`;
+      code += `  var ${GEN.arr}${sk} = new Set();\n`;
+      code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;
+      code += `    if (_isErr(${GEN.result}${sk})) {\n`;
+      if (collectErrors) {
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
+        code += `      }\n`;
+      } else {
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
+      }
+      code += `    } else { ${GEN.arr}${sk}.add(${GEN.result}${sk}); }\n`;
+      code += `  }\n`;
+      code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
+    } else {
+      // primitive Set
+      code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = new Set(${varName});\n`;
+    }
+
+    // each validation rules (요소별)
+    const eachRules = meta.validation.filter(rd => rd.each);
+    if (eachRules.length > 0) {
+      const siVar = `${GEN.setIdx}${sk}`;
+      const svVar = `${GEN.setVal}${sk}`;
+      code += `  var ${siVar} = 0;\n`;
+      code += `  for (var ${svVar} of ${GEN.out}[${JSON.stringify(fieldKey)}]) {\n`;
+      for (const rd of eachRules) {
+        const failFn = (c: string) => collectErrors
+          ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}})`
+          : `return _err([{path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}}])`;
+        const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
+        code += `    ${rd.rule.emit(svVar, colEmitCtx)}\n`;
+      }
+      code += `    ${siVar}++;\n`;
+      code += `  }\n`;
+    }
+
+    code += `} else { ${emitCtx.fail('isArray')}; }\n`;
+  } else {
+    // Map: input plain object → Map
+    code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
+
+    if (execIdx >= 0) {
+      // nested DTO Map
+      const kVar = `${GEN.key}${sk}`;
+      code += `  var ${GEN.arr}${sk} = new Map();\n`;
+      code += `  for (var ${kVar} in ${varName}) {\n`;
+      code += `    if (!Object.prototype.hasOwnProperty.call(${varName}, ${kVar})) continue;\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._deserialize(${varName}[${kVar}], _opts);\n`;
+      code += `    if (_isErr(${GEN.result}${sk})) {\n`;
+      if (collectErrors) {
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
+        code += `      }\n`;
+      } else {
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
+      }
+      code += `    } else { ${GEN.arr}${sk}.set(${kVar}, ${GEN.result}${sk}); }\n`;
+      code += `  }\n`;
+      code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
+    } else {
+      // primitive Map
+      code += `  var ${GEN.arr}${sk} = new Map();\n`;
+      code += `  for (var ${GEN.key}${sk} in ${varName}) {\n`;
+      code += `    if (Object.prototype.hasOwnProperty.call(${varName}, ${GEN.key}${sk})) ${GEN.arr}${sk}.set(${GEN.key}${sk}, ${varName}[${GEN.key}${sk}]);\n`;
+      code += `  }\n`;
+      code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
+    }
+
+    code += `} else { ${emitCtx.fail('isObject')}; }\n`;
+  }
 
   return code;
 }

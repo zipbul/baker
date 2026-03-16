@@ -25,11 +25,13 @@ function makeClass(name = 'TestDto'): new (...args: any[]) => any {
 function attachSealed(
   ctor: Function,
   deserializeFn: (input: unknown, opts?: RuntimeOptions) => unknown,
-  serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown> = () => ({}),
+  opts?: { isAsync?: boolean },
 ): void {
   (ctor as any)[SEALED] = {
     _deserialize: deserializeFn,
-    _serialize: serializeFn,
+    _serialize: () => ({}),
+    _isAsync: opts?.isAsync ?? false,
+    _isSerializeAsync: false,
   };
 }
 
@@ -217,5 +219,55 @@ describe('deserialize', () => {
     // Assert
     expect(r1).toBe(instances[0]);
     expect(r2).toBe(instances[1]);
+  });
+
+  // ── Sync/Async 분기 ──────────────────────────────────────────────────────
+
+  it('should use sync path (Promise.resolve) when _isAsync is false', async () => {
+    // Arrange
+    const Dto = makeClass();
+    const instance = new Dto();
+    attachSealed(Dto, () => instance, { isAsync: false });
+    // Act
+    const result = deserialize(Dto, {});
+    // Assert — 항상 Promise 반환
+    expect(result).toBeInstanceOf(Promise);
+    expect(await result).toBe(instance);
+  });
+
+  it('should use async path when _isAsync is true', async () => {
+    // Arrange
+    const Dto = makeClass();
+    const instance = new Dto();
+    attachSealed(Dto, () => Promise.resolve(instance), { isAsync: true });
+    // Act
+    const result = await deserialize(Dto, {});
+    // Assert
+    expect(result).toBe(instance);
+  });
+
+  it('should reject promise when sync executor returns Err', async () => {
+    // Arrange
+    const Dto = makeClass();
+    attachSealed(Dto, () => err([{ path: 'x', code: 'fail' }]), { isAsync: false });
+    // Act & Assert
+    await expect(deserialize(Dto, {})).rejects.toThrow(BakerValidationError);
+  });
+
+  it('should reject promise when async executor resolves to Err', async () => {
+    // Arrange
+    const Dto = makeClass();
+    attachSealed(Dto, () => Promise.resolve(err([{ path: 'x', code: 'fail' }])), { isAsync: true });
+    // Act & Assert
+    await expect(deserialize(Dto, {})).rejects.toThrow(BakerValidationError);
+  });
+
+  it('should reject with SealError via promise (not sync throw) when class is not sealed', async () => {
+    // Arrange
+    const Dto = makeClass('NotSealedDto');
+    // Act — SealError가 sync throw가 아닌 rejected promise로 전달됨
+    const promise = deserialize(Dto, {});
+    expect(promise).toBeInstanceOf(Promise);
+    await expect(promise).rejects.toThrow(SealError);
   });
 });

@@ -199,6 +199,22 @@ function sealOne(Class: Function, options?: SealOptions): void {
   for (const [key, meta] of Object.entries(merged)) {
     if (!meta.type?.fn) continue;
     const typeResult = meta.type.fn();
+
+    // Map/Set collection 감지
+    if (typeResult === Map || typeResult === Set) {
+      const collection = typeResult === Map ? 'Map' as const : 'Set' as const;
+      const typeCopy = { ...meta.type, collection, isArray: false };
+      // collectionValue thunk → resolvedCollectionValue 캐싱
+      if (meta.type.collectionValue) {
+        const valCls = meta.type.collectionValue();
+        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls)) {
+          typeCopy.resolvedCollectionValue = valCls;
+        }
+      }
+      merged[key] = { ...meta, type: typeCopy };
+      continue;
+    }
+
     const isArray = Array.isArray(typeResult);
     const resolved = isArray ? (typeResult as any[])[0] : typeResult;
     if (resolved == null || typeof resolved !== 'function') {
@@ -224,10 +240,13 @@ function sealOne(Class: Function, options?: SealOptions): void {
   // 3. 순환 참조 정적 분석
   const needsCircularCheck = analyzeCircular(Class);
 
-  // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass 사용
+  // 4. 중첩 @Type 참조 DTO 먼저 봉인 (재귀) — resolvedClass / resolvedCollectionValue 사용
   for (const meta of Object.values(merged)) {
     if (meta.type?.resolvedClass) {
       sealOne(meta.type.resolvedClass, options);
+    }
+    if (meta.type?.resolvedCollectionValue) {
+      sealOne(meta.type.resolvedCollectionValue, options);
     }
     if (meta.type?.discriminator) {
       for (const sub of meta.type.discriminator.subTypes) {

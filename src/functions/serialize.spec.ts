@@ -22,10 +22,13 @@ function makeClass(name = 'TestDto'): new (...args: any[]) => any {
 function attachSealed(
   ctor: Function,
   serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown>,
+  opts?: { isSerializeAsync?: boolean },
 ): void {
   (ctor as any)[SEALED] = {
     _deserialize: () => {},
     _serialize: serializeFn,
+    _isAsync: false,
+    _isSerializeAsync: opts?.isSerializeAsync ?? false,
   };
 }
 
@@ -145,5 +148,48 @@ describe('serialize', () => {
     expect(r1).toBe(record);
     expect(r2).toBe(record);
     expect(r1).toBe(r2);
+  });
+
+  // ── Sync/Async 분기 ──────────────────────────────────────────────────────
+
+  it('should use sync path (Promise.resolve) when _isSerializeAsync is false', async () => {
+    // Arrange
+    const Dto = makeClass();
+    const record = { x: 1 };
+    attachSealed(Dto, () => record, { isSerializeAsync: false });
+    const instance = new Dto();
+    // Act
+    const result = serialize(instance);
+    // Assert
+    expect(result).toBeInstanceOf(Promise);
+    expect(await result).toBe(record);
+  });
+
+  it('should use async path when _isSerializeAsync is true', async () => {
+    // Arrange
+    const Dto = makeClass();
+    const record = { y: 2 };
+    (Dto as any)[SEALED] = {
+      _deserialize: () => {},
+      _serialize: () => Promise.resolve(record),
+      _isAsync: false,
+      _isSerializeAsync: true,
+    };
+    trackedClasses.push(Dto);
+    const instance = new Dto();
+    // Act
+    const result = await serialize(instance);
+    // Assert
+    expect(result).toBe(record);
+  });
+
+  it('should reject with SealError via promise when class is not sealed', async () => {
+    // Arrange
+    const Dto = makeClass('NotSealedSerDto');
+    const instance = new Dto();
+    // Act
+    const promise = serialize(instance);
+    expect(promise).toBeInstanceOf(Promise);
+    await expect(promise).rejects.toThrow(SealError);
   });
 });
