@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'bun:test';
 import {
   deserialize, serialize, toJsonSchema, BakerValidationError,
-  Field, Exclude,
+  Field,
 } from '../../index';
 import {
   isString, isNumber, isBoolean, isEmail, isEnum,
   min, max, minLength, maxLength, arrayMinSize,
 } from '../../src/rules/index';
-import { Expose, Transform } from '../../src/decorators/transform';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role { Admin = 'admin', User = 'user', Guest = 'guest' }
@@ -25,9 +23,7 @@ class AddressDto {
 }
 
 class CreateUserDto {
-  @Field(isString, minLength(2), maxLength(50))
-  @Expose({ name: 'user_name', deserializeOnly: true })
-  @Expose({ name: 'userName', serializeOnly: true })
+  @Field(isString, minLength(2), maxLength(50), { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 
   @Field(isEmail())
@@ -51,8 +47,7 @@ class CreateUserDto {
   @Field(arrayMinSize(1), { type: () => [AddressDto], optional: true })
   addresses?: AddressDto[];
 
-  @Exclude({ serializeOnly: true })
-  @Field(isString)
+  @Field(isString, { exclude: 'serializeOnly' })
   password!: string;
 
   @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value })

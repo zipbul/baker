@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
-  Field, Type, configure, deserialize,
+  Field, configure, deserialize,
   BakerValidationError,
 } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
@@ -107,8 +107,7 @@ describe('enableImplicitConversion', () => {
 describe('@Type hint implicit conversion', () => {
   it('@Type(() => Number) + isNotEmpty — string → number 변환 후 검증', async () => {
     class TypeHintDto {
-      @Type(() => Number)
-      @Field(isNotEmpty)
+      @Field(isNotEmpty, { type: () => Number })
       value!: number;
     }
     configure({ autoConvert: true });
@@ -118,8 +117,7 @@ describe('@Type hint implicit conversion', () => {
 
   it('@Type(() => Number) + isNotEmpty — 변환 실패 → conversionFailed', async () => {
     class TypeHintFailDto {
-      @Type(() => Number)
-      @Field(isNotEmpty)
+      @Field(isNotEmpty, { type: () => Number })
       value!: number;
     }
     configure({ autoConvert: true });

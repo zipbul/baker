@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { globalRegistry, unregister } from './registry';
+import { globalRegistry } from './registry';
 
 describe('globalRegistry', () => {
   const added: Function[] = [];
@@ -66,40 +66,3 @@ describe('globalRegistry', () => {
   });
 });
 
-describe('unregister', () => {
-  const added: Function[] = [];
-
-  afterEach(() => {
-    for (const fn of added) globalRegistry.delete(fn);
-    added.length = 0;
-  });
-
-  it('should return true when the class was registered', () => {
-    class MyDto {}
-    globalRegistry.add(MyDto);
-    expect(unregister(MyDto)).toBe(true);
-  });
-
-  it('should return false when the class was not registered', () => {
-    class UnknownDto {}
-    expect(unregister(UnknownDto)).toBe(false);
-  });
-
-  it('should remove the class from globalRegistry', () => {
-    class MyDto2 {}
-    globalRegistry.add(MyDto2);
-    unregister(MyDto2);
-    expect(globalRegistry.has(MyDto2)).toBe(false);
-  });
-
-  it('should not affect other entries when removing one class', () => {
-    class DtoA {}
-    class DtoB {}
-    globalRegistry.add(DtoA);
-    globalRegistry.add(DtoB);
-    added.push(DtoB);
-    unregister(DtoA);
-    expect(globalRegistry.has(DtoA)).toBe(false);
-    expect(globalRegistry.has(DtoB)).toBe(true);
-  });
-});

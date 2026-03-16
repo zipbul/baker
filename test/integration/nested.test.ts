@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, Type, BakerValidationError, configure } from '../../index';
-import { isString, isNumber } from '../../src/rules/index';
+import { deserialize, serialize, Field, BakerValidationError, configure } from '../../index';
+import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -19,14 +19,6 @@ class UserWithAddressDto {
 
   @Field({ type: () => AddressDto })
   address!: AddressDto;
-}
-
-class UserWithOptionalAddressDto {
-  @Field(isString)
-  name!: string;
-
-  @Field({ type: () => AddressDto })
-  address?: AddressDto;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,7 +147,8 @@ describe('nested — integration', () => {
       @Field(isString) url!: string;
     }
     class NotificationDto {
-      @Type(() => TextContent, {
+      @Field({
+        type: () => TextContent,
         discriminator: {
           property: 'type',
           subTypes: [
@@ -165,7 +158,6 @@ describe('nested — integration', () => {
         },
         keepDiscriminatorProperty: true,
       })
-      @Field()
       content!: TextContent | ImageContent;
     }
     const result = await deserialize<NotificationDto>(NotificationDto, {
@@ -181,7 +173,8 @@ describe('nested — integration', () => {
       @Field(isString) body!: string;
     }
     class NotificationDto2 {
-      @Type(() => TextContent2, {
+      @Field({
+        type: () => TextContent2,
         discriminator: {
           property: 'type',
           subTypes: [
@@ -190,7 +183,6 @@ describe('nested — integration', () => {
         },
         // keepDiscriminatorProperty not set
       })
-      @Field()
       content!: TextContent2;
     }
     const result = await deserialize<NotificationDto2>(NotificationDto2, {
@@ -205,7 +197,8 @@ describe('nested — integration', () => {
       @Field(isString) body!: string;
     }
     class NotificationDto3 {
-      @Type(() => TextContent3, {
+      @Field({
+        type: () => TextContent3,
         discriminator: {
           property: 'type',
           subTypes: [
@@ -214,7 +207,6 @@ describe('nested — integration', () => {
         },
         keepDiscriminatorProperty: true,
       })
-      @Field()
       content!: TextContent3;
     }
     try {

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
-  Field, arrayOf, deserialize, BakerValidationError, Type,
+  Field, arrayOf, deserialize, BakerValidationError,
 } from '../../index';
 import { isString, isNumber, isInt, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';

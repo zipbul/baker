@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, toJsonSchema, BakerValidationError, Field } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EmptyObjDto {

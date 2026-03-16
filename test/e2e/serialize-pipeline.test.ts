@@ -1,8 +1,9 @@
-import { describe, it, expect } from 'bun:test';
-import { serialize, deserialize, Field, Exclude } from '../../index';
+import { describe, it, expect, afterEach } from 'bun:test';
+import { serialize, deserialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { Expose, Transform } from '../../src/decorators/transform';
+import { unseal } from '../integration/helpers/unseal';
 
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NameMappedDto {
@@ -17,34 +18,37 @@ class ExcludeSerDto {
   @Field(isString)
   visible!: string;
 
-  @Exclude()
-  @Field(isString)
+  @Field(isString, { exclude: true })
   hidden!: string;
 }
 
 class SerOnlyTransformDto {
-  @Transform(({ value }) => (value as number) * 100, { serializeOnly: true })
-  @Field(isNumber())
+  @Field(isNumber(), {
+    transform: ({ value }) => (value as number) * 100,
+    transformDirection: 'serializeOnly',
+  })
   price!: number;
 }
 
 class DeserOnlyTransformDto {
-  @Transform(({ value }) => (value as string).trim(), { deserializeOnly: true })
-  @Field(isString)
+  @Field(isString, {
+    transform: ({ value }) => (value as string).trim(),
+    transformDirection: 'deserializeOnly',
+  })
   tag!: string;
 }
 
 class DirectionExposeDto {
-  @Field(isString)
-  @Expose({ name: 'user_name', deserializeOnly: true })
-  @Expose({ name: 'userName', serializeOnly: true })
+  @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 }
 
 class PipelineDto {
-  @Field(isString)
-  @Expose({ name: 'display_name', serializeOnly: true })
-  @Transform(({ value }) => `[${value}]`, { serializeOnly: true })
+  @Field(isString, {
+    serializeName: 'display_name',
+    transform: ({ value }) => `[${value}]`,
+    transformDirection: 'serializeOnly',
+  })
   name!: string;
 }
 
@@ -113,5 +117,48 @@ describe('serialize pipeline — @Expose + @Transform 조합', () => {
     const result = await serialize(dto);
     expect(result['display_name']).toBe('[Dave]');
     expect(result['name']).toBeUndefined();
+  });
+});
+
+// ─── E-19: nested array null element serialize ──────────────────────────────
+
+class ChildDto {
+  @Field(isString)
+  label!: string;
+}
+
+class ParentWithArrayDto {
+  @Field(isString)
+  name!: string;
+
+  @Field({ type: () => [ChildDto] })
+  children!: (ChildDto | null)[];
+}
+
+describe('E-19: nested array with null elements — serialize', () => {
+  it('array with [child, null, child] → serialize returns [serialized, null, serialized]', async () => {
+    const child1 = Object.assign(new ChildDto(), { label: 'first' });
+    const child3 = Object.assign(new ChildDto(), { label: 'third' });
+    const parent = Object.assign(new ParentWithArrayDto(), {
+      name: 'Alice',
+      children: [child1, null, child3],
+    });
+
+    const result = await serialize(parent);
+    expect(result.name).toBe('Alice');
+    expect(result.children).toHaveLength(3);
+    expect(result.children[0]).toEqual({ label: 'first' });
+    expect(result.children[1]).toBeNull();
+    expect(result.children[2]).toEqual({ label: 'third' });
+  });
+
+  it('array with all null elements → serialize returns [null, null]', async () => {
+    const parent = Object.assign(new ParentWithArrayDto(), {
+      name: 'Bob',
+      children: [null, null],
+    });
+
+    const result = await serialize(parent);
+    expect(result.children).toEqual([null, null]);
   });
 });

@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
   Field, deserialize, serialize, toJsonSchema, BakerValidationError,
-  Exclude,
 } from '../../index';
 import {
   isString, isNumber, isInt, isBoolean, isEnum, isArray,
@@ -180,8 +179,8 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) 동일 필드', 
   class MixedDto {
     @Field(isString) name!: string;
 
-    @Exclude({ deserializeOnly: true })
     @Field(isString, {
+      exclude: 'deserializeOnly',
       transform: ({ value, direction }) =>
         direction === 'serialize' ? `***${value}***` : value,
     })
@@ -291,5 +290,49 @@ describe('@ValidateIf + @Transform 상호작용', () => {
     const r = await deserialize<CondTransformDto>(CondTransformDto, { enabled: false, data: 123 });
     // ValidateIf false → 검증 스킵이므로 통과
     expect(r.enabled).toBe(false);
+  });
+});
+
+// ─── E-21: 4-level inheritance + mid-level override ─────────────────────────
+
+describe('E-21: 4-level inheritance + mid-level override', () => {
+  class Base {
+    @Field(isString)
+    name!: string;
+  }
+
+  class Child extends Base {
+    @Field(isString, minLength(3))
+    override name!: string;
+  }
+
+  class GrandChild extends Child {}
+
+  class GrandGrandChild extends GrandChild {}
+
+  it('GrandGrandChild enforces isString from Base', async () => {
+    const errors = await getErrors(GrandGrandChild, { name: 123 });
+    expect(errors.some(e => e.code === 'isString')).toBe(true);
+  });
+
+  it('GrandGrandChild enforces minLength(3) from Child', async () => {
+    const errors = await getErrors(GrandGrandChild, { name: 'ab' });
+    expect(errors.some(e => e.code === 'minLength')).toBe(true);
+  });
+
+  it('GrandGrandChild passes with valid value', async () => {
+    const r = await deserialize<GrandGrandChild>(GrandGrandChild, { name: 'alice' });
+    expect(r.name).toBe('alice');
+  });
+
+  it('GrandChild also enforces minLength(3) from Child', async () => {
+    const errors = await getErrors(GrandChild, { name: 'ab' });
+    expect(errors.some(e => e.code === 'minLength')).toBe(true);
+  });
+
+  it('serialize GrandGrandChild preserves value', async () => {
+    const dto = Object.assign(new GrandGrandChild(), { name: 'alice' });
+    const plain = await serialize(dto);
+    expect(plain['name']).toBe('alice');
   });
 });

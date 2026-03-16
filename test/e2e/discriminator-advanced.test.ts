@@ -147,3 +147,110 @@ describe('discriminator — toJsonSchema', () => {
     });
   });
 });
+
+// ─── E-23: 2 discriminator fields in same DTO ──────────────────────────────
+
+describe('E-23: 2 discriminator fields in same DTO', () => {
+  class CreditCardPayment {
+    @Field(isString)
+    cardNumber!: string;
+  }
+
+  class BankTransferPayment {
+    @Field(isString)
+    bankCode!: string;
+  }
+
+  class DomesticAddress {
+    @Field(isString)
+    city!: string;
+  }
+
+  class InternationalAddress {
+    @Field(isString)
+    country!: string;
+  }
+
+  class OrderDto {
+    @Field(isString)
+    orderId!: string;
+
+    @Field({
+      type: () => CreditCardPayment,
+      discriminator: {
+        property: 'type',
+        subTypes: [
+          { value: CreditCardPayment, name: 'creditcard' },
+          { value: BankTransferPayment, name: 'bank' },
+        ],
+      },
+    })
+    payment!: CreditCardPayment | BankTransferPayment;
+
+    @Field({
+      type: () => DomesticAddress,
+      discriminator: {
+        property: 'kind',
+        subTypes: [
+          { value: DomesticAddress, name: 'domestic' },
+          { value: InternationalAddress, name: 'international' },
+        ],
+      },
+    })
+    address!: DomesticAddress | InternationalAddress;
+  }
+
+  it('both discriminator fields deserialize correctly', async () => {
+    const r = await deserialize<OrderDto>(OrderDto, {
+      orderId: 'ORD-1',
+      payment: { type: 'creditcard', cardNumber: '4111111111111111' },
+      address: { kind: 'domestic', city: 'Seoul' },
+    });
+    expect(r.payment).toBeInstanceOf(CreditCardPayment);
+    expect((r.payment as CreditCardPayment).cardNumber).toBe('4111111111111111');
+    expect(r.address).toBeInstanceOf(DomesticAddress);
+    expect((r.address as DomesticAddress).city).toBe('Seoul');
+  });
+
+  it('second combination: bank + international', async () => {
+    const r = await deserialize<OrderDto>(OrderDto, {
+      orderId: 'ORD-2',
+      payment: { type: 'bank', bankCode: 'SWIFT123' },
+      address: { kind: 'international', country: 'US' },
+    });
+    expect(r.payment).toBeInstanceOf(BankTransferPayment);
+    expect(r.address).toBeInstanceOf(InternationalAddress);
+  });
+
+  it('payment invalid discriminator → error path on payment', async () => {
+    try {
+      await deserialize(OrderDto, {
+        orderId: 'ORD-3',
+        payment: { type: 'crypto', hash: 'abc' },
+        address: { kind: 'domestic', city: 'Seoul' },
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      const err = (e as BakerValidationError).errors.find(x => x.code === 'invalidDiscriminator');
+      expect(err).toBeDefined();
+      expect(err!.path).toContain('payment');
+    }
+  });
+
+  it('address invalid discriminator → error path on address', async () => {
+    try {
+      await deserialize(OrderDto, {
+        orderId: 'ORD-4',
+        payment: { type: 'creditcard', cardNumber: '4111111111111111' },
+        address: { kind: 'alien', planet: 'Mars' },
+      });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      const err = (e as BakerValidationError).errors.find(x => x.code === 'invalidDiscriminator');
+      expect(err).toBeDefined();
+      expect(err!.path).toContain('address');
+    }
+  });
+});

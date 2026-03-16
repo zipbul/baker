@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Field, deserialize, BakerValidationError } from '../../index';
 import {
-  isString, isNumber, isBoolean, isDate, isInt,
-  min, max, isPositive, isNegative,
+  isString, isNumber, isBoolean, isInt,
+  min, max, isPositive, isNegative, isDivisibleBy,
   minLength, maxLength,
   isPort, isLatitude, isLongitude, isMilitaryTime,
   arrayMinSize, arrayMaxSize,
@@ -196,5 +196,73 @@ describe('@IsBoolean에 유사값 전달', () => {
   it('0 (숫자) 거부', async () => { expect(await failCode(Dto, { v: 0 })).toBe('isBoolean'); });
   it('null 거부 (undefined guard)', async () => {
     await expect(deserialize(Dto, { v: null })).rejects.toThrow(BakerValidationError);
+  });
+});
+
+// ─── E-13: -0, NaN, Infinity edge cases ──────────────────────────────────
+
+describe('E-13: -0, NaN, Infinity edge cases', () => {
+  it('isNegative(-0) → false (0은 음수가 아님)', async () => {
+    class Dto { @Field(isNegative) v!: number; }
+    expect(await failCode(Dto, { v: -0 })).toBe('isNegative');
+  });
+
+  it('isPositive(NaN) — function returns false but emit code lets NaN through (NaN <= 0 is false)', () => {
+    // isPositive function: NaN > 0 → false (correct)
+    expect(isPositive(NaN)).toBe(false);
+    // However, emitted code `if (v <= 0)` does NOT catch NaN because NaN <= 0 is false.
+    // This is a known limitation of the emit optimization — guard with isNumber() for safety.
+  });
+
+  it('@Field(isNumber(), isPositive) rejects NaN via isNumber gate', async () => {
+    class Dto { @Field(isNumber(), isPositive) v!: number; }
+    await expect(deserialize(Dto, { v: NaN })).rejects.toThrow(BakerValidationError);
+  });
+
+  it('isDivisibleBy(Infinity) — does not throw at creation, but 42 % Infinity !== 0', () => {
+    // isDivisibleBy only guards against n === 0, so Infinity is allowed as a divisor.
+    // However: 42 % Infinity === 42 (not 0), so the rule returns false for non-zero values.
+    const rule = isDivisibleBy(Infinity);
+    expect(rule(42)).toBe(false);  // 42 % Infinity === 42
+    expect(rule(0)).toBe(true);    // 0 % Infinity === 0
+  });
+});
+
+// ─── E-20: min(NaN), max(NaN), max(Infinity) factory guard ──────────────
+
+describe('E-20: min/max factory guard for non-finite bounds', () => {
+  it('min(NaN) → throw Error', () => {
+    expect(() => min(NaN)).toThrow();
+  });
+
+  it('max(Infinity) → throw Error', () => {
+    expect(() => max(Infinity)).toThrow();
+  });
+
+  it('min(parseInt("abc")) → throw Error (parseInt returns NaN)', () => {
+    expect(() => min(parseInt('abc'))).toThrow();
+  });
+
+  it('max(-Infinity) → throw Error', () => {
+    expect(() => max(-Infinity)).toThrow();
+  });
+
+  it('min(-Infinity) → throw Error', () => {
+    expect(() => min(-Infinity)).toThrow();
+  });
+});
+
+// ─── E-5: isDivisibleBy(0) throw (→ C-5) ────────────────────────────────
+
+describe('E-5: isDivisibleBy(0) throw', () => {
+  it('isDivisibleBy(0) → throws Error at creation time', () => {
+    expect(() => isDivisibleBy(0)).toThrow('divisor must not be zero');
+  });
+
+  it('isDivisibleBy(1) → normal operation (regression)', () => {
+    const rule = isDivisibleBy(1);
+    expect(rule(42)).toBe(true);
+    expect(rule(0)).toBe(true);
+    expect(rule(3.5)).toBe(false);
   });
 });

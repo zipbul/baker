@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { serialize, Field, Exclude } from '../../index';
+import { serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -25,8 +25,7 @@ class ExcludedDto {
   @Field(isString)
   public!: string;
 
-  @Exclude()
-  @Field(isString)
+  @Field(isString, { exclude: true })
   private!: string;
 }
 

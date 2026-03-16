@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, Type, BakerValidationError } from '../../index';
+import { deserialize, serialize, Field, BakerValidationError } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -13,8 +13,7 @@ describe('@Type auto-nested', () => {
       @Field(isString) value!: string;
     }
     class OuterDto {
-      @Type(() => InnerDto)
-      @Field()
+      @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
     const result = await deserialize<OuterDto>(OuterDto, {
@@ -30,8 +29,7 @@ describe('@Type auto-nested', () => {
       @Field(isString) value!: string;
     }
     class OuterDto {
-      @Type(() => InnerDto)
-      @Field()
+      @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
     const dto = Object.assign(new OuterDto(), {
@@ -46,8 +44,7 @@ describe('@Type auto-nested', () => {
       @Field(isNumber()) num!: number;
     }
     class OuterDto {
-      @Type(() => InnerDto)
-      @Field()
+      @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
     await expect(deserialize(OuterDto, {
@@ -64,8 +61,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field(isString) name!: string;
     }
     class OrderDto {
-      @Type(() => [ItemDto])
-      @Field()
+      @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     const result = await deserialize<OrderDto>(OrderDto, {
@@ -82,8 +78,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field(isString) name!: string;
     }
     class OrderDto {
-      @Type(() => [ItemDto])
-      @Field()
+      @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     const dto = Object.assign(new OrderDto(), {
@@ -104,8 +99,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field(isString) name!: string;
     }
     class OrderDto {
-      @Type(() => [ItemDto])
-      @Field()
+      @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     try {
@@ -122,8 +116,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field(isString) name!: string;
     }
     class OrderDto {
-      @Type(() => [ItemDto])
-      @Field()
+      @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     try {
@@ -143,8 +136,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field(isString) name!: string;
     }
     class OrderDto {
-      @Type(() => [ItemDto])
-      @Field()
+      @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     const result = await deserialize<OrderDto>(OrderDto, { items: [] });
@@ -157,8 +149,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
 describe('primitive @Type — no auto nested', () => {
   it('@Type(() => Number) should not trigger nested validation', async () => {
     class PrimDto {
-      @Field(isNumber())
-      @Type(() => Number)
+      @Field(isNumber(), { type: () => Number })
       value!: number;
     }
     const result = await deserialize<PrimDto>(PrimDto, { value: 42 });
@@ -167,8 +158,7 @@ describe('primitive @Type — no auto nested', () => {
 
   it('@Type(() => String) should not trigger nested validation', async () => {
     class PrimDto {
-      @Field(isString)
-      @Type(() => String)
+      @Field(isString, { type: () => String })
       value!: string;
     }
     const result = await deserialize<PrimDto>(PrimDto, { value: 'hello' });
@@ -184,8 +174,7 @@ describe('unseal + re-seal with @Type auto-nested', () => {
       @Field(isString) value!: string;
     }
     class OuterDto {
-      @Type(() => InnerDto)
-      @Field()
+      @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
     const result1 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } });

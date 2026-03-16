@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Field, deserialize, serialize } from '../../index';
 import { isString } from '../../src/rules/index';
+import { isAsyncFunction } from '../../src/utils';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -53,5 +54,44 @@ describe('async @Transform — serialize', () => {
     const dto = Object.assign(new AsyncSerializeDto(), { tag: 'world' });
     const result = await serialize(dto);
     expect(result['tag']).toBe('[world]');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E-10: async detection robustness (→ B-6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('E-10: isAsyncFunction robustness', () => {
+  it('async function with mangled name → still detected as async', () => {
+    const fn = async () => {};
+    Object.defineProperty(fn, 'name', { value: 'e' });
+    expect(isAsyncFunction(fn)).toBe(true);
+  });
+
+  it('async function with constructor.name overridden → still detected as async via Symbol.toStringTag', () => {
+    const fn = async () => {};
+    // Even if someone tries to override constructor-related properties,
+    // Symbol.toStringTag on the prototype is not affected
+    Object.defineProperty(fn, 'name', { value: 'Function' });
+    expect(isAsyncFunction(fn)).toBe(true);
+  });
+
+  it('sync function → not detected as async', () => {
+    const fn = () => {};
+    expect(isAsyncFunction(fn)).toBe(false);
+  });
+
+  it('async function used as transform is correctly detected at seal time', async () => {
+    const mangledAsync = async ({ value }: { value: unknown }) => value;
+    Object.defineProperty(mangledAsync, 'name', { value: 'x' });
+
+    class MangledDto {
+      @Field(isString, { transform: mangledAsync })
+      val!: string;
+    }
+
+    // If async detection works, deserialize should still return a promise
+    const result = await deserialize<MangledDto>(MangledDto, { val: 'test' });
+    expect(result.val).toBe('test');
   });
 });

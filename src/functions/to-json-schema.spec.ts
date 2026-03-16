@@ -368,6 +368,35 @@ describe('toJsonSchema — 플래그', () => {
     const schema = toJsonSchema(Dto);
     expect(schema.properties!.field).toEqual({ type: ['null'] });
   });
+
+  // E-8: applyNullable — no duplicate null (→ B-11)
+  it('@IsNullable + type already ["string","null"] → no duplicate null', () => {
+    // Simulate a schema where type is already ['string', 'null'] by having isString + nullable
+    const Dto = makeClass();
+    const meta = ensureMeta(Dto, 'field');
+    meta.validation.push(fakeRule('isString'));
+    meta.flags.isNullable = true;
+
+    const schema = toJsonSchema(Dto);
+    const fieldSchema = schema.properties!.field!;
+    // type should be exactly ['string', 'null'], no duplicates
+    expect(fieldSchema.type).toEqual(['string', 'null']);
+    const nullCount = (fieldSchema.type as string[]).filter(t => t === 'null').length;
+    expect(nullCount).toBe(1);
+  });
+
+  it('@IsNullable + type already "null" → ["null"] (no duplicate)', () => {
+    const Dto = makeClass();
+    const meta = ensureMeta(Dto, 'field');
+    meta.flags.isNullable = true;
+    // No type rule → applyNullable with no existing type → type: ['null']
+
+    const schema = toJsonSchema(Dto);
+    const fieldSchema = schema.properties!.field!;
+    expect(fieldSchema.type).toEqual(['null']);
+    const nullCount = (fieldSchema.type as string[]).filter(t => t === 'null').length;
+    expect(nullCount).toBe(1);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -575,6 +604,39 @@ describe('toJsonSchema — 중첩 DTO', () => {
         },
       ],
     });
+  });
+
+  // E-9: verify $ref and properties are NOT at the same level (→ C-3)
+  it('discriminator oneOf entries should not have $ref and properties as siblings', () => {
+    const DogDto = makeClass('DogE9');
+    const dogM = ensureMeta(DogDto, 'bark');
+    dogM.validation.push(fakeRule('isString'));
+
+    const CatDto = makeClass('CatE9');
+    const catM = ensureMeta(CatDto, 'meow');
+    catM.validation.push(fakeRule('isString'));
+
+    const PetDto = makeClass('PetE9');
+    const petMeta = ensureMeta(PetDto, 'pet');
+    petMeta.type = {
+      fn: () => DogDto as any,
+      discriminator: {
+        property: 'type',
+        subTypes: [
+          { value: DogDto, name: 'dog' },
+          { value: CatDto, name: 'cat' },
+        ],
+      },
+    };
+    petMeta.flags.validateNested = true;
+
+    const schema = toJsonSchema(PetDto);
+    const pet = schema.properties!.pet!;
+    for (const entry of pet.oneOf!) {
+      // $ref and properties must NOT coexist at the same level
+      expect(entry.$ref).toBeUndefined();
+      expect(entry.allOf).toBeDefined();
+    }
   });
 });
 

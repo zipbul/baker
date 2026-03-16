@@ -1,29 +1,35 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, serialize, BakerValidationError, Field } from '../../index';
 import { isString } from '../../src/rules/index';
-import { Transform } from '../../src/decorators/transform';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class TrimLowerDto {
-  @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
-  @Transform(({ value }) => typeof value === 'string' ? value.toLowerCase() : value)
-  @Field(isString)
+  @Field(isString, {
+    transform: ({ value }) => {
+      let v = typeof value === 'string' ? value.trim() : value;
+      v = typeof v === 'string' ? v.toLowerCase() : v;
+      return v;
+    },
+  })
   email!: string;
 }
 
 class DirectionTransformDto {
-  @Transform(({ value }) => (value as string).trim(), { deserializeOnly: true })
-  @Transform(({ value }) => `<${value}>`, { serializeOnly: true })
-  @Field(isString)
+  @Field(isString, {
+    transform: ({ value, direction }) => {
+      if (direction === 'deserialize') return (value as string).trim();
+      if (direction === 'serialize') return `<${value}>`;
+      return value;
+    },
+  })
   tag!: string;
 }
 
 class TypeAwareDto {
-  @Transform(({ value, type }) =>
-    type === 'deserialize' ? (value as string).toUpperCase() : (value as string).toLowerCase(),
-  )
-  @Field(isString)
+  @Field(isString, {
+    transform: ({ value, direction }) =>
+      direction === 'deserialize' ? (value as string).toUpperCase() : (value as string).toLowerCase(),
+  })
   code!: string;
 }
 
@@ -71,8 +77,9 @@ describe('@Transform — stacking serialize', () => {
 
 describe('@Transform 콜백 파라미터', () => {
   class CallbackDto {
-    @Transform(({ value, key, obj }) => `${key}:${obj.prefix}:${value}`)
-    @Field(isString)
+    @Field(isString, {
+      transform: ({ value, key, obj }) => `${key}:${obj.prefix}:${value}`,
+    })
     data!: string;
 
     @Field(isString)
@@ -85,6 +92,38 @@ describe('@Transform 콜백 파라미터', () => {
   });
 });
 
+// ─── E-24: async transform failure error path ──────────────────────────────
+
+describe('E-24: async transform failure error path', () => {
+  it('async transform returns invalid value → subsequent validation error has correct path/code', async () => {
+    class AsyncInvalidDto {
+      @Field(isString, {
+        transform: async ({ value }) => typeof value === 'string' ? 42 : value,
+      })
+      name!: string;
+    }
+    try {
+      await deserialize(AsyncInvalidDto, { name: 'hello' });
+      throw new Error('expected rejection');
+    } catch (e) {
+      if (!(e instanceof BakerValidationError)) throw e;
+      const err = e.errors.find(x => x.code === 'isString');
+      expect(err).toBeDefined();
+      expect(err!.path).toBe('name');
+    }
+  });
+
+  it('async transform throws → error propagated', async () => {
+    class AsyncThrowDto {
+      @Field(isString, {
+        transform: async () => { throw new Error('transform boom'); },
+      })
+      value!: string;
+    }
+    await expect(deserialize(AsyncThrowDto, { value: 'test' })).rejects.toThrow('transform boom');
+  });
+});
+
 describe('@Transform null 반환 동작', () => {
   // 핵심: guard(Optional/Nullable)는 원본 입력에 대해 실행됨
   // Transform은 guard 이후 실행 → Transform이 null 반환해도 guard는 이미 통과한 상태
@@ -92,8 +131,9 @@ describe('@Transform null 반환 동작', () => {
 
   it('Transform → null 반환 시 isString 실패 (guard는 원본 입력에서 실행)', async () => {
     class NullTransformDto {
-      @Transform(({ value }) => value === 'EMPTY' ? null : value)
-      @Field(isString)
+      @Field(isString, {
+        transform: ({ value }) => value === 'EMPTY' ? null : value,
+      })
       v!: string;
     }
     // 원본 'EMPTY'는 문자열 → guard 통과 → Transform → null → isString 실패
@@ -102,8 +142,9 @@ describe('@Transform null 반환 동작', () => {
 
   it('Transform이 유효값 반환 시 검증 통과', async () => {
     class TransformDto {
-      @Transform(({ value }) => typeof value === 'string' ? value.toUpperCase() : value)
-      @Field(isString)
+      @Field(isString, {
+        transform: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+      })
       v!: string;
     }
     const r = await deserialize<TransformDto>(TransformDto, { v: 'hello' });
@@ -112,8 +153,10 @@ describe('@Transform null 반환 동작', () => {
 
   it('원본이 null + nullable → guard에서 null 스킵 → Transform 실행 안 됨', async () => {
     class NullableDto {
-      @Transform(({ value }) => 'transformed')
-      @Field(isString, { nullable: true })
+      @Field(isString, {
+        nullable: true,
+        transform: ({ value }) => 'transformed',
+      })
       v!: string | null;
     }
     const r = await deserialize<NullableDto>(NullableDto, { v: null });

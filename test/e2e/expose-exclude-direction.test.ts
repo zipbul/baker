@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, Exclude, deserialize, serialize } from '../../index';
+import { Field, deserialize, serialize } from '../../index';
 import { isString } from '../../src/rules/index';
-import { Expose } from '../../src/decorators/transform';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -9,21 +8,16 @@ afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DirectionDto {
-  @Field(isString)
-  @Expose({ name: 'user_name', deserializeOnly: true })
-  @Expose({ name: 'userName', serializeOnly: true })
+  @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 
-  @Field(isString)
-  @Exclude({ serializeOnly: true })
+  @Field(isString, { exclude: 'serializeOnly' })
   password!: string;
 
-  @Field(isString)
-  @Exclude({ deserializeOnly: true })
+  @Field(isString, { exclude: 'deserializeOnly' })
   token!: string;
 
-  @Field(isString)
-  @Exclude()
+  @Field(isString, { exclude: true })
   internal!: string;
 }
 

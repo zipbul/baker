@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, arrayOf, deserialize, BakerValidationError } from '../../index';
+import { Field, arrayOf, deserialize, configure, BakerValidationError } from '../../index';
 import { isArray, isString, isNumber, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -81,5 +81,81 @@ describe('each:true — 배열+요소 복합', () => {
 
   it('요소 MinLength 위반 거부', async () => {
     await expect(deserialize(MinLenArrayDto, { names: ['a'] })).rejects.toThrow(BakerValidationError);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E-1: Set/Map each 룰 테스트 (→ C-2)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('each:true — Set with stopAtFirstError', () => {
+  it('에러 path에 인덱스 포함 (e.g. field[0])', async () => {
+    configure({ stopAtFirstError: true });
+    class SetDto {
+      @Field(arrayOf(isString))
+      items!: Set<string>;
+    }
+    try {
+      await deserialize(SetDto, { items: new Set([42, 'ok']) });
+      expect.unreachable();
+    } catch (e) {
+      const errors = (e as BakerValidationError).errors;
+      const err = errors.find(err => err.path.startsWith('items'));
+      expect(err).toBeDefined();
+      expect(err!.path).toMatch(/items\[\d+\]/);
+    }
+  });
+});
+
+describe('each:true — Map with stopAtFirstError', () => {
+  it('에러 path에 인덱스 포함', async () => {
+    configure({ stopAtFirstError: true });
+    class MapDto {
+      @Field(arrayOf(isString))
+      items!: Map<string, string>;
+    }
+    try {
+      await deserialize(MapDto, { items: new Map([['a', 99 as any], ['b', 'ok']]) });
+      expect.unreachable();
+    } catch (e) {
+      const errors = (e as BakerValidationError).errors;
+      const err = errors.find(err => err.path.startsWith('items'));
+      expect(err).toBeDefined();
+      expect(err!.path).toMatch(/items\[\d+\]/);
+    }
+  });
+});
+
+describe('each:true — Set with collectErrors', () => {
+  it('모든 에러 수집', async () => {
+    class SetCollectDto {
+      @Field(arrayOf(isString))
+      items!: Set<string>;
+    }
+    try {
+      await deserialize(SetCollectDto, { items: new Set([42, 99]) });
+      expect.unreachable();
+    } catch (e) {
+      const errors = (e as BakerValidationError).errors;
+      const itemErrors = errors.filter(err => err.path.startsWith('items['));
+      expect(itemErrors.length).toBeGreaterThanOrEqual(2);
+    }
+  });
+});
+
+describe('each:true — Map with collectErrors', () => {
+  it('모든 에러 수집', async () => {
+    class MapCollectDto {
+      @Field(arrayOf(isString))
+      items!: Map<string, string>;
+    }
+    try {
+      await deserialize(MapCollectDto, { items: new Map([['a', 42 as any], ['b', 99 as any]]) });
+      expect.unreachable();
+    } catch (e) {
+      const errors = (e as BakerValidationError).errors;
+      const itemErrors = errors.filter(err => err.path.startsWith('items['));
+      expect(itemErrors.length).toBeGreaterThanOrEqual(2);
+    }
   });
 });

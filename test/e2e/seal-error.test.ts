@@ -2,7 +2,6 @@ import { describe, it, expect } from 'bun:test';
 import { deserialize, serialize, SealError, Field } from '../../index';
 import { isString } from '../../src/rules/index';
 import { ensureMeta } from '../../src/collect';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SealError', () => {

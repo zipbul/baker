@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema } from '../../index';
+import { Field, deserialize, serialize, toJsonSchema, BakerValidationError } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
-import { Expose } from '../../src/decorators/transform';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -13,8 +12,7 @@ class GroupDto {
   @Field(isString)
   name!: string;
 
-  @Expose({ groups: ['admin'] })
-  @Field(isString)
+  @Field(isString, { groups: ['admin'] })
   secret!: string;
 
   @Field(isNumber())
@@ -91,5 +89,53 @@ describe('groups — toJsonSchema', () => {
     const s = toJsonSchema(GroupDto, { groups: ['update'] });
     expect(s.properties!.score!.maximum).toBe(100);
     expect(s.properties!.score!.minimum).toBeUndefined();
+  });
+});
+
+// ─── E-22: groups + directional exclude combo ───────────────────────────────
+
+describe('E-22: groups + directional exclude combo', () => {
+  class AdminExcludeDto {
+    @Field(isString)
+    name!: string;
+
+    @Field(isString, { groups: ['admin'], exclude: 'serializeOnly' })
+    adminSecret!: string;
+
+    @Field(isString, { groups: ['public'], serializeName: 'x' })
+    label!: string;
+  }
+
+  it('admin group deserialize → adminSecret visible', async () => {
+    const r = await deserialize<AdminExcludeDto>(AdminExcludeDto, {
+      name: 'Alice', adminSecret: 'secret123', label: 'hello',
+    }, { groups: ['admin', 'public'] });
+    expect(r.adminSecret).toBe('secret123');
+  });
+
+  it('admin group serialize → adminSecret excluded (serializeOnly exclude)', async () => {
+    const dto = Object.assign(new AdminExcludeDto(), {
+      name: 'Alice', adminSecret: 'secret123', label: 'hello',
+    });
+    const result = await serialize(dto, { groups: ['admin', 'public'] });
+    expect(result['adminSecret']).toBeUndefined();
+    expect(result['name']).toBe('Alice');
+  });
+
+  it('public group serialize → label serialized as "x"', async () => {
+    const dto = Object.assign(new AdminExcludeDto(), {
+      name: 'Bob', adminSecret: 'sec', label: 'world',
+    });
+    const result = await serialize(dto, { groups: ['public'] });
+    expect(result['x']).toBe('world');
+    expect(result['label']).toBeUndefined();
+  });
+
+  it('no groups → adminSecret and label excluded', async () => {
+    const r = await deserialize<AdminExcludeDto>(AdminExcludeDto, {
+      name: 'Carol', adminSecret: 'sec', label: 'test',
+    });
+    expect(r.adminSecret).toBeUndefined();
+    expect(r.label).toBeUndefined();
   });
 });

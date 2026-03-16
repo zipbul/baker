@@ -4,7 +4,6 @@ import {
   isString, isEmail, isUUID, isIP, isURL, isISO8601,
   minLength, maxLength, matches, contains, length,
 } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EmailDto { @Field(isEmail()) email!: string; }
@@ -76,6 +75,22 @@ describe('isURL', () => {
   });
   it('잘못된 URL 거부', async () => {
     await expect(deserialize(URLDto, { url: 'not a url' })).rejects.toThrow(BakerValidationError);
+  });
+
+  // E-6: isURL port boundary (→ C-6)
+  it('포트 65535 통과', async () => {
+    const r = await deserialize<URLDto>(URLDto, { url: 'https://example.com:65535' });
+    expect(r.url).toBe('https://example.com:65535');
+  });
+  it('포트 65536 거부', async () => {
+    await expect(deserialize(URLDto, { url: 'https://example.com:65536' })).rejects.toThrow(BakerValidationError);
+  });
+  it('포트 99999 거부', async () => {
+    await expect(deserialize(URLDto, { url: 'https://example.com:99999' })).rejects.toThrow(BakerValidationError);
+  });
+  it('포트 0 통과', async () => {
+    const r = await deserialize<URLDto>(URLDto, { url: 'https://example.com:0' });
+    expect(r.url).toBe('https://example.com:0');
   });
 });
 

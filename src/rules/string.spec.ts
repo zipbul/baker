@@ -581,6 +581,17 @@ describe('isVariableWidth', () => {
     expect(failMock).toHaveBeenCalledWith('isVariableWidth');
     expect(isVariableWidth.ruleName).toBe('isVariableWidth');
   });
+
+  // E-4: empty string → false (runtime and emit)
+  it('should return false for empty string', () => {
+    expect(isVariableWidth('')).toBe(false);
+  });
+
+  it('should emit code that fails for empty string', () => {
+    const { ctx } = makeCtx(0);
+    const code = isVariableWidth.emit('_v', ctx);
+    expect(code).toContain('.length === 0');
+  });
 });
 
 describe('isMultibyte', () => {

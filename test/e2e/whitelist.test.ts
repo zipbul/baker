@@ -95,3 +95,33 @@ describe('forbidUnknown (whitelist) configure option', () => {
     }
   });
 });
+
+// ─── E-18: stripUnknown deprecated alias → forbidUnknown 동작 ───────────
+
+describe('E-18: stripUnknown deprecated alias', () => {
+  it('stripUnknown: true → forbidUnknown과 동일하게 unknown 필드 거부', async () => {
+    configure({ stripUnknown: true });
+    try {
+      await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      const err = (e as BakerValidationError).errors.find(e => e.code === 'whitelistViolation');
+      expect(err).toBeDefined();
+    }
+  });
+
+  it('forbidUnknown이 명시되면 stripUnknown 무시 (forbidUnknown: false 우선)', async () => {
+    configure({ forbidUnknown: false, stripUnknown: true });
+    // forbidUnknown: false overrides stripUnknown: true
+    const result = await deserialize<ProfileDto>(ProfileDto, { name: 'Bob', age: 30, extra: 'ok' });
+    expect(result.name).toBe('Bob');
+  });
+
+  it('stripUnknown: true + 선언 필드만 → 통과', async () => {
+    configure({ stripUnknown: true });
+    const result = await deserialize<ProfileDto>(ProfileDto, { name: 'Carol', age: 40 });
+    expect(result.name).toBe('Carol');
+    expect(result.age).toBe(40);
+  });
+});

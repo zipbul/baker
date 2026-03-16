@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'bun:test';
 import {
   deserialize, serialize,
-  Field, Exclude,
+  Field,
 } from '../../index';
 import {
   isString, isNumber, isBoolean, isEmail,
   min, minLength, arrayMinSize,
 } from '../../src/rules/index';
-import { Expose, Transform } from '../../src/decorators/transform';
-
 // ─── 1. 단순 플랫 DTO 라운드트립 ───────────────────────────────────────────
 
 describe('플랫 DTO 라운드트립', () => {
@@ -81,9 +79,15 @@ describe('@Field({ name }) 매핑 라운드트립', () => {
 
 describe('@Transform 포함 라운드트립', () => {
   class TrimDto {
-    @Transform(({ value }) => typeof value === 'string' ? value.trim() : value)
-    @Transform(({ value }) => typeof value === 'string' ? value.toUpperCase() : value, { serializeOnly: true })
-    @Field(isString)
+    @Field(isString, {
+      transform: ({ value, direction }) => {
+        let v = typeof value === 'string' ? value.trim() : value;
+        if (direction === 'serialize') {
+          v = typeof v === 'string' ? v.toUpperCase() : v;
+        }
+        return v;
+      },
+    })
     tag!: string;
   }
 
@@ -173,7 +177,7 @@ describe('Nested 배열 라운드트립', () => {
 describe('@Exclude 필드 라운드트립', () => {
   class SecretDto {
     @Field(isString) username!: string;
-    @Exclude() @Field(isString) password!: string;
+    @Field(isString, { exclude: true }) password!: string;
   }
 
   it('Exclude 필드는 양방향 제외', async () => {

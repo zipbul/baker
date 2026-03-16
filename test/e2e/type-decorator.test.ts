@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, serialize, BakerValidationError, Field, Type } from '../../index';
+import { deserialize, serialize, BakerValidationError, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -42,7 +42,8 @@ describe('@Type / @Field({ type })', () => {
     }
 
     class PetDto {
-      @Type(() => Object, {
+      @Field({
+        type: () => Object,
         discriminator: { property: 'type', subTypes: [
           { value: Cat, name: 'cat' },
           { value: Dog, name: 'dog' },

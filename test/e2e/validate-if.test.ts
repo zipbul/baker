@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, BakerValidationError, Field } from '../../index';
 import { isString, isNumber, min } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ConditionalDto {

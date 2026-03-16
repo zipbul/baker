@@ -755,7 +755,7 @@ code += `  ${ruleEmit}\n`;
 
 ## E. 테스트 보강
 
-### [ ] E-1. Set/Map each 룰 테스트 추가 `→ C-2`
+### [x] E-1. Set/Map each 룰 테스트 추가 `→ C-2`
 
 **현재 `each-option.test.ts`**: Array만 테스트. Set/Map **0개**.
 
@@ -765,32 +765,32 @@ code += `  ${ruleEmit}\n`;
 - Set with each: true + collectErrors → 모든 에러 수집 확인
 - Map with each: true + collectErrors → 모든 에러 수집 확인
 
-### [ ] E-2. analyzeAsync discriminator 순환 테스트 `→ C-1`
+### [x] E-2. analyzeAsync discriminator 순환 테스트 `→ C-1`
 
 **추가할 테스트**:
 - async transform이 있는 discriminator subType → async 정확히 감지
 - discriminator subType이 부모를 참조하는 순환 구조 → 무한루프 아닌 정상 종료
 - **추가**: discriminator subType 3개 이상이 서로를 참조하는 순환 구조 → visited Set 공유 확인 (C-1 회귀 방지)
 
-### [ ] E-3. circular-analyzer lazy type throw 테스트 `→ B-7`
+### [x] E-3. circular-analyzer lazy type throw 테스트 `→ B-7`
 
 **추가할 테스트**:
 - `@Field({ type: () => { throw new Error('boom') } })` → SealError with 원본 메시지 포함
 - SealError 메시지에 클래스명과 필드명이 포함되어 있는지 확인
 
-### [ ] E-4. isVariableWidth 빈 문자열 테스트 `→ C-4`
+### [x] E-4. isVariableWidth 빈 문자열 테스트 `→ C-4`
 
 **추가할 테스트**:
 - `isVariableWidth('')` → false
 - emit 생성 코드에서도 빈 문자열 → fail
 
-### [ ] E-5. isDivisibleBy(0) 테스트 `→ C-5`
+### [x] E-5. isDivisibleBy(0) 테스트 `→ C-5`
 
 **추가할 테스트**:
 - `isDivisibleBy(0)` 호출 시 Error throw (seal 타임)
 - `isDivisibleBy(1)` 등 정상 케이스 회귀 확인
 
-### [ ] E-6. isURL 포트 경계값 테스트 `→ C-6`
+### [x] E-6. isURL 포트 경계값 테스트 `→ C-6`
 
 **추가할 테스트**:
 - `isURL('https://example.com:65535')` → true
@@ -798,7 +798,7 @@ code += `  ${ruleEmit}\n`;
 - `isURL('https://example.com:99999')` → false
 - `isURL('https://example.com:0')` → true (port 0은 유효)
 
-### [ ] E-7. isNumber maxDecimalPlaces 과학 표기법 테스트 `→ C-7`
+### [x] E-7. isNumber maxDecimalPlaces 과학 표기법 테스트 `→ C-7`
 
 **추가할 테스트**:
 - `isNumber({ maxDecimalPlaces: 2 })(1e-10)` → false (소수점 10자리)
@@ -806,14 +806,14 @@ code += `  ${ruleEmit}\n`;
 - `isNumber({ maxDecimalPlaces: 5 })(1e-5)` → true (정확히 5자리)
 - `isNumber({ maxDecimalPlaces: 4 })(1e-5)` → false (5자리인데 4자리 허용)
 
-### [ ] E-8. applyNullable 중복 null 테스트 `→ B-11`
+### [x] E-8. applyNullable 중복 null 테스트 `→ B-11`
 
 **추가할 테스트**:
 - nullable 적용 후 schema.type에 'null'이 한 번만 존재
 - `schema.type`이 이미 `'null'`인 경우 → `['null']` (중복 아님)
 - `schema.type`이 이미 `['string', 'null']`인 경우 → 변경 없음
 
-### [ ] E-9. discriminator JSON Schema 구조 테스트 `→ C-3`
+### [x] E-9. discriminator JSON Schema 구조 테스트 `→ C-3`
 
 **기존 테스트 수정** (C-3 버그를 정답으로 고정하고 있는 테스트):
 - `test/e2e/discriminator-advanced.test.ts:101-105` → `allOf` 래핑 구조로 expect 값 변경
@@ -824,13 +824,13 @@ code += `  ${ruleEmit}\n`;
 - `$ref`와 `properties`가 같은 레벨에 있지 않음 확인
 - 생성된 스키마를 ajv 등으로 실제 검증 가능한지 확인
 
-### [ ] E-10. async 감지 robustness 테스트 `→ B-6`
+### [x] E-10. async 감지 robustness 테스트 `→ B-6`
 
 **추가할 테스트**:
 - `Object.defineProperty(fn, 'name', { value: 'e' })` 같은 minified 패턴에서도 async 감지
 - `Object.defineProperty(asyncFn, 'constructor', { value: { name: 'Function' } })` — prototype은 변경 안 됨 → 여전히 async 감지
 
-### [ ] E-11. emit 코드 컴파일 통합 테스트
+### [x] E-11. emit 코드 컴파일 통합 테스트
 
 **현황**: 모든 emit 테스트가 mock EmitContext 사용. 생성 코드가 유효한 JS인지 미검증.
 
@@ -838,7 +838,7 @@ code += `  ${ruleEmit}\n`;
 - 주요 룰의 emit 출력을 `new Function()`으로 컴파일 가능 확인
 - 컴파일된 함수 실행 결과가 직접 호출과 동일한지 확인
 
-### [ ] E-12. configure() 호출 시점 테스트 `→ B-10`
+### [x] E-12. configure() 호출 시점 테스트 `→ B-10`
 
 **추가할 테스트**:
 - seal 후 configure() 호출 시 B-10에서 선택한 대안에 따라:
@@ -846,96 +846,96 @@ code += `  ${ruleEmit}\n`;
   - 대안 B: `strict: true` 시 throw 확인
   - 대안 C: Error throw 확인
 
-### [ ] E-13. -0, NaN, Infinity 수치 에지케이스 테스트
+### [x] E-13. -0, NaN, Infinity 수치 에지케이스 테스트
 
 **추가할 테스트**:
 - `isNegative(-0)` → false (수학적으로 0)
 - `isDivisibleBy(Infinity)` → 명확한 동작 확인 (throw 또는 명시적 결과)
 - `isPositive(NaN)` → false
 
-### [ ] E-14. analyzeAsync visited Set 공유 테스트 `→ C-1` `신규`
+### [x] E-14. analyzeAsync visited Set 공유 테스트 `→ C-1` `신규`
 
 **추가할 테스트**:
 - discriminator subType A → subType B → subType A 순환 참조 → `analyzeAsync`가 무한 재귀 없이 정상 반환
 - subType 3개 이상에서 교차 참조 시 visited Set이 전체에 공유됨을 확인
 
-### [ ] E-15. B-10 partial-seal 시나리오 테스트 `→ B-10` `신규`
+### [x] E-15. B-10 partial-seal 시나리오 테스트 `→ B-10` `신규`
 
 **추가할 테스트**:
 - 클래스 A seal → `configure()` 호출 → 클래스 B seal → B에 새 설정이 적용됨을 확인
 - 이 테스트는 B-10의 대안 선택 시 regression guard 역할
 
-### [ ] E-16. discriminator serialize 테스트 `→ C-8` `신규`
+### [x] E-16. discriminator serialize 테스트 `→ C-8` `신규`
 
 **추가할 테스트**:
 - polymorphic 필드(discriminator)가 있는 DTO를 `serialize()` → subType 고유 필드 포함 확인
 - Dog(breed), Cat(indoor) subType → serialize 후 breed/indoor 필드 존재 확인
 - 현재 테스트가 없어 C-8 버그가 감지되지 않음
 
-### [ ] E-17. nullable nested DTO JSON Schema 테스트 `→ C-9` `신규`
+### [x] E-17. nullable nested DTO JSON Schema 테스트 `→ C-9` `신규`
 
 **추가할 테스트**:
 - `@Field({ type: () => Address, nullable: true })` → JSON Schema 출력이 `oneOf: [$ref, {type:'null'}]` 확인
 - 생성된 스키마를 ajv로 검증 가능한지 확인 (null 입력 + 유효 Address 입력 모두 통과)
 
-### [ ] E-18. stripUnknown 동작 일관성 테스트 `→ C-10` `신규`
+### [x] E-18. stripUnknown 동작 일관성 테스트 `→ C-10` `신규`
 
 **추가할 테스트**:
 - `configure({ stripUnknown: true })` 후 unknown 필드 포함 입력 → 현재 동작 문서화
 - API 이름 수정 후: `stripUnknown: true` → 에러 없이 unknown 제거 확인
 - `forbidUnknown: true` → whitelistViolation 에러 확인
 
-### [ ] E-19. nested array null 요소 serialize 테스트 `→ C-11` `신규`
+### [x] E-19. nested array null 요소 serialize 테스트 `→ C-11` `신규`
 
 **추가할 테스트**:
 - `@Field({ type: () => [Child] })` 필드에 `[child1, null, child3]` → serialize 시 크래시하지 않음
 - null 요소가 그대로 null로 출력되는지 확인
 
-### [ ] E-20. min(NaN), max(NaN) 팩토리 가드 테스트 `→ C-12` `신규`
+### [x] E-20. min(NaN), max(NaN) 팩토리 가드 테스트 `→ C-12` `신규`
 
 **추가할 테스트**:
 - `min(NaN)` → throw Error
 - `max(Infinity)` → throw Error
 - `min(parseInt('abc'))` → throw Error
 
-### [ ] E-21. 상속 4+ 레벨 + 중간 override 테스트 `신규`
+### [x] E-21. 상속 4+ 레벨 + 중간 override 테스트 `신규`
 
 **추가할 테스트**:
 - GrandGrandChild → GrandChild → Child → Base (4레벨)
 - Base에 `@Field(isString())`, Child에 `@Field(isString(), minLength(3))` → GrandGrandChild에서 두 룰 모두 적용 확인
 - 중간 레벨에서 transform override 시 자식이 올바르게 상속
 
-### [ ] E-22. groups + 방향별 exclude 조합 테스트 `신규`
+### [x] E-22. groups + 방향별 exclude 조합 테스트 `신규`
 
 **추가할 테스트**:
 - `@Field({ groups: ['admin'], exclude: 'serializeOnly' })` → admin 그룹 deserialize에서만 보임
 - `@Field({ groups: ['public'], serializeName: 'x' })` → public 그룹 serialize 시 `x`로 출력
 
-### [ ] E-23. 동일 DTO에 discriminator 필드 2개 테스트 `신규`
+### [x] E-23. 동일 DTO에 discriminator 필드 2개 테스트 `신규`
 
 **추가할 테스트**:
 - `payment: discriminator(type → CreditCard|BankTransfer)` + `address: discriminator(kind → Home|Office)`
 - 두 필드 모두 올바르게 역직렬화 + 에러 경로 분리 확인
 
-### [ ] E-24. async transform 실패 시 에러 경로 테스트 `신규`
+### [x] E-24. async transform 실패 시 에러 경로 테스트 `신규`
 
 **추가할 테스트**:
 - async transform이 invalid 값을 반환 → 후속 validation error의 path/code 정확성 확인
 - async transform이 throw → 에러가 적절히 전파되는지 확인
 
-### [ ] E-25. concurrent seal (Promise.all) 테스트 `신규`
+### [x] E-25. concurrent seal (Promise.all) 테스트 `신규`
 
 **추가할 테스트**:
 - 3개 미봉인 DTO에 `Promise.all([deserialize(A, ...), deserialize(B, ...), deserialize(C, ...)])` → 모두 성공
 - auto-seal 경쟁 조건이 없음을 확인
 
-### [ ] E-26. frozen/null-prototype 입력 테스트 `신규`
+### [x] E-26. frozen/null-prototype 입력 테스트 `신규`
 
 **추가할 테스트**:
 - `Object.freeze({ name: 'test', age: 25 })` → deserialize 정상 동작
 - `Object.create(null, { name: { value: 'test', enumerable: true } })` → deserialize 정상 동작
 
-### [ ] E-27. class-level @Schema deep merge 테스트 `→ C-14` `신규`
+### [x] E-27. class-level @Schema deep merge 테스트 `→ C-14` `신규`
 
 **추가할 테스트**:
 - `@Schema({ properties: { extra: { type: 'string' } } })` → auto-generated properties가 보존되면서 extra 추가

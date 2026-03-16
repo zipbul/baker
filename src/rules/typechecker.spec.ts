@@ -159,6 +159,27 @@ describe('isNumber', () => {
     expect(code).toContain('_mant');
     expect(failMock).toHaveBeenCalledWith('isNumber');
   });
+
+  // E-7: maxDecimalPlaces with scientific notation (→ C-7)
+  it('should return false for 1e-10 with maxDecimalPlaces: 2 (10 decimal places)', () => {
+    const rule = isNumber({ maxDecimalPlaces: 2 });
+    expect(rule(1e-10)).toBe(false);
+  });
+
+  it('should return true for 1e5 with maxDecimalPlaces: 0 (integer)', () => {
+    const rule = isNumber({ maxDecimalPlaces: 0 });
+    expect(rule(1e5)).toBe(true);
+  });
+
+  it('should return true for 1e-5 with maxDecimalPlaces: 5 (exactly 5 places)', () => {
+    const rule = isNumber({ maxDecimalPlaces: 5 });
+    expect(rule(1e-5)).toBe(true);
+  });
+
+  it('should return false for 1e-5 with maxDecimalPlaces: 4 (5 places > 4 allowed)', () => {
+    const rule = isNumber({ maxDecimalPlaces: 4 });
+    expect(rule(1e-5)).toBe(false);
+  });
 });
 
 // ─── isBoolean ────────────────────────────────────────────────────────────────
@@ -438,5 +459,71 @@ describe('isObject', () => {
     expect(failMock).toHaveBeenCalledWith('isObject');
     expect(isObject.ruleName).toBe('isObject');
     expect((isObject as any).requiresType).toBeUndefined();
+  });
+});
+
+// ─── E-11: emit code compilation — new Function() round-trip ─────────────
+
+describe('E-11: emit code compiles and runs correctly via new Function()', () => {
+  /** Real EmitContext that tracks refs/regexes and generates executable fail code */
+  function makeRealCtx() {
+    const regexes: RegExp[] = [];
+    const refs: unknown[] = [];
+    const errors: { code: string }[] = [];
+    const ctx: EmitContext = {
+      addRegex(re: RegExp) { regexes.push(re); return regexes.length - 1; },
+      addRef(value: unknown) { refs.push(value); return refs.length - 1; },
+      addExecutor() { return 0; },
+      fail(code: string) { return `_errors.push({code:'${code}'})`; },
+      collectErrors: true,
+    };
+    return { ctx, regexes, refs, errors };
+  }
+
+  /** Compile emit code into a runnable function */
+  function compile(emitCode: string, regexes: RegExp[], refs: unknown[]) {
+    const body = `'use strict'; var _errors = []; ${emitCode} return _errors;`;
+    return new Function('_v', '_re', '_refs', body).bind(null) as (v: unknown, re: RegExp[], refs: unknown[]) => { code: string }[];
+  }
+
+  it('isString — accepts string, rejects number', () => {
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = isString.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn('hello', regexes, refs)).toEqual([]);
+    expect(fn(42, regexes, refs).length).toBeGreaterThan(0);
+    expect(fn(42, regexes, refs)[0]!.code).toBe('isString');
+  });
+
+  it('isNumber() — accepts 42, rejects NaN', () => {
+    const rule = isNumber();
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = rule.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn(42, regexes, refs)).toEqual([]);
+    expect(fn(NaN, regexes, refs).length).toBeGreaterThan(0);
+  });
+
+  it('isEnum — accepts valid member, rejects invalid', () => {
+    enum Color { Red = 'red', Blue = 'blue' }
+    const rule = isEnum(Color);
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = rule.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn('red', regexes, refs)).toEqual([]);
+    expect(fn('green', regexes, refs).length).toBeGreaterThan(0);
+    expect(fn('green', regexes, refs)[0]!.code).toBe('isEnum');
+  });
+
+  it('isInt — accepts integer, rejects decimal', () => {
+    const { ctx, regexes, refs } = makeRealCtx();
+    const code = isInt.emit('_v', ctx);
+    const fn = compile(code, regexes, refs);
+
+    expect(fn(5, regexes, refs)).toEqual([]);
+    expect(fn(3.14, regexes, refs).length).toBeGreaterThan(0);
   });
 });

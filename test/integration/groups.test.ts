@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, Exclude } from '../../index';
-import { Expose } from '../../src/decorators/transform';
+import { deserialize, serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -10,8 +9,7 @@ class AdminDto {
   @Field(isString)
   name!: string;
 
-  @Expose({ groups: ['admin'] })
-  @Field(isString)
+  @Field(isString, { groups: ['admin'] })
   internalCode?: string;
 }
 
@@ -19,8 +17,7 @@ class GroupedSerialDto {
   @Field(isString)
   name!: string;
 
-  @Expose({ groups: ['public'] })
-  @Field(isNumber())
+  @Field(isNumber(), { groups: ['public'] })
   score?: number;
 }
 

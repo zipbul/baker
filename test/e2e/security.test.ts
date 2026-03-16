@@ -137,6 +137,38 @@ describe('큰 배열 입력 처리', () => {
 
 // ─── 특수 문자열 키 처리 ───────────────────────────────────────────────────
 
+// ─── E-26: frozen / null-prototype input ────────────────────────────────────
+
+describe('E-26: frozen / null-prototype input', () => {
+  class FrozenDto {
+    @Field(isString) name!: string;
+    @Field(isNumber()) age!: number;
+  }
+
+  it('Object.freeze() input → deserialize works', async () => {
+    const input = Object.freeze({ name: 'test', age: 25 });
+    const r = await deserialize<FrozenDto>(FrozenDto, input);
+    expect(r.name).toBe('test');
+    expect(r.age).toBe(25);
+    expect(r).toBeInstanceOf(FrozenDto);
+  });
+
+  it('Object.create(null) input → deserialize works', async () => {
+    const input = Object.create(null);
+    Object.defineProperty(input, 'name', { value: 'test', enumerable: true });
+    Object.defineProperty(input, 'age', { value: 25, enumerable: true });
+    const r = await deserialize<FrozenDto>(FrozenDto, input);
+    expect(r.name).toBe('test');
+    expect(r.age).toBe(25);
+    expect(r).toBeInstanceOf(FrozenDto);
+  });
+
+  it('frozen input with invalid value → validation error still thrown', async () => {
+    const input = Object.freeze({ name: 123, age: 25 });
+    await expect(deserialize(FrozenDto, input)).rejects.toThrow(BakerValidationError);
+  });
+});
+
 describe('특수 문자열 값 처리', () => {
   class Dto { @Field(isString) v!: string; }
 

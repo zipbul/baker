@@ -186,4 +186,78 @@ describe('analyzeCircular', () => {
     // Assert
     expect(first).toBe(second);
   });
+
+  // ── E-14: 3+ discriminator subTypes cross-referencing — no infinite recursion ──
+
+  it('should not infinite-recurse with 3 discriminator subTypes that cross-reference each other', () => {
+    // Arrange — A uses discriminator with subTypes [B, C, D], each referencing back to A
+    class ADto {}
+    class BDto {}
+    class CDto {}
+    class DDto {}
+
+    (BDto as any)[RAW] = makeTypeMeta(() => ADto);
+    (CDto as any)[RAW] = makeTypeMeta(() => ADto);
+    (DDto as any)[RAW] = makeTypeMeta(() => ADto);
+
+    (ADto as any)[RAW] = makeDiscriminatorMeta([
+      { value: BDto, name: 'b' },
+      { value: CDto, name: 'c' },
+      { value: DDto, name: 'd' },
+    ]);
+
+    // Act — should terminate without stack overflow
+    const result = analyzeCircular(ADto);
+
+    // Assert — cycle exists (A → B → A)
+    expect(result).toBe(true);
+  });
+
+  it('should return false with 3 discriminator subTypes that do NOT cycle', () => {
+    // Arrange — A uses discriminator with subTypes [B, C, D], none reference A
+    class ADto {}
+    class BDto {}
+    class CDto {}
+    class DDto {}
+
+    (BDto as any)[RAW] = {};
+    (CDto as any)[RAW] = {};
+    (DDto as any)[RAW] = {};
+
+    (ADto as any)[RAW] = makeDiscriminatorMeta([
+      { value: BDto, name: 'b' },
+      { value: CDto, name: 'c' },
+      { value: DDto, name: 'd' },
+    ]);
+
+    // Act
+    const result = analyzeCircular(ADto);
+
+    // Assert — no cycle
+    expect(result).toBe(false);
+  });
+
+  // ── E-3: lazy type throw → SealError (→ B-7) ─────────────────────────────
+
+  it('should throw SealError when lazy type function throws', () => {
+    // Arrange
+    class LazyThrowDto {}
+    (LazyThrowDto as any)[RAW] = makeTypeMeta(() => { throw new Error('boom'); });
+    // Act / Assert
+    expect(() => analyzeCircular(LazyThrowDto)).toThrow('boom');
+  });
+
+  it('should include class name in SealError when lazy type throws', () => {
+    // Arrange
+    class NamedThrowDto {}
+    (NamedThrowDto as any)[RAW] = makeTypeMeta(() => { throw new Error('broken ref'); });
+    // Act / Assert
+    try {
+      analyzeCircular(NamedThrowDto);
+      expect.unreachable();
+    } catch (e) {
+      expect((e as Error).message).toContain('NamedThrowDto');
+      expect((e as Error).message).toContain('broken ref');
+    }
+  });
 });

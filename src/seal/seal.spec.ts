@@ -919,3 +919,116 @@ describe('_circularPlaceholder', () => {
     expect(p._isSerializeAsync).toBe(false);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E-2: analyzeAsync discriminator circular (→ C-1)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('analyzeAsync — discriminator', () => {
+  it('should detect async transform in discriminator subType', () => {
+    // Arrange — SubA has an async transform
+    class SubA {}
+    const asyncFn = async (v: any) => v;
+    registerClass(SubA, {
+      val: {
+        validation: [{ rule: isString }],
+        transform: [{ fn: asyncFn }],
+        expose: [],
+        exclude: null,
+        type: null,
+        flags: {},
+        schema: null,
+      },
+    });
+
+    class SubB {}
+    registerClass(SubB, makeStringField('val'));
+
+    class ParentDisc {}
+    registerClass(ParentDisc, {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: {
+          fn: () => SubA as any,
+          discriminator: {
+            property: 'kind',
+            subTypes: [
+              { name: 'a', value: SubA },
+              { name: 'b', value: SubB },
+            ],
+          },
+        },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+
+    // Act
+    _autoSeal();
+
+    // Assert — sealed executor should be async due to SubA's async transform
+    const sealed = (ParentDisc as any)[SEALED];
+    expect(sealed).toBeDefined();
+    expect(sealed._isAsync).toBe(true);
+  });
+
+  it('should not infinite loop when discriminator subTypes reference each other circularly', () => {
+    // Arrange — SubA references SubB, SubB references SubA via nested type
+    class CircSubA {}
+    class CircSubB {}
+
+    registerClass(CircSubA, {
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      other: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => CircSubB as any },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+    registerClass(CircSubB, {
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      other: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => CircSubA as any },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+
+    class CircParent {}
+    registerClass(CircParent, {
+      child: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: {
+          fn: () => CircSubA as any,
+          discriminator: {
+            property: 'kind',
+            subTypes: [
+              { name: 'a', value: CircSubA },
+              { name: 'b', value: CircSubB },
+            ],
+          },
+        },
+        flags: { validateNested: true },
+        schema: null,
+      },
+    });
+
+    // Act / Assert — should not throw or infinite loop
+    expect(() => _autoSeal()).not.toThrow();
+    expect((CircParent as any)[SEALED]).toBeDefined();
+  });
+});

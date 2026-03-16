@@ -14,7 +14,6 @@ import {
   isISO4217CurrencyCode, isPhoneNumber, isStrongPassword, isTaxId,
   isFirebasePushId, isEAN, isMagnetURI, isDateString, isCurrency,
 } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isAscii', () => {

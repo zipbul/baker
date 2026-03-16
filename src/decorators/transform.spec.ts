@@ -1,12 +1,12 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { globalRegistry } from '../registry';
-import { Expose, Exclude, Transform, Type } from './transform';
+import { Field } from './field';
 
 const RAW = Symbol.for('baker:raw');
 const createdCtors: Function[] = [];
 
 function makeClass(): new () => any {
-  const ctor = class TestDecoratorsTransform {};
+  const ctor = class TestFieldMeta {};
   createdCtors.push(ctor);
   return ctor as any;
 }
@@ -23,101 +23,84 @@ afterEach(() => {
   createdCtors.length = 0;
 });
 
-describe('transform decorators — metadata collection', () => {
-  // ── @Expose ──────────────────────────────────────────────────────────────
+describe('@Field — metadata collection', () => {
+  // ── expose (name / 방향별 name) ──
 
-  it('@Expose() registers empty ExposeDef', () => {
+  it('@Field({ name }) stores name in expose stack', () => {
     const Cls = makeClass();
-    Expose()(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').expose).toHaveLength(1);
-    expect(getRaw(Cls, 'name').expose[0]).toEqual({});
-  });
-
-  it('@Expose({ name }) stores name in expose stack', () => {
-    const Cls = makeClass();
-    Expose({ name: 'full_name' })(Cls.prototype, 'name');
+    Field({ name: 'full_name' })(Cls.prototype, 'name');
     expect(getRaw(Cls, 'name').expose[0].name).toBe('full_name');
   });
 
-  it('@Expose stacks multiple entries', () => {
+  it('@Field({ deserializeName, serializeName }) stacks two direction entries', () => {
     const Cls = makeClass();
-    Expose({ name: 'a', deserializeOnly: true })(Cls.prototype, 'field');
-    Expose({ name: 'b', serializeOnly: true })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').expose).toHaveLength(2);
+    Field({ deserializeName: 'user_name', serializeName: 'userName' })(Cls.prototype, 'name');
+    const expose = getRaw(Cls, 'name').expose;
+    expect(expose).toHaveLength(2);
+    expect(expose[0]).toEqual({ name: 'user_name', deserializeOnly: true });
+    expect(expose[1]).toEqual({ name: 'userName', serializeOnly: true });
   });
 
-  it('@Expose({ deserializeOnly: true }) stored in expose', () => {
-    const Cls = makeClass();
-    Expose({ deserializeOnly: true })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').expose[0].deserializeOnly).toBe(true);
-  });
+  // ── exclude ──
 
-  it('@Expose({ groups }) stored in expose', () => {
+  it('@Field({ exclude: true }) sets exclude to {}', () => {
     const Cls = makeClass();
-    Expose({ groups: ['public'] })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').expose[0].groups).toEqual(['public']);
-  });
-
-  // ── @Exclude ─────────────────────────────────────────────────────────────
-
-  it('@Exclude() sets exclude to {}', () => {
-    const Cls = makeClass();
-    Exclude()(Cls.prototype, 'secret');
+    Field({ exclude: true })(Cls.prototype, 'secret');
     expect(getRaw(Cls, 'secret').exclude).toEqual({});
   });
 
-  it('@Exclude({ serializeOnly: true }) stored correctly', () => {
+  it('@Field({ exclude: "serializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
-    Exclude({ serializeOnly: true })(Cls.prototype, 'field');
+    Field({ exclude: 'serializeOnly' })(Cls.prototype, 'field');
     expect(getRaw(Cls, 'field').exclude?.serializeOnly).toBe(true);
   });
 
-  it('@Exclude({ deserializeOnly: true }) stored correctly', () => {
+  it('@Field({ exclude: "deserializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
-    Exclude({ deserializeOnly: true })(Cls.prototype, 'field');
+    Field({ exclude: 'deserializeOnly' })(Cls.prototype, 'field');
     expect(getRaw(Cls, 'field').exclude?.deserializeOnly).toBe(true);
   });
 
-  // ── @Transform ────────────────────────────────────────────────────────────
+  // ── transform ──
 
-  it('@Transform stores fn in transform stack', () => {
+  it('@Field({ transform }) stores wrapped fn in transform stack', () => {
     const Cls = makeClass();
     const fn = ({ value }: any) => value;
-    Transform(fn)(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').transform[0].fn).toBe(fn);
+    Field({ transform: fn })(Cls.prototype, 'name');
+    expect(getRaw(Cls, 'name').transform).toHaveLength(1);
+    expect(typeof getRaw(Cls, 'name').transform[0].fn).toBe('function');
   });
 
-  it('@Transform({ deserializeOnly }) stores option', () => {
+  it('@Field({ transform, transformDirection: "deserializeOnly" }) stores option', () => {
     const Cls = makeClass();
     const fn = ({ value }: any) => value;
-    Transform(fn, { deserializeOnly: true })(Cls.prototype, 'name');
+    Field({ transform: fn, transformDirection: 'deserializeOnly' })(Cls.prototype, 'name');
     expect(getRaw(Cls, 'name').transform[0].options?.deserializeOnly).toBe(true);
   });
 
-  it('@Transform stacks multiple transforms', () => {
+  it('@Field({ transform, transformDirection: "serializeOnly" }) stores option', () => {
     const Cls = makeClass();
-    const fn1 = ({ value }: any) => String(value).trim();
-    const fn2 = ({ value }: any) => String(value).toLowerCase();
-    Transform(fn1)(Cls.prototype, 'email');
-    Transform(fn2)(Cls.prototype, 'email');
-    expect(getRaw(Cls, 'email').transform).toHaveLength(2);
+    const fn = ({ value }: any) => value;
+    Field({ transform: fn, transformDirection: 'serializeOnly' })(Cls.prototype, 'name');
+    expect(getRaw(Cls, 'name').transform[0].options?.serializeOnly).toBe(true);
   });
 
-  // ── @Type ─────────────────────────────────────────────────────────────────
+  // ── type ──
 
-  it('@Type stores fn in meta.type', () => {
+  it('@Field({ type }) stores fn in meta.type', () => {
     const Cls = makeClass();
     class NestedDto {}
-    Type(() => NestedDto)(Cls.prototype, 'child');
+    Field({ type: () => NestedDto })(Cls.prototype, 'child');
     expect(getRaw(Cls, 'child').type).not.toBeNull();
     expect(getRaw(Cls, 'child').type.fn()).toBe(NestedDto);
   });
 
-  it('@Type with discriminator stores discriminator config', () => {
+  it('@Field({ type, discriminator }) stores discriminator config', () => {
     const Cls = makeClass();
     class DogDto {}
     class CatDto {}
-    Type(() => DogDto, {
+    Field({
+      type: () => DogDto,
       discriminator: {
         property: 'breed',
         subTypes: [
@@ -129,5 +112,46 @@ describe('transform decorators — metadata collection', () => {
     const typeDef = getRaw(Cls, 'animal').type;
     expect(typeDef.discriminator.property).toBe('breed');
     expect(typeDef.discriminator.subTypes).toHaveLength(2);
+  });
+
+  it('@Field({ type, discriminator, keepDiscriminatorProperty }) stores flag', () => {
+    const Cls = makeClass();
+    class DogDto {}
+    Field({
+      type: () => DogDto,
+      discriminator: { property: 'kind', subTypes: [{ value: DogDto, name: 'dog' }] },
+      keepDiscriminatorProperty: true,
+    })(Cls.prototype, 'pet');
+    expect(getRaw(Cls, 'pet').type.keepDiscriminatorProperty).toBe(true);
+  });
+
+  // ── groups ──
+
+  it('@Field(rule, { groups }) attaches groups to validation', () => {
+    const Cls = makeClass();
+    const rule = Object.assign((v: any) => typeof v === 'string', { ruleName: 'isString', emit: () => '' });
+    Field(rule, { groups: ['admin'] })(Cls.prototype, 'field');
+    expect(getRaw(Cls, 'field').validation[0].groups).toEqual(['admin']);
+  });
+
+  // ── flags ──
+
+  it('@Field({ optional }) sets isOptional flag', () => {
+    const Cls = makeClass();
+    Field({ optional: true })(Cls.prototype, 'field');
+    expect(getRaw(Cls, 'field').flags.isOptional).toBe(true);
+  });
+
+  it('@Field({ nullable }) sets isNullable flag', () => {
+    const Cls = makeClass();
+    Field({ nullable: true })(Cls.prototype, 'field');
+    expect(getRaw(Cls, 'field').flags.isNullable).toBe(true);
+  });
+
+  it('@Field({ when }) sets validateIf flag', () => {
+    const Cls = makeClass();
+    const cond = (obj: any) => obj.active;
+    Field({ when: cond })(Cls.prototype, 'field');
+    expect(getRaw(Cls, 'field').flags.validateIf).toBe(cond);
   });
 });

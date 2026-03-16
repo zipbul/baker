@@ -108,8 +108,6 @@ class IsNumberAndMinDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-afterEach(() => unseal());
-
 describe('deserialize — integration', () => {
   it('should deserialize plain object → DTO instance with valid input', async () => {
     const result = await deserialize<SimpleDto>(SimpleDto, { name: 'Alice', age: 30 });
@@ -249,24 +247,25 @@ class AdminOnlyDto {
 describe('M4 — validation groups runtime filtering', () => {
   afterEach(() => unseal());
 
-  it('rule with groups runs when no runtime groups provided (no filter)', async () => {
-    // 'secret' is 123 (not string). Rule groups: ['admin'], runtime: no groups → rule RUNS
-    await expect(deserialize(AdminOnlyDto, { secret: 123, id: 1 })).rejects.toThrow();
+  it('groups 미제공 → groups 필드 제외 (가시성 제어)', async () => {
+    // groups=['admin'] 필드 → 런타임 groups 없으면 필드 자체가 제외
+    const result = await deserialize<AdminOnlyDto>(AdminOnlyDto, { secret: 123, id: 1 });
+    expect((result as any).secret).toBeUndefined();
   });
 
-  it('rule with groups runs when runtime groups match', async () => {
+  it('groups 일치 → 필드 포함 + 규칙 실행', async () => {
     await expect(
       deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }),
     ).rejects.toThrow();
   });
 
-  it('rule with groups skipped when runtime groups do not match — invalid value passes', async () => {
-    // runtime group 'viewer' doesn't match 'admin' → isString rule skipped → 123 passes unvalidated
+  it('groups 불일치 → 필드 제외', async () => {
+    // runtime group 'viewer' doesn't match 'admin' → 필드 자체가 제외
     const result = await deserialize<AdminOnlyDto>(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['viewer'] });
-    expect((result as any).secret).toBe(123);
+    expect((result as any).secret).toBeUndefined();
   });
 
-  it('rule without groups always runs even when runtime groups provided', async () => {
+  it('groups 없는 필드는 항상 실행', async () => {
     // @Field(isNumber()) on id has no groups — always validated
     await expect(
       deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' as any }, { groups: ['viewer'] }),

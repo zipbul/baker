@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, BakerValidationError, Field } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
-
 /** 헬퍼: 에러 코드 추출 (없으면 null) */
 async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
   try {

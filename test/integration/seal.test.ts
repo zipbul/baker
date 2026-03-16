@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, createRule, configure } from '../../index';
+import { Field, deserialize, serialize, createRule, configure, BakerValidationError } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED, RAW } from '../../src/symbols';
@@ -183,6 +183,54 @@ describe('_ensureSealed — _sealOnDemand fallback', () => {
 // B-10: configure() returns { warnings } for testability
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─── E-25: concurrent seal via Promise.all ──────────────────────────────────
+
+describe('E-25: concurrent seal via Promise.all', () => {
+  class ConcurrentA {
+    @Field(isString)
+    a!: string;
+  }
+
+  class ConcurrentB {
+    @Field(isNumber())
+    b!: number;
+  }
+
+  class ConcurrentC {
+    @Field(isString)
+    c!: string;
+
+    @Field(isNumber())
+    d!: number;
+  }
+
+  it('3 DTO classes deserialized concurrently via Promise.all → all succeed', async () => {
+    const [a, b, c] = await Promise.all([
+      deserialize<ConcurrentA>(ConcurrentA, { a: 'hello' }),
+      deserialize<ConcurrentB>(ConcurrentB, { b: 42 }),
+      deserialize<ConcurrentC>(ConcurrentC, { c: 'world', d: 99 }),
+    ]);
+    expect(a).toBeInstanceOf(ConcurrentA);
+    expect(a.a).toBe('hello');
+    expect(b).toBeInstanceOf(ConcurrentB);
+    expect(b.b).toBe(42);
+    expect(c).toBeInstanceOf(ConcurrentC);
+    expect(c.c).toBe('world');
+    expect(c.d).toBe(99);
+  });
+
+  it('concurrent seal: all classes are sealed after Promise.all', async () => {
+    await Promise.all([
+      deserialize(ConcurrentA, { a: 'x' }),
+      deserialize(ConcurrentB, { b: 1 }),
+      deserialize(ConcurrentC, { c: 'y', d: 2 }),
+    ]);
+    expect((ConcurrentA as any)[SEALED]).toBeDefined();
+    expect((ConcurrentB as any)[SEALED]).toBeDefined();
+    expect((ConcurrentC as any)[SEALED]).toBeDefined();
+  });
+});
+
 describe('configure() — return warnings (B-10)', () => {
   it('should return empty warnings when called before seal', () => {
     const result = configure({});
@@ -204,5 +252,47 @@ describe('configure() — return warnings (B-10)', () => {
 
     const result = configure({});
     expect(result.warnings).toEqual([]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// E-15: partial seal + reconfigure — unseal, change config, re-seal verifies effect
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
+  it('should apply new forbidUnknown config after unseal + reconfigure', async () => {
+    // 1. First seal cycle — no forbidUnknown
+    const r1 = await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' });
+    expect(r1.name).toBe('Alice');
+
+    // 2. Unseal + reconfigure with forbidUnknown
+    unseal();
+    configure({ forbidUnknown: true });
+
+    // 3. Re-seal triggers with new config — unknown field should now be rejected
+    try {
+      await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(BakerValidationError);
+      const err = (e as BakerValidationError).errors.find((x: any) => x.code === 'whitelistViolation');
+      expect(err).toBeDefined();
+    }
+  });
+
+  it('should remove forbidUnknown effect after unseal + reconfigure without it', async () => {
+    // 1. Configure with forbidUnknown
+    configure({ forbidUnknown: true });
+    await expect(
+      deserialize(SealTestDto, { name: 'Alice', age: 25, extra: 'bad' }),
+    ).rejects.toThrow(BakerValidationError);
+
+    // 2. Unseal + reconfigure without forbidUnknown
+    unseal();
+    configure({});
+
+    // 3. Unknown field should be silently ignored again
+    const result = await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' });
+    expect(result.name).toBe('Bob');
   });
 });

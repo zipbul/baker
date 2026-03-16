@@ -4,7 +4,6 @@ import {
   isString, notContains, isLowercase, isUppercase, isBooleanString, isJSON,
   arrayNotContains, isArray,
 } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NotContainsDto { @Field(isString, notContains('bad')) val!: string; }

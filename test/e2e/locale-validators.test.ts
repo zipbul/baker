@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { deserialize, BakerValidationError, Field } from '../../index';
 import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from '../../src/rules/index';
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PhoneKRDto { @Field(isMobilePhone('ko-KR')) phone!: string; }
