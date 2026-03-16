@@ -4,7 +4,7 @@
     <strong>데코레이터 기반 validate + transform — 인라인 코드 생성</strong>
   </p>
   <p align="center">
-    class-validator DX · AOT급 성능 · reflect-metadata 불필요
+    단일 <code>@Field()</code> 데코레이터 &middot; AOT급 성능 &middot; reflect-metadata 불필요
   </p>
   <p align="center">
     <a href="https://github.com/zipbul/baker/actions"><img src="https://github.com/zipbul/baker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -20,42 +20,43 @@
 
 ---
 
-## 🤔 왜 Baker인가?
+## 왜 Baker인가?
 
 | | class-validator | Zod | TypeBox | **Baker** |
 |---|---|---|---|---|
-| 스키마 방식 | 데코레이터 | 함수 체이닝 | JSON Schema 빌더 | **데코레이터** |
+| 스키마 방식 | 데코레이터 | 함수 체이닝 | JSON Schema 빌더 | **단일 `@Field()` 데코레이터** |
 | 성능 | 런타임 인터프리터 | 런타임 인터프리터 | JIT 컴파일 | **`new Function()` 인라인 코드생성** |
-| Transform 내장 | 별도 패키지 | `.transform()` | ✗ | **통합** |
+| Transform 내장 | 별도 패키지 | `.transform()` | N/A | **통합** |
 | reflect-metadata | 필수 | N/A | N/A | **불필요** |
 | class-validator 마이그레이션 | — | 전면 재작성 | 전면 재작성 | **거의 그대로** |
 
-Baker는 class-validator의 **익숙한 데코레이터 DX**를 유지하면서, `seal()` 시점에 `new Function()`으로 최적화된 검증+변환 함수를 생성합니다. **컴파일러 플러그인 없이 AOT 수준의 성능**을 제공합니다.
+Baker는 검증, 변환, 노출 제어, 타입 힌트를 결합하는 **단일 `@Field()` 데코레이터**를 제공합니다. 첫 사용 시 `new Function()`으로 최적화된 함수를 생성하여 모든 DTO를 자동으로 seal합니다 — **컴파일러 플러그인 없이 AOT 수준의 성능**을 제공합니다.
 
 ---
 
-## ✨ 주요 기능
+## 주요 기능
 
-- 🎯 **데코레이터 우선** — `@IsString()`, `@Min()`, `@IsEmail()` 등 80개 이상의 내장 검증기
-- ⚡ **인라인 코드 생성** — `seal()`이 검증기를 최적화된 함수로 컴파일, 런타임 해석 없음
-- 🔄 **검증 + 변환 통합** — `deserialize()`와 `serialize()`를 하나의 async 호출로
-- 🪶 **reflect-metadata 불필요** — `reflect-metadata` import 없이 동작
-- 🔁 **순환 참조 감지** — seal 시점에 자동 정적 분석
-- 🏷️ **그룹 기반 검증** — `groups` 옵션으로 요청별 다른 규칙 적용
-- 🧩 **커스텀 규칙** — `createRule()`로 코드생성을 지원하는 사용자 정의 검증기 작성
-- 📐 **JSON Schema 출력** — `toJsonSchema()`로 DTO에서 JSON Schema Draft 2020-12 생성
-- 🪆 **`@Nested`** — 단일 데코레이터 중첩 DTO 검증 + discriminator 지원
-- 🛡️ **Whitelist 모드** — `seal({ whitelist: true })`로 미선언 필드 거부
+- **단일 데코레이터** — `@Field()`가 30개 이상의 개별 데코레이터를 대체
+- **80개 이상의 내장 규칙** — `isString()`, `min()`, `isEmail()` 등을 인자로 조합
+- **인라인 코드 생성** — 첫 `deserialize()`/`serialize()` 호출 시 auto-seal로 검증기를 컴파일
+- **검증 + 변환 통합** — `deserialize()`와 `serialize()`를 하나의 async 호출로
+- **reflect-metadata 불필요** — `reflect-metadata` import 없이 동작
+- **순환 참조 감지** — seal 시점에 자동 정적 분석
+- **그룹 기반 검증** — `groups` 옵션으로 요청별 다른 규칙 적용
+- **커스텀 규칙** — `createRule()`로 코드생성을 지원하는 사용자 정의 검증기 작성
+- **JSON Schema 출력** — `toJsonSchema()`로 DTO에서 JSON Schema Draft 2020-12 생성
+- **다형성 discriminator** — `@Field({ discriminator })`로 유니온 타입 지원
+- **Whitelist 모드** — `configure({ forbidUnknown: true })`로 미선언 필드 거부
 
 ---
 
-## 📦 설치
+## 설치
 
 ```bash
 bun add @zipbul/baker
 ```
 
-> **요구사항:** Bun ≥ 1.0, tsconfig.json에 `experimentalDecorators: true` 설정
+> **요구사항:** Bun >= 1.0, tsconfig.json에 `experimentalDecorators: true` 설정
 
 ```jsonc
 // tsconfig.json
@@ -68,37 +69,27 @@ bun add @zipbul/baker
 
 ---
 
-## 🚀 빠른 시작
+## 빠른 시작
 
 ### 1. DTO 정의
 
 ```typescript
-import { IsString, IsInt, IsEmail, Min, Max } from '@zipbul/baker/decorators';
+import { Field } from '@zipbul/baker';
+import { isString, isInt, isEmail, min, max } from '@zipbul/baker/rules';
 
 class CreateUserDto {
-  @IsString()
+  @Field(isString())
   name!: string;
 
-  @IsInt()
-  @Min(0)
-  @Max(120)
+  @Field(isInt(), min(0), max(120))
   age!: number;
 
-  @IsEmail()
+  @Field(isEmail())
   email!: string;
 }
 ```
 
-### 2. 앱 시작 시 seal()
-
-```typescript
-import { seal } from '@zipbul/baker';
-
-// 등록된 모든 DTO를 최적화된 검증 함수로 컴파일
-seal();
-```
-
-### 3. 요청마다 deserialize()
+### 2. Deserialize (첫 호출 시 auto-seal)
 
 ```typescript
 import { deserialize, BakerValidationError } from '@zipbul/baker';
@@ -113,7 +104,7 @@ try {
 }
 ```
 
-### 4. serialize()
+### 3. Serialize
 
 ```typescript
 import { serialize } from '@zipbul/baker';
@@ -122,180 +113,171 @@ const plain = await serialize(userInstance);
 // plain: Record<string, unknown>
 ```
 
+> `seal()` 호출이 필요 없습니다 — baker는 첫 `deserialize()` 또는 `serialize()` 호출 시 등록된 모든 DTO를 자동으로 seal합니다.
+
 ---
 
-## 🏗️ 데코레이터
+## `@Field()` 데코레이터
+
+`@Field()`는 모든 개별 데코레이터를 대체하는 단일 데코레이터입니다. 검증 규칙을 위치 인자로, 고급 기능은 옵션 객체로 전달합니다.
+
+### 시그니처
+
+```typescript
+// 규칙만
+@Field(isString(), minLength(3), maxLength(100))
+
+// 옵션만
+@Field({ optional: true, nullable: true })
+
+// 규칙 + 옵션
+@Field(isString(), { name: 'user_name', groups: ['create'] })
+
+// 규칙 없이 (단순 필드)
+@Field()
+```
+
+### FieldOptions
+
+```typescript
+interface FieldOptions {
+  type?: () => Constructor | [Constructor];   // 중첩 DTO 타입 (순환 참조를 위한 thunk)
+  discriminator?: {                           // 다형성 유니온
+    property: string;
+    subTypes: { value: Function; name: string }[];
+  };
+  keepDiscriminatorProperty?: boolean;        // 출력에 discriminator 키 유지
+  optional?: boolean;                         // undefined 허용
+  nullable?: boolean;                         // null 허용
+  name?: string;                              // JSON 키 매핑 (양방향)
+  deserializeName?: string;                   // 역직렬화 전용 키 매핑
+  serializeName?: string;                     // 직렬화 전용 키 매핑
+  exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
+  groups?: string[];                          // 가시성 + 조건부 검증
+  when?: (obj: any) => boolean;               // 조건부 검증
+  schema?: JsonSchemaOverride;                // JSON Schema 메타데이터
+  transform?: (params: FieldTransformParams) => unknown;
+  transformDirection?: 'deserializeOnly' | 'serializeOnly';
+}
+```
+
+---
+
+## 내장 규칙
+
+모든 규칙은 `@zipbul/baker/rules`에서 import하며 `@Field()`의 인자로 전달합니다.
 
 ### 타입 검사
 
-| 데코레이터 | 설명 |
+| 규칙 | 설명 |
 |---|---|
-| `@IsString()` | `typeof === 'string'` |
-| `@IsNumber(opts?)` | `typeof === 'number'` + NaN/Infinity 검사 |
-| `@IsInt()` | 정수 검사 |
-| `@IsBoolean()` | `typeof === 'boolean'` |
-| `@IsDate()` | `instanceof Date && !isNaN` |
-| `@IsEnum(enumObj)` | 열거형 값 검사 |
-| `@IsArray()` | `Array.isArray()` |
-| `@IsObject()` | `typeof === 'object'`, null/Array 제외 |
-
-### 공통
-
-| 데코레이터 | 설명 |
-|---|---|
-| `@IsDefined()` | `!== undefined && !== null` |
-| `@IsOptional()` | 값이 없으면 이후 규칙 건너뜀 |
-| `@IsNullable()` | `null` 허용 (검증 건너뜀), `undefined` 거부 |
-| `@IsNotEmpty()` | `!== undefined && !== null && !== ''` |
-| `@IsEmpty()` | `=== undefined \|\| === null \|\| === ''` |
-| `@Equals(val)` | `=== val` |
-| `@NotEquals(val)` | `!== val` |
-| `@IsIn(values)` | 주어진 배열에 포함 |
-| `@IsNotIn(values)` | 주어진 배열에 미포함 |
-| `@ValidateNested()` | 중첩 DTO 검증 |
-| `@ValidateIf(fn)` | 조건부 검증 |
+| `isString()` | `typeof === 'string'` |
+| `isNumber(opts?)` | `typeof === 'number'` + NaN/Infinity/maxDecimalPlaces 검사 |
+| `isInt()` | 정수 검사 |
+| `isBoolean()` | `typeof === 'boolean'` |
+| `isDate()` | `instanceof Date && !isNaN` |
+| `isEnum(enumObj)` | 열거형 값 검사 |
+| `isArray()` | `Array.isArray()` |
+| `isObject()` | `typeof === 'object'`, null/Array 제외 |
 
 ### 숫자
 
-| 데코레이터 | 설명 |
+| 규칙 | 설명 |
 |---|---|
-| `@Min(n)` | `value >= n` |
-| `@Max(n)` | `value <= n` |
-| `@IsPositive()` | `value > 0` |
-| `@IsNegative()` | `value < 0` |
-| `@IsInRange(min, max)` | `min <= value <= max` |
-| `@IsDivisibleBy(n)` | `value % n === 0` |
+| `min(n)` | `value >= n` (`{ exclusive: true }` 지원) |
+| `max(n)` | `value <= n` (`{ exclusive: true }` 지원) |
+| `isPositive` | `value > 0` |
+| `isNegative` | `value < 0` |
+| `isDivisibleBy(n)` | `value % n === 0` |
 
 ### 문자열
 
 <details>
 <summary>50개 이상의 문자열 검증기 — 클릭하여 펼치기</summary>
 
-| 데코레이터 | 설명 |
+| 규칙 | 설명 |
 |---|---|
-| `@MinLength(n)` | 최소 길이 |
-| `@MaxLength(n)` | 최대 길이 |
-| `@Length(min, max)` | 길이 범위 |
-| `@Contains(seed)` | 부분 문자열 포함 |
-| `@NotContains(seed)` | 부분 문자열 미포함 |
-| `@Matches(pattern)` | 정규식 매치 |
-| `@IsAlpha()` | 알파벳만 |
-| `@IsAlphanumeric()` | 알파벳/숫자만 |
-| `@IsNumeric()` | 숫자 문자열 |
-| `@IsEmail(opts?)` | 이메일 형식 |
-| `@IsURL(opts?)` | URL 형식 |
-| `@IsUUID(version?)` | UUID v1–v5 |
-| `@IsIP(version?)` | IPv4 / IPv6 |
-| `@IsMACAddress()` | MAC 주소 |
-| `@IsISBN(version?)` | ISBN-10 / ISBN-13 |
-| `@IsISIN()` | ISIN |
-| `@IsIBAN()` | IBAN |
-| `@IsJSON()` | JSON 파싱 가능 문자열 |
-| `@IsBase64()` | Base64 인코딩 |
-| `@IsBase32()` | Base32 인코딩 |
-| `@IsBase58()` | Base58 인코딩 |
-| `@IsHexColor()` | 16진수 색상 코드 |
-| `@IsHSL()` | HSL 색상 |
-| `@IsRgbColor()` | RGB 색상 |
-| `@IsHexadecimal()` | 16진수 문자열 |
-| `@IsBIC()` | BIC/SWIFT 코드 |
-| `@IsISRC()` | ISRC 코드 |
-| `@IsEAN()` | EAN 바코드 |
-| `@IsMimeType()` | MIME 타입 |
-| `@IsMagnetURI()` | Magnet URI |
-| `@IsCreditCard()` | 신용카드 번호 |
-| `@IsHash(algorithm)` | 해시 (`md5 \| sha1 \| sha256 \| sha512` 등) |
-| `@IsRFC3339()` | RFC 3339 날짜 |
-| `@IsMilitaryTime()` | 24시간 형식 (`HH:MM`) |
-| `@IsLatitude()` | 위도 (-90 ~ 90) |
-| `@IsLongitude()` | 경도 (-180 ~ 180) |
-| `@IsEthereumAddress()` | 이더리움 주소 |
-| `@IsBtcAddress()` | 비트코인 주소 (P2PKH/P2SH/bech32) |
-| `@IsISO4217CurrencyCode()` | ISO 4217 통화 코드 |
-| `@IsPhoneNumber()` | E.164 국제 전화번호 |
-| `@IsStrongPassword(opts?)` | 강력한 비밀번호 |
-| `@IsSemVer()` | 시맨틱 버전 |
-| `@IsISO8601()` | ISO 8601 날짜 문자열 |
-| `@IsMongoId()` | MongoDB ObjectId |
-| `@IsTaxId(locale)` | 국가별 납세자 번호 |
+| `minLength(n)` | 최소 길이 |
+| `maxLength(n)` | 최대 길이 |
+| `length(min, max)` | 길이 범위 |
+| `contains(seed)` | 부분 문자열 포함 |
+| `notContains(seed)` | 부분 문자열 미포함 |
+| `matches(pattern)` | 정규식 매치 |
+| `isAlpha()` | 알파벳만 |
+| `isAlphanumeric()` | 알파벳/숫자만 |
+| `isEmail(opts?)` | 이메일 형식 |
+| `isURL(opts?)` | URL 형식 (포트 범위 검증) |
+| `isUUID(version?)` | UUID v1-v5 |
+| `isIP(version?)` | IPv4 / IPv6 |
+| `isMACAddress()` | MAC 주소 |
+| `isISBN(version?)` | ISBN-10 / ISBN-13 |
+| `isJSON()` | JSON 파싱 가능 문자열 |
+| `isBase64()` | Base64 인코딩 |
+| `isCreditCard()` | 신용카드 번호 (Luhn) |
+| `isISO8601()` | ISO 8601 날짜 문자열 |
+| `isSemVer()` | 시맨틱 버전 |
+| `isMongoId()` | MongoDB ObjectId |
+| `isPhoneNumber()` | E.164 국제 전화번호 |
+| `isStrongPassword(opts?)` | 강력한 비밀번호 |
+| ... 그 외 30개 이상 | |
 
 </details>
 
-### 날짜
-
-| 데코레이터 | 설명 |
-|---|---|
-| `@MinDate(date)` | 최소 날짜 |
-| `@MaxDate(date)` | 최대 날짜 |
-
 ### 배열
 
-| 데코레이터 | 설명 |
+| 규칙 | 설명 |
 |---|---|
-| `@ArrayContains(values)` | 주어진 요소를 모두 포함 |
-| `@ArrayNotContains(values)` | 주어진 요소를 포함하지 않음 |
-| `@ArrayMinSize(n)` | 배열 최소 길이 |
-| `@ArrayMaxSize(n)` | 배열 최대 길이 |
-| `@ArrayUnique()` | 중복 없음 |
-| `@ArrayNotEmpty()` | 빈 배열이 아님 |
+| `arrayContains(values)` | 주어진 요소를 모두 포함 |
+| `arrayNotContains(values)` | 주어진 요소를 포함하지 않음 |
+| `arrayMinSize(n)` | 배열 최소 길이 |
+| `arrayMaxSize(n)` | 배열 최대 길이 |
+| `arrayUnique()` | 중복 없음 |
+| `arrayNotEmpty()` | 빈 배열이 아님 |
 
-### 로케일
+### 날짜
 
-| 데코레이터 | 설명 |
+| 규칙 | 설명 |
 |---|---|
-| `@IsMobilePhone(locale)` | 국가별 이동전화 번호 |
-| `@IsPostalCode(locale)` | 국가별 우편번호 |
-| `@IsIdentityCard(locale)` | 국가별 신분증 번호 |
-| `@IsPassportNumber(locale)` | 국가별 여권 번호 |
+| `minDate(date)` | 최소 날짜 |
+| `maxDate(date)` | 최대 날짜 |
 
-### Transform & Type
+### 검증 옵션
 
-| 데코레이터 | 설명 |
-|---|---|
-| `@Transform(fn, opts?)` | 커스텀 변환 함수 |
-| `@Type(fn)` | 중첩 DTO 타입 지정 + 암묵적 변환 |
-| `@Nested(fn, opts?)` | `@ValidateNested()` + `@Type(fn)` 축약 + discriminator 지원 |
-| `@Expose(opts?)` | 프로퍼티 노출 제어 |
-| `@Exclude(opts?)` | 직렬화에서 프로퍼티 제외 |
-| `@Schema(schema)` | JSON Schema 메타데이터 부착 (클래스 또는 프로퍼티 레벨) |
-
----
-
-## ⚙️ Validation Options
-
-모든 검증 데코레이터는 마지막 인자로 `ValidationOptions`를 받습니다:
-
-```typescript
-interface ValidationOptions {
-  each?: boolean;        // 배열의 각 원소에 규칙 적용
-  groups?: string[];     // 이 규칙이 속하는 그룹
-  message?: string | ((args: {
-    property: string;
-    value: unknown;
-    constraints: Record<string, unknown>;
-  }) => string);          // 커스텀 에러 메시지
-  context?: unknown;     // 에러에 첨부할 임의 컨텍스트
-}
-```
-
-**예시:**
+모든 규칙은 `each`, `groups`, `message`, `context` 옵션을 인자로 받습니다:
 
 ```typescript
 class UserDto {
-  @IsString({ message: '이름은 문자열이어야 합니다' })
+  @Field(isString({ message: '이름은 문자열이어야 합니다' }))
   name!: string;
 
-  @IsInt({
-    message: ({ property }) => `${property}는 정수여야 합니다`,
-    context: { httpStatus: 400 },
-  })
-  age!: number;
+  @Field(isInt({ each: true, groups: ['admin'] }))
+  scores!: number[];
 }
 ```
 
 ---
 
-## 🚨 에러 처리
+## 설정
+
+첫 `deserialize()`/`serialize()` 호출 **이전에** `configure()`를 호출하세요:
+
+```typescript
+import { configure } from '@zipbul/baker';
+
+configure({
+  autoConvert: false,        // 암묵적 타입 변환 ("123" -> 123)
+  allowClassDefaults: false, // 누락된 키에 클래스 기본값 사용
+  stopAtFirstError: false,   // 첫 에러에서 중단 또는 전체 수집
+  forbidUnknown: false,      // 미선언 필드 거부
+  debug: false,              // 생성된 코드에 필드 제외 주석 포함
+});
+```
+
+`configure()`는 `{ warnings: string[] }`을 반환합니다 — auto-seal 이후에 호출된 경우, 영향을 받지 않는 클래스를 알려주는 경고가 포함됩니다.
+
+---
+
+## 에러 처리
 
 검증 실패 시 `deserialize()`는 `BakerValidationError`를 throw합니다:
 
@@ -304,86 +286,50 @@ class BakerValidationError extends Error {
   readonly errors: BakerError[];
   readonly className: string;
 }
-```
 
-각 에러는 `BakerError` 인터페이스를 따릅니다:
-
-```typescript
 interface BakerError {
-  readonly path: string;      // 필드 경로 ('user.address.city')
-  readonly code: string;      // 에러 코드 ('isString', 'min', 'isEmail')
-  readonly message?: string;  // 커스텀 메시지 (message 옵션 설정 시)
-  readonly context?: unknown; // 커스텀 컨텍스트 (context 옵션 설정 시)
+  readonly path: string;      // 'user.address.city'
+  readonly code: string;      // 'isString', 'min', 'isEmail'
+  readonly message?: string;  // 커스텀 메시지
+  readonly context?: unknown; // 커스텀 컨텍스트
 }
 ```
 
 ---
 
-## 📋 배열 검증
+## 중첩 객체
 
-`each: true` 옵션으로 Array, Set, Map의 각 원소에 규칙을 적용합니다:
-
-```typescript
-class TagsDto {
-  @IsString({ each: true })
-  tags!: string[];
-}
-```
-
----
-
-## 🏷️ 그룹 기반 검증
-
-용도에 따라 다른 규칙을 적용할 수 있습니다:
+`type` 옵션으로 중첩 DTO를 검증합니다:
 
 ```typescript
-class UserDto {
-  @IsString({ groups: ['create'] })
-  name!: string;
-
-  @IsEmail({ groups: ['create', 'update'] })
-  email!: string;
-}
-
-// 'create' 그룹의 규칙만 검증
-const user = await deserialize(UserDto, body, { groups: ['create'] });
-```
-
----
-
-## 🪆 중첩 객체
-
-`@Nested`로 중첩 DTO를 검증합니다:
-
-```typescript
-import { Nested, IsString } from '@zipbul/baker';
-
 class AddressDto {
-  @IsString()
+  @Field(isString())
   city!: string;
 }
 
 class UserDto {
-  @Nested(() => AddressDto)
+  @Field({ type: () => AddressDto })
   address!: AddressDto;
+
+  // 중첩 DTO 배열
+  @Field({ type: () => [AddressDto] })
+  addresses!: AddressDto[];
 }
 ```
 
-배열 중첩과 discriminator 다형성:
+### Discriminator (다형성)
 
 ```typescript
-class ItemDto {
-  @IsString()
-  label!: string;
+class DogDto {
+  @Field(isString()) breed!: string;
 }
-
-class ListDto {
-  @Nested(() => ItemDto, { each: true })
-  items!: ItemDto[];
+class CatDto {
+  @Field(isBoolean()) indoor!: boolean;
 }
 
 class PetOwnerDto {
-  @Nested(() => DogDto, {
+  @Field({
+    type: () => DogDto,
     discriminator: {
       property: 'type',
       subTypes: [
@@ -396,11 +342,11 @@ class PetOwnerDto {
 }
 ```
 
+Discriminator는 양방향으로 동작합니다 — `deserialize()`는 프로퍼티 값으로 분기하고, `serialize()`는 `instanceof`로 분기합니다.
+
 ---
 
-## 🧩 커스텀 규칙
-
-코드생성을 지원하는 사용자 정의 검증 규칙을 만들 수 있습니다:
+## 커스텀 규칙
 
 ```typescript
 import { createRule } from '@zipbul/baker';
@@ -408,93 +354,54 @@ import { createRule } from '@zipbul/baker';
 const isPositiveInt = createRule({
   name: 'isPositiveInt',
   validate: (value) => Number.isInteger(value) && (value as number) > 0,
-  emit: (varName, ctx) =>
-    `if (!Number.isInteger(${varName}) || ${varName} <= 0) ${ctx.fail('isPositiveInt')};`,
 });
+
+class Dto {
+  @Field(isPositiveInt)
+  count!: number;
+}
 ```
 
 ---
 
-## ⚙️ Seal 옵션
-
-```typescript
-seal({
-  enableImplicitConversion: false, // 데코레이터 기반 자동 타입 변환
-  enableCircularCheck: 'auto',     // 순환 참조 감지 ('auto' | true | false)
-  exposeDefaultValues: false,      // 누락된 키에 클래스 기본값 사용
-  stopAtFirstError: false,         // 첫 에러에서 중단 또는 전체 수집
-  whitelist: false,                // 미선언 필드 거부
-  debug: false,                    // 생성된 소스를 검사용으로 저장
-});
-```
-
----
-
-## 📐 JSON Schema
+## JSON Schema
 
 DTO에서 JSON Schema Draft 2020-12를 생성합니다:
 
 ```typescript
 import { toJsonSchema } from '@zipbul/baker';
 
-const schema = toJsonSchema(CreateUserDto);
-// { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", properties: { ... } }
-```
-
-옵션:
-
-```typescript
-toJsonSchema(CreateUserDto, {
-  direction: 'deserialize', // 'deserialize' | 'serialize' — @Expose/@Exclude 방향 필터링
-  groups: ['create'],       // 그룹별 규칙/필드 필터링
+const schema = toJsonSchema(CreateUserDto, {
+  direction: 'deserialize',  // 'deserialize' | 'serialize'
+  groups: ['create'],         // 그룹별 필터링
+  onUnmappedRule: (name) => { /* 스키마 매핑이 없는 커스텀 규칙 */ },
 });
 ```
 
-`@Schema()`로 추가 JSON Schema 메타데이터를 부착합니다:
+---
 
-```typescript
-@Schema({ title: 'CreateUser', description: '새 사용자 생성' })
-class CreateUserDto {
-  @IsString()
-  @Schema({ description: '표시 이름', examples: ['Alice'] })
-  name!: string;
-}
+## 동작 원리
+
 ```
+Decorators (@Field)     auto-seal (첫 호출)       deserialize() / serialize()
+   메타데이터          ->   new Function() 코드생성  ->   생성된 코드 실행
+```
+
+1. `@Field()`가 정의 시점에 클래스 프로퍼티에 검증 메타데이터를 부착합니다
+2. 첫 `deserialize()`/`serialize()` 호출이 **auto-seal**을 트리거합니다 — 모든 메타데이터를 읽고, 순환 참조를 분석하고, `new Function()`으로 최적화된 JavaScript 함수를 생성합니다
+3. 이후 호출은 생성된 함수를 직접 실행합니다 — 해석 루프 없음
 
 ---
 
-## 📂 서브패스 익스포트
+## 서브패스 익스포트
 
 | 임포트 경로 | 용도 |
 |---|---|
-| `@zipbul/baker` | 메인 API: `seal`, `deserialize`, `serialize`, `toJsonSchema`, 모든 데코레이터 |
-| `@zipbul/baker/decorators` | 데코레이터만 |
-| `@zipbul/baker/rules` | 원시 규칙 객체 |
-| `@zipbul/baker/symbols` | 내부 심볼 |
+| `@zipbul/baker` | 메인 API: `deserialize`, `serialize`, `configure`, `toJsonSchema`, `Field`, `createRule` |
+| `@zipbul/baker/rules` | 규칙 함수: `isString()`, `min()`, `isEmail()` 등 |
 
 ---
 
-## 🔍 동작 원리
+## 라이선스
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────────┐
-│  데코레이터   │ ──▶ │   seal()     │ ──▶ │ new Function() 코드  │
-│  (메타데이터)  │     │  앱 시작 시  │     │   (인라인 코드생성)   │
-└─────────────┘     └──────────────┘     └──────────┬──────────┘
-                                                     │
-                                          ┌──────────▼──────────┐
-                                          │   deserialize() /   │
-                                          │    serialize()      │
-                                          │  (생성된 코드 실행)   │
-                                          └─────────────────────┘
-```
-
-1. **데코레이터**가 클래스 프로퍼티에 검증 메타데이터를 부착합니다
-2. **`seal()`**이 모든 메타데이터를 읽고, 순환 참조를 분석하고, `new Function()`으로 인라인 JavaScript 함수를 생성합니다
-3. **`deserialize()` / `serialize()`**가 생성된 함수를 실행합니다 — 해석 루프 없이, 직선적인 최적화 코드만 실행
-
----
-
-## 📄 라이선스
-
-[MIT](./LICENSE) © [Junhyung Park](https://github.com/parkrevil)
+[MIT](./LICENSE)

@@ -4,7 +4,7 @@
     <strong>Decorator-based validate + transform with inline code generation</strong>
   </p>
   <p align="center">
-    class-validator DX · AOT-level performance · zero reflect-metadata
+    Single <code>@Field()</code> decorator &middot; AOT-level performance &middot; zero reflect-metadata
   </p>
   <p align="center">
     <a href="https://github.com/zipbul/baker/actions"><img src="https://github.com/zipbul/baker/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -20,42 +20,43 @@
 
 ---
 
-## 🤔 Why Baker?
+## Why Baker?
 
 | | class-validator | Zod | TypeBox | **Baker** |
 |---|---|---|---|---|
-| Schema style | Decorators | Function chaining | JSON Schema builder | **Decorators** |
+| Schema style | Decorators | Function chaining | JSON Schema builder | **Single `@Field()` decorator** |
 | Performance | Runtime interpreter | Runtime interpreter | JIT compile | **`new Function()` inline codegen** |
-| Transform built-in | Separate package | `.transform()` | ✗ | **Unified** |
+| Transform built-in | Separate package | `.transform()` | N/A | **Unified** |
 | reflect-metadata | Required | N/A | N/A | **Not needed** |
 | class-validator migration | — | Full rewrite | Full rewrite | **Near drop-in** |
 
-Baker gives you the **familiar decorator DX** of class-validator while generating optimized validation + transformation functions via `new Function()` at seal time — delivering **AOT-equivalent performance without a compiler plugin**.
+Baker gives you a **single `@Field()` decorator** that combines validation, transformation, exposure control, and type hints. At first use, it auto-seals all DTOs by generating optimized functions via `new Function()` — delivering **AOT-equivalent performance without a compiler plugin**.
 
 ---
 
-## ✨ Features
+## Features
 
-- 🎯 **Decorator-first** — `@IsString()`, `@Min()`, `@IsEmail()` and 80+ built-in validators
-- ⚡ **Inline code generation** — `seal()` compiles validators into optimized functions, no runtime interpretation
-- 🔄 **Unified validate + transform** — `deserialize()` and `serialize()` in one async call
-- 🪶 **Zero reflect-metadata** — no `reflect-metadata` import needed
-- 🔁 **Circular reference detection** — automatic static analysis at seal time
-- 🏷️ **Group-based validation** — apply different rules per request with `groups`
-- 🧩 **Custom rules** — `createRule()` for user-defined validators with codegen support
-- 📐 **JSON Schema output** — `toJsonSchema()` generates JSON Schema Draft 2020-12 from your DTOs
-- 🪆 **`@Nested`** — single-decorator nested DTO validation with discriminator support
-- 🛡️ **Whitelist mode** — reject undeclared fields with `seal({ whitelist: true })`
+- **Single decorator** — `@Field()` replaces 30+ individual decorators
+- **80+ built-in rules** — `isString()`, `min()`, `isEmail()` and more, composed as arguments
+- **Inline code generation** — auto-seal compiles validators at first `deserialize()`/`serialize()` call
+- **Unified validate + transform** — `deserialize()` and `serialize()` in one async call
+- **Zero reflect-metadata** — no `reflect-metadata` import needed
+- **Circular reference detection** — automatic static analysis at seal time
+- **Group-based validation** — apply different rules per request with `groups`
+- **Custom rules** — `createRule()` for user-defined validators with codegen support
+- **JSON Schema output** — `toJsonSchema()` generates JSON Schema Draft 2020-12 from your DTOs
+- **Polymorphic discriminator** — `@Field({ discriminator })` for union types
+- **Whitelist mode** — reject undeclared fields with `configure({ forbidUnknown: true })`
 
 ---
 
-## 📦 Installation
+## Installation
 
 ```bash
 bun add @zipbul/baker
 ```
 
-> **Requirements:** Bun ≥ 1.0, `experimentalDecorators: true` in tsconfig.json
+> **Requirements:** Bun >= 1.0, `experimentalDecorators: true` in tsconfig.json
 
 ```jsonc
 // tsconfig.json
@@ -68,37 +69,27 @@ bun add @zipbul/baker
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Define a DTO
 
 ```typescript
-import { IsString, IsInt, IsEmail, Min, Max } from '@zipbul/baker/decorators';
+import { Field } from '@zipbul/baker';
+import { isString, isInt, isEmail, min, max } from '@zipbul/baker/rules';
 
 class CreateUserDto {
-  @IsString()
+  @Field(isString())
   name!: string;
 
-  @IsInt()
-  @Min(0)
-  @Max(120)
+  @Field(isInt(), min(0), max(120))
   age!: number;
 
-  @IsEmail()
+  @Field(isEmail())
   email!: string;
 }
 ```
 
-### 2. Seal at startup
-
-```typescript
-import { seal } from '@zipbul/baker';
-
-// Compiles all registered DTOs into optimized validators
-seal();
-```
-
-### 3. Deserialize per request
+### 2. Deserialize (auto-seals on first call)
 
 ```typescript
 import { deserialize, BakerValidationError } from '@zipbul/baker';
@@ -113,7 +104,7 @@ try {
 }
 ```
 
-### 4. Serialize
+### 3. Serialize
 
 ```typescript
 import { serialize } from '@zipbul/baker';
@@ -122,180 +113,171 @@ const plain = await serialize(userInstance);
 // plain: Record<string, unknown>
 ```
 
+> No `seal()` call needed — baker auto-seals all registered DTOs on the first `deserialize()` or `serialize()` call.
+
 ---
 
-## 🏗️ Decorators
+## The `@Field()` Decorator
+
+`@Field()` is the single decorator that replaces all individual decorators. It accepts validation rules as positional arguments and an options object for advanced features.
+
+### Signatures
+
+```typescript
+// Rules only
+@Field(isString(), minLength(3), maxLength(100))
+
+// Options only
+@Field({ optional: true, nullable: true })
+
+// Rules + options
+@Field(isString(), { name: 'user_name', groups: ['create'] })
+
+// No rules (plain field)
+@Field()
+```
+
+### FieldOptions
+
+```typescript
+interface FieldOptions {
+  type?: () => Constructor | [Constructor];   // Nested DTO type (thunk for circular refs)
+  discriminator?: {                           // Polymorphic union
+    property: string;
+    subTypes: { value: Function; name: string }[];
+  };
+  keepDiscriminatorProperty?: boolean;        // Keep discriminator key in output
+  optional?: boolean;                         // Allow undefined
+  nullable?: boolean;                         // Allow null
+  name?: string;                              // JSON key mapping (bidirectional)
+  deserializeName?: string;                   // Deserialize-only key mapping
+  serializeName?: string;                     // Serialize-only key mapping
+  exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
+  groups?: string[];                          // Visibility + conditional validation
+  when?: (obj: any) => boolean;               // Conditional validation
+  schema?: JsonSchemaOverride;                // JSON Schema metadata
+  transform?: (params: FieldTransformParams) => unknown;
+  transformDirection?: 'deserializeOnly' | 'serializeOnly';
+}
+```
+
+---
+
+## Built-in Rules
+
+All rules are imported from `@zipbul/baker/rules` and passed as arguments to `@Field()`.
 
 ### Type Checkers
 
-| Decorator | Description |
+| Rule | Description |
 |---|---|
-| `@IsString()` | `typeof === 'string'` |
-| `@IsNumber(opts?)` | `typeof === 'number'` with NaN/Infinity checks |
-| `@IsInt()` | Integer check |
-| `@IsBoolean()` | `typeof === 'boolean'` |
-| `@IsDate()` | `instanceof Date && !isNaN` |
-| `@IsEnum(enumObj)` | Enum value check |
-| `@IsArray()` | `Array.isArray()` |
-| `@IsObject()` | `typeof === 'object'`, excludes null/Array |
-
-### Common
-
-| Decorator | Description |
-|---|---|
-| `@IsDefined()` | `!== undefined && !== null` |
-| `@IsOptional()` | Skip subsequent rules if value is absent |
-| `@IsNullable()` | Allow `null` (skip validation), reject `undefined` |
-| `@IsNotEmpty()` | `!== undefined && !== null && !== ''` |
-| `@IsEmpty()` | `=== undefined \|\| === null \|\| === ''` |
-| `@Equals(val)` | `=== val` |
-| `@NotEquals(val)` | `!== val` |
-| `@IsIn(values)` | Value is in the given array |
-| `@IsNotIn(values)` | Value is not in the given array |
-| `@ValidateNested()` | Validate nested DTO |
-| `@ValidateIf(fn)` | Conditional validation |
+| `isString()` | `typeof === 'string'` |
+| `isNumber(opts?)` | `typeof === 'number'` with NaN/Infinity/maxDecimalPlaces checks |
+| `isInt()` | Integer check |
+| `isBoolean()` | `typeof === 'boolean'` |
+| `isDate()` | `instanceof Date && !isNaN` |
+| `isEnum(enumObj)` | Enum value check |
+| `isArray()` | `Array.isArray()` |
+| `isObject()` | `typeof === 'object'`, excludes null/Array |
 
 ### Number
 
-| Decorator | Description |
+| Rule | Description |
 |---|---|
-| `@Min(n)` | `value >= n` |
-| `@Max(n)` | `value <= n` |
-| `@IsPositive()` | `value > 0` |
-| `@IsNegative()` | `value < 0` |
-| `@IsInRange(min, max)` | `min <= value <= max` |
-| `@IsDivisibleBy(n)` | `value % n === 0` |
+| `min(n)` | `value >= n` (supports `{ exclusive: true }`) |
+| `max(n)` | `value <= n` (supports `{ exclusive: true }`) |
+| `isPositive` | `value > 0` |
+| `isNegative` | `value < 0` |
+| `isDivisibleBy(n)` | `value % n === 0` |
 
 ### String
 
 <details>
 <summary>50+ string validators — click to expand</summary>
 
-| Decorator | Description |
+| Rule | Description |
 |---|---|
-| `@MinLength(n)` | Minimum length |
-| `@MaxLength(n)` | Maximum length |
-| `@Length(min, max)` | Length range |
-| `@Contains(seed)` | Contains substring |
-| `@NotContains(seed)` | Does not contain substring |
-| `@Matches(pattern)` | Regex match |
-| `@IsAlpha()` | Alphabetic only |
-| `@IsAlphanumeric()` | Alphanumeric only |
-| `@IsNumeric()` | Numeric string |
-| `@IsEmail(opts?)` | Email format |
-| `@IsURL(opts?)` | URL format |
-| `@IsUUID(version?)` | UUID v1–v5 |
-| `@IsIP(version?)` | IPv4 / IPv6 |
-| `@IsMACAddress()` | MAC address |
-| `@IsISBN(version?)` | ISBN-10 / ISBN-13 |
-| `@IsISIN()` | ISIN |
-| `@IsIBAN()` | IBAN |
-| `@IsJSON()` | Parseable JSON string |
-| `@IsBase64()` | Base64 encoded |
-| `@IsBase32()` | Base32 encoded |
-| `@IsBase58()` | Base58 encoded |
-| `@IsHexColor()` | Hex color code |
-| `@IsHSL()` | HSL color |
-| `@IsRgbColor()` | RGB color |
-| `@IsHexadecimal()` | Hex string |
-| `@IsBIC()` | BIC/SWIFT code |
-| `@IsISRC()` | ISRC code |
-| `@IsEAN()` | EAN barcode |
-| `@IsMimeType()` | MIME type |
-| `@IsMagnetURI()` | Magnet URI |
-| `@IsCreditCard()` | Credit card number |
-| `@IsHash(algorithm)` | Hash (`md5 \| sha1 \| sha256 \| sha512` etc.) |
-| `@IsRFC3339()` | RFC 3339 date |
-| `@IsMilitaryTime()` | 24h format (`HH:MM`) |
-| `@IsLatitude()` | Latitude (-90 ~ 90) |
-| `@IsLongitude()` | Longitude (-180 ~ 180) |
-| `@IsEthereumAddress()` | Ethereum address |
-| `@IsBtcAddress()` | Bitcoin address (P2PKH/P2SH/bech32) |
-| `@IsISO4217CurrencyCode()` | ISO 4217 currency code |
-| `@IsPhoneNumber()` | E.164 international phone number |
-| `@IsStrongPassword(opts?)` | Strong password |
-| `@IsSemVer()` | Semantic version |
-| `@IsISO8601()` | ISO 8601 date string |
-| `@IsMongoId()` | MongoDB ObjectId |
-| `@IsTaxId(locale)` | Tax ID by locale |
+| `minLength(n)` | Minimum length |
+| `maxLength(n)` | Maximum length |
+| `length(min, max)` | Length range |
+| `contains(seed)` | Contains substring |
+| `notContains(seed)` | Does not contain substring |
+| `matches(pattern)` | Regex match |
+| `isAlpha()` | Alphabetic only |
+| `isAlphanumeric()` | Alphanumeric only |
+| `isEmail(opts?)` | Email format |
+| `isURL(opts?)` | URL format (port range validated) |
+| `isUUID(version?)` | UUID v1-v5 |
+| `isIP(version?)` | IPv4 / IPv6 |
+| `isMACAddress()` | MAC address |
+| `isISBN(version?)` | ISBN-10 / ISBN-13 |
+| `isJSON()` | Parseable JSON string |
+| `isBase64()` | Base64 encoded |
+| `isCreditCard()` | Credit card (Luhn) |
+| `isISO8601()` | ISO 8601 date string |
+| `isSemVer()` | Semantic version |
+| `isMongoId()` | MongoDB ObjectId |
+| `isPhoneNumber()` | E.164 international phone |
+| `isStrongPassword(opts?)` | Strong password |
+| ... and 30+ more | |
 
 </details>
 
-### Date
-
-| Decorator | Description |
-|---|---|
-| `@MinDate(date)` | Minimum date |
-| `@MaxDate(date)` | Maximum date |
-
 ### Array
 
-| Decorator | Description |
+| Rule | Description |
 |---|---|
-| `@ArrayContains(values)` | Contains all given elements |
-| `@ArrayNotContains(values)` | Contains none of the given elements |
-| `@ArrayMinSize(n)` | Minimum array length |
-| `@ArrayMaxSize(n)` | Maximum array length |
-| `@ArrayUnique()` | No duplicates |
-| `@ArrayNotEmpty()` | Not empty |
+| `arrayContains(values)` | Contains all given elements |
+| `arrayNotContains(values)` | Contains none of the given elements |
+| `arrayMinSize(n)` | Minimum array length |
+| `arrayMaxSize(n)` | Maximum array length |
+| `arrayUnique()` | No duplicates |
+| `arrayNotEmpty()` | Not empty |
 
-### Locale-specific
+### Date
 
-| Decorator | Description |
+| Rule | Description |
 |---|---|
-| `@IsMobilePhone(locale)` | Mobile phone by locale |
-| `@IsPostalCode(locale)` | Postal code by locale |
-| `@IsIdentityCard(locale)` | Identity card by locale |
-| `@IsPassportNumber(locale)` | Passport number by locale |
+| `minDate(date)` | Minimum date |
+| `maxDate(date)` | Maximum date |
 
-### Transform & Type
+### Validation Options
 
-| Decorator | Description |
-|---|---|
-| `@Transform(fn, opts?)` | Custom transform function |
-| `@Type(fn)` | Nested DTO type + implicit conversion |
-| `@Nested(fn, opts?)` | Shorthand for `@ValidateNested()` + `@Type(fn)` with discriminator support |
-| `@Expose(opts?)` | Control property exposure |
-| `@Exclude(opts?)` | Exclude property from serialization |
-| `@Schema(schema)` | Attach JSON Schema metadata (class or property level) |
-
----
-
-## ⚙️ Validation Options
-
-Every validation decorator accepts `ValidationOptions` as its last argument:
-
-```typescript
-interface ValidationOptions {
-  each?: boolean;        // Apply rule to each array element
-  groups?: string[];     // Groups this rule belongs to
-  message?: string | ((args: {
-    property: string;
-    value: unknown;
-    constraints: Record<string, unknown>;
-  }) => string);          // Custom error message
-  context?: unknown;     // Arbitrary context attached to error
-}
-```
-
-**Example:**
+Every rule accepts an options argument for `each`, `groups`, `message`, and `context`:
 
 ```typescript
 class UserDto {
-  @IsString({ message: 'Name must be a string' })
+  @Field(isString({ message: 'Name must be a string' }))
   name!: string;
 
-  @IsInt({
-    message: ({ property }) => `${property} must be an integer`,
-    context: { httpStatus: 400 },
-  })
-  age!: number;
+  @Field(isInt({ each: true, groups: ['admin'] }))
+  scores!: number[];
 }
 ```
 
 ---
 
-## 🚨 Error Handling
+## Configuration
+
+Call `configure()` **before** the first `deserialize()`/`serialize()`:
+
+```typescript
+import { configure } from '@zipbul/baker';
+
+configure({
+  autoConvert: false,        // Implicit type conversion ("123" -> 123)
+  allowClassDefaults: false, // Use class default values for missing keys
+  stopAtFirstError: false,   // Stop at first error or collect all
+  forbidUnknown: false,      // Reject undeclared fields
+  debug: false,              // Emit field exclusion comments in generated code
+});
+```
+
+`configure()` returns `{ warnings: string[] }` — if called after auto-seal, warnings describe which classes won't be affected.
+
+---
+
+## Error Handling
 
 When validation fails, `deserialize()` throws a `BakerValidationError`:
 
@@ -304,86 +286,50 @@ class BakerValidationError extends Error {
   readonly errors: BakerError[];
   readonly className: string;
 }
-```
 
-Each error follows the `BakerError` interface:
-
-```typescript
 interface BakerError {
-  readonly path: string;      // Field path ('user.address.city')
-  readonly code: string;      // Error code ('isString', 'min', 'isEmail')
-  readonly message?: string;  // Custom message (when message option is set)
-  readonly context?: unknown; // Custom context (when context option is set)
+  readonly path: string;      // 'user.address.city'
+  readonly code: string;      // 'isString', 'min', 'isEmail'
+  readonly message?: string;  // Custom message
+  readonly context?: unknown; // Custom context
 }
 ```
 
 ---
 
-## 📋 Array Validation
+## Nested Objects
 
-Use `each: true` to apply rules to each element of an Array, Set, or Map:
-
-```typescript
-class TagsDto {
-  @IsString({ each: true })
-  tags!: string[];
-}
-```
-
----
-
-## 🏷️ Group-based Validation
-
-Apply different rules depending on the use case:
+Use `type` option for nested DTO validation:
 
 ```typescript
-class UserDto {
-  @IsString({ groups: ['create'] })
-  name!: string;
-
-  @IsEmail({ groups: ['create', 'update'] })
-  email!: string;
-}
-
-// Only validate rules in the 'create' group
-const user = await deserialize(UserDto, body, { groups: ['create'] });
-```
-
----
-
-## 🪆 Nested Objects
-
-Use `@Nested` for nested DTO validation:
-
-```typescript
-import { Nested, IsString } from '@zipbul/baker';
-
 class AddressDto {
-  @IsString()
+  @Field(isString())
   city!: string;
 }
 
 class UserDto {
-  @Nested(() => AddressDto)
+  @Field({ type: () => AddressDto })
   address!: AddressDto;
+
+  // Array of nested DTOs
+  @Field({ type: () => [AddressDto] })
+  addresses!: AddressDto[];
 }
 ```
 
-Array nesting and discriminator polymorphism:
+### Discriminator (Polymorphism)
 
 ```typescript
-class ItemDto {
-  @IsString()
-  label!: string;
+class DogDto {
+  @Field(isString()) breed!: string;
 }
-
-class ListDto {
-  @Nested(() => ItemDto, { each: true })
-  items!: ItemDto[];
+class CatDto {
+  @Field(isBoolean()) indoor!: boolean;
 }
 
 class PetOwnerDto {
-  @Nested(() => DogDto, {
+  @Field({
+    type: () => DogDto,
     discriminator: {
       property: 'type',
       subTypes: [
@@ -396,11 +342,11 @@ class PetOwnerDto {
 }
 ```
 
+Discriminator works in both directions — `deserialize()` switches on the property value, `serialize()` dispatches via `instanceof`.
+
 ---
 
-## 🧩 Custom Rules
-
-Create user-defined validation rules with codegen support:
+## Custom Rules
 
 ```typescript
 import { createRule } from '@zipbul/baker';
@@ -408,93 +354,54 @@ import { createRule } from '@zipbul/baker';
 const isPositiveInt = createRule({
   name: 'isPositiveInt',
   validate: (value) => Number.isInteger(value) && (value as number) > 0,
-  emit: (varName, ctx) =>
-    `if (!Number.isInteger(${varName}) || ${varName} <= 0) ${ctx.fail('isPositiveInt')};`,
 });
+
+class Dto {
+  @Field(isPositiveInt)
+  count!: number;
+}
 ```
 
 ---
 
-## ⚙️ Seal Options
-
-```typescript
-seal({
-  enableImplicitConversion: false, // Auto-convert types based on decorators
-  enableCircularCheck: 'auto',     // Detect circular references ('auto' | true | false)
-  exposeDefaultValues: false,      // Use class defaults for missing keys
-  stopAtFirstError: false,         // Stop at first error or collect all
-  whitelist: false,                // Reject undeclared fields
-  debug: false,                    // Store generated source for inspection
-});
-```
-
----
-
-## 📐 JSON Schema
+## JSON Schema
 
 Generate JSON Schema Draft 2020-12 from your DTOs:
 
 ```typescript
 import { toJsonSchema } from '@zipbul/baker';
 
-const schema = toJsonSchema(CreateUserDto);
-// { $schema: "https://json-schema.org/draft/2020-12/schema", type: "object", properties: { ... } }
-```
-
-Options:
-
-```typescript
-toJsonSchema(CreateUserDto, {
-  direction: 'deserialize', // 'deserialize' | 'serialize' — filters @Expose/@Exclude direction
-  groups: ['create'],       // Filter rules/fields by group
+const schema = toJsonSchema(CreateUserDto, {
+  direction: 'deserialize',  // 'deserialize' | 'serialize'
+  groups: ['create'],         // Filter by group
+  onUnmappedRule: (name) => { /* custom rules without schema mapping */ },
 });
 ```
 
-Use `@Schema()` to attach additional JSON Schema metadata:
+---
 
-```typescript
-@Schema({ title: 'CreateUser', description: 'Creates a new user' })
-class CreateUserDto {
-  @IsString()
-  @Schema({ description: 'Display name', examples: ['Alice'] })
-  name!: string;
-}
+## How It Works
+
 ```
+Decorators (@Field)     auto-seal (first call)     deserialize() / serialize()
+   metadata         ->   new Function() codegen  ->   execute generated code
+```
+
+1. `@Field()` attaches validation metadata to class properties at definition time
+2. First `deserialize()`/`serialize()` call triggers **auto-seal** — reads all metadata, analyzes circular references, generates optimized JavaScript functions via `new Function()`
+3. Subsequent calls execute the generated function directly — no interpretation loops
 
 ---
 
-## 📂 Subpath Exports
+## Subpath Exports
 
 | Import path | Purpose |
 |---|---|
-| `@zipbul/baker` | Main API: `seal`, `deserialize`, `serialize`, `toJsonSchema`, all decorators |
-| `@zipbul/baker/decorators` | Decorators only |
-| `@zipbul/baker/rules` | Raw rule objects |
-| `@zipbul/baker/symbols` | Internal symbols |
+| `@zipbul/baker` | Main API: `deserialize`, `serialize`, `configure`, `toJsonSchema`, `Field`, `createRule` |
+| `@zipbul/baker/rules` | Rule functions: `isString()`, `min()`, `isEmail()`, etc. |
 
 ---
 
-## 🔍 How It Works
+## License
 
-```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────────┐
-│  Decorators  │ ──▶ │   seal()     │ ──▶ │ new Function() code │
-│  (metadata)  │     │  at startup  │     │   (inline codegen)  │
-└─────────────┘     └──────────────┘     └──────────┬──────────┘
-                                                     │
-                                          ┌──────────▼──────────┐
-                                          │   deserialize() /   │
-                                          │    serialize()      │
-                                          │ (execute generated) │
-                                          └─────────────────────┘
-```
-
-1. **Decorators** attach validation metadata to class properties at definition time
-2. **`seal()`** reads all metadata, analyzes circular references, and generates inline JavaScript functions via `new Function()`
-3. **`deserialize()` / `serialize()`** execute the generated function — no interpretation loops, just straight-line optimized code
-
----
-
-## 📄 License
-
-[MIT](./LICENSE) © [Junhyung Park](https://github.com/parkrevil)
+[MIT](./LICENSE)
