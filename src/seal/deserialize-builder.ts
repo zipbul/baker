@@ -7,6 +7,31 @@ import { SealError, type BakerError } from '../errors';
 import { isAsyncFunction } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Generated variable name prefixes — centralised to prevent typo-related bugs
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GEN = {
+  field: '__bk$f_',
+  index: '__bk$i_',
+  setIdx: '__bk$si_',
+  setVal: '__bk$sv_',
+  mapIdx: '__bk$mi_',
+  mapVal: '__bk$mv_',
+  mark: '__bk$mark_',
+  skip: '__bk$skip_',
+  result: '__bk$r_',
+  errors: '__bk$re_',
+  arr: '__bk$arr_',
+  disc: '__bk$dt_',
+  nestedIdx: '__bk$j_',
+  out: '__bk$out',
+  errList: '__bk$errors',
+  groups: '__bk$groups',
+  groupsSet: '__bk$groupsSet',
+  key: '__bk$k',
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers — 코드 생성 유틸
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -17,7 +42,7 @@ function sanitizeKey(key: string): string {
 
 /** 필드명을 안전한 JS 변수명으로 변환 (내부 변수 충돌 방지 prefix 포함) */
 function toVarName(key: string): string {
-  return '__bk$f_' + sanitizeKey(key);
+  return GEN.field + sanitizeKey(key);
 }
 
 /** 직렬화에 사용할 추출 키 결정 (§4.3 ③) */
@@ -68,11 +93,11 @@ export function buildDeserializeCode<T>(
   let body = '\'use strict\';\n';
 
   // 인스턴스 생성
-  body += 'var __bk$out = new _Cls();\n';
+  body += `var ${GEN.out} = new _Cls();\n`;
 
   // 에러 배열 (collectErrors mode)
   if (collectErrors) {
-    body += 'var __bk$errors = [];\n';
+    body += `var ${GEN.errList} = [];\n`;
   }
 
   // preamble: input type guard (§4.9)
@@ -97,9 +122,9 @@ export function buildDeserializeCode<T>(
     refs.push(allowedKeys);
 
     if (collectErrors) {
-      body += `for (var __bk$k of Object.keys(input)) { if (!_refs[${allowedIdx}].has(__bk$k)) __bk$errors.push({path:__bk$k,code:'whitelistViolation'}); }\n`;
+      body += `for (var ${GEN.key} of Object.keys(input)) { if (!_refs[${allowedIdx}].has(${GEN.key})) ${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'}); }\n`;
     } else {
-      body += `for (var __bk$k of Object.keys(input)) { if (!_refs[${allowedIdx}].has(__bk$k)) return _err([{path:__bk$k,code:'whitelistViolation'}]); }\n`;
+      body += `for (var ${GEN.key} of Object.keys(input)) { if (!_refs[${allowedIdx}].has(${GEN.key})) return _err([{path:${GEN.key},code:'whitelistViolation'}]); }\n`;
     }
   }
 
@@ -111,8 +136,8 @@ export function buildDeserializeCode<T>(
     return false;
   });
   if (hasGroupsField) {
-    body += 'var __bk$groups = _opts && _opts.groups;\n';
-    body += 'var __bk$groupsSet = __bk$groups ? new Set(__bk$groups) : null;\n';
+    body += `var ${GEN.groups} = _opts && _opts.groups;\n`;
+    body += `var ${GEN.groupsSet} = ${GEN.groups} ? new Set(${GEN.groups}) : null;\n`;
   }
 
   // ── 필드별 코드 생성 ──────────────────────────────────────────────────────
@@ -134,9 +159,9 @@ export function buildDeserializeCode<T>(
   // ── epilogue ──────────────────────────────────────────────────────────────
 
   if (collectErrors) {
-    body += 'if (__bk$errors.length) return _err(__bk$errors);\n';
+    body += `if (${GEN.errList}.length) return _err(${GEN.errList});\n`;
   }
-  body += 'return __bk$out;\n';
+  body += `return ${GEN.out};\n`;
 
   // sourceURL (§4.9)
   body += `//# sourceURL=baker://${Class.name}/deserialize\n`;
@@ -217,7 +242,7 @@ function generateFieldCode(
   let extractCode: string;
   if (exposeDefaultValues && !meta.flags.isOptional) {
     // key가 input에 없으면 기본값 사용
-    extractCode = `var ${varName} = (${JSON.stringify(extractKey)} in input) ? input[${JSON.stringify(extractKey)}] : __bk$out[${JSON.stringify(fieldKey)}];\n`;
+    extractCode = `var ${varName} = (${JSON.stringify(extractKey)} in input) ? input[${JSON.stringify(extractKey)}] : ${GEN.out}[${JSON.stringify(fieldKey)}];\n`;
   } else {
     extractCode = `var ${varName} = input[${JSON.stringify(extractKey)}];\n`;
   }
@@ -227,7 +252,7 @@ function generateFieldCode(
   let fieldEnd = '';
   if (exposeGroups && exposeGroups.length > 0) {
     const groupsArr = JSON.stringify(exposeGroups);
-    fieldStart = `if (__bk$groupsSet && ${groupsArr}.some(function(g){return __bk$groupsSet.has(g);})) {\n`;
+    fieldStart = `if (${GEN.groupsSet} && ${groupsArr}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n`;
     fieldEnd = '}\n';
   }
 
@@ -239,7 +264,7 @@ function generateFieldCode(
   const isNullable = meta.flags.isNullable === true;
 
   const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx);
-  const assignNull = `__bk$out[${JSON.stringify(fieldKey)}] = null;\n`;
+  const assignNull = `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
 
   if (isNullable && useOptionalGuard) {
     // Case 4: @IsNullable + @IsOptional — null은 할당, undefined는 skip
@@ -317,7 +342,7 @@ function generateValidationCode(
 
   // No validation rules → direct assign
   if (meta.validation.length === 0) {
-    code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     return code;
   }
 
@@ -370,7 +395,7 @@ function makeRuleEmitCtx(
     ...baseEmitCtx,
     fail(code: string): string {
       if (baseEmitCtx.collectErrors) {
-        return `__bk$errors.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}${extra}})`;
+        return `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}${extra}})`;
       } else {
         return `return _err([{path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}${extra}}])`;
       }
@@ -389,7 +414,7 @@ function makeRuleEmitCtx(
 function wrapGroupsGuard(rd: RuleDef, code: string): string {
   if (!rd.groups || rd.groups.length === 0) return code;
   const groupsArr = JSON.stringify(rd.groups);
-  return `if (!__bk$groupsSet || ${groupsArr}.some(function(g){return __bk$groupsSet.has(g);})) {\n${code}\n}\n`;
+  return `if (!${GEN.groupsSet} || ${groupsArr}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n${code}\n}\n`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -405,7 +430,7 @@ function generateConversionCode(
   emitCtx: EmitContext,
 ): string {
   const failCode = collectErrors
-    ? `__bk$errors.push({path:${JSON.stringify(fieldKey)},code:'conversionFailed'}); ${skipVar} = true;`
+    ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:'conversionFailed'}); ${skipVar} = true;`
     : emitCtx.fail('conversionFailed') + ';';
 
   switch (targetType) {
@@ -567,24 +592,24 @@ function buildRulesCode(
     if (collectErrors) {
       if (enableConversion) {
         // Conversion mode: try convert on gate failure, skip field if conversion fails
-        const skipVar = `__bk$skip_${sanitizeKey(fieldKey)}`;
+        const skipVar = `${GEN.skip}${sanitizeKey(fieldKey)}`;
         code += `var ${skipVar} = false;\n`;
         code += `if (${gateCondition}) {\n`;
         code += generateConversionCode(effectiveGateType!, varName, fieldKey, skipVar, true, emitCtx);
         code += `}\n`;
         code += `if (!${skipVar}) {\n`;
-        const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
-        code += `  var ${markVar} = __bk$errors.length;\n`;
+        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
         code += emitInnerRules('  ');
-        code += `  if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
         code += `}\n`;
       } else {
         code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
         code += `else {\n`;
-        const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
-        code += `  var ${markVar} = __bk$errors.length;\n`;
+        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
         code += emitInnerRules('  ');
-        code += `  if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
         code += `}\n`;
       }
     } else {
@@ -593,54 +618,54 @@ function buildRulesCode(
         code += generateConversionCode(effectiveGateType!, varName, fieldKey, null, false, emitCtx);
         code += `}\n`;
         code += emitInnerRules('');
-        code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       } else {
         code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
         code += emitInnerRules('');
-        code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       }
     }
   } else {
     // No type-specific rules and no @Type hint — all general
     if (collectErrors) {
       if (generalRules.length === 0) {
-        code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       } else {
-        const markVar = `__bk$mark_${sanitizeKey(fieldKey)}`;
-        code += `var ${markVar} = __bk$errors.length;\n`;
+        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        code += `var ${markVar} = ${GEN.errList}.length;\n`;
         for (const rd of generalRules) {
           code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
         }
-        code += `if (__bk$errors.length === ${markVar}) __bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       }
     } else {
       for (const rd of generalRules) {
         code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
       }
-      code += `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     }
   }
 
   // each: true rules — Array + Set + Map 지원
   for (const rd of each) {
     const pathKey = JSON.stringify(fieldKey);
-    const iVar = `__bk$i_${sanitizeKey(fieldKey)}`;
-    const siVar = `__bk$si_${sanitizeKey(fieldKey)}`;
-    const svVar = `__bk$sv_${sanitizeKey(fieldKey)}`;
-    const miVar = `__bk$mi_${sanitizeKey(fieldKey)}`;
-    const mvVar = `__bk$mv_${sanitizeKey(fieldKey)}`;
+    const iVar = `${GEN.index}${sanitizeKey(fieldKey)}`;
+    const siVar = `${GEN.setIdx}${sanitizeKey(fieldKey)}`;
+    const svVar = `${GEN.setVal}${sanitizeKey(fieldKey)}`;
+    const miVar = `${GEN.mapIdx}${sanitizeKey(fieldKey)}`;
+    const mvVar = `${GEN.mapVal}${sanitizeKey(fieldKey)}`;
     const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
     const eachGuardOpen = (rd.groups && rd.groups.length > 0)
-      ? `if (!__bk$groupsSet || ${JSON.stringify(rd.groups)}.some(function(g){return __bk$groupsSet.has(g);})) {\n`
+      ? `if (!${GEN.groupsSet} || ${JSON.stringify(rd.groups)}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n`
       : '';
     const eachGuardClose = (rd.groups && rd.groups.length > 0) ? '}\n' : '';
 
     if (collectErrors) {
-      const arrFail = (c: string) => `__bk$errors.push({path:${pathKey}+'['+${iVar}+']',code:${JSON.stringify(c)}${extra}})`;
+      const arrFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${iVar}+']',code:${JSON.stringify(c)}${extra}})`;
       const arrEmitCtx: EmitContext = { ...emitCtx, fail: arrFail };
-      const setFail = (c: string) => `__bk$errors.push({path:${pathKey}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}})`;
+      const setFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}})`;
       const setEmitCtx: EmitContext = { ...emitCtx, fail: setFail };
-      const mapFail = (c: string) => `__bk$errors.push({path:${pathKey}+'['+${miVar}+']',code:${JSON.stringify(c)}${extra}})`;
+      const mapFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${miVar}+']',code:${JSON.stringify(c)}${extra}})`;
       const mapEmitCtx: EmitContext = { ...emitCtx, fail: mapFail };
 
       code += eachGuardOpen;
@@ -660,7 +685,7 @@ function buildRulesCode(
       code += '    ' + rd.rule.emit(mvVar, mapEmitCtx) + '\n';
       code += `    ${miVar}++;\n`;
       code += `  }\n`;
-      code += `} else { __bk$errors.push({path:${pathKey},code:'isArray'}); }\n`;
+      code += `} else { ${GEN.errList}.push({path:${pathKey},code:'isArray'}); }\n`;
       code += eachGuardClose;
     } else {
       code += eachGuardOpen;
@@ -708,7 +733,7 @@ function generateNestedCode(
 ): string {
   const { collectErrors, execs } = ctx;
 
-  if (!meta.type) return `__bk$out[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+  if (!meta.type) return `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
 
   let code = '';
   const sk = sanitizeKey(fieldKey);
@@ -716,23 +741,23 @@ function generateNestedCode(
   if (meta.type.discriminator) {
     // §8.3 discriminator
     const discProp = JSON.stringify(meta.type.discriminator.property);
-    code += `var __bk$dt_${sk} = ${varName} && ${varName}[${discProp}];\n`;
-    code += `switch (__bk$dt_${sk}) {\n`;
+    code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
+    code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
       const nestedSealed = (sub.value as any)[SEALED] as SealedExecutors<unknown> | undefined;
       const execIdx = execs.length;
       execs.push(nestedSealed as SealedExecutors<unknown>);
       const awaitKwD = ctx.isAsync ? 'await ' : '';
       code += `  case ${JSON.stringify(sub.name)}:\n`;
-      code += `    var __bk$r_${sk} = ${awaitKwD}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
-      code += generateNestedResultCode(fieldKey, varName, `__bk$r_${sk}`, collectErrors);
+      code += `    var ${GEN.result}${sk} = ${awaitKwD}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
+      code += generateNestedResultCode(fieldKey, varName, `${GEN.result}${sk}`, collectErrors);
       code += `    break;\n`;
     }
     code += `  default: ${emitCtx.fail('invalidDiscriminator')};\n`;
     code += `}\n`;
     // keepDiscriminatorProperty: discriminator 프로퍼티를 결과 객체에 유지 (PB-3)
     if (meta.type.keepDiscriminatorProperty) {
-      code += `if (__bk$out[${JSON.stringify(fieldKey)}] != null) __bk$out[${JSON.stringify(fieldKey)}][${discProp}] = __bk$dt_${sk};\n`;
+      code += `if (${GEN.out}[${JSON.stringify(fieldKey)}] != null) ${GEN.out}[${JSON.stringify(fieldKey)}][${discProp}] = ${GEN.disc}${sk};\n`;
     }
   } else {
     // §8.1 simple nested or §8.2 each array
@@ -745,7 +770,7 @@ function generateNestedCode(
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     if (hasEach) {
-      const iVar = `__bk$i_${sk}`;
+      const iVar = `${GEN.index}${sk}`;
       const awaitKwE = ctx.isAsync ? 'await ' : '';
       code += `if (Array.isArray(${varName})) {\n`;
 
@@ -757,28 +782,28 @@ function generateNestedCode(
         code += `  ${ruleEmit}\n`;
       }
 
-      code += `  var __bk$arr_${sk} = [];\n`;
+      code += `  var ${GEN.arr}${sk} = [];\n`;
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-      code += `    var __bk$r_${sk} = ${awaitKwE}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;
-      code += `    if (_isErr(__bk$r_${sk})) {\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKwE}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;
+      code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
-        code += `      var __bk$re_${sk} = __bk$r_${sk}.data;\n`;
-        code += `      for (var __bk$j_${sk}=0; __bk$j_${sk}<__bk$re_${sk}.length; __bk$j_${sk}++) {\n`;
-        code += `        __bk$errors.push({path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+__bk$re_${sk}[__bk$j_${sk}].path,code:__bk$re_${sk}[__bk$j_${sk}].code});\n`;
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
         code += `      }\n`;
       } else {
-        code += `      var __bk$re_${sk} = __bk$r_${sk}.data;\n`;
-        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+__bk$re_${sk}[0].path,code:__bk$re_${sk}[0].code}]);\n`;
+        code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
       }
-      code += `    } else { __bk$arr_${sk}.push(__bk$r_${sk}); }\n`;
+      code += `    } else { ${GEN.arr}${sk}.push(${GEN.result}${sk}); }\n`;
       code += `  }\n`;
-      code += `  __bk$out[${JSON.stringify(fieldKey)}] = __bk$arr_${sk};\n`;
+      code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
       code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
       const awaitKwS = ctx.isAsync ? 'await ' : '';
       code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
-      code += `  var __bk$r_${sk} = ${awaitKwS}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
-      code += generateNestedResultCode(fieldKey, varName, `__bk$r_${sk}`, collectErrors);
+      code += `  var ${GEN.result}${sk} = ${awaitKwS}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
+      code += generateNestedResultCode(fieldKey, varName, `${GEN.result}${sk}`, collectErrors);
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
   }
@@ -795,16 +820,16 @@ function generateNestedResultCode(
   const sk = sanitizeKey(fieldKey);
   if (collectErrors) {
     return `  if (_isErr(${resultVar})) {\n` +
-      `    var __bk$re_${sk} = ${resultVar}.data;\n` +
-      `    for (var __bk$j_${sk}=0; __bk$j_${sk}<__bk$re_${sk}.length; __bk$j_${sk}++) {\n` +
-      `      __bk$errors.push({path:${JSON.stringify(fieldKey + '.')}+__bk$re_${sk}[__bk$j_${sk}].path,code:__bk$re_${sk}[__bk$j_${sk}].code});\n` +
+      `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+      `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
+      `      ${GEN.errList}.push({path:${JSON.stringify(fieldKey + '.')}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n` +
       `    }\n` +
-      `  } else { __bk$out[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
+      `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   } else {
     return `  if (_isErr(${resultVar})) {\n` +
-      `    var __bk$re_${sk} = ${resultVar}.data;\n` +
-      `    return _err([{path:${JSON.stringify(fieldKey+'.')}+__bk$re_${sk}[0].path,code:__bk$re_${sk}[0].code}]);\n` +
-      `  } else { __bk$out[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
+      `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+      `    return _err([{path:${JSON.stringify(fieldKey+'.')}+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n` +
+      `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   }
 }
 
@@ -829,7 +854,7 @@ function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
     },
     fail(code: string): string {
       if (collectErrors) {
-        return `__bk$errors.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}})`;
+        return `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}})`;
       } else {
         return `return _err([{path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}}])`;
       }

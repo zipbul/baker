@@ -14,8 +14,8 @@
 |------|----------|-----------|------|------|
 | **1단계: 즉시** | 🔴 Critical | C-1, C-2, C-5, C-7, C-8, C-9 | 6/6 | 런타임에 잘못된 결과를 반환하거나 기능 손실을 유발하는 실제 버그 |
 | **2단계: 곧** | 🟠 High | C-3, C-6, C-10, C-11, C-12, B-6, B-1, B-3, B-7, B-9 | 10/10 | 스펙 위반, 안전장치 누락, 잠재적 크래시, API 의미 불일치 |
-| **3단계: 안정화** | 🟡 Medium | B-2, B-4, B-8, B-11, C-13, C-14, C-15, D-1, D-4 | 6/9 | Silent failure 제거 + 버그 원인이 된 코드 중복 제거 |
-| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 12/17 | 설계 개선, 리팩토링, 코드 품질 |
+| **3단계: 안정화** | 🟡 Medium | B-2, B-4, B-8, B-11, C-13, C-14, C-15, D-1, D-4 | 7/9 | Silent failure 제거 + 버그 원인이 된 코드 중복 제거 |
+| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 13/17 | 설계 개선, 리팩토링, 코드 품질 |
 
 > **Breaking change 포함 항목**: A-1 (SealOptions 필드 삭제), B-10 (throw 전환 — 대안 검토 필요).
 > 이들은 다음 major 버전(0.2.0)에 묶어서 릴리스하되, CHANGELOG에 마이그레이션 가이드를 포함한다.
@@ -66,7 +66,7 @@ try {
 - catch 블록에서 `SealError` throw — 클래스명, 필드명, 원본 에러 메시지 포함
 - `throw new SealError(\`${Class.name}.${fieldKey}: @Field type function threw: ${(e as Error).message}\`)`
 
-### [ ] B-2. `to-json-schema.ts:381-386` — 미매핑 룰 조용히 누락 `🟡 Medium`
+### [x] B-2. `to-json-schema.ts:381-386` — 미매핑 룰 조용히 누락 `🟡 Medium`
 
 **위치**: `src/functions/to-json-schema.ts:381-386`
 
@@ -712,7 +712,7 @@ code += `  ${ruleEmit}\n`;
   ```
 - 단계적 마이그레이션: 먼저 `makeStringRule` 확장 → 이후 `number.ts`, `array.ts`의 직접 주입을 점진적 전환 (84+ 사이트, 기계적 변환)
 
-### [ ] D-6. 매직 문자열/변수명 상수화 `🟢 Low`
+### [x] D-6. 매직 문자열/변수명 상수화 `🟢 Low`
 
 **위치**: `deserialize-builder.ts` 전체
 

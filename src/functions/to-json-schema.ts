@@ -43,6 +43,9 @@ interface SchemaContext {
 // composition-aware merge 키워드 (§6.5)
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** 모듈 레벨: 동일 ruleName에 대해 console.warn을 한 번만 출력 */
+const _warnedRules = new Set<string>();
+
 const COMPOSITION_KEYWORDS = new Set([
   'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
 ]);
@@ -250,7 +253,7 @@ function buildClassSchema(C: Function, ctx: SchemaContext): JsonSchema202012 {
     }
 
     // 프로퍼티 스키마 구축
-    const propSchema = buildPropertySchema(meta, ctx);
+    const propSchema = buildPropertySchema(meta, ctx, fieldKey);
     properties[schemaKey] = propSchema;
 
     // required 결정: @IsOptional이 아니면 required
@@ -293,10 +296,10 @@ function getSchemaKey(
 // buildPropertySchema — 프로퍼티 메타 → JSON Schema (§6.3, §6.10, §6.11)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext): JsonSchema202012 {
+function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
   // @Type/@Nested → $ref 또는 discriminator
   if (meta.type) {
-    return buildNestedTypeSchema(meta, ctx);
+    return buildNestedTypeSchema(meta, ctx, fieldKey);
   }
 
   // each / non-each 룰 분리 (§6.10)
@@ -308,11 +311,11 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext): JsonSch
   );
 
   // 자동 매핑
-  const autoSchema = mapRulesToSchema(nonEachRules);
+  const autoSchema = mapRulesToSchema(nonEachRules, ctx, fieldKey);
 
   // each:true → items 서브스키마
   if (eachRules.length > 0) {
-    const itemSchema = mapRulesToSchema(eachRules);
+    const itemSchema = mapRulesToSchema(eachRules, ctx, fieldKey);
     if (Object.keys(itemSchema).length > 0) {
       autoSchema.items = itemSchema;
     }
@@ -332,7 +335,7 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext): JsonSch
 // ─────────────────────────────────────────────────────────────────────────────
 
 function buildNestedTypeSchema(
-  meta: RawPropertyMeta, ctx: SchemaContext,
+  meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string,
 ): JsonSchema202012 {
   let innerSchema: JsonSchema202012;
 
@@ -364,7 +367,7 @@ function buildNestedTypeSchema(
     const arrayRules = filterByGroups(
       meta.validation.filter(rd => !rd.each), ctx.groups,
     );
-    const arrayKeywords = mapRulesToSchema(arrayRules);
+    const arrayKeywords = mapRulesToSchema(arrayRules, ctx, fieldKey);
     if (arrayKeywords.minItems !== undefined) schema.minItems = arrayKeywords.minItems;
     if (arrayKeywords.maxItems !== undefined) schema.maxItems = arrayKeywords.maxItems;
     if (arrayKeywords.uniqueItems !== undefined) schema.uniqueItems = arrayKeywords.uniqueItems;
@@ -397,11 +400,20 @@ function filterByGroups(rules: RuleDef[], groups?: string[]): RuleDef[] {
   });
 }
 
-function mapRulesToSchema(rules: RuleDef[]): JsonSchema202012 {
+function mapRulesToSchema(rules: RuleDef[], ctx?: SchemaContext, fieldKey?: string): JsonSchema202012 {
   const schema: JsonSchema202012 = {};
   for (const rd of rules) {
     const mapper = RULE_SCHEMA_MAP[rd.rule.ruleName];
-    if (!mapper) continue;
+    if (!mapper) {
+      const name = rd.rule.ruleName;
+      if (ctx?.onUnmappedRule) {
+        ctx.onUnmappedRule(name, fieldKey ?? '<unknown>');
+      } else if (!_warnedRules.has(name)) {
+        _warnedRules.add(name);
+        console.warn(`[baker] No JSON Schema mapping for rule "${name}"`);
+      }
+      continue;
+    }
     const result = mapper(rd.rule.constraints ?? {});
     if (!result) continue;
     Object.assign(schema, result);
