@@ -181,6 +181,67 @@ export function buildDeserializeCode<T>(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// nullable/optional guard — truth-table strategy pattern (D-3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+type GuardKey = 'nullable+optional' | 'nullable' | 'defined' | 'optional' | 'default';
+
+function resolveGuardKey(isNullable: boolean, useOptionalGuard: boolean, isDefined: boolean): GuardKey {
+  if (isNullable && useOptionalGuard) return 'nullable+optional';
+  if (isNullable) return 'nullable';
+  if (isDefined) return 'defined';
+  if (useOptionalGuard) return 'optional';
+  return 'default';
+}
+
+interface GuardParams {
+  varName: string;
+  emitCtx: EmitContext;
+  assignNull: string;
+  validationCode: string;
+}
+
+const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
+  // Case 4: @IsNullable + @IsOptional — null은 할당, undefined는 skip
+  'nullable+optional'({ varName, assignNull, validationCode }) {
+    let code = `if (${varName} === null) { ${assignNull}}\n`;
+    code += `else if (${varName} !== undefined) {\n`;
+    code += validationCode;
+    code += '}\n';
+    return code;
+  },
+  // Case 3: @IsNullable (+ optional @IsDefined — 동일 동작)
+  'nullable'({ varName, emitCtx, assignNull, validationCode }) {
+    let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
+    code += `else if (${varName} !== null) {\n`;
+    code += validationCode;
+    code += `} else { ${assignNull}}\n`;
+    return code;
+  },
+  // @IsDefined — undefined만 거부, null/""/0 등은 후속 검증으로 통과
+  'defined'({ varName, emitCtx, validationCode }) {
+    let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
+    code += validationCode;
+    return code;
+  },
+  // Case 2: @IsOptional — undefined/null 시 전체 skip
+  'optional'({ varName, validationCode }) {
+    let code = `if (${varName} !== undefined && ${varName} !== null) {\n`;
+    code += validationCode;
+    code += '}\n';
+    return code;
+  },
+  // Case 1: 플래그 없음 (기본) — undefined/null 거부
+  'default'({ varName, emitCtx, validationCode }) {
+    let code = `if (${varName} === undefined || ${varName} === null) ${emitCtx.fail('isDefined')};\n`;
+    code += `else {\n`;
+    code += validationCode;
+    code += '}\n';
+    return code;
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // 필드 코드 생성
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -266,34 +327,8 @@ function generateFieldCode(
   const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx);
   const assignNull = `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
 
-  if (isNullable && useOptionalGuard) {
-    // Case 4: @IsNullable + @IsOptional — null은 할당, undefined는 skip
-    innerCode += `if (${varName} === null) { ${assignNull}}\n`;
-    innerCode += `else if (${varName} !== undefined) {\n`;
-    innerCode += validationCode;
-    innerCode += '}\n';
-  } else if (isNullable) {
-    // Case 3: @IsNullable (+ optional @IsDefined — 동일 동작)
-    innerCode += `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
-    innerCode += `else if (${varName} !== null) {\n`;
-    innerCode += validationCode;
-    innerCode += `} else { ${assignNull}}\n`;
-  } else if (meta.flags.isDefined) {
-    // @IsDefined — undefined만 거부, null/""/0 등은 후속 검증으로 통과
-    innerCode += `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
-    innerCode += validationCode;
-  } else if (useOptionalGuard) {
-    // Case 2: @IsOptional — undefined/null 시 전체 skip
-    innerCode += `if (${varName} !== undefined && ${varName} !== null) {\n`;
-    innerCode += validationCode;
-    innerCode += '}\n';
-  } else {
-    // Case 1: 플래그 없음 (기본) — undefined/null 거부
-    innerCode += `if (${varName} === undefined || ${varName} === null) ${emitCtx.fail('isDefined')};\n`;
-    innerCode += `else {\n`;
-    innerCode += validationCode;
-    innerCode += '}\n';
-  }
+  const guardKey = resolveGuardKey(isNullable, useOptionalGuard, meta.flags.isDefined);
+  innerCode += GUARD_STRATEGIES[guardKey]({ varName, emitCtx, assignNull, validationCode });
 
   // ① @ValidateIf outer wrap
   if (validateIfIdx !== null) {

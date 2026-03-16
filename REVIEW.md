@@ -639,7 +639,7 @@ code += `  ${ruleEmit}\n`;
 
 > **참고**: `applyExclude` (~9줄), `applySchema` (~6줄), `flags` (3줄)은 분량이 작아 인라인 유지가 적절하다.
 
-### [ ] D-3. `generateFieldCode()` nullable/optional 매트릭스 정리 `🟢 Low`
+### [x] D-3. `generateFieldCode()` nullable/optional 매트릭스 정리 `🟢 Low`
 
 **위치**: `deserialize-builder.ts:227-261`
 
