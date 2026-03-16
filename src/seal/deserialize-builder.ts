@@ -649,72 +649,59 @@ function buildRulesCode(
   // each: true rules — Array + Set + Map 지원
   for (const rd of each) {
     const pathKey = JSON.stringify(fieldKey);
-    const iVar = `${GEN.index}${sanitizeKey(fieldKey)}`;
-    const siVar = `${GEN.setIdx}${sanitizeKey(fieldKey)}`;
-    const svVar = `${GEN.setVal}${sanitizeKey(fieldKey)}`;
-    const miVar = `${GEN.mapIdx}${sanitizeKey(fieldKey)}`;
-    const mvVar = `${GEN.mapVal}${sanitizeKey(fieldKey)}`;
+    const sk = sanitizeKey(fieldKey);
+    const iVar = `${GEN.index}${sk}`;
+    const siVar = `${GEN.setIdx}${sk}`;
+    const svVar = `${GEN.setVal}${sk}`;
+    const miVar = `${GEN.mapIdx}${sk}`;
+    const mvVar = `${GEN.mapVal}${sk}`;
     const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
     const eachGuardOpen = (rd.groups && rd.groups.length > 0)
       ? `if (!${GEN.groupsSet} || ${JSON.stringify(rd.groups)}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n`
       : '';
     const eachGuardClose = (rd.groups && rd.groups.length > 0) ? '}\n' : '';
 
-    if (collectErrors) {
-      const arrFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${iVar}+']',code:${JSON.stringify(c)}${extra}})`;
-      const arrEmitCtx: EmitContext = { ...emitCtx, fail: arrFail };
-      const setFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}})`;
-      const setEmitCtx: EmitContext = { ...emitCtx, fail: setFail };
-      const mapFail = (c: string) => `${GEN.errList}.push({path:${pathKey}+'['+${miVar}+']',code:${JSON.stringify(c)}${extra}})`;
-      const mapEmitCtx: EmitContext = { ...emitCtx, fail: mapFail };
+    // Collection descriptors: [idxVar, elemExpr, loopHeader, counterDecl, counterInc]
+    const collections = [
+      { guard: `Array.isArray(${varName})`, idxVar: iVar, elemExpr: `${varName}[${iVar}]`, loopHeader: `for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++)`, counterDecl: '', counterInc: '' },
+      { guard: `${varName} instanceof Set`, idxVar: siVar, elemExpr: svVar, loopHeader: `for (var ${svVar} of ${varName})`, counterDecl: `var ${siVar} = 0;\n`, counterInc: `${siVar}++;\n` },
+      { guard: `${varName} instanceof Map`, idxVar: miVar, elemExpr: mvVar, loopHeader: `for (var ${mvVar} of ${varName}.values())`, counterDecl: `var ${miVar} = 0;\n`, counterInc: `${miVar}++;\n` },
+    ];
 
-      code += eachGuardOpen;
-      code += `if (Array.isArray(${varName})) {\n`;
-      code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-      code += '    ' + rd.rule.emit(`${varName}[${iVar}]`, arrEmitCtx) + '\n';
-      code += `  }\n`;
-      code += `} else if (${varName} instanceof Set) {\n`;
-      code += `  var ${siVar} = 0;\n`;
-      code += `  for (var ${svVar} of ${varName}) {\n`;
-      code += '    ' + rd.rule.emit(svVar, setEmitCtx) + '\n';
-      code += `    ${siVar}++;\n`;
-      code += `  }\n`;
-      code += `} else if (${varName} instanceof Map) {\n`;
-      code += `  var ${miVar} = 0;\n`;
-      code += `  for (var ${mvVar} of ${varName}.values()) {\n`;
-      code += '    ' + rd.rule.emit(mvVar, mapEmitCtx) + '\n';
-      code += `    ${miVar}++;\n`;
-      code += `  }\n`;
+    const emitCollectionBlock = (col: typeof collections[number]): string => {
+      const failFn = (c: string) => collectErrors
+        ? `${GEN.errList}.push({path:${pathKey}+'['+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}})`
+        : `return _err([{path:${pathKey}+'['+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
+      const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
+      let block = '';
+      block += `  ${col.counterDecl}`;
+      block += `  ${col.loopHeader} {\n`;
+      block += '    ' + rd.rule.emit(col.elemExpr, colEmitCtx) + '\n';
+      if (col.counterInc) block += `    ${col.counterInc}`;
+      block += `  }\n`;
+      return block;
+    };
+
+    code += eachGuardOpen;
+    if (collectErrors) {
+      code += `if (${collections[0].guard}) {\n`;
+      code += emitCollectionBlock(collections[0]);
+      code += `} else if (${collections[1].guard}) {\n`;
+      code += emitCollectionBlock(collections[1]);
+      code += `} else if (${collections[2].guard}) {\n`;
+      code += emitCollectionBlock(collections[2]);
       code += `} else { ${GEN.errList}.push({path:${pathKey},code:'isArray'}); }\n`;
-      code += eachGuardClose;
     } else {
-      code += eachGuardOpen;
-      code += `if (!Array.isArray(${varName}) && !(${varName} instanceof Set) && !(${varName} instanceof Map)) ${emitCtx.fail('isArray')};\n`;
-      const arrFail2 = (c: string) => `return _err([{path:${pathKey}+'['+${iVar}+']',code:${JSON.stringify(c)}${extra}}])`;
-      const arrEmitCtx2: EmitContext = { ...emitCtx, fail: arrFail2 };
-      code += `if (Array.isArray(${varName})) {\n`;
-      code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-      code += '    ' + rd.rule.emit(`${varName}[${iVar}]`, arrEmitCtx2) + '\n';
-      code += `  }\n`;
-      code += `} else if (${varName} instanceof Set) {\n`;
-      code += `  var ${siVar} = 0;\n`;
-      code += `  for (var ${svVar} of ${varName}) {\n`;
-      const setFail2 = (c: string) => `return _err([{path:${pathKey}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}}])`;
-      const setEmitCtx2: EmitContext = { ...emitCtx, fail: setFail2 };
-      code += '    ' + rd.rule.emit(svVar, setEmitCtx2) + '\n';
-      code += `    ${siVar}++;\n`;
-      code += `  }\n`;
-      code += `} else if (${varName} instanceof Map) {\n`;
-      code += `  var ${miVar} = 0;\n`;
-      code += `  for (var ${mvVar} of ${varName}.values()) {\n`;
-      const mapFail2 = (c: string) => `return _err([{path:${pathKey}+'['+${miVar}+']',code:${JSON.stringify(c)}${extra}}])`;
-      const mapEmitCtx2: EmitContext = { ...emitCtx, fail: mapFail2 };
-      code += '    ' + rd.rule.emit(mvVar, mapEmitCtx2) + '\n';
-      code += `    ${miVar}++;\n`;
-      code += `  }\n`;
+      code += `if (!${collections[0].guard} && !(${varName} instanceof Set) && !(${varName} instanceof Map)) ${emitCtx.fail('isArray')};\n`;
+      code += `if (${collections[0].guard}) {\n`;
+      code += emitCollectionBlock(collections[0]);
+      code += `} else if (${collections[1].guard}) {\n`;
+      code += emitCollectionBlock(collections[1]);
+      code += `} else if (${collections[2].guard}) {\n`;
+      code += emitCollectionBlock(collections[2]);
       code += `}\n`;
-      code += eachGuardClose;
     }
+    code += eachGuardClose;
   }
 
   return code;
