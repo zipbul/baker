@@ -303,6 +303,7 @@ describe('E-21: 4-level inheritance + mid-level override', () => {
 
   class Child extends Base {
     @Field(isString, minLength(3))
+    // @ts-expect-error TS2612: overwriting base property is intentional for decorator test
     override name!: string;
   }
 

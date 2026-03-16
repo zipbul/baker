@@ -141,8 +141,8 @@ function generateSerializeFieldCode(
 
     if (meta.type!.discriminator) {
       // §C-8 discriminator serialize — instanceof dispatch
-      const { property, subTypes, keepDiscriminatorProperty } = meta.type!.discriminator;
-      const keepDisc = keepDiscriminatorProperty !== false; // default true for round-trip
+      const { property, subTypes } = meta.type!.discriminator;
+      const keepDisc = meta.type!.keepDiscriminatorProperty !== false; // default true for round-trip
 
       // most-specific-first 정렬 (상속 관계 시 하위 클래스 우선)
       const sorted = [...subTypes].sort((a, b) => {

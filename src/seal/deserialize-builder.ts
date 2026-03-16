@@ -321,13 +321,13 @@ function generateFieldCode(
   let innerCode = extractCode;
 
   // ② null/undefined 가드 — @IsOptional, @IsNullable, @IsDefined 조합 (§4.3, Phase5)
-  const useOptionalGuard = meta.flags.isOptional && !meta.flags.isDefined;
+  const useOptionalGuard = !!(meta.flags.isOptional && !meta.flags.isDefined);
   const isNullable = meta.flags.isNullable === true;
 
   const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx);
   const assignNull = `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
 
-  const guardKey = resolveGuardKey(isNullable, useOptionalGuard, meta.flags.isDefined);
+  const guardKey = resolveGuardKey(isNullable, useOptionalGuard, meta.flags.isDefined ?? false);
   innerCode += GUARD_STRATEGIES[guardKey]({ varName, emitCtx, assignNull, validationCode });
 
   // ① @ValidateIf outer wrap
@@ -785,21 +785,21 @@ function emitEachRules(
 
     code += eachGuardOpen;
     if (collectErrors) {
-      code += `if (${collections[0].guard}) {\n`;
-      code += emitCollectionBlock(collections[0]);
-      code += `} else if (${collections[1].guard}) {\n`;
-      code += emitCollectionBlock(collections[1]);
-      code += `} else if (${collections[2].guard}) {\n`;
-      code += emitCollectionBlock(collections[2]);
+      code += `if (${collections[0]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[0]!);
+      code += `} else if (${collections[1]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[1]!);
+      code += `} else if (${collections[2]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[2]!);
       code += `} else { ${GEN.errList}.push({path:${pathKey},code:'isArray'}); }\n`;
     } else {
-      code += `if (!${collections[0].guard} && !(${varName} instanceof Set) && !(${varName} instanceof Map)) ${emitCtx.fail('isArray')};\n`;
-      code += `if (${collections[0].guard}) {\n`;
-      code += emitCollectionBlock(collections[0]);
-      code += `} else if (${collections[1].guard}) {\n`;
-      code += emitCollectionBlock(collections[1]);
-      code += `} else if (${collections[2].guard}) {\n`;
-      code += emitCollectionBlock(collections[2]);
+      code += `if (!${collections[0]!.guard} && !(${varName} instanceof Set) && !(${varName} instanceof Map)) ${emitCtx.fail('isArray')};\n`;
+      code += `if (${collections[0]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[0]!);
+      code += `} else if (${collections[1]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[1]!);
+      code += `} else if (${collections[2]!.guard}) {\n`;
+      code += emitCollectionBlock(collections[2]!);
       code += `}\n`;
     }
     code += eachGuardClose;

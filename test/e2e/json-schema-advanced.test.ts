@@ -222,8 +222,8 @@ describe('toJsonSchema — nullable discriminator nested type', () => {
     const schema = toJsonSchema(PetOwnerDto);
     const petSchema = schema.properties!['pet'];
     // discriminator produces oneOf; nullable adds { type: 'null' } to oneOf
-    expect(petSchema.oneOf).toBeDefined();
-    const nullEntry = petSchema.oneOf!.find((s: any) => s.type === 'null');
+    expect(petSchema!.oneOf).toBeDefined();
+    const nullEntry = petSchema!.oneOf!.find((s: any) => s.type === 'null');
     expect(nullEntry).toEqual({ type: 'null' });
   });
 });
