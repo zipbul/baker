@@ -24,6 +24,11 @@ export interface SealOptions {
    * @default false
    */
   whitelist?: boolean;
+  /**
+   * true: 생성 코드에 필드 제외 사유를 주석으로 포함.
+   * @default false
+   */
+  debug?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -20,6 +20,8 @@ export interface BakerConfig {
    * `forbidUnknown`이 명시되면 `stripUnknown`은 무시됨.
    */
   stripUnknown?: boolean;
+  /** 생성 코드에 필드 제외 사유를 주석으로 포함. @default false */
+  debug?: boolean;
 }
 
 let _globalOptions: SealOptions = {};
@@ -46,6 +48,7 @@ export function configure(config: BakerConfig): ConfigureResult {
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
     whitelist: config.forbidUnknown ?? config.stripUnknown ?? false,
+    debug: config.debug ?? false,
   };
   return { warnings };
 }

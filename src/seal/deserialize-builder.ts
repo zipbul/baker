@@ -179,13 +179,22 @@ function generateFieldCode(
 
   // ⓪ Exclude deserializeOnly / bidirectional → skip
   if (meta.exclude) {
-    if (!meta.exclude.serializeOnly) return ''; // deserializeOnly or both → skip deserialize
+    if (!meta.exclude.serializeOnly) {
+      if (ctx.options?.debug) {
+        const reason = meta.exclude.deserializeOnly ? 'deserializeOnly' : 'bidirectional';
+        return `// [baker] field "${fieldKey}" excluded (${reason} @Exclude)\n`;
+      }
+      return '';
+    }
   }
 
   // Expose: check if this field is exposed to deserialize
   // If all @Expose entries are serializeOnly, skip field
   if (meta.expose.length > 0 && meta.expose.every(e => e.serializeOnly)) {
-    return ''; // only serializeOnly exposures → not visible to deserialize
+    if (ctx.options?.debug) {
+      return `// [baker] field "${fieldKey}" excluded (all @Expose entries are serializeOnly)\n`;
+    }
+    return '';
   }
 
   const varName = toVarName(fieldKey);

@@ -61,7 +61,7 @@ export function buildSerializeCode<T>(
   }
 
   for (const [fieldKey, meta] of Object.entries(merged)) {
-    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync);
+    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, options);
   }
 
   body += 'return __bk$out;\n';
@@ -90,15 +90,25 @@ function generateSerializeFieldCode(
   refs: unknown[],
   execs: SealedExecutors<unknown>[],
   isAsync: boolean,
+  options?: SealOptions,
 ): string {
   // ⓪ Exclude serializeOnly / bidirectional → skip
   if (meta.exclude) {
-    if (!meta.exclude.deserializeOnly) return ''; // serializeOnly or both → skip serialize
+    if (!meta.exclude.deserializeOnly) {
+      if (options?.debug) {
+        const reason = meta.exclude.serializeOnly ? 'serializeOnly' : 'bidirectional';
+        return `// [baker] field "${fieldKey}" excluded (${reason} @Exclude)\n`;
+      }
+      return '';
+    }
   }
 
   // Expose: if all @Expose entries are deserializeOnly, skip for serialize
   if (meta.expose.length > 0 && meta.expose.every(e => e.deserializeOnly)) {
-    return ''; // only deserializeOnly → not visible to serialize
+    if (options?.debug) {
+      return `// [baker] field "${fieldKey}" excluded (all @Expose entries are deserializeOnly)\n`;
+    }
+    return '';
   }
 
   const outputKey = getSerializeOutputKey(fieldKey, meta.expose);

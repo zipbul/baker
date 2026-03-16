@@ -15,7 +15,7 @@
 | **1단계: 즉시** | 🔴 Critical | C-1, C-2, C-5, C-7, C-8, C-9 | 6/6 | 런타임에 잘못된 결과를 반환하거나 기능 손실을 유발하는 실제 버그 |
 | **2단계: 곧** | 🟠 High | C-3, C-6, C-10, C-11, C-12, B-6, B-1, B-3, B-7, B-9 | 10/10 | 스펙 위반, 안전장치 누락, 잠재적 크래시, API 의미 불일치 |
 | **3단계: 안정화** | 🟡 Medium | B-2, B-4, B-8, B-11, C-13, C-14, C-15, D-1, D-4 | 6/9 | Silent failure 제거 + 버그 원인이 된 코드 중복 제거 |
-| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 10/17 | 설계 개선, 리팩토링, 코드 품질 |
+| **4단계: 개선** | 🟢 Low | A-1, B-10, D-2, D-3, D-5, D-6, F-1~F-7, B-5, C-16, C-17 | 12/17 | 설계 개선, 리팩토링, 코드 품질 |
 
 > **Breaking change 포함 항목**: A-1 (SealOptions 필드 삭제), B-10 (throw 전환 — 대안 검토 필요).
 > 이들은 다음 major 버전(0.2.0)에 묶어서 릴리스하되, CHANGELOG에 마이그레이션 가이드를 포함한다.
@@ -116,7 +116,7 @@ TypeScript 리터럴 유니온(`'deserializeOnly' | 'serializeOnly'`)이 정적 
   }
   ```
 
-### [ ] B-5. `deserialize-builder.ts:181,187` — 생성된 코드에서 필드 스킵 사유 불투명 `🟢 Low`
+### [x] B-5. `deserialize-builder.ts:181,187` — 생성된 코드에서 필드 스킵 사유 불투명 `🟢 Low`
 
 **현황**: exclude/expose 조건으로 필드가 빠질 때 `return ''`을 반환한다.
 
@@ -999,7 +999,7 @@ const arraySet = new Set(array);
 return values.every(v => arraySet.has(v));
 ```
 
-### [ ] F-6. `rules/string.ts` — IPv6 정규식 ReDoS 위험 검토 `🟢 Low`
+### [x] F-6. `rules/string.ts` — IPv6 정규식 ReDoS 위험 검토 `🟢 Low`
 
 **현황**: `IPV6_RE`에 14개 대안 분기. 모든 대안이 `^`/`$`로 anchored되어 있고 수량자가 bounded (`{1,4}`, `{1,7}` 등).
 
