@@ -70,6 +70,7 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
+    "test:memory": "bun run scripts/check-memory.ts",
     "changeset": "changeset",
     "version-packages": "changeset version",
     "release": "changeset publish",
