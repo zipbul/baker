@@ -1,19 +1,22 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { deserialize, serialize, isBakerError, Field } from '../../index';
+import { describe, it, expect, afterEach } from 'bun:test';
+import { deserialize, serialize, isBakerError, Field, toJsonSchema } from '../../index';
 import { isString, isEmail, min, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 import { SealError } from '../../src/errors';
+import { collectSchema } from '../../src/collect';
 import { globalRegistry } from '../../src/registry';
+
+function cleanUp() {
+  for (const cls of [...globalRegistry]) globalRegistry.delete(cls);
+  unseal();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // deserialize-builder.ts:560 — conflicting requiresType
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('conflicting requiresType → SealError', () => {
-  afterEach(() => {
-    for (const cls of [...globalRegistry]) globalRegistry.delete(cls);
-    unseal();
-  });
+  afterEach(cleanUp);
 
   it('isEmail (string) + min (number) on same field → SealError at seal time', () => {
     class ConflictDto {
@@ -81,5 +84,92 @@ describe('async serialize Set<DTO>', () => {
     expect(result.items).toBeDefined();
     expect(Array.isArray(result.items)).toBe(true);
     expect((result.items as any[]).length).toBe(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// collect.ts:70 — schema as Array → Error
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('collectSchema — invalid input', () => {
+  it('Array passed as schema → throws Error', () => {
+    class Dto {}
+    expect(() => collectSchema(Dto.prototype, 'field', [] as any)).toThrow('Invalid schema');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// serialize.ts:26 — constructor-less object
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('serialize — constructor-less object', () => {
+  it('object without constructor → SealError', async () => {
+    const obj = Object.create(null);
+    obj.name = 'Alice';
+    await expect(serialize(obj)).rejects.toThrow(SealError);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seal.ts:49 — @Type function that throws
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('@Type function that throws → error during seal', () => {
+  afterEach(cleanUp);
+
+  it('type function throwing during seal → propagates error', () => {
+    class BadTypeDto {
+      @Field({ type: () => { throw new Error('broken type'); } })
+      nested!: unknown;
+    }
+    expect(() => deserialize(BadTypeDto, { nested: {} })).toThrow('broken type');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// serialize-builder.ts:225 — async serialize array of discriminated DTOs
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('async serialize array of nested DTOs', () => {
+  class ItemDto {
+    @Field(isString) name!: string;
+  }
+
+  class AsyncArrayDto {
+    @Field({ type: () => [ItemDto] })
+    items!: ItemDto[];
+
+    @Field(isString, { transform: async ({ value }) => value })
+    tag!: string;
+  }
+
+  it('serialize array of nested DTOs in async context', async () => {
+    const dto = await deserialize(AsyncArrayDto, {
+      items: [{ name: 'a' }, { name: 'b' }],
+      tag: 'test',
+    }) as AsyncArrayDto;
+    const result = await serialize(dto);
+    expect(Array.isArray(result.items)).toBe(true);
+    expect((result.items as any[]).length).toBe(2);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// to-json-schema.ts:463 — applyNullable with pre-existing array type
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('toJsonSchema — nullable applies null to type', () => {
+  class NullableDto {
+    @Field(isString, { nullable: true })
+    value!: string | null;
+  }
+
+  it('nullable field → type includes null', () => {
+    const schema = toJsonSchema(NullableDto);
+    const prop = schema.properties?.value as any;
+    expect(prop).toBeDefined();
+    expect(Array.isArray(prop.type)).toBe(true);
+    expect(prop.type).toContain('null');
+    expect(prop.type).toContain('string');
   });
 });
