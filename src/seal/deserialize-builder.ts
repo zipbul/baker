@@ -108,8 +108,10 @@ export function buildDeserializeCode<T>(
 
   let body = '\'use strict\';\n';
 
-  // Create instance
-  body += `var ${GEN.out} = new _Cls();\n`;
+  // Create instance — use Object.create (skip constructor) unless exposeDefaultValues needs class defaults
+  body += exposeDefaultValues
+    ? `var ${GEN.out} = new _Cls();\n`
+    : `var ${GEN.out} = Object.create(_Cls.prototype);\n`;
 
   // Error array (collectErrors mode)
   if (collectErrors) {
