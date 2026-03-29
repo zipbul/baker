@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, BakerValidationError, toJsonSchema } from '../../index';
+import { Field, deserialize, serialize, isBakerError, toJsonSchema } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -54,41 +55,37 @@ class OwnerKeepDiscDto {
 
 describe('discriminator — invalidDiscriminator', () => {
   it('non-existent subType → invalidDiscriminator error', async () => {
-    try {
-      await deserialize(OwnerDto, {
-        name: 'Alice',
-        pet: { type: 'fish', scales: true },
-      });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(e => e.code === 'invalidDiscriminator');
+    const result = await deserialize(OwnerDto, {
+      name: 'Alice',
+      pet: { type: 'fish', scales: true },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(e => e.code === 'invalidDiscriminator');
       expect(err).toBeDefined();
     }
   });
 
   it('discriminator property missing → error', async () => {
-    await expect(
-      deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }))).toBe(true);
   });
 });
 
 describe('discriminator — keepDiscriminatorProperty', () => {
   it('keepDiscriminatorProperty: true → discriminator field retained in result', async () => {
-    const result = await deserialize<OwnerKeepDiscDto>(OwnerKeepDiscDto, {
+    const result = await deserialize(OwnerKeepDiscDto, {
       pet: { kind: 'dog', breed: 'Poodle' },
-    });
+    }) as OwnerKeepDiscDto;
     expect(result.pet).toBeInstanceOf(DogDto);
     expect((result.pet as DogDto).breed).toBe('Poodle');
     expect((result.pet as any).kind).toBe('dog');
   });
 
   it('keepDiscriminatorProperty not set → discriminator field absent from result', async () => {
-    const result = await deserialize<OwnerDto>(OwnerDto, {
+    const result = await deserialize(OwnerDto, {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },
-    });
+    }) as OwnerDto;
     expect((result.pet as any).type).toBeUndefined();
   });
 });
@@ -201,11 +198,11 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   }
 
   it('both discriminator fields deserialize correctly', async () => {
-    const r = await deserialize<OrderDto>(OrderDto, {
+    const r = await deserialize(OrderDto, {
       orderId: 'ORD-1',
       payment: { type: 'creditcard', cardNumber: '4111111111111111' },
       address: { kind: 'domestic', city: 'Seoul' },
-    });
+    }) as OrderDto;
     expect(r.payment).toBeInstanceOf(CreditCardPayment);
     expect((r.payment as CreditCardPayment).cardNumber).toBe('4111111111111111');
     expect(r.address).toBeInstanceOf(DomesticAddress);
@@ -213,42 +210,38 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   });
 
   it('second combination: bank + international', async () => {
-    const r = await deserialize<OrderDto>(OrderDto, {
+    const r = await deserialize(OrderDto, {
       orderId: 'ORD-2',
       payment: { type: 'bank', bankCode: 'SWIFT123' },
       address: { kind: 'international', country: 'US' },
-    });
+    }) as OrderDto;
     expect(r.payment).toBeInstanceOf(BankTransferPayment);
     expect(r.address).toBeInstanceOf(InternationalAddress);
   });
 
   it('payment invalid discriminator → error path on payment', async () => {
-    try {
-      await deserialize(OrderDto, {
-        orderId: 'ORD-3',
-        payment: { type: 'crypto', hash: 'abc' },
-        address: { kind: 'domestic', city: 'Seoul' },
-      });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(x => x.code === 'invalidDiscriminator');
+    const result = await deserialize(OrderDto, {
+      orderId: 'ORD-3',
+      payment: { type: 'crypto', hash: 'abc' },
+      address: { kind: 'domestic', city: 'Seoul' },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(x => x.code === 'invalidDiscriminator');
       expect(err).toBeDefined();
       expect(err!.path).toContain('payment');
     }
   });
 
   it('address invalid discriminator → error path on address', async () => {
-    try {
-      await deserialize(OrderDto, {
-        orderId: 'ORD-4',
-        payment: { type: 'creditcard', cardNumber: '4111111111111111' },
-        address: { kind: 'alien', planet: 'Mars' },
-      });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(x => x.code === 'invalidDiscriminator');
+    const result = await deserialize(OrderDto, {
+      orderId: 'ORD-4',
+      payment: { type: 'creditcard', cardNumber: '4111111111111111' },
+      address: { kind: 'alien', planet: 'Mars' },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(x => x.code === 'invalidDiscriminator');
       expect(err).toBeDefined();
       expect(err!.path).toContain('address');
     }

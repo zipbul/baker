@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, BakerValidationError } from '../../index';
+import { deserialize, serialize, Field, isBakerError } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -18,7 +19,7 @@ describe('@Type auto-nested', () => {
     }
     const result = await deserialize<OuterDto>(OuterDto, {
       inner: { value: 'hello' },
-    });
+    }) as OuterDto;
     expect(result).toBeInstanceOf(OuterDto);
     expect(result.inner).toBeInstanceOf(InnerDto);
     expect(result.inner.value).toBe('hello');
@@ -39,7 +40,7 @@ describe('@Type auto-nested', () => {
     expect((result['inner'] as any)['value']).toBe('world');
   });
 
-  it('should throw validation error for invalid nested field with @Type alone', async () => {
+  it('should return BakerErrors for invalid nested field with @Type alone', async () => {
     class InnerDto {
       @Field(isNumber()) num!: number;
     }
@@ -47,9 +48,10 @@ describe('@Type auto-nested', () => {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    await expect(deserialize(OuterDto, {
+    const result = await deserialize(OuterDto, {
       inner: { num: 'not a number' },
-    })).rejects.toThrow(BakerValidationError);
+    });
+    expect(isBakerError(result)).toBe(true);
   });
 });
 
@@ -66,7 +68,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     }
     const result = await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
-    });
+    }) as OrderDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.name).toBe('A');
@@ -94,7 +96,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     expect(items[1]['name']).toBe('Y');
   });
 
-  it('should throw isArray error when non-array passed to @Type(() => [Dto])', async () => {
+  it('should return BakerErrors with isArray error when non-array passed to @Type(() => [Dto])', async () => {
     class ItemDto {
       @Field(isString) name!: string;
     }
@@ -102,12 +104,10 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    try {
-      await deserialize(OrderDto, { items: 'not an array' });
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors[0]!.code).toBe('isArray');
+    const result = await deserialize(OrderDto, { items: 'not an array' });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors[0]!.code).toBe('isArray');
     }
   });
 
@@ -119,15 +119,12 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    try {
-      await deserialize(OrderDto, {
-        items: [{ name: 'valid' }, { name: 123 }],
-      });
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = e as BakerValidationError;
-      expect(err.errors.some(e => e.path.startsWith('items[1]'))).toBe(true);
+    const result = await deserialize(OrderDto, {
+      items: [{ name: 'valid' }, { name: 123 }],
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.some(e => e.path.startsWith('items[1]'))).toBe(true);
     }
   });
 
@@ -139,7 +136,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    const result = await deserialize<OrderDto>(OrderDto, { items: [] });
+    const result = await deserialize<OrderDto>(OrderDto, { items: [] }) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
 });
@@ -152,7 +149,7 @@ describe('primitive @Type — no auto nested', () => {
       @Field(isNumber(), { type: () => Number })
       value!: number;
     }
-    const result = await deserialize<PrimDto>(PrimDto, { value: 42 });
+    const result = await deserialize<PrimDto>(PrimDto, { value: 42 }) as PrimDto;
     expect(result.value).toBe(42);
   });
 
@@ -161,7 +158,7 @@ describe('primitive @Type — no auto nested', () => {
       @Field(isString, { type: () => String })
       value!: string;
     }
-    const result = await deserialize<PrimDto>(PrimDto, { value: 'hello' });
+    const result = await deserialize<PrimDto>(PrimDto, { value: 'hello' }) as PrimDto;
     expect(result.value).toBe('hello');
   });
 });
@@ -177,11 +174,11 @@ describe('unseal + re-seal with @Type auto-nested', () => {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    const result1 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } });
+    const result1 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } }) as OuterDto;
     expect(result1.inner.value).toBe('first');
 
     unseal();
-    const result2 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'second' } });
+    const result2 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'second' } }) as OuterDto;
     expect(result2.inner.value).toBe('second');
   });
 });

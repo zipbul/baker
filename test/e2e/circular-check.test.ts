@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, BakerValidationError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -22,7 +22,7 @@ describe('circular reference detection', () => {
     const result = await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'leaf' },
-    });
+    }) as TreeNode;
     expect(result.value).toBe('root');
     expect(result.child).toBeInstanceOf(TreeNode);
     expect(result.child!.value).toBe('leaf');
@@ -32,12 +32,10 @@ describe('circular reference detection', () => {
     const circular: any = { value: 'a', child: { value: 'b' } };
     circular.child.child = circular; // circular reference
 
-    try {
-      await deserialize(TreeNode, circular);
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(e => e.code === 'circular');
+    const result = await deserialize(TreeNode, circular);
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(e => e.code === 'circular');
       expect(err).toBeDefined();
     }
   });
@@ -46,7 +44,7 @@ describe('circular reference detection', () => {
     const result = await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'child', child: { value: 'grandchild' } },
-    });
+    }) as TreeNode;
     expect(result.child!.child!.value).toBe('grandchild');
   });
 });

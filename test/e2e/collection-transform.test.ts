@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema, configure, BakerValidationError } from '../../index';
+import { Field, deserialize, serialize, toJsonSchema, configure, isBakerError } from '../../index';
 import { isString, isNumber, minLength, arrayMinSize } from '../../src/rules/index';
 import { arrayOf } from '../../src/decorators/field';
 import { unseal } from '../integration/helpers/unseal';
@@ -63,21 +63,19 @@ class NullableMapDto {
 
 describe('Set<primitive> — deserialize', () => {
   it('array → Set conversion', async () => {
-    const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'c'] });
+    const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'c'] }) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect([...result.tags]).toEqual(['a', 'b', 'c']);
   });
 
   it('empty array → empty Set', async () => {
-    const result = await deserialize(PrimitiveSetDto, { tags: [] });
+    const result = await deserialize(PrimitiveSetDto, { tags: [] }) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(0);
   });
 
   it('non-array input → error', async () => {
-    await expect(
-      deserialize(PrimitiveSetDto, { tags: 'not-array' }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(PrimitiveSetDto, { tags: 'not-array' }))).toBe(true);
   });
 });
 
@@ -95,7 +93,7 @@ describe('Set<DTO> — deserialize', () => {
   it('array of objects → Set of DTO instances', async () => {
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: 'alpha' }, { name: 'beta' }],
-    });
+    }) as NestedSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(2);
     const arr = [...result.tags];
@@ -105,14 +103,13 @@ describe('Set<DTO> — deserialize', () => {
   });
 
   it('nested DTO validation failure → error with index path', async () => {
-    try {
-      await deserialize(NestedSetDto, {
-        tags: [{ name: 'ok' }, { name: '' }],
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e.errors.length).toBeGreaterThan(0);
-      const err = e.errors.find((e: any) => e.path.includes('[1]'));
+    const result = await deserialize(NestedSetDto, {
+      tags: [{ name: 'ok' }, { name: '' }],
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThan(0);
+      const err = result.errors.find((e) => e.path.includes('[1]'));
       expect(err).toBeDefined();
     }
   });
@@ -132,28 +129,24 @@ describe('Set<DTO> — serialize', () => {
 
 describe('Map<string, primitive> — deserialize', () => {
   it('plain object → Map conversion', async () => {
-    const result = await deserialize(PrimitiveMapDto, { config: { key1: 'val1', key2: 42 } });
+    const result = await deserialize(PrimitiveMapDto, { config: { key1: 'val1', key2: 42 } }) as PrimitiveMapDto;
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.get('key1')).toBe('val1');
     expect(result.config.get('key2')).toBe(42);
   });
 
   it('empty object → empty Map', async () => {
-    const result = await deserialize(PrimitiveMapDto, { config: {} });
+    const result = await deserialize(PrimitiveMapDto, { config: {} }) as PrimitiveMapDto;
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.size).toBe(0);
   });
 
   it('array input → error', async () => {
-    await expect(
-      deserialize(PrimitiveMapDto, { config: [1, 2] }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(PrimitiveMapDto, { config: [1, 2] }))).toBe(true);
   });
 
   it('null input → error', async () => {
-    await expect(
-      deserialize(PrimitiveMapDto, { config: null }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(PrimitiveMapDto, { config: null }))).toBe(true);
   });
 });
 
@@ -172,7 +165,7 @@ describe('Map<string, DTO> — deserialize', () => {
   it('plain object → Map of DTO instances', async () => {
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 100 }, KRW: { amount: 130000 } },
-    });
+    }) as NestedMapDto;
     expect(result.prices).toBeInstanceOf(Map);
     expect(result.prices.size).toBe(2);
     expect(result.prices.get('USD')).toBeInstanceOf(PriceDto);
@@ -181,14 +174,13 @@ describe('Map<string, DTO> — deserialize', () => {
   });
 
   it('nested DTO validation failure → error with key path', async () => {
-    try {
-      await deserialize(NestedMapDto, {
-        prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e.errors.length).toBeGreaterThan(0);
-      const err = e.errors.find((e: any) => e.path.includes('KRW'));
+    const result = await deserialize(NestedMapDto, {
+      prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThan(0);
+      const err = result.errors.find((e) => e.path.includes('KRW'));
       expect(err).toBeDefined();
     }
   });
@@ -209,15 +201,13 @@ describe('Map<string, DTO> — serialize', () => {
 
 describe('Set with each validation', () => {
   it('each element validation succeeds', async () => {
-    const result = await deserialize(ValidatedSetDto, { items: ['ab', 'cd', 'ef'] });
+    const result = await deserialize(ValidatedSetDto, { items: ['ab', 'cd', 'ef'] }) as ValidatedSetDto;
     expect(result.items).toBeInstanceOf(Set);
     expect(result.items.size).toBe(3);
   });
 
   it('each element validation failure → error', async () => {
-    await expect(
-      deserialize(ValidatedSetDto, { items: ['ok', 'x'] }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(ValidatedSetDto, { items: ['ok', 'x'] }))).toBe(true);
   });
 });
 
@@ -225,24 +215,24 @@ describe('Set with each validation', () => {
 
 describe('Optional Set', () => {
   it('undefined → field absent', async () => {
-    const result = await deserialize(OptionalSetDto, {});
+    const result = await deserialize(OptionalSetDto, {}) as OptionalSetDto;
     expect(result.tags).toBeUndefined();
   });
 
   it('value present → Set conversion', async () => {
-    const result = await deserialize(OptionalSetDto, { tags: ['a'] });
+    const result = await deserialize(OptionalSetDto, { tags: ['a'] }) as OptionalSetDto;
     expect(result.tags).toBeInstanceOf(Set);
   });
 });
 
 describe('Nullable Map', () => {
   it('null → null assigned', async () => {
-    const result = await deserialize(NullableMapDto, { data: null });
+    const result = await deserialize(NullableMapDto, { data: null }) as NullableMapDto;
     expect(result.data).toBeNull();
   });
 
   it('object → Map conversion', async () => {
-    const result = await deserialize(NullableMapDto, { data: { x: 1 } });
+    const result = await deserialize(NullableMapDto, { data: { x: 1 } }) as NullableMapDto;
     expect(result.data).toBeInstanceOf(Map);
   });
 });
@@ -285,7 +275,7 @@ describe('Collection JSON Schema', () => {
 
 describe('Set — duplicate value handling', () => {
   it('input array with duplicates → Set auto-deduplicates', async () => {
-    const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'a', 'c', 'b'] });
+    const result = await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'a', 'c', 'b'] }) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(3);
     expect([...result.tags]).toEqual(['a', 'b', 'c']);
@@ -294,17 +284,13 @@ describe('Set — duplicate value handling', () => {
 
 describe('Set<DTO> — null elements', () => {
   it('null element in array → nested deserialize error', async () => {
-    await expect(
-      deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }))).toBe(true);
   });
 });
 
 describe('Map<string, DTO> — null value', () => {
   it('null Map value → nested deserialize error', async () => {
-    await expect(
-      deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }))).toBe(true);
   });
 });
 
@@ -338,7 +324,7 @@ describe('Map — prototype pollution prevention', () => {
   it('Object.create(null) input → normal conversion', async () => {
     const input = Object.create(null);
     input.key1 = 'val1';
-    const result = await deserialize(PrimitiveMapDto, { config: input });
+    const result = await deserialize(PrimitiveMapDto, { config: input }) as PrimitiveMapDto;
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.get('key1')).toBe('val1');
   });
@@ -347,7 +333,7 @@ describe('Map — prototype pollution prevention', () => {
     const proto = { inherited: 'should-not-appear' };
     const input = Object.create(proto);
     input.own = 'visible';
-    const result = await deserialize(PrimitiveMapDto, { config: input });
+    const result = await deserialize(PrimitiveMapDto, { config: input }) as PrimitiveMapDto;
     expect(result.config.has('own')).toBe(true);
     expect(result.config.has('inherited')).toBe(false);
   });
@@ -364,16 +350,13 @@ describe('stopAtFirstError — collection', () => {
       items!: Set<TagDto>;
     }
 
-    try {
-      await deserialize(StopSetDto, {
-        items: [{ name: '' }, { name: '' }, { name: '' }],
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      // stopAtFirstError: only 1 error
-      expect(e.errors.length).toBe(1);
-      expect(e.errors[0].path).toContain('[0]');
+    const result = await deserialize(StopSetDto, {
+      items: [{ name: '' }, { name: '' }, { name: '' }],
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBe(1);
+      expect(result.errors[0]!.path).toContain('[0]');
     }
   });
 
@@ -385,45 +368,37 @@ describe('stopAtFirstError — collection', () => {
       data!: Map<string, PriceDto>;
     }
 
-    try {
-      await deserialize(StopMapDto, {
-        data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect(e.errors.length).toBe(1);
+    const result = await deserialize(StopMapDto, {
+      data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBe(1);
     }
   });
 });
 
 describe('collectErrors — collection', () => {
   it('Set<DTO> all errors collected', async () => {
-    try {
-      await deserialize(NestedSetDto, {
-        tags: [{ name: '' }, { name: '' }],
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      // both elements have errors
-      expect(e.errors.length).toBeGreaterThanOrEqual(2);
+    const result = await deserialize(NestedSetDto, {
+      tags: [{ name: '' }, { name: '' }],
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThanOrEqual(2);
     }
   });
 
   it('Map<string, DTO> all errors collected', async () => {
-    try {
-      await deserialize(NestedMapDto, {
-        prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
-      });
-      expect.unreachable('should have thrown');
-    } catch (e: any) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect(e.errors.length).toBeGreaterThanOrEqual(2);
-      // each key path included
-      const paths = e.errors.map((e: any) => e.path);
-      expect(paths.some((p: string) => p.includes('USD'))).toBe(true);
-      expect(paths.some((p: string) => p.includes('EUR'))).toBe(true);
+    const result = await deserialize(NestedMapDto, {
+      prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThanOrEqual(2);
+      const paths = result.errors.map((e) => e.path);
+      expect(paths.some((p) => p.includes('USD'))).toBe(true);
+      expect(paths.some((p) => p.includes('EUR'))).toBe(true);
     }
   });
 });

@@ -1,4 +1,5 @@
 import { _ensureSealed } from '../seal/seal';
+import { SealError } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,7 +18,13 @@ export function serialize<T>(
   options?: RuntimeOptions,
 ): Promise<Record<string, unknown>> {
   try {
-    const Class = (instance as any).constructor as Function;
+    if (instance == null || typeof instance !== 'object') {
+      throw new SealError('serialize: expected a class instance, got ' + (instance === null ? 'null' : typeof instance));
+    }
+    const Class = (instance as any).constructor as Function | undefined;
+    if (typeof Class !== 'function') {
+      throw new SealError('serialize: instance has no constructor');
+    }
     const sealed = _ensureSealed(Class);
     if (sealed._isSerializeAsync) {
       return sealed._serialize(instance, options) as Promise<Record<string, unknown>>;

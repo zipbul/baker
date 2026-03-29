@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema, BakerValidationError } from '../../index';
+import { Field, deserialize, serialize, toJsonSchema, isBakerError } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -27,33 +27,31 @@ describe('groups — deserialize', () => {
   it('group match → field included', async () => {
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Alice', secret: 'top', score: 50,
-    }, { groups: ['admin'] });
+    }, { groups: ['admin'] }) as GroupDto;
     expect(result.secret).toBe('top');
   });
 
   it('group mismatch → field excluded', async () => {
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Alice', secret: 'top', score: 50,
-    }, { groups: ['user'] });
+    }, { groups: ['user'] }) as GroupDto;
     expect(result.secret).toBeUndefined();
   });
 
   it('no groups → expose groups field excluded', async () => {
     const result = await deserialize<GroupDto>(GroupDto, {
       name: 'Bob', secret: 'x', score: 50,
-    });
+    }) as GroupDto;
     expect(result.secret).toBeUndefined();
   });
 
   it('rule groups — create group → @Min applied, @Max not applied', async () => {
-    await expect(
-      deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] }),
-    ).rejects.toThrow();
+    expect(isBakerError(await deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] }))).toBe(true);
 
     // Max not applied → 200 passes
     const r = await deserialize<GroupDto>(GroupDto, {
       name: 'Y', secret: 'x', score: 200,
-    }, { groups: ['admin', 'create'] });
+    }, { groups: ['admin', 'create'] }) as GroupDto;
     expect(r.score).toBe(200);
   });
 });
@@ -109,7 +107,7 @@ describe('E-22: groups + directional exclude combo', () => {
   it('admin group deserialize → adminSecret visible', async () => {
     const r = await deserialize<AdminExcludeDto>(AdminExcludeDto, {
       name: 'Alice', adminSecret: 'secret123', label: 'hello',
-    }, { groups: ['admin', 'public'] });
+    }, { groups: ['admin', 'public'] }) as AdminExcludeDto;
     expect(r.adminSecret).toBe('secret123');
   });
 
@@ -134,7 +132,7 @@ describe('E-22: groups + directional exclude combo', () => {
   it('no groups → adminSecret and label excluded', async () => {
     const r = await deserialize<AdminExcludeDto>(AdminExcludeDto, {
       name: 'Carol', adminSecret: 'sec', label: 'test',
-    });
+    }) as AdminExcludeDto;
     expect(r.adminSecret).toBeUndefined();
     expect(r.label).toBeUndefined();
   });

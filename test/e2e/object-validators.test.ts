@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, toJsonSchema, BakerValidationError, Field } from '../../index';
+import { deserialize, toJsonSchema, isBakerError, Field } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -17,14 +17,12 @@ class ObjDto {
 
 describe('isNotEmptyObject', () => {
   it('object with keys passes', async () => {
-    const r = await deserialize<EmptyObjDto>(EmptyObjDto, { config: { a: 1 } });
+    const r = await deserialize(EmptyObjDto, { config: { a: 1 } }) as EmptyObjDto;
     expect(r.config).toEqual({ a: 1 });
   });
 
   it('empty object rejected', async () => {
-    await expect(
-      deserialize(EmptyObjDto, { config: {} }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(EmptyObjDto, { config: {} }))).toBe(true);
   });
 
   it('toJsonSchema → minProperties: 1', () => {
@@ -38,30 +36,24 @@ describe('isNotEmptyObject', () => {
       config!: Record<string, unknown>;
     }
     // all values are null → treated as empty object
-    await expect(
-      deserialize(NullableObjDto, { config: { a: null, b: undefined } }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(NullableObjDto, { config: { a: null, b: undefined } }))).toBe(true);
     // non-null value exists → passes
-    const r = await deserialize<NullableObjDto>(NullableObjDto, { config: { a: null, b: 1 } });
+    const r = await deserialize(NullableObjDto, { config: { a: null, b: 1 } }) as NullableObjDto;
     expect(r.config.b).toBe(1);
   });
 });
 
 describe('isObject', () => {
   it('object passes', async () => {
-    const r = await deserialize<ObjDto>(ObjDto, { data: { key: 'val' } });
+    const r = await deserialize(ObjDto, { data: { key: 'val' } }) as ObjDto;
     expect(r.data).toEqual({ key: 'val' });
   });
 
   it('array rejected', async () => {
-    await expect(
-      deserialize(ObjDto, { data: [1, 2] }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(ObjDto, { data: [1, 2] }))).toBe(true);
   });
 
   it('null rejected', async () => {
-    await expect(
-      deserialize(ObjDto, { data: null }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(ObjDto, { data: null }))).toBe(true);
   });
 });

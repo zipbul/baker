@@ -1,5 +1,6 @@
 // Public API — Core
 export { deserialize } from './src/functions/deserialize';
+export { validate } from './src/functions/validate';
 export { serialize } from './src/functions/serialize';
 export { toJsonSchema } from './src/functions/to-json-schema';
 export { configure } from './src/configure';
@@ -10,8 +11,8 @@ export { Field, arrayOf } from './src/decorators/index';
 export type { FieldOptions, FieldTransformParams, JsonSchemaOverride, ArrayOfMarker } from './src/decorators/index';
 
 // Errors
-export type { BakerError } from './src/errors';
-export { BakerValidationError, SealError } from './src/errors';
+export type { BakerError, BakerErrors } from './src/errors';
+export { isBakerError, BAKER_ERROR, SealError } from './src/errors';
 
 // Types
 export type { JsonSchema202012, EmittableRule } from './src/types';

@@ -46,9 +46,10 @@ interface SchemaContext {
 /** Module-level: emit console.warn only once per ruleName */
 const _warnedRules = new Set<string>();
 
-const COMPOSITION_KEYWORDS = new Set([
-  'allOf', 'anyOf', 'oneOf', 'not', 'if', 'then', 'else',
-]);
+/** @internal — reset warned rules state on unseal */
+export function _resetWarnedRules(): void {
+  _warnedRules.clear();
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mapping table: ruleName → JSON Schema keywords (§6.3)
@@ -299,7 +300,7 @@ function getSchemaKey(
 function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
   // Collection (Map/Set) → special schema
   if (meta.type?.collection) {
-    return buildCollectionSchema(meta, ctx, fieldKey);
+    return buildCollectionSchema(meta, ctx);
   }
 
   // @Type/@Nested → $ref or discriminator
@@ -338,7 +339,7 @@ function buildPropertySchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey
 // ─────────────────────────────────────────────────────────────────────────────
 // buildCollectionSchema — Map/Set → JSON Schema
 
-function buildCollectionSchema(meta: RawPropertyMeta, ctx: SchemaContext, fieldKey?: string): JsonSchema202012 {
+function buildCollectionSchema(meta: RawPropertyMeta, ctx: SchemaContext): JsonSchema202012 {
   const collection = meta.type!.collection!;
   let schema: JsonSchema202012;
 
@@ -480,6 +481,5 @@ function applyUserSchema(
 
   // Object form: composition-aware merge (§6.5)
   const userSchema = meta.schema as JsonSchema202012;
-  const hasComposition = Object.keys(userSchema).some(k => COMPOSITION_KEYWORDS.has(k));
-  return hasComposition ? { ...autoSchema, ...userSchema } : { ...autoSchema, ...userSchema };
+  return { ...autoSchema, ...userSchema };
 }

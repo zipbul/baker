@@ -19,10 +19,10 @@ export {
   isStrongPassword, isTaxId,
 } from './string';
 export type {
-  IsEmailOptions, IsURLOptions, IsBase32Options, IsBase64Options,
-  IsDateStringOptions, IsCurrencyOptions, IsMACAddressOptions,
-  IsIBANOptions, IsISSNOptions, IsFQDNOptions, IsLatLongOptions,
-  IsISO8601Options, IsNumberStringOptions, IsDecimalOptions,
+  IsURLOptions, IsBase64Options,
+  IsMACAddressOptions,
+  IsIBANOptions, IsISSNOptions, IsFQDNOptions,
+  IsISO8601Options, IsNumberStringOptions,
   IsStrongPasswordOptions,
 } from './string';
 export {

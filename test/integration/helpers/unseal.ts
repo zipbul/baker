@@ -3,6 +3,7 @@ import { RAW, SEALED } from '../../../src/symbols';
 import { globalRegistry } from '../../../src/registry';
 import { _resetForTesting } from '../../../src/seal/seal';
 import { _resetConfigForTesting } from '../../../src/configure';
+import { _resetWarnedRules } from '../../../src/functions/to-json-schema';
 import type { SealedExecutors } from '../../../src/types';
 
 /**
@@ -25,4 +26,5 @@ export function unseal(): void {
   }
   _resetForTesting();
   _resetConfigForTesting();
+  _resetWarnedRules();
 }

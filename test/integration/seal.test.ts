@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, createRule, configure, BakerValidationError } from '../../index';
+import { Field, deserialize, serialize, createRule, configure, isBakerError } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED, RAW } from '../../src/symbols';
@@ -40,8 +41,8 @@ describe('auto-seal — integration', () => {
   it('should allow re-seal after unseal()', async () => {
     await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     unseal();
-    // Should not throw — auto-seal triggers again
-    await expect(deserialize(SealTestDto, { name: 'Bob', age: 30 })).resolves.toBeDefined();
+    const result = await deserialize(SealTestDto, { name: 'Bob', age: 30 });
+    expect(isBakerError(result)).toBe(false);
   });
 
   it('should attach executors after auto-seal', async () => {
@@ -154,10 +155,8 @@ describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
 
 describe('_ensureSealed — _sealOnDemand fallback', () => {
   it('should seal a late-registered class via _sealOnDemand when serialize is called after auto-seal', async () => {
-    // 1. Trigger auto-seal with an existing DTO
     await deserialize(SealTestDto, { name: 'Alice', age: 25 });
 
-    // 2. Define a new class AFTER auto-seal — manually attach RAW metadata
     class LateDto {}
     (LateDto as any)[RAW] = {
       value: {
@@ -171,7 +170,6 @@ describe('_ensureSealed — _sealOnDemand fallback', () => {
       },
     };
 
-    // 3. serialize triggers _ensureSealed → _autoSeal (no-op) → _sealOnDemand
     const instance = Object.assign(new LateDto(), { value: 'hello' });
     const result = await serialize(instance);
     expect(result).toEqual({ value: 'hello' });
@@ -209,7 +207,7 @@ describe('E-25: concurrent seal via Promise.all', () => {
       deserialize<ConcurrentA>(ConcurrentA, { a: 'hello' }),
       deserialize<ConcurrentB>(ConcurrentB, { b: 42 }),
       deserialize<ConcurrentC>(ConcurrentC, { c: 'world', d: 99 }),
-    ]);
+    ]) as [ConcurrentA, ConcurrentB, ConcurrentC];
     expect(a).toBeInstanceOf(ConcurrentA);
     expect(a.a).toBe('hello');
     expect(b).toBeInstanceOf(ConcurrentB);
@@ -238,7 +236,6 @@ describe('configure() — return warnings (B-10)', () => {
   });
 
   it('should return a warning when called after auto-seal', async () => {
-    // Trigger auto-seal
     await deserialize(SealTestDto, { name: 'Alice', age: 25 });
 
     const result = configure({ autoConvert: true });
@@ -261,38 +258,29 @@ describe('configure() — return warnings (B-10)', () => {
 
 describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
   it('should apply new forbidUnknown config after unseal + reconfigure', async () => {
-    // 1. First seal cycle — no forbidUnknown
-    const r1 = await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' });
+    const r1 = await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' }) as any;
     expect(r1.name).toBe('Alice');
 
-    // 2. Unseal + reconfigure with forbidUnknown
     unseal();
     configure({ forbidUnknown: true });
 
-    // 3. Re-seal triggers with new config — unknown field should now be rejected
-    try {
-      await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find((x: any) => x.code === 'whitelistViolation');
+    const result = await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find((x: any) => x.code === 'whitelistViolation');
       expect(err).toBeDefined();
     }
   });
 
   it('should remove forbidUnknown effect after unseal + reconfigure without it', async () => {
-    // 1. Configure with forbidUnknown
     configure({ forbidUnknown: true });
-    await expect(
-      deserialize(SealTestDto, { name: 'Alice', age: 25, extra: 'bad' }),
-    ).rejects.toThrow(BakerValidationError);
+    const result1 = await deserialize(SealTestDto, { name: 'Alice', age: 25, extra: 'bad' });
+    expect(isBakerError(result1)).toBe(true);
 
-    // 2. Unseal + reconfigure without forbidUnknown
     unseal();
     configure({});
 
-    // 3. Unknown field should be silently ignored again
-    const result = await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' });
+    const result = await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' }) as any;
     expect(result.name).toBe('Bob');
   });
 });

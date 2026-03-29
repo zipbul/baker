@@ -40,6 +40,22 @@ function sanitizeKey(key: string): string {
   return key.replace(/[^a-zA-Z0-9_]/g, (ch) => `$${ch.charCodeAt(0)}$`);
 }
 
+/** Generate nested error push code that propagates message/context fields */
+function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
+  return `var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
+    `      if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
+    `      if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
+    `      ${errList}.push(${tmpVar});\n`;
+}
+
+/** Generate nested error return code that propagates message/context fields */
+function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string): string {
+  return `var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
+    `    if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
+    `    if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
+    `    return _err([${tmpVar}]);\n`;
+}
+
 /** Convert field name to a safe JS variable name (includes prefix to prevent internal variable collisions) */
 function toVarName(key: string): string {
   return GEN.field + sanitizeKey(key);
@@ -930,11 +946,11 @@ function generateCollectionCode(
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
+        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
+        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.add(${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -978,11 +994,11 @@ function generateCollectionCode(
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
+        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
+        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.set(${kVar}, ${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -1032,7 +1048,7 @@ function generateNestedCode(
       const awaitKwD = ctx.isAsync ? 'await ' : '';
       code += `  case ${JSON.stringify(sub.name)}:\n`;
       code += `    var ${GEN.result}${sk} = ${awaitKwD}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
-      code += generateNestedResultCode(fieldKey, varName, `${GEN.result}${sk}`, collectErrors);
+      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
       code += `    break;\n`;
     }
     code += `  default: ${emitCtx.fail('invalidDiscriminator')};\n`;
@@ -1071,11 +1087,11 @@ function generateNestedCode(
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `        ${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n`;
+        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      return _err([{path:${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n`;
+        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.push(${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -1085,7 +1101,7 @@ function generateNestedCode(
       const awaitKwS = ctx.isAsync ? 'await ' : '';
       code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
       code += `  var ${GEN.result}${sk} = ${awaitKwS}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
-      code += generateNestedResultCode(fieldKey, varName, `${GEN.result}${sk}`, collectErrors);
+      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
   }
@@ -1095,22 +1111,29 @@ function generateNestedCode(
 
 function generateNestedResultCode(
   fieldKey: string,
-  _varName: string,
   resultVar: string,
   collectErrors: boolean,
 ): string {
   const sk = sanitizeKey(fieldKey);
+  const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
   if (collectErrors) {
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
-      `      ${GEN.errList}.push({path:${JSON.stringify(fieldKey + '.')}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path,code:${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].code});\n` +
+      `      var __ne${sk}={path:${JSON.stringify(fieldKey + '.')}+${errItem}.path,code:${errItem}.code};\n` +
+      `      if(${errItem}.message!==undefined)__ne${sk}.message=${errItem}.message;\n` +
+      `      if(${errItem}.context!==undefined)__ne${sk}.context=${errItem}.context;\n` +
+      `      ${GEN.errList}.push(__ne${sk});\n` +
       `    }\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   } else {
+    const errFirst = `${GEN.errors}${sk}[0]`;
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
-      `    return _err([{path:${JSON.stringify(fieldKey+'.')}+${GEN.errors}${sk}[0].path,code:${GEN.errors}${sk}[0].code}]);\n` +
+      `    var __ne${sk}={path:${JSON.stringify(fieldKey+'.')}+${errFirst}.path,code:${errFirst}.code};\n` +
+      `    if(${errFirst}.message!==undefined)__ne${sk}.message=${errFirst}.message;\n` +
+      `    if(${errFirst}.context!==undefined)__ne${sk}.context=${errFirst}.context;\n` +
+      `    return _err([__ne${sk}]);\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   }
 }

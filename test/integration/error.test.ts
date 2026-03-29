@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, BakerValidationError, Field, configure } from '../../index';
+import { deserialize, isBakerError, Field, configure } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -32,65 +33,42 @@ class MultiFieldErrorDto {
 afterEach(() => { unseal(); configure({}); });
 
 describe('error — integration', () => {
-  it('should throw BakerValidationError on invalid input', async () => {
-    await expect(deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' })).rejects.toThrow(BakerValidationError);
+  it('should return BakerErrors on invalid input', async () => {
+    const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it('BakerValidationError should have errors array', async () => {
-    try {
-      await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
-      expect(true).toBe(false); // should not reach
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors).toBeArray();
-      expect((e as BakerValidationError).errors.length).toBeGreaterThan(0);
+  it('BakerErrors should have errors array', async () => {
+    const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors).toBeArray();
+      expect(result.errors.length).toBeGreaterThan(0);
     }
   });
 
-  it('BakerValidationError.errors should include path and code', async () => {
-    try {
-      await deserialize(ErrorDto, { age: 25, email: 'x@y.com' }); // missing required name
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const errors = (e as BakerValidationError).errors;
-      expect(errors.some(err => err.path === 'name')).toBe(true);
+  it('BakerErrors.errors should include path and code', async () => {
+    const result = await deserialize(ErrorDto, { age: 25, email: 'x@y.com' });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.some(err => err.path === 'name')).toBe(true);
     }
   });
 
   it('should collect all errors when multiple fields invalid', async () => {
-    try {
-      await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 }); // all invalid
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors.length).toBeGreaterThanOrEqual(3);
+    const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThanOrEqual(3);
     }
   });
 
   it('should respect stopAtFirstError configure option', async () => {
     configure({ stopAtFirstError: true });
-    try {
-      await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      // stopAtFirstError: collecting stopped at first error
-      expect((e as BakerValidationError).errors.length).toBe(1);
-    }
-  });
-
-  // ─── DX-2: BakerValidationError should include class name in message ───────
-
-  it('should include class name in BakerValidationError.message', async () => {
-    try {
-      await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
-      expect(true).toBe(false);
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).message).toContain('ErrorDto');
-      expect((e as BakerValidationError).message).toMatch(/Validation failed for ErrorDto: \d+ error/);
-      expect((e as BakerValidationError).className).toBe('ErrorDto');
+    const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBe(1);
     }
   });
 });
