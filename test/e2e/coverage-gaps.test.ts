@@ -142,3 +142,42 @@ describe('async serialize array of nested DTOs', () => {
   });
 });
 
+describe('async serialize discriminator array (serialize-builder.ts:225)', () => {
+  class CatDto {
+    @Field(isString) kind!: string;
+    @Field(isString) meow!: string;
+  }
+
+  class DogDto {
+    @Field(isString) kind!: string;
+    @Field(isString) bark!: string;
+  }
+
+  class AsyncDiscArrayDto {
+    @Field({
+      type: () => [CatDto],
+      discriminator: {
+        property: 'kind',
+        subTypes: [
+          { value: CatDto, name: 'cat' },
+          { value: DogDto, name: 'dog' },
+        ],
+      },
+      keepDiscriminatorProperty: true,
+    })
+    pets!: (CatDto | DogDto)[];
+
+    @Field(isString, { transform: async ({ value }) => value })
+    tag!: string;
+  }
+
+  it('serialize discriminator array in async DTO', async () => {
+    const cat = Object.assign(Object.create(CatDto.prototype), { kind: 'cat', meow: 'nya' });
+    const dog = Object.assign(Object.create(DogDto.prototype), { kind: 'dog', bark: 'woof' });
+    const dto = Object.assign(Object.create(AsyncDiscArrayDto.prototype), { pets: [cat, dog], tag: 'test' });
+    const result = await serialize(dto);
+    expect(Array.isArray(result.pets)).toBe(true);
+    expect((result.pets as any[]).length).toBe(2);
+  });
+});
+
