@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, BakerValidationError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import {
   isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject,
   equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty,
@@ -17,19 +17,15 @@ import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-/** Helper: extracts the error code for a specific path from BakerValidationError */
+/** Helper: extracts the error code for a specific path from BakerErrors */
 async function getErrorCode(cls: new (...args: any[]) => any, input: unknown, path?: string): Promise<string> {
-  try {
-    await deserialize(cls, input);
-    throw new Error('expected rejection');
-  } catch (e) {
-    if (!(e instanceof BakerValidationError)) throw e;
-    const err = path !== undefined
-      ? e.errors.find(x => x.path === path)
-      : e.errors[0];
-    if (!err) throw new Error(`no error at path="${path}", got: ${JSON.stringify(e.errors)}`);
-    return err.code;
-  }
+  const result = await deserialize(cls, input);
+  if (!isBakerError(result)) throw new Error('expected validation failure');
+  const err = path !== undefined
+    ? result.errors.find(x => x.path === path)
+    : result.errors[0];
+  if (!err) throw new Error(`no error at path="${path}", got: ${JSON.stringify(result.errors)}`);
+  return err.code;
 }
 
 // ─── type checker error codes ────────────────────────────────────────────────

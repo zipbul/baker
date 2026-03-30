@@ -44,7 +44,7 @@ describe('codegen — integration', () => {
 
   it('_deserialize should accept valid input and return instance', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const result = await sealed._deserialize({ name: 'Alice', value: 42 });
     expect(isErr(result)).toBe(false);
@@ -54,7 +54,7 @@ describe('codegen — integration', () => {
 
   it('_deserialize should return error Result for invalid input', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const result = await sealed._deserialize({ name: 123, value: 'wrong' });
     expect(isErr(result)).toBe(true);
@@ -62,7 +62,7 @@ describe('codegen — integration', () => {
 
   it('_serialize should return plain object', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 }).catch(() => {});
+    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = (CodegenSimpleDto as any)[SEALED];
     const instance = Object.assign(new CodegenSimpleDto(), { name: 'Bob', value: 7 });
     const result = await sealed._serialize(instance);
@@ -70,17 +70,17 @@ describe('codegen — integration', () => {
   });
 
   it('optional field should not cause error when absent', async () => {
-    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' });
+    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' }) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('optional field deserialized value should have required field', async () => {
-    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' });
+    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' }) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('transform should be applied in generated deserialize code', async () => {
-    const result = await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' });
+    const result = await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' }) as CodegenTransformDto;
     expect(result.text).toBe('trimmed');
   });
 });

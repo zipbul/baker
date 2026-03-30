@@ -32,17 +32,14 @@ const MOBILE_PHONE_REGEXES: Record<string, RegExp> = {
 
 export function isMobilePhone(locale: string): EmittableRule {
   const re = MOBILE_PHONE_REGEXES[locale];
+  if (!re) throw new Error(`Unsupported locale: "${locale}" for isMobilePhone`);
 
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
-    if (!re) return false;
     return re.test(value);
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      return ctx.fail('isMobilePhone') + ';';
-    }
     const i = ctx.addRegex(re);
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMobilePhone')};`;
   };
@@ -118,17 +115,14 @@ const POSTAL_CODE_REGEXES: Record<string, RegExp> = {
 
 export function isPostalCode(locale: string): EmittableRule {
   const re = POSTAL_CODE_REGEXES[locale];
+  if (!re) throw new Error(`Unsupported locale: "${locale}" for isPostalCode`);
 
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
-    if (!re) return false;
     return re.test(value);
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      return ctx.fail('isPostalCode') + ';';
-    }
     const i = ctx.addRegex(re);
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPostalCode')};`;
   };
@@ -200,17 +194,14 @@ const IDENTITY_CARD_REGEXES: Record<string, RegExp> = {
 
 export function isIdentityCard(locale: string): EmittableRule {
   const re = IDENTITY_CARD_REGEXES[locale];
+  if (!re) throw new Error(`Unsupported locale: "${locale}" for isIdentityCard`);
 
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
-    if (!re) return false;
     return re.test(value);
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      return ctx.fail('isIdentityCard') + ';';
-    }
     const i = ctx.addRegex(re);
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIdentityCard')};`;
   };
@@ -298,17 +289,14 @@ const PASSPORT_REGEXES: Record<string, RegExp> = {
 
 export function isPassportNumber(locale: string): EmittableRule {
   const re = PASSPORT_REGEXES[locale];
+  if (!re) throw new Error(`Unsupported locale: "${locale}" for isPassportNumber`);
 
   const fn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
-    if (!re) return false;
     return re.test(value);
   };
 
   (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      return ctx.fail('isPassportNumber') + ';';
-    }
     const i = ctx.addRegex(re);
     return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPassportNumber')};`;
   };

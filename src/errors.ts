@@ -25,25 +25,36 @@ export interface BakerError {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerValidationError — Public API throw error (§12.2)
+// BakerErrors — Validation failure return (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Error thrown on deserialize() validation failure.
- * The errors array contains all field errors.
- */
-export class BakerValidationError extends Error {
-  readonly errors: BakerError[];
-  /** Target DTO class name for validation (DX-2) */
-  readonly className?: string;
+/** Symbol tag for isBakerError() type guard — collision-proof discriminator */
+export const BAKER_ERROR: unique symbol = Symbol.for('baker:error');
 
-  constructor(errors: BakerError[], className?: string) {
-    const prefix = className ? `Validation failed for ${className}` : 'Validation failed';
-    super(`${prefix}: ${errors.length} error(s)`);
-    this.name = 'BakerValidationError';
-    this.errors = errors;
-    this.className = className;
-  }
+/** Validation failure — returned by deserialize() on invalid input */
+export interface BakerErrors {
+  readonly [BAKER_ERROR]: true;
+  readonly errors: readonly BakerError[];
+}
+
+/**
+ * Type guard — narrows deserialize() result to BakerErrors.
+ *
+ * @example
+ * const result = await deserialize(UserDto, input);
+ * if (isBakerError(result)) {
+ *   result.errors // readonly BakerError[]
+ * } else {
+ *   result // UserDto
+ * }
+ */
+export function isBakerError(value: unknown): value is BakerErrors {
+  return value != null && typeof value === 'object' && BAKER_ERROR in (value as object);
+}
+
+/** @internal — create BakerErrors object */
+export function _toBakerErrors(errors: BakerError[]): BakerErrors {
+  return { [BAKER_ERROR]: true as const, errors };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

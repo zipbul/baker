@@ -1,11 +1,10 @@
 import { describe, it, expect, afterEach, mock } from 'bun:test';
 import { err } from '@zipbul/result';
 import { SEALED } from '../symbols';
-import { BakerValidationError, SealError } from '../errors';
+import { isBakerError, SealError } from '../errors';
+import type { BakerErrors } from '../errors';
 import { globalRegistry } from '../registry';
 import { _resetForTesting } from '../seal/seal';
-// Dynamically import SUT — set up test doubles at module level before import
-// Simple implementation, so using direct import
 import { deserialize } from './deserialize';
 import type { RuntimeOptions } from '../interfaces';
 
@@ -56,18 +55,15 @@ describe('deserialize', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
   it('should return T instance when _deserialize returns valid value', async () => {
-    // Arrange
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance);
-    // Act
     const result = await deserialize(Dto, { name: 'Alice' });
-    // Assert
+    expect(isBakerError(result)).toBe(false);
     expect(result).toBe(instance);
   });
 
   it('should pass options to _deserialize when RuntimeOptions provided', async () => {
-    // Arrange
     const Dto = makeClass();
     const instance = new Dto();
     let capturedOpts: RuntimeOptions | undefined;
@@ -76,14 +72,11 @@ describe('deserialize', () => {
       return instance;
     });
     const opts: RuntimeOptions = { groups: ['admin'] };
-    // Act
     await deserialize(Dto, {}, opts);
-    // Assert
     expect(capturedOpts).toBe(opts);
   });
 
   it('should pass input to _deserialize when called with object input', async () => {
-    // Arrange
     const Dto = makeClass();
     const instance = new Dto();
     let capturedInput: unknown;
@@ -92,182 +85,138 @@ describe('deserialize', () => {
       return instance;
     });
     const payload = { name: 'Bob', extra: 'ignored' };
-    // Act
     await deserialize(Dto, payload);
-    // Assert
     expect(capturedInput).toBe(payload);
   });
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when class has no [SEALED] executor', async () => {
-    // Arrange
+  it('should throw SealError when class has no [SEALED] executor', () => {
     const Dto = makeClass('UnsealedDto');
-    // Act & Assert
-    await expect(deserialize(Dto, {})).rejects.toThrow(SealError);
+    expect(() => deserialize(Dto, {})).toThrow(SealError);
   });
 
   it('should include class name in SealError message when not sealed', async () => {
-    // Arrange
     const Dto = makeClass('MyDto');
     let caught: SealError | undefined;
-    // Act
     try {
       await deserialize(Dto, {});
     } catch (e) {
       caught = e as SealError;
     }
-    // Assert
     expect(caught).toBeInstanceOf(SealError);
     expect(caught!.message).toContain('MyDto');
   });
 
-  it('should throw BakerValidationError when _deserialize returns Err', async () => {
-    // Arrange
+  it('should return BakerErrors when _deserialize returns Err', async () => {
     const Dto = makeClass();
     const errors = [{ path: 'name', code: 'isString' }];
     attachSealed(Dto, () => err(errors));
-    // Act & Assert
-    await expect(deserialize(Dto, { name: 42 })).rejects.toThrow(BakerValidationError);
+    const result = await deserialize(Dto, { name: 42 });
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it('should attach errors array to BakerValidationError when _deserialize fails', async () => {
-    // Arrange
+  it('should attach errors array to BakerErrors when _deserialize fails', async () => {
     const Dto = makeClass();
     const errors = [{ path: 'name', code: 'isString' }, { path: 'email', code: 'isEmail' }];
     attachSealed(Dto, () => err(errors));
-    let caught: BakerValidationError | undefined;
-    // Act
-    try {
-      await deserialize(Dto, {});
-    } catch (e) {
-      caught = e as BakerValidationError;
+    const result = await deserialize(Dto, {});
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors).toEqual(errors);
     }
-    // Assert
-    expect(caught).toBeInstanceOf(BakerValidationError);
-    expect(caught!.errors).toEqual(errors);
   });
 
-  it('should throw BakerValidationError(code:invalidInput) when _deserialize returns invalidInput error', async () => {
-    // Arrange
+  it('should return BakerErrors(code:invalidInput) when _deserialize returns invalidInput error', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: '', code: 'invalidInput' }]));
-    let caught: BakerValidationError | undefined;
-    // Act
-    try {
-      await deserialize(Dto, null);
-    } catch (e) {
-      caught = e as BakerValidationError;
+    const result = await deserialize(Dto, null);
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors[0]!.code).toBe('invalidInput');
     }
-    // Assert
-    expect(caught).toBeInstanceOf(BakerValidationError);
-    expect(caught!.errors[0]!.code).toBe('invalidInput');
   });
 
-  it('should throw BakerValidationError when _deserialize returns Err for array input', async () => {
-    // Arrange
+  it('should return BakerErrors when _deserialize returns Err for array input', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: '', code: 'invalidInput' }]));
-    // Act & Assert
-    await expect(deserialize(Dto, [1, 2, 3])).rejects.toThrow(BakerValidationError);
+    const result = await deserialize(Dto, [1, 2, 3]);
+    expect(isBakerError(result)).toBe(true);
   });
 
   // ── Edge ──────────────────────────────────────────────────────────────────
 
   it('should return T when _deserialize succeeds with empty {} input for class with no fields', async () => {
-    // Arrange
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance);
-    // Act
     const result = await deserialize(Dto, {});
-    // Assert
     expect(result).toBe(instance);
   });
 
   // ── State Transition ───────────────────────────────────────────────────────
 
   it('should work again when [SEALED] is re-attached after being deleted', async () => {
-    // Arrange
     const Dto = makeClass();
     const instance1 = new Dto();
     const instance2 = new Dto();
     attachSealed(Dto, () => instance1);
     await deserialize(Dto, {});
-    // Simulate unseal: remove SEALED
     delete (Dto as any)[SEALED];
-    // Simulate re-seal: re-attach SEALED
     attachSealed(Dto, () => instance2);
-    // Act
     const result = await deserialize(Dto, {});
-    // Assert
     expect(result).toBe(instance2);
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
 
   it('should return independent T instances on repeated calls with same input', async () => {
-    // Arrange
     const Dto = makeClass();
     let idx = 0;
     const instances = [new Dto(), new Dto()];
     attachSealed(Dto, () => instances[idx++]);
     const input = { name: 'Alice' };
-    // Act
     const r1 = await deserialize(Dto, input);
     const r2 = await deserialize(Dto, input);
-    // Assert
     expect(r1).toBe(instances[0]);
     expect(r2).toBe(instances[1]);
   });
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should use sync path (Promise.resolve) when _isAsync is false', async () => {
-    // Arrange
+  it('should return value directly when _isAsync is false', () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance, { isAsync: false });
-    // Act
     const result = deserialize(Dto, {});
-    // Assert — always returns a Promise
-    expect(result).toBeInstanceOf(Promise);
-    expect(await result).toBe(instance);
-  });
-
-  it('should use async path when _isAsync is true', async () => {
-    // Arrange
-    const Dto = makeClass();
-    const instance = new Dto();
-    attachSealed(Dto, () => Promise.resolve(instance), { isAsync: true });
-    // Act
-    const result = await deserialize(Dto, {});
-    // Assert
+    expect(result).not.toBeInstanceOf(Promise);
     expect(result).toBe(instance);
   });
 
-  it('should reject promise when sync executor returns Err', async () => {
-    // Arrange
+  it('should use async path when _isAsync is true', async () => {
+    const Dto = makeClass();
+    const instance = new Dto();
+    attachSealed(Dto, () => Promise.resolve(instance), { isAsync: true });
+    const result = await deserialize(Dto, {});
+    expect(result).toBe(instance);
+  });
+
+  it('should return BakerErrors when sync executor returns Err', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: 'x', code: 'fail' }]), { isAsync: false });
-    // Act & Assert
-    await expect(deserialize(Dto, {})).rejects.toThrow(BakerValidationError);
+    const result = await deserialize(Dto, {});
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it('should reject promise when async executor resolves to Err', async () => {
-    // Arrange
+  it('should return BakerErrors when async executor resolves to Err', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => Promise.resolve(err([{ path: 'x', code: 'fail' }])), { isAsync: true });
-    // Act & Assert
-    await expect(deserialize(Dto, {})).rejects.toThrow(BakerValidationError);
+    const result = await deserialize(Dto, {});
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it('should reject with SealError via promise (not sync throw) when class is not sealed', async () => {
-    // Arrange
+  it('should throw SealError when class is not sealed', () => {
     const Dto = makeClass('NotSealedDto');
-    // Act — SealError is delivered as a rejected promise, not a sync throw
-    const promise = deserialize(Dto, {});
-    expect(promise).toBeInstanceOf(Promise);
-    await expect(promise).rejects.toThrow(SealError);
+    expect(() => deserialize(Dto, {})).toThrow(SealError);
   });
 });

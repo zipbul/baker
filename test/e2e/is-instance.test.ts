@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, BakerValidationError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import { isInstance } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -23,7 +23,7 @@ class InstanceDto {
 
 describe('@IsInstance', () => {
   it('correct instance passes', async () => {
-    const r = await deserialize<InstanceDto>(InstanceDto, { date: '2024-01-01' });
+    const r = await deserialize(InstanceDto, { date: '2024-01-01' }) as InstanceDto;
     expect(r.date).toBeInstanceOf(MyDate);
   });
 
@@ -34,8 +34,6 @@ describe('@IsInstance', () => {
     }
 
     // A string is not a MyDate instance (raw string passed without Transform)
-    await expect(
-      deserialize(WrongDto, { date: '2024-01-01' }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(WrongDto, { date: '2024-01-01' }))).toBe(true);
   });
 });

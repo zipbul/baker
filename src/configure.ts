@@ -14,12 +14,6 @@ export interface BakerConfig {
   stopAtFirstError?: boolean;
   /** Reject undeclared fields with an error. @default false */
   forbidUnknown?: boolean;
-  /**
-   * @deprecated Renamed to `forbidUnknown`. This option actually raises an error
-   * for unknown fields rather than silently removing them. Use `forbidUnknown` instead.
-   * If `forbidUnknown` is specified, `stripUnknown` is ignored.
-   */
-  stripUnknown?: boolean;
   /** Include field exclusion reasons as comments in generated code. @default false */
   debug?: boolean;
 }
@@ -47,7 +41,7 @@ export function configure(config: BakerConfig): ConfigureResult {
     enableImplicitConversion: config.autoConvert ?? false,
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
-    whitelist: config.forbidUnknown ?? config.stripUnknown ?? false,
+    whitelist: config.forbidUnknown ?? false,
     debug: config.debug ?? false,
   };
   return { warnings };

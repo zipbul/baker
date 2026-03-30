@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, BakerValidationError, Field } from '../../index';
+import { deserialize, isBakerError, Field } from '../../index';
 import {
   isString, notContains, isLowercase, isUppercase, isBooleanString, isJSON,
   arrayNotContains, isArray,
@@ -17,61 +17,61 @@ class ArrNotContainsDto { @Field(isArray, arrayNotContains([99])) items!: number
 
 describe('notContains', () => {
   it('string without substring passes', async () => {
-    const r = await deserialize<NotContainsDto>(NotContainsDto, { val: 'good text' });
+    const r = await deserialize(NotContainsDto, { val: 'good text' }) as NotContainsDto;
     expect(r.val).toBe('good text');
   });
   it('string containing substring rejected', async () => {
-    await expect(deserialize(NotContainsDto, { val: 'bad word' })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(NotContainsDto, { val: 'bad word' }))).toBe(true);
   });
 });
 
 describe('isLowercase / isUppercase', () => {
   it('lowercase passes', async () => {
-    const r = await deserialize<LowercaseDto>(LowercaseDto, { val: 'hello' });
+    const r = await deserialize(LowercaseDto, { val: 'hello' }) as LowercaseDto;
     expect(r.val).toBe('hello');
   });
   it('contains uppercase rejected', async () => {
-    await expect(deserialize(LowercaseDto, { val: 'Hello' })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(LowercaseDto, { val: 'Hello' }))).toBe(true);
   });
   it('uppercase passes', async () => {
-    const r = await deserialize<UppercaseDto>(UppercaseDto, { val: 'HELLO' });
+    const r = await deserialize(UppercaseDto, { val: 'HELLO' }) as UppercaseDto;
     expect(r.val).toBe('HELLO');
   });
   it('contains lowercase rejected', async () => {
-    await expect(deserialize(UppercaseDto, { val: 'Hello' })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(UppercaseDto, { val: 'Hello' }))).toBe(true);
   });
 });
 
 describe('isBooleanString', () => {
   it('"true" passes', async () => {
-    const r = await deserialize<BoolStringDto>(BoolStringDto, { val: 'true' });
+    const r = await deserialize(BoolStringDto, { val: 'true' }) as BoolStringDto;
     expect(r.val).toBe('true');
   });
   it('"false" passes', async () => {
-    const r = await deserialize<BoolStringDto>(BoolStringDto, { val: 'false' });
+    const r = await deserialize(BoolStringDto, { val: 'false' }) as BoolStringDto;
     expect(r.val).toBe('false');
   });
   it('other string rejected', async () => {
-    await expect(deserialize(BoolStringDto, { val: 'yes' })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(BoolStringDto, { val: 'yes' }))).toBe(true);
   });
 });
 
 describe('isJSON', () => {
   it('valid JSON passes', async () => {
-    const r = await deserialize<JsonDto>(JsonDto, { val: '{"a":1}' });
+    const r = await deserialize(JsonDto, { val: '{"a":1}' }) as JsonDto;
     expect(r.val).toBe('{"a":1}');
   });
   it('invalid JSON rejected', async () => {
-    await expect(deserialize(JsonDto, { val: '{bad}' })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(JsonDto, { val: '{bad}' }))).toBe(true);
   });
 });
 
 describe('arrayNotContains', () => {
   it('without forbidden elements passes', async () => {
-    const r = await deserialize<ArrNotContainsDto>(ArrNotContainsDto, { items: [1, 2, 3] });
+    const r = await deserialize(ArrNotContainsDto, { items: [1, 2, 3] }) as ArrNotContainsDto;
     expect(r.items).toEqual([1, 2, 3]);
   });
   it('containing forbidden elements rejected', async () => {
-    await expect(deserialize(ArrNotContainsDto, { items: [1, 99, 3] })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(ArrNotContainsDto, { items: [1, 99, 3] }))).toBe(true);
   });
 });

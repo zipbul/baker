@@ -16,7 +16,6 @@ import type { SealedExecutors } from '../../../src/types';
 export function unseal(): void {
   for (const Class of _sealedClasses) {
     const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
-    // Restore RAW from _merged (to allow re-seal) — overwrites frozen RAW too
     if (sealed?._merged) {
       (Class as any)[RAW] = sealed._merged;
     }

@@ -21,7 +21,7 @@ describe('auto-nested via @Type', () => {
       child!: Inner;
     }
 
-    const result = await deserialize<Outer>(Outer, { child: { label: 'hello' } });
+    const result = await deserialize<Outer>(Outer, { child: { label: 'hello' } }) as Outer;
     expect(result.child).toBeInstanceOf(Inner);
     expect(result.child.label).toBe('hello');
   });

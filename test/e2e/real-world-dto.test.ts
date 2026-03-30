@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import {
-  deserialize, serialize, toJsonSchema, BakerValidationError,
+  deserialize, serialize, isBakerError,
   Field,
 } from '../../index';
 import {
@@ -70,7 +70,7 @@ const validInput = {
 
 describe('CreateUserDto — deserialization', () => {
   it('valid input → all fields pass', async () => {
-    const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
+    const user = await deserialize(CreateUserDto, validInput) as CreateUserDto;
     expect(user).toBeInstanceOf(CreateUserDto);
     expect(user.name).toBe('Alice Kim');
     expect(user.email).toBe('alice@example.com');
@@ -88,51 +88,41 @@ describe('CreateUserDto — deserialization', () => {
     const input = { ...validInput };
     delete (input as any).active;
     delete (input as any).addresses;
-    const user = await deserialize<CreateUserDto>(CreateUserDto, input);
+    const user = await deserialize(CreateUserDto, input) as CreateUserDto;
     expect(user.active).toBeUndefined();
   });
 
   it('nullable → null allowed', async () => {
-    const user = await deserialize<CreateUserDto>(CreateUserDto, validInput);
+    const user = await deserialize(CreateUserDto, validInput) as CreateUserDto;
     expect(user.bio).toBeNull();
   });
 });
 
 describe('CreateUserDto — validation failure', () => {
   it('name too short', async () => {
-    await expect(
-      deserialize(CreateUserDto, { ...validInput, user_name: 'A' }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, user_name: 'A' }))).toBe(true);
   });
 
   it('invalid email', async () => {
-    await expect(
-      deserialize(CreateUserDto, { ...validInput, email: 'not-email' }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, email: 'not-email' }))).toBe(true);
   });
 
   it('age out of range', async () => {
-    await expect(
-      deserialize(CreateUserDto, { ...validInput, age: 200 }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, age: 200 }))).toBe(true);
   });
 
   it('invalid enum value', async () => {
-    await expect(
-      deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }))).toBe(true);
   });
 
   it('nested DTO validation failure', async () => {
-    await expect(
-      deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }),
-    ).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
   });
 });
 
 describe('CreateUserDto — serialization', () => {
   it('serialize → direction-specific keys, @Exclude serializeOnly', async () => {
-    const dto = await deserialize<CreateUserDto>(CreateUserDto, validInput);
+    const dto = await deserialize(CreateUserDto, validInput) as CreateUserDto;
     const plain = await serialize(dto);
     // serializeOnly @Expose → userName
     expect(plain['userName']).toBe('Alice Kim');
@@ -147,23 +137,3 @@ describe('CreateUserDto — serialization', () => {
   });
 });
 
-describe('CreateUserDto — toJsonSchema', () => {
-  it('schema field type mapping', () => {
-    const schema = toJsonSchema(CreateUserDto, { direction: 'deserialize' });
-    expect(schema.type).toBe('object');
-    expect(schema.properties!.user_name).toBeDefined();
-    expect(schema.properties!.user_name!.type).toBe('string');
-    expect(schema.properties!.user_name!.minLength).toBe(2);
-    expect(schema.properties!.email!.format).toBe('email');
-    expect(schema.properties!.age!.minimum).toBe(0);
-    expect(schema.properties!.age!.maximum).toBe(150);
-    expect(schema.properties!.role).toEqual({ enum: ['admin', 'user', 'guest'] });
-    expect(schema.properties!.bio!.type).toEqual(['string', 'null']);
-  });
-
-  it('nested → $ref + $defs', () => {
-    const schema = toJsonSchema(CreateUserDto);
-    expect(schema.properties!.address!.$ref).toBe('#/$defs/AddressDto');
-    expect(schema.$defs!.AddressDto).toBeDefined();
-  });
-});

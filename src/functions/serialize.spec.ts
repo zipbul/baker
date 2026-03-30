@@ -85,20 +85,20 @@ describe('serialize', () => {
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when instance class has no [SEALED] executor', async () => {
+  it('should throw SealError when instance class has no [SEALED] executor', () => {
     // Arrange
     const Dto = makeClass('UnsealedDto');
     const instance = new Dto();
     // Act & Assert
-    await expect(serialize(instance)).rejects.toThrow(SealError);
+    expect(() => serialize(instance)).toThrow(SealError);
   });
 
-  it('should include class name in SealError message when not sealed', async () => {
+  it('should include class name in SealError message when not sealed', () => {
     // Arrange
     const Dto = makeClass('MySerializeDto');
     const instance = new Dto();
     // Act & Assert
-    await expect(serialize(instance)).rejects.toThrow('MySerializeDto');
+    expect(() => serialize(instance)).toThrow('MySerializeDto');
   });
 
   // ── Edge ──────────────────────────────────────────────────────────────────
@@ -161,8 +161,8 @@ describe('serialize', () => {
     // Act
     const result = serialize(instance);
     // Assert
-    expect(result).toBeInstanceOf(Promise);
-    expect(await result).toBe(record);
+    expect(result).not.toBeInstanceOf(Promise);
+    expect(result).toBe(record);
   });
 
   it('should use async path when _isSerializeAsync is true', async () => {
@@ -183,13 +183,11 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should reject with SealError via promise when class is not sealed', async () => {
+  it('should throw SealError synchronously when class is not sealed', () => {
     // Arrange
     const Dto = makeClass('NotSealedSerDto');
     const instance = new Dto();
-    // Act
-    const promise = serialize(instance);
-    expect(promise).toBeInstanceOf(Promise);
-    await expect(promise).rejects.toThrow(SealError);
+    // Act & Assert
+    expect(() => serialize(instance)).toThrow(SealError);
   });
 });

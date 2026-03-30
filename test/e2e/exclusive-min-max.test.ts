@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, toJsonSchema, BakerValidationError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -21,59 +21,27 @@ class InclusiveDto {
 
 describe('@Min/@Max exclusive', () => {
   it('exclusive — boundary values exactly rejected', async () => {
-    await expect(deserialize(ExclusiveDto, { score: 0 })).rejects.toThrow(BakerValidationError);
-    await expect(deserialize(ExclusiveDto, { score: 100 })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(ExclusiveDto, { score: 0 }))).toBe(true);
+    expect(isBakerError(await deserialize(ExclusiveDto, { score: 100 }))).toBe(true);
   });
 
   it('exclusive — just inside boundary passes', async () => {
-    const r1 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 0.001 });
+    const r1 = await deserialize(ExclusiveDto, { score: 0.001 }) as ExclusiveDto;
     expect(r1.score).toBe(0.001);
-    const r2 = await deserialize<ExclusiveDto>(ExclusiveDto, { score: 99.999 });
+    const r2 = await deserialize(ExclusiveDto, { score: 99.999 }) as ExclusiveDto;
     expect(r2.score).toBe(99.999);
   });
 
   it('inclusive — boundary values included', async () => {
-    const r1 = await deserialize<InclusiveDto>(InclusiveDto, { value: 0 });
+    const r1 = await deserialize(InclusiveDto, { value: 0 }) as InclusiveDto;
     expect(r1.value).toBe(0);
-    const r2 = await deserialize<InclusiveDto>(InclusiveDto, { value: 100 });
+    const r2 = await deserialize(InclusiveDto, { value: 100 }) as InclusiveDto;
     expect(r2.value).toBe(100);
   });
 
   it('inclusive — out of range rejected', async () => {
-    await expect(deserialize(InclusiveDto, { value: -1 })).rejects.toThrow(BakerValidationError);
-    await expect(deserialize(InclusiveDto, { value: 101 })).rejects.toThrow(BakerValidationError);
+    expect(isBakerError(await deserialize(InclusiveDto, { value: -1 }))).toBe(true);
+    expect(isBakerError(await deserialize(InclusiveDto, { value: 101 }))).toBe(true);
   });
 });
 
-describe('@Min/@Max exclusive toJsonSchema', () => {
-  it('exclusive → exclusiveMinimum / exclusiveMaximum', () => {
-    const schema = toJsonSchema(ExclusiveDto);
-    expect(schema.properties!.score).toEqual({
-      type: 'number',
-      exclusiveMinimum: 0,
-      exclusiveMaximum: 100,
-    });
-  });
-
-  it('inclusive → minimum / maximum', () => {
-    const schema = toJsonSchema(InclusiveDto);
-    expect(schema.properties!.value).toEqual({
-      type: 'number',
-      minimum: 0,
-      maximum: 100,
-    });
-  });
-
-  it('mixed — only one side exclusive', () => {
-    class MixedDto {
-      @Field(isNumber(), min(0, { exclusive: true }), max(100))
-      val!: number;
-    }
-    const schema = toJsonSchema(MixedDto);
-    expect(schema.properties!.val).toEqual({
-      type: 'number',
-      exclusiveMinimum: 0,
-      maximum: 100,
-    });
-  });
-});

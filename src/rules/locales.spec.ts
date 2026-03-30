@@ -56,8 +56,8 @@ describe('isMobilePhone', () => {
     expect(isMobilePhone('ko-KR')('not-a-phone')).toBe(false);
   });
 
-  it('should return false for unsupported locale', () => {
-    expect(isMobilePhone('xx-XX')('+14155552671')).toBe(false);
+  it('should throw for unsupported locale', () => {
+    expect(() => isMobilePhone('xx-XX')).toThrow('Unsupported locale');
   });
 
   it('should return false for non-string input', () => {
@@ -76,11 +76,8 @@ describe('isMobilePhone', () => {
     expect(failMock).toHaveBeenCalledWith('isMobilePhone');
   });
 
-  it('should generate immediate fail code for unknown locale emit', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isMobilePhone('xx-XX' as any).emit('_v', ctx);
-    expect(code).toContain('isMobilePhone');
-    expect(failMock).toHaveBeenCalledWith('isMobilePhone');
+  it('should throw for unknown locale before emit is reachable', () => {
+    expect(() => isMobilePhone('xx-XX' as any)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
@@ -121,8 +118,8 @@ describe('isPostalCode', () => {
     expect(isPostalCode('JP')('123-4567')).toBe(true);
   });
 
-  it('should return false for unsupported locale', () => {
-    expect(isPostalCode('XX')('12345')).toBe(false);
+  it('should throw for unsupported locale', () => {
+    expect(() => isPostalCode('XX')).toThrow('Unsupported locale');
   });
 
   it('should return false for non-string input', () => {
@@ -141,11 +138,8 @@ describe('isPostalCode', () => {
     expect(failMock).toHaveBeenCalledWith('isPostalCode');
   });
 
-  it('should generate immediate fail code for unknown locale emit', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isPostalCode('XX' as any).emit('_v', ctx);
-    expect(code).toContain('isPostalCode');
-    expect(failMock).toHaveBeenCalledWith('isPostalCode');
+  it('should throw for unknown locale before emit is reachable', () => {
+    expect(() => isPostalCode('XX' as any)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {
@@ -184,8 +178,8 @@ describe('isIdentityCard', () => {
     expect(isIdentityCard('US')('12-345-6789')).toBe(false);
   });
 
-  it('should return false for unsupported locale', () => {
-    expect(isIdentityCard('XX')('123456789')).toBe(false);
+  it('should throw for unsupported locale', () => {
+    expect(() => isIdentityCard('XX')).toThrow('Unsupported locale');
   });
 
   it('should return false for non-string input', () => {
@@ -204,11 +198,8 @@ describe('isIdentityCard', () => {
     expect(failMock).toHaveBeenCalledWith('isIdentityCard');
   });
 
-  it('should generate immediate fail code for unknown locale emit', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isIdentityCard('XX' as any).emit('_v', ctx);
-    expect(code).toContain('isIdentityCard');
-    expect(failMock).toHaveBeenCalledWith('isIdentityCard');
+  it('should throw for unknown locale before emit is reachable', () => {
+    expect(() => isIdentityCard('XX' as any)).toThrow('Unsupported locale');
   });
 });
 
@@ -236,8 +227,8 @@ describe('isPassportNumber', () => {
     expect(isPassportNumber('DE')('C01X00T47')).toBe(true);
   });
 
-  it('should return false for unsupported locale', () => {
-    expect(isPassportNumber('XX')('A12345678')).toBe(false);
+  it('should throw for unsupported locale', () => {
+    expect(() => isPassportNumber('XX')).toThrow('Unsupported locale');
   });
 
   it('should return false for non-string input', () => {
@@ -256,11 +247,8 @@ describe('isPassportNumber', () => {
     expect(failMock).toHaveBeenCalledWith('isPassportNumber');
   });
 
-  it('should generate immediate fail code for unknown locale emit', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isPassportNumber('XX' as any).emit('_v', ctx);
-    expect(code).toContain('isPassportNumber');
-    expect(failMock).toHaveBeenCalledWith('isPassportNumber');
+  it('should throw for unknown locale before emit is reachable', () => {
+    expect(() => isPassportNumber('XX' as any)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {

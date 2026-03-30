@@ -1,15 +1,14 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, BakerValidationError, Field } from '../../index';
+import { deserialize, isBakerError, Field } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
-/** Helper: extract error codes (null if none) */
+
 async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
-  try {
-    const value = await deserialize(cls, input);
-    return { ok: true, value };
-  } catch (e) {
-    if (!(e instanceof BakerValidationError)) throw e;
-    return { ok: false, codes: e.errors.map(x => x.code) };
+  const result = await deserialize(cls, input);
+  if (isBakerError(result)) {
+    return { ok: false, codes: result.errors.map(x => x.code) };
   }
+  return { ok: true, value: result };
 }
 
 // ─── Matrix: 4 decorator states x 4 input values ────────────────────────────
@@ -73,7 +72,6 @@ describe('B: optional + isString', () => {
   it('null → passes (Optional skips null/undefined)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    // optional skips null/undefined — value may become undefined
   });
 
   it('valid string → passes', async () => {

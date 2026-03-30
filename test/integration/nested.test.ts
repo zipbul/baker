@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, BakerValidationError, configure } from '../../index';
+import { deserialize, serialize, Field, isBakerError, configure } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -30,25 +31,27 @@ describe('nested — integration', () => {
     const result = await deserialize<UserWithAddressDto>(UserWithAddressDto, {
       name: 'Alice',
       address: { street: '123 Main St', city: 'Springfield' },
-    });
+    }) as UserWithAddressDto;
     expect(result).toBeInstanceOf(UserWithAddressDto);
     expect(result.address).toBeInstanceOf(AddressDto);
     expect(result.address.street).toBe('123 Main St');
     expect(result.address.city).toBe('Springfield');
   });
 
-  it('should throw validation error for invalid nested field', async () => {
-    await expect(deserialize(UserWithAddressDto, {
+  it('should return BakerErrors for invalid nested field', async () => {
+    const result = await deserialize(UserWithAddressDto, {
       name: 'Bob',
-      address: { street: 123, city: 'Shelbyville' }, // street should be string
-    })).rejects.toThrow();
+      address: { street: 123, city: 'Shelbyville' },
+    });
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it('should throw when nested object has missing required field', async () => {
-    await expect(deserialize(UserWithAddressDto, {
+  it('should return BakerErrors when nested object has missing required field', async () => {
+    const result = await deserialize(UserWithAddressDto, {
       name: 'Carol',
-      address: { city: 'Capital City' }, // missing street
-    })).rejects.toThrow();
+      address: { city: 'Capital City' },
+    });
+    expect(isBakerError(result)).toBe(true);
   });
 
   it('should serialize instance with nested DTO', async () => {
@@ -75,7 +78,7 @@ describe('nested — integration', () => {
     configure({ stopAtFirstError: true });
     const result = await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
-    });
+    }) as OrderDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.name).toBe('A');
@@ -90,18 +93,14 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
-    try {
-      await deserialize(OrderDto, {
-        items: [{ name: 123 }, { name: 456 }],
-      });
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = e as BakerValidationError;
-      // stopAtFirstError → only first error returned
-      expect(err.errors).toHaveLength(1);
-      expect(err.errors[0]!.path).toBe('items[0].name');
-      expect(err.errors[0]!.code).toBe('isString');
+    const result = await deserialize(OrderDto, {
+      items: [{ name: 123 }, { name: 456 }],
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]!.path).toBe('items[0].name');
+      expect(result.errors[0]!.code).toBe('isString');
     }
   });
 
@@ -114,13 +113,10 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
-    try {
-      await deserialize(OrderDto, { items: 'not an array' });
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = e as BakerValidationError;
-      expect(err.errors[0]!.code).toBe('isArray');
+    const result = await deserialize(OrderDto, { items: 'not an array' });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors[0]!.code).toBe('isArray');
     }
   });
 
@@ -133,7 +129,7 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
-    const result = await deserialize<OrderDto>(OrderDto, { items: [] });
+    const result = await deserialize<OrderDto>(OrderDto, { items: [] }) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
 
@@ -162,7 +158,7 @@ describe('nested — integration', () => {
     }
     const result = await deserialize<NotificationDto>(NotificationDto, {
       content: { type: 'text', body: 'hello' },
-    });
+    }) as NotificationDto;
     expect(result.content).toBeInstanceOf(TextContent);
     expect((result.content as TextContent).body).toBe('hello');
     expect((result.content as any).type).toBe('text');
@@ -181,18 +177,17 @@ describe('nested — integration', () => {
             { value: TextContent2, name: 'text' },
           ],
         },
-        // keepDiscriminatorProperty not set
       })
       content!: TextContent2;
     }
     const result = await deserialize<NotificationDto2>(NotificationDto2, {
       content: { type: 'text', body: 'world' },
-    });
+    }) as NotificationDto2;
     expect(result.content).toBeInstanceOf(TextContent2);
     expect((result.content as any).type).toBeUndefined();
   });
 
-  it('should throw invalidDiscriminator for unknown discriminator value', async () => {
+  it('should return BakerErrors with invalidDiscriminator for unknown discriminator value', async () => {
     class TextContent3 {
       @Field(isString) body!: string;
     }
@@ -209,15 +204,12 @@ describe('nested — integration', () => {
       })
       content!: TextContent3;
     }
-    try {
-      await deserialize(NotificationDto3, {
-        content: { type: 'unknown', body: 'x' },
-      });
-      throw new Error('should have thrown');
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = e as BakerValidationError;
-      expect(err.errors.some(e => e.code === 'invalidDiscriminator')).toBe(true);
+    const result = await deserialize(NotificationDto3, {
+      content: { type: 'unknown', body: 'x' },
+    });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.some(e => e.code === 'invalidDiscriminator')).toBe(true);
     }
   });
 

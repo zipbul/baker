@@ -1,4 +1,4 @@
-import { RAW, RAW_CLASS_SCHEMA } from './symbols';
+import { RAW } from './symbols';
 import { globalRegistry } from './registry';
 import type { RawPropertyMeta, RuleDef, TransformDef, ExposeDef, ExcludeDef, TypeDef } from './types';
 
@@ -29,7 +29,6 @@ export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
     exclude: null,
     type: null,
     flags: {},
-    schema: null,
   });
 }
 
@@ -62,24 +61,3 @@ export function collectType(target: object, key: string, typeDef: TypeDef): void
   meta.type = typeDef;
 }
 
-export function collectSchema(
-  target: object, key: string,
-  schemaDef: Record<string, unknown> | ((auto: Record<string, unknown>) => Record<string, unknown>),
-): void {
-  if (Array.isArray(schemaDef)) {
-    throw new Error('Invalid schema: expected object or function, got Array');
-  }
-  const meta = ensureMeta((target as any).constructor, key);
-  // Function form always overwrites (last declaration wins)
-  if (typeof schemaDef === 'function' || typeof meta.schema === 'function') {
-    meta.schema = schemaDef;
-  } else {
-    meta.schema = { ...(meta.schema ?? {}), ...schemaDef } as Record<string, unknown>;
-  }
-}
-
-export function collectClassSchema(target: Function, schema: Record<string, unknown>): void {
-  globalRegistry.add(target);
-  const existing = (target as any)[RAW_CLASS_SCHEMA] as Record<string, unknown> | undefined;
-  (target as any)[RAW_CLASS_SCHEMA] = { ...(existing ?? {}), ...schema };
-}

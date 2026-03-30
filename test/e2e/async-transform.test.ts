@@ -39,12 +39,12 @@ class AsyncChainDto {
 
 describe('async @Transform — deserialize', () => {
   it('async trim → result returned', async () => {
-    const result = await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' });
+    const result = await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' }) as AsyncTrimDto;
     expect(result.name).toBe('Alice');
   });
 
   it('async chaining (trim → toUpperCase)', async () => {
-    const result = await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' });
+    const result = await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' }) as AsyncChainDto;
     expect(result.code).toBe('HELLO');
   });
 });
@@ -91,7 +91,7 @@ describe('E-10: isAsyncFunction robustness', () => {
     }
 
     // If async detection works, deserialize should still return a promise
-    const result = await deserialize<MangledDto>(MangledDto, { val: 'test' });
+    const result = await deserialize<MangledDto>(MangledDto, { val: 'test' }) as MangledDto;
     expect(result.val).toBe('test');
   });
 });

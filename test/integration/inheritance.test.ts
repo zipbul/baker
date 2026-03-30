@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field } from '../../index';
+import { deserialize, serialize, Field, isBakerError } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -26,7 +26,7 @@ afterEach(() => unseal());
 
 describe('inheritance — integration', () => {
   it('should deserialize parent fields in child DTO', async () => {
-    const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 });
+    const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 }) as ChildDto;
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
@@ -34,11 +34,12 @@ describe('inheritance — integration', () => {
 
   it('should validate parent field rules in child DTO', async () => {
     // name is required by BaseDto's @Field(isString)
-    await expect(deserialize(ChildDto, { age: 25 })).rejects.toThrow();
+    const result = await deserialize(ChildDto, { age: 25 });
+    expect(isBakerError(result)).toBe(true);
   });
 
   it('should deserialize grandchild DTO with all ancestor fields', async () => {
-    const result = await deserialize<GrandChildDto>(GrandChildDto, { name: 'Bob', age: 30, active: true });
+    const result = await deserialize<GrandChildDto>(GrandChildDto, { name: 'Bob', age: 30, active: true }) as GrandChildDto;
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
     expect(result.active).toBe(true);

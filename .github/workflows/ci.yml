@@ -30,6 +30,9 @@ jobs:
       - name: Run coverage
         run: bun run test:coverage
 
+      - name: Memory leak check
+        run: bun run test:memory
+
       - name: Extract coverage
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         id: cov
