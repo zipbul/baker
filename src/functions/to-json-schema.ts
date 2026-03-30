@@ -415,10 +415,6 @@ function buildNestedTypeSchema(
       innerSchema = { oneOf: [innerSchema, { type: 'null' }] };
     } else if (innerSchema.oneOf) {
       innerSchema = { oneOf: [...innerSchema.oneOf, { type: 'null' }] };
-    } else {
-      // Defensive fallback — processNestedClass always returns $ref, so this branch
-      // is unreachable in practice. Kept for safety if schema structure changes.
-      applyNullable(innerSchema);
     }
   }
   return applyUserSchema(meta, innerSchema);

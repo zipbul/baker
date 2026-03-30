@@ -199,9 +199,6 @@ function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
         obj: params.obj,
         direction: params.type,
       });
-  if (options.transformDirection && options.transformDirection !== 'deserializeOnly' && options.transformDirection !== 'serializeOnly') {
-    throw new Error(`Invalid transformDirection: "${options.transformDirection}". Expected 'deserializeOnly' or 'serializeOnly'.`);
-  }
   const transformOptions: any = {};
   if (options.transformDirection === 'deserializeOnly') transformOptions.deserializeOnly = true;
   if (options.transformDirection === 'serializeOnly') transformOptions.serializeOnly = true;
@@ -264,12 +261,8 @@ export function Field(...args: any[]): PropertyDecorator {
     applyTransform(meta, options);
 
     // ── schema ──
-    if (options.schema) {
-      if (typeof meta.schema === 'function') {
-        // Keep existing function form
-      } else {
-        meta.schema = { ...(meta.schema ?? {}), ...options.schema } as Record<string, unknown>;
-      }
+    if (options.schema && typeof meta.schema !== 'function') {
+      meta.schema = { ...(meta.schema ?? {}), ...options.schema } as Record<string, unknown>;
     }
   };
 }
