@@ -11,7 +11,7 @@ export type { FieldOptions, FieldTransformParams, ArrayOfMarker } from './src/de
 
 // Errors
 export type { BakerError, BakerErrors } from './src/errors';
-export { isBakerError, BAKER_ERROR, SealError } from './src/errors';
+export { isBakerError, SealError } from './src/errors';
 
 // Types
 export type { EmittableRule } from './src/types';

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
   deserialize, validate, isBakerError, Field, createRule,
-  BAKER_ERROR, SealError, configure,
+  SealError, configure,
 } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -372,9 +372,10 @@ describe('analyzeAsync — DTO with nested sync DTO detected as sync', () => {
 // 8. errors.ts — isBakerError edge cases
 // ═════════════════════════════════════════════════════════════════════════════
 
-describe('isBakerError — object with BAKER_ERROR symbol but errors is not array', () => {
+describe('isBakerError — object with baker error symbol but errors is not array', () => {
   it('still detected as BakerErrors (isBakerError checks symbol only)', () => {
-    const fake = { [BAKER_ERROR]: true, errors: 'not-an-array' };
+    const BAKER_ERR = Symbol.for('baker:error');
+    const fake = { [BAKER_ERR]: true, errors: 'not-an-array' };
     expect(isBakerError(fake)).toBe(true);
   });
 });
