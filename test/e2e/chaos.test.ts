@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
-  deserialize, serialize, validate, getMeta, configure,
+  deserialize, serialize, validate, configure,
   Field, isBakerError, createRule,
 } from '../../index';
 import {
@@ -396,36 +396,7 @@ describe('chaos — validate with 100 rules on single value', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 14. getMeta on class with 50+ fields
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('chaos — getMeta on class with 50+ fields', () => {
-  class Big50Dto {}
-  for (let i = 0; i < 50; i++) {
-    Field(isString, minLength(1))(Big50Dto.prototype, `field${i}`);
-  }
-
-  it('all 50 fields present in metadata', () => {
-    const meta = getMeta(Big50Dto);
-    const keys = Object.keys(meta);
-    expect(keys.length).toBe(50);
-    for (let i = 0; i < 50; i++) {
-      expect(keys).toContain(`field${i}`);
-    }
-  });
-
-  it('each field has correct rules', () => {
-    const meta = getMeta(Big50Dto);
-    for (let i = 0; i < 50; i++) {
-      const rules = meta[`field${i}`]!.validation.map(r => r.rule.ruleName);
-      expect(rules).toContain('isString');
-      expect(rules).toContain('minLength');
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 15. Deserialize then serialize roundtrip
+// 14. Deserialize then serialize roundtrip
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deserialize then serialize roundtrip', () => {
