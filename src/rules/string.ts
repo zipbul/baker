@@ -204,6 +204,8 @@ export function isNumberString(options?: IsNumberStringOptions): EmittableRule {
       const i = ctx.addRef(checkFn);
       return `if (!_refs[${i}](${varName})) ${ctx.fail('isNumberString')};`;
     },
+    'string',
+    { no_symbols: noSymbols },
   );
 }
 
@@ -341,7 +343,7 @@ export function isURL(options?: IsURLOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isURL';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = { format: 'uri' };
+  (fn as any).constraints = { format: 'uri', protocols };
 
   return fn as EmittableRule;
 }
@@ -366,7 +368,7 @@ export function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isUUID')};`;
     },
     'string',
-    { format: 'uuid' },
+    { format: 'uuid', version },
   );
 }
 
@@ -436,7 +438,7 @@ export function isRgbColor(includePercentValues: boolean = false): EmittableRule
   };
   (fn as any).ruleName = 'isRgbColor';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { includePercentValues };
 
   return fn as EmittableRule;
 }
@@ -479,7 +481,7 @@ export function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isMACAddress';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { no_separators: options?.no_separators };
 
   return fn as EmittableRule;
 }
@@ -520,7 +522,7 @@ export function isISBN(version?: 10 | 13): EmittableRule {
   };
   (validateFn as any).ruleName = 'isISBN';
   (validateFn as any).requiresType = 'string';
-  (validateFn as any).constraints = {};
+  (validateFn as any).constraints = { version };
 
   return validateFn as EmittableRule;
 }
@@ -593,7 +595,7 @@ export function isISO8601(options?: IsISO8601Options): EmittableRule {
       const i = ctx.addRef(fn);
       return `if (!_refs[${i}](${varName})) ${ctx.fail('isISO8601')};`;
     };
-    (fn as any).constraints = { format: 'date-time' };
+    (fn as any).constraints = { format: 'date-time', strict: true };
     return fn as unknown as EmittableRule;
   }
   // non-strict: both validate and emit use same ISO8601_RE
@@ -605,7 +607,7 @@ export function isISO8601(options?: IsISO8601Options): EmittableRule {
       return `if (!_re[${i}].test(${varName})) ${ctx.fail('isISO8601')};`;
     },
     'string',
-    { format: 'date-time' },
+    { format: 'date-time', strict: false },
   );
 }
 
@@ -653,7 +655,7 @@ export function isISSN(options?: IsISSNOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isISSN';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { requireHyphen: options?.requireHyphen };
 
   return fn as EmittableRule;
 }
@@ -740,7 +742,7 @@ export function isFQDN(options?: IsFQDNOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isFQDN';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { require_tld: options?.require_tld, allow_underscores: options?.allow_underscores, allow_trailing_dot: options?.allow_trailing_dot };
 
   return fn as EmittableRule;
 }
@@ -961,6 +963,8 @@ export function isBase64(options?: IsBase64Options): EmittableRule {
       const i = ctx.addRegex(re);
       return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
     },
+    'string',
+    { urlSafe: options?.urlSafe },
   );
 }
 
@@ -1106,7 +1110,7 @@ export function isIBAN(options?: IsIBANOptions): EmittableRule {
   };
   (fn as any).ruleName = 'isIBAN';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { allowSpaces: options?.allowSpaces };
 
   return fn as EmittableRule;
 }
@@ -1134,7 +1138,7 @@ export function isByteLength(min: number, max?: number): EmittableRule {
   };
   (fn as any).ruleName = 'isByteLength';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { min, max };
 
   return fn as EmittableRule;
 }
@@ -1184,7 +1188,7 @@ export function isHash(algorithm: string): EmittableRule {
   };
   (fn as any).ruleName = 'isHash';
   (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
+  (fn as any).constraints = { algorithm };
 
   return fn as EmittableRule;
 }
