@@ -1,7 +1,5 @@
-import { isErr } from '@zipbul/result';
-import { _toBakerErrors } from '../errors';
-import { _ensureSealed } from '../seal/seal';
-import type { BakerError, BakerErrors } from '../errors';
+import { _runSealed } from './_run-sealed';
+import type { BakerErrors } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -21,16 +19,5 @@ export function deserialize<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerErrors | Promise<T | BakerErrors> {
-  const sealed = _ensureSealed(Class);
-  if (sealed._isAsync) {
-    return (sealed._deserialize(input, options) as Promise<any>).then(
-      (result: any): T | BakerErrors => {
-        if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
-        return result as T;
-      },
-    );
-  }
-  const result = sealed._deserialize(input, options);
-  if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
-  return result as T;
+  return _runSealed(Class, input, options, (result) => result as T);
 }

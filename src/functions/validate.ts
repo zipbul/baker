@@ -1,6 +1,5 @@
-import { isErr } from '@zipbul/result';
+import { _runSealed } from './_run-sealed';
 import { _toBakerErrors } from '../errors';
-import { _ensureSealed } from '../seal/seal';
 import type { BakerError, BakerErrors } from '../errors';
 import type { EmittableRule } from '../types';
 import type { RuntimeOptions } from '../interfaces';
@@ -22,10 +21,6 @@ export function validate<T>(
 /**
  * Ad-hoc validation — validates a single value against one or more rules.
  * Sync rules return directly, async rules return Promise.
- *
- * @example
- * await validate('hello', isString, minLength(3))
- * await validate(email, isString, isEmail(), isUniqueEmail)
  */
 export function validate(
   input: unknown,
@@ -39,41 +34,19 @@ export function validate(
   // ── DTO mode: validate(Class, input, options?) ────────────────────────
   if (typeof classOrInput === 'function' && rest.length >= 1) {
     const secondArg = rest[0];
-    const isRule = secondArg != null && typeof secondArg === 'function' && 'emit' in secondArg;
+    const isRule = secondArg != null && typeof secondArg === 'function' && 'emit' in secondArg && 'ruleName' in secondArg;
     if (!isRule) {
-      return _validateDto(
-        classOrInput as new (...args: any[]) => unknown,
+      return _runSealed(
+        classOrInput as Function,
         secondArg,
         rest[1] as RuntimeOptions | undefined,
+        () => true as const,
       );
     }
   }
 
   // ── Ad-hoc mode: validate(input, ...rules) ───────────────────────────
   return _validateAdHoc(classOrInput, rest as EmittableRule[]);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DTO-level validation
-// ─────────────────────────────────────────────────────────────────────────────
-
-function _validateDto(
-  Class: new (...args: any[]) => unknown,
-  input: unknown,
-  options?: RuntimeOptions,
-): true | BakerErrors | Promise<true | BakerErrors> {
-  const sealed = _ensureSealed(Class);
-  if (sealed._isAsync) {
-    return (sealed._deserialize(input, options) as Promise<any>).then(
-      (result: any): true | BakerErrors => {
-        if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
-        return true;
-      },
-    );
-  }
-  const result = sealed._deserialize(input, options);
-  if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
-  return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

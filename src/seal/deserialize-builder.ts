@@ -121,12 +121,14 @@ export function buildDeserializeCode<T>(
   // preamble: input type guard (§4.9)
   body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
 
-  // WeakSet guard (circular references)
+  // WeakSet guard (circular references) — try/finally ensures cleanup between calls
+  let circularWsIdx = -1;
   if (needsCircularCheck) {
     refs.push(new WeakSet());
-    const wsIdx = refs.length - 1;
-    body += `if (_refs[${wsIdx}].has(input)) return _err([{path:'',code:'circular'}]);\n`;
-    body += `_refs[${wsIdx}].add(input);\n`;
+    circularWsIdx = refs.length - 1;
+    body += `if (_refs[${circularWsIdx}].has(input)) return _err([{path:'',code:'circular'}]);\n`;
+    body += `_refs[${circularWsIdx}].add(input);\n`;
+    body += `try {\n`;
   }
 
   // Whitelist check (§7.2) — reject undeclared fields
@@ -180,6 +182,11 @@ export function buildDeserializeCode<T>(
     body += `if (${GEN.errList}.length) return _err(${GEN.errList});\n`;
   }
   body += `return ${GEN.out};\n`;
+
+  // Close try/finally for circular reference WeakSet cleanup
+  if (needsCircularCheck) {
+    body += `} finally { _refs[${circularWsIdx}].delete(input); }\n`;
+  }
 
   // sourceURL (§4.9)
   body += `//# sourceURL=baker://${Class.name}/deserialize\n`;
@@ -1117,25 +1124,19 @@ function generateNestedResultCode(
   collectErrors: boolean,
 ): string {
   const sk = sanitizeKey(fieldKey);
-  const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
   if (collectErrors) {
+    const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
-      `      var __ne${sk}={path:${JSON.stringify(fieldKey + '.')}+${errItem}.path,code:${errItem}.code};\n` +
-      `      if(${errItem}.message!==undefined)__ne${sk}.message=${errItem}.message;\n` +
-      `      if(${errItem}.context!==undefined)__ne${sk}.context=${errItem}.context;\n` +
-      `      ${GEN.errList}.push(__ne${sk});\n` +
+      `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey + '.')}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   } else {
     const errFirst = `${GEN.errors}${sk}[0]`;
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
-      `    var __ne${sk}={path:${JSON.stringify(fieldKey+'.')}+${errFirst}.path,code:${errFirst}.code};\n` +
-      `    if(${errFirst}.message!==undefined)__ne${sk}.message=${errFirst}.message;\n` +
-      `    if(${errFirst}.context!==undefined)__ne${sk}.context=${errFirst}.context;\n` +
-      `    return _err([__ne${sk}]);\n` +
+      `    ` + nestedErrReturn(`${JSON.stringify(fieldKey + '.')}+${errFirst}.path`, errFirst, `__ne${sk}`) +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   }
 }
