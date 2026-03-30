@@ -91,10 +91,10 @@ describe('async serialize Set<DTO>', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('serialize — constructor-less object', () => {
-  it('object without constructor → SealError', async () => {
+  it('object without constructor → SealError', () => {
     const obj = Object.create(null);
     obj.name = 'Alice';
-    await expect(serialize(obj)).rejects.toThrow(SealError);
+    expect(() => serialize(obj)).toThrow(SealError);
   });
 });
 

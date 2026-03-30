@@ -76,9 +76,9 @@ describe('sync API — serialize', () => {
     expect(result).toEqual({ name: 'Bob', age: 25 });
   });
 
-  it('serialize returns Promise', () => {
+  it('sync DTO serialize returns directly (not Promise)', () => {
     const dto = Object.assign(new SyncDto(), { name: 'Bob', age: 25 });
     const result = serialize(dto);
-    expect(result).toBeInstanceOf(Promise);
+    expect(result).not.toBeInstanceOf(Promise);
   });
 });
