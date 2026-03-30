@@ -160,6 +160,6 @@ export interface SealedExecutors<T> {
   _isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */
   _isSerializeAsync: boolean;
-  /** Merged metadata cache — used by getMeta() */
+  /** Merged metadata cache — used internally by unseal helper */
   _merged?: RawClassMeta;
 }
