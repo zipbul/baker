@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, Field, toJsonSchema, isBakerError } from '../../index';
+import { deserialize, Field, isBakerError } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -70,64 +70,3 @@ describe('nullable deserialization', () => {
   });
 });
 
-describe('nullable toJsonSchema', () => {
-  it('"null" added to type array', () => {
-    const schema = toJsonSchema(NullableStringDto);
-    expect(schema.properties!.nickname).toEqual({ type: ['string', 'null'] });
-    expect(schema.properties!.name).toEqual({ type: 'string' });
-  });
-
-  it('nullable number → ["number", "null"] with constraints', () => {
-    const schema = toJsonSchema(NullableNumberDto);
-    expect(schema.properties!.age).toEqual({
-      type: ['number', 'null'], minimum: 0, maximum: 200,
-    });
-  });
-});
-
-// ─── E-17: nullable nested DTO JSON Schema → oneOf: [$ref, {type:'null'}] ──
-
-describe('E-17: nullable nested DTO toJsonSchema', () => {
-  class AddressDto {
-    @Field(isString)
-    street!: string;
-
-    @Field(isString)
-    city!: string;
-  }
-
-  class PersonWithNullableAddressDto {
-    @Field(isString)
-    name!: string;
-
-    @Field({ type: () => AddressDto, nullable: true })
-    address!: AddressDto | null;
-  }
-
-  it('nullable nested DTO → oneOf: [$ref, {type:"null"}]', () => {
-    const schema = toJsonSchema(PersonWithNullableAddressDto);
-    const addrSchema = schema.properties!.address;
-    expect(addrSchema).toBeDefined();
-    expect(addrSchema!.oneOf).toBeDefined();
-    expect(addrSchema!.oneOf).toHaveLength(2);
-    // First element should be $ref to AddressDto
-    expect(addrSchema!.oneOf![0]!.$ref).toContain('AddressDto');
-    // Second element should be {type:'null'}
-    expect(addrSchema!.oneOf![1]).toEqual({ type: 'null' });
-  });
-
-  it('non-nullable nested DTO → plain $ref (no oneOf)', () => {
-    class PersonDto {
-      @Field(isString)
-      name!: string;
-
-      @Field({ type: () => AddressDto })
-      address!: AddressDto;
-    }
-
-    const schema = toJsonSchema(PersonDto);
-    const addrSchema = schema.properties!.address;
-    expect(addrSchema!.$ref).toContain('AddressDto');
-    expect(addrSchema!.oneOf).toBeUndefined();
-  });
-});

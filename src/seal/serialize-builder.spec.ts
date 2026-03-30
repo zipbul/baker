@@ -16,7 +16,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class SimpleDto { name = 'Alice'; }
     const merged: RawClassMeta = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
     const exec = buildSerializeCode(SimpleDto, merged, undefined, false);
     const instance = new SimpleDto();
@@ -37,7 +37,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(OptDto, merged, undefined, false);
@@ -59,7 +59,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(ExposedDto, merged, undefined, false);
@@ -82,7 +82,7 @@ describe('buildSerializeCode', () => {
         exclude: { serializeOnly: true },
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(ExclDto, merged, undefined, false);
@@ -104,7 +104,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(GroupDto, merged, undefined, false);
@@ -127,7 +127,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(GroupDto2, merged, undefined, false);
@@ -150,7 +150,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(TransDto, merged, undefined, false);
@@ -177,7 +177,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(MultiTransDto, merged, undefined, false);
@@ -202,7 +202,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(TriTransDto, merged, undefined, false);
@@ -235,7 +235,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(ValidationOnlyDto, merged, undefined, false);
@@ -259,7 +259,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(ComboDto, merged, undefined, false);
@@ -295,7 +295,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AddressDto as any },
         flags: { validateNested: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(UserDto, merged, undefined, false);
@@ -327,7 +327,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => ItemDto as any },
         flags: { validateNested: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(OrderDto, merged, undefined, false);
@@ -358,7 +358,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => ProfileDto as any },
         flags: { validateNested: true, isOptional: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(MemberDto, merged, undefined, false);
@@ -379,7 +379,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(UserDto, merged, undefined, false);
@@ -412,7 +412,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AsyncItemDto as any },
         flags: { validateNested: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(AsyncOrderDto, merged, undefined, true);
@@ -444,7 +444,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AsyncItemDto2 as any },
         flags: { validateNested: true },
-        schema: null,
+       
       },
     };
     const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true);

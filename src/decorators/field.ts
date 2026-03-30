@@ -41,14 +41,6 @@ export interface FieldTransformParams {
   direction: 'deserialize' | 'serialize';
 }
 
-export interface JsonSchemaOverride {
-  title?: string;
-  description?: string;
-  default?: unknown;
-  examples?: unknown[];
-  [key: string]: unknown;
-}
-
 export interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
   type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
@@ -77,8 +69,6 @@ export interface FieldOptions {
   groups?: string[];
   /** Conditional validation — skip all field validation when false */
   when?: (obj: any) => boolean;
-  /** JSON Schema custom override (property level) */
-  schema?: JsonSchemaOverride;
   /** Value transform function */
   transform?: (params: FieldTransformParams) => unknown;
   /** Transform direction restriction */
@@ -100,7 +90,7 @@ export interface FieldOptions {
 const FIELD_OPTION_KEYS = new Set([
   'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
   'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
-  'exclude', 'groups', 'when', 'schema', 'transform', 'transformDirection',
+  'exclude', 'groups', 'when', 'transform', 'transformDirection',
   'message', 'context', 'mapValue', 'setValue',
 ]);
 
@@ -259,10 +249,5 @@ export function Field(...args: any[]): PropertyDecorator {
     }
 
     applyTransform(meta, options);
-
-    // ── schema ──
-    if (options.schema && typeof meta.schema !== 'function') {
-      meta.schema = { ...(meta.schema ?? {}), ...options.schema } as Record<string, unknown>;
-    }
   };
 }

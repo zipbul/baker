@@ -10,7 +10,7 @@ export interface CreateRuleOptions {
   name: string;
   /** Validation function — true: pass, false: fail. Async functions allowed (automatically registered as async rule when returning Promise<boolean>). */
   validate: (value: unknown) => boolean | Promise<boolean>;
-  /** Rule parameters — used for toJsonSchema mapping */
+  /** Rule parameters */
   constraints?: Record<string, unknown>;
   /** Type assumed by this rule — used for type gate optimization */
   requiresType?: 'string' | 'number' | 'boolean' | 'date';

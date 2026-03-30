@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError, toJsonSchema } from '../../index';
+import { Field, deserialize, serialize, isBakerError } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -128,20 +128,6 @@ describe('discriminator — serialize', () => {
       { breed: 'Poodle', type: 'dog' },
       { indoor: true, type: 'cat' },
     ]);
-  });
-});
-
-describe('discriminator — toJsonSchema', () => {
-  it('oneOf + const mapping', () => {
-    const schema = toJsonSchema(OwnerDto);
-    const pet = schema.properties!.pet;
-    expect(pet!.oneOf).toHaveLength(2);
-    expect(pet!.oneOf![0]).toEqual({
-      allOf: [
-        { $ref: '#/$defs/DogDto' },
-        { properties: { type: { const: 'dog' } }, required: ['type'] },
-      ],
-    });
   });
 });
 

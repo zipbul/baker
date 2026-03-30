@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema, isBakerError } from '../../index';
+import { Field, deserialize, serialize, isBakerError } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -63,12 +63,3 @@ describe('inheritance — serialize', () => {
   });
 });
 
-describe('inheritance — toJsonSchema', () => {
-  it('grandchild schema includes all ancestor fields', () => {
-    const schema = toJsonSchema(GrandChildDto);
-    expect(schema.properties!.name).toBeDefined();
-    expect(schema.properties!.age).toBeDefined();
-    expect(schema.properties!.active).toBeDefined();
-    expect(schema.properties!.age!.minimum).toBe(0);
-  });
-});

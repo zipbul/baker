@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, serialize, Field, toJsonSchema, isBakerError } from '../../index';
+import { deserialize, serialize, Field, isBakerError } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,40 +108,6 @@ describe('@Nested serialization', () => {
     user.address.street = '渋谷';
     const plain = await serialize(user);
     expect(plain).toEqual({ name: 'Bob', address: { city: 'Tokyo', street: '渋谷' } });
-  });
-});
-
-describe('@Nested toJsonSchema', () => {
-  it('simple $ref', () => {
-    const schema = toJsonSchema(UserDto);
-    expect(schema.properties!.address).toEqual({ $ref: '#/$defs/AddressDto' });
-    expect(schema.$defs!.AddressDto!.type).toBe('object');
-    expect(schema.$defs!.AddressDto!.properties!.city).toEqual({ type: 'string' });
-  });
-
-  it('each → type: "array", items: { $ref }', () => {
-    const schema = toJsonSchema(ListDto);
-    expect(schema.properties!.items!.type).toBe('array');
-    expect(schema.properties!.items!.items).toEqual({ $ref: '#/$defs/ItemDto' });
-    expect(schema.properties!.items!.minItems).toBe(1);
-  });
-
-  it('discriminator → oneOf + const', () => {
-    const schema = toJsonSchema(PetOwnerDto);
-    const pet = schema.properties!.pet!;
-    expect(pet.oneOf).toHaveLength(2);
-    expect(pet.oneOf![0]!).toEqual({
-      allOf: [
-        { $ref: '#/$defs/DogDto' },
-        { properties: { type: { const: 'dog' } }, required: ['type'] },
-      ],
-    });
-    expect(pet.oneOf![1]!).toEqual({
-      allOf: [
-        { $ref: '#/$defs/CatDto' },
-        { properties: { type: { const: 'cat' } }, required: ['type'] },
-      ],
-    });
   });
 });
 

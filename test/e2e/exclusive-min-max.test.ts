@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, toJsonSchema, isBakerError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -45,35 +45,3 @@ describe('@Min/@Max exclusive', () => {
   });
 });
 
-describe('@Min/@Max exclusive toJsonSchema', () => {
-  it('exclusive → exclusiveMinimum / exclusiveMaximum', () => {
-    const schema = toJsonSchema(ExclusiveDto);
-    expect(schema.properties!.score).toEqual({
-      type: 'number',
-      exclusiveMinimum: 0,
-      exclusiveMaximum: 100,
-    });
-  });
-
-  it('inclusive → minimum / maximum', () => {
-    const schema = toJsonSchema(InclusiveDto);
-    expect(schema.properties!.value).toEqual({
-      type: 'number',
-      minimum: 0,
-      maximum: 100,
-    });
-  });
-
-  it('mixed — only one side exclusive', () => {
-    class MixedDto {
-      @Field(isNumber(), min(0, { exclusive: true }), max(100))
-      val!: number;
-    }
-    const schema = toJsonSchema(MixedDto);
-    expect(schema.properties!.val).toEqual({
-      type: 'number',
-      exclusiveMinimum: 0,
-      maximum: 100,
-    });
-  });
-});

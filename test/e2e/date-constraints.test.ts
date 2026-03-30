@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, toJsonSchema, isBakerError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
 import { isDate, minDate, maxDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -55,8 +55,4 @@ describe('@MinDate/@MaxDate', () => {
     expect(result.start).toEqual(future);
   });
 
-  it('toJsonSchema — format: date-time mapping', () => {
-    const schema = toJsonSchema(DateRangeDto);
-    expect(schema.properties!.eventDate!.format).toBe('date-time');
-  });
 });

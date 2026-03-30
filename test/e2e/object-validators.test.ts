@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { deserialize, toJsonSchema, isBakerError, Field } from '../../index';
+import { deserialize, isBakerError, Field } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -23,11 +23,6 @@ describe('isNotEmptyObject', () => {
 
   it('empty object rejected', async () => {
     expect(isBakerError(await deserialize(EmptyObjDto, { config: {} }))).toBe(true);
-  });
-
-  it('toJsonSchema → minProperties: 1', () => {
-    const schema = toJsonSchema(EmptyObjDto);
-    expect(schema.properties!.config!.minProperties).toBe(1);
   });
 
   it('nullable option — ignores null-valued keys', async () => {

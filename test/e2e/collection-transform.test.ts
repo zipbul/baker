@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema, configure, isBakerError } from '../../index';
+import { Field, deserialize, serialize, configure, isBakerError } from '../../index';
 import { isString, isNumber, minLength, arrayMinSize } from '../../src/rules/index';
 import { arrayOf } from '../../src/decorators/field';
 import { unseal } from '../integration/helpers/unseal';
@@ -234,40 +234,6 @@ describe('Nullable Map', () => {
   it('object → Map conversion', async () => {
     const result = await deserialize(NullableMapDto, { data: { x: 1 } }) as NullableMapDto;
     expect(result.data).toBeInstanceOf(Map);
-  });
-});
-
-// ─── JSON Schema ────────────────────────────────────────────────────────────
-
-describe('Collection JSON Schema', () => {
-  it('Set → { type: "array", uniqueItems: true }', () => {
-    const schema = toJsonSchema(PrimitiveSetDto);
-    expect(schema.properties!['tags']).toEqual({
-      type: 'array',
-      uniqueItems: true,
-    });
-  });
-
-  it('Set<DTO> → { type: "array", uniqueItems: true, items: { $ref } }', () => {
-    const schema = toJsonSchema(NestedSetDto);
-    const tagsProp = schema.properties!['tags'] as any;
-    expect(tagsProp.type).toBe('array');
-    expect(tagsProp.uniqueItems).toBe(true);
-    expect(tagsProp.items.$ref).toContain('TagDto');
-  });
-
-  it('Map → { type: "object" }', () => {
-    const schema = toJsonSchema(PrimitiveMapDto);
-    expect(schema.properties!['config']).toEqual({
-      type: 'object',
-    });
-  });
-
-  it('Map<string, DTO> → { type: "object", additionalProperties: { $ref } }', () => {
-    const schema = toJsonSchema(NestedMapDto);
-    const pricesProp = schema.properties!['prices'] as any;
-    expect(pricesProp.type).toBe('object');
-    expect(pricesProp.additionalProperties.$ref).toContain('PriceDto');
   });
 });
 

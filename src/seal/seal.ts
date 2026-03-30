@@ -306,7 +306,6 @@ export function mergeInheritance(Class: Function): RawClassMeta {
           exclude: meta.exclude,
           type: meta.type,
           flags: { ...meta.flags },
-          schema: typeof meta.schema === 'function' ? meta.schema : (meta.schema ? { ...meta.schema } : null),
         };
       } else {
         // Already exists in child → independent merge per category (§4.2)
@@ -350,16 +349,6 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         if (pf.validateNested !== undefined && mf.validateNested === undefined) mf.validateNested = pf.validateNested;
         if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) mf.validateNestedEach = pf.validateNestedEach;
 
-        // schema: child takes priority, inherit from parent if absent in child
-        if (m.schema == null && p.schema != null) {
-          m.schema = typeof p.schema === 'function' ? p.schema : { ...p.schema };
-        } else if (m.schema != null && p.schema != null) {
-          if (typeof m.schema !== 'function' && typeof p.schema !== 'function') {
-            for (const [sk, sv] of Object.entries(p.schema)) {
-              if (!(sk in m.schema)) m.schema[sk] = sv;
-            }
-          }
-        }
       }
     }
   }

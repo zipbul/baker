@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema, isBakerError } from '../../index';
+import { Field, deserialize, serialize, isBakerError } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -67,26 +67,6 @@ describe('groups — serialize', () => {
     const dto = Object.assign(new GroupDto(), { name: 'Bob', secret: 'top', score: 50 });
     const result = await serialize(dto);
     expect(result['secret']).toBeUndefined();
-  });
-});
-
-describe('groups — toJsonSchema', () => {
-  it('expose groups mismatch → field excluded', () => {
-    const s = toJsonSchema(GroupDto, { groups: ['user'] });
-    expect(s.properties!.name).toBeDefined();
-    expect(s.properties!.secret).toBeUndefined();
-  });
-
-  it('rule groups filtering — create', () => {
-    const s = toJsonSchema(GroupDto, { groups: ['create'] });
-    expect(s.properties!.score!.minimum).toBe(0);
-    expect(s.properties!.score!.maximum).toBeUndefined();
-  });
-
-  it('rule groups filtering — update', () => {
-    const s = toJsonSchema(GroupDto, { groups: ['update'] });
-    expect(s.properties!.score!.maximum).toBe(100);
-    expect(s.properties!.score!.minimum).toBeUndefined();
   });
 });
 

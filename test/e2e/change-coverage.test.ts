@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
   deserialize, validate, isBakerError, Field, createRule,
-  toJsonSchema, BAKER_ERROR, SealError, configure,
+  BAKER_ERROR, SealError, configure,
 } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -365,81 +365,6 @@ describe('analyzeAsync — DTO with nested sync DTO detected as sync', () => {
     const result = deserialize(OuterWithSync, { id: '1', inner: { val: 'x' } });
     expect(result).not.toBeInstanceOf(Promise);
     expect(isBakerError(result)).toBe(false);
-  });
-});
-
-// ═════════════════════════════════════════════════════════════════════════════
-// 7. to-json-schema.ts — nullable without else branch
-// ═════════════════════════════════════════════════════════════════════════════
-
-describe('toJsonSchema — nullable nested DTO ($ref) produces oneOf with null', () => {
-  class Inner {
-    @Field(isString) name!: string;
-  }
-
-  class NullableRefDto {
-    @Field({ type: () => Inner, nullable: true }) inner!: Inner | null;
-  }
-
-  it('produces oneOf: [$ref, {type:"null"}]', () => {
-    const schema = toJsonSchema(NullableRefDto);
-    const prop = schema.properties!.inner!;
-    expect(prop.oneOf).toBeDefined();
-    expect(prop.oneOf).toHaveLength(2);
-    expect(prop.oneOf!.some((s: any) => s.$ref)).toBe(true);
-    expect(prop.oneOf!.some((s: any) => s.type === 'null')).toBe(true);
-  });
-});
-
-describe('toJsonSchema — nullable discriminator (oneOf) appends null', () => {
-  class Cat {
-    @Field(isString) kind!: string;
-    @Field(isString) meow!: string;
-  }
-  class Dog {
-    @Field(isString) kind!: string;
-    @Field(isString) bark!: string;
-  }
-
-  class NullableDiscDto {
-    @Field({
-      nullable: true,
-      type: () => Object,
-      discriminator: {
-        property: 'kind',
-        subTypes: [
-          { name: 'cat', value: Cat },
-          { name: 'dog', value: Dog },
-        ],
-      },
-    })
-    pet!: Cat | Dog | null;
-  }
-
-  it('oneOf includes subType entries plus {type:"null"}', () => {
-    const schema = toJsonSchema(NullableDiscDto);
-    const prop = schema.properties!.pet!;
-    expect(prop.oneOf).toBeDefined();
-    const nullEntry = prop.oneOf!.find((s: any) => s.type === 'null');
-    expect(nullEntry).toBeDefined();
-    expect(prop.oneOf!.length).toBeGreaterThanOrEqual(3);
-  });
-});
-
-describe('toJsonSchema — non-nullable nested DTO has no null', () => {
-  class InnerPlain {
-    @Field(isString) val!: string;
-  }
-
-  class NonNullDto {
-    @Field({ type: () => InnerPlain }) inner!: InnerPlain;
-  }
-
-  it('produces plain $ref without oneOf or null', () => {
-    const schema = toJsonSchema(NonNullDto);
-    const prop = schema.properties!.inner!;
-    expect(prop.$ref).toBeDefined();
-    expect(prop.oneOf).toBeUndefined();
   });
 });
 

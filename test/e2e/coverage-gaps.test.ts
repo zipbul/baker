@@ -1,9 +1,8 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, isBakerError, Field, toJsonSchema } from '../../index';
+import { deserialize, serialize, isBakerError, Field } from '../../index';
 import { isString, isEmail, min, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 import { SealError } from '../../src/errors';
-import { collectSchema } from '../../src/collect';
 import { globalRegistry } from '../../src/registry';
 
 function cleanUp() {
@@ -88,17 +87,6 @@ describe('async serialize Set<DTO>', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// collect.ts:70 — schema as Array → Error
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('collectSchema — invalid input', () => {
-  it('Array passed as schema → throws Error', () => {
-    class Dto {}
-    expect(() => collectSchema(Dto.prototype, 'field', [] as any)).toThrow('Invalid schema');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // serialize.ts:26 — constructor-less object
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -154,22 +142,3 @@ describe('async serialize array of nested DTOs', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// to-json-schema.ts:463 — applyNullable with pre-existing array type
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('toJsonSchema — nullable applies null to type', () => {
-  class NullableDto {
-    @Field(isString, { nullable: true })
-    value!: string | null;
-  }
-
-  it('nullable field → type includes null', () => {
-    const schema = toJsonSchema(NullableDto);
-    const prop = schema.properties?.value as any;
-    expect(prop).toBeDefined();
-    expect(Array.isArray(prop.type)).toBe(true);
-    expect(prop.type).toContain('null');
-    expect(prop.type).toContain('string');
-  });
-});

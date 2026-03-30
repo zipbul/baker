@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
-  Field, deserialize, serialize, toJsonSchema, isBakerError,
+  Field, deserialize, serialize, isBakerError,
 } from '../../index';
 import type { BakerErrors } from '../../index';
 import {
