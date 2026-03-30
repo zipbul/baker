@@ -33,7 +33,6 @@ function makeStringField(name: string, rules: RuleDef[] = []): RawClassMeta {
       exclude: null,
       type: null,
       flags: {},
-      schema: null,
     },
   };
 }
@@ -139,8 +138,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => AddressDto as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
     // Act
     _autoSeal();
@@ -203,8 +201,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
-      },
+        },
     });
     // Act / Assert
     expect(() => _autoSeal()).toThrow(SealError);
@@ -244,7 +241,7 @@ describe('_autoSeal', () => {
     // Arrange — self-referencing DTO
     class TreeDto {}
     (TreeDto as any)[RAW] = {
-      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       child: {
         validation: [],
         transform: [],
@@ -252,8 +249,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => TreeDto as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     };
     globalRegistry.add(TreeDto);
     freeClasses.push(TreeDto);
@@ -334,8 +330,7 @@ describe('_autoSeal', () => {
           },
         },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     };
     registerClass(AnimalContainerDto, raw);
 
@@ -364,8 +359,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => NestedTarget as any },
         flags: {}, // no validateNested — seal should auto-set it
-        schema: null,
-      },
+        },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
@@ -396,8 +390,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => NestedLate as any },
         flags: {},
-        schema: null,
-      },
+        },
     };
     globalRegistry.add(ParentLate);
     freeClasses.push(ParentLate);
@@ -425,8 +418,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => null as any },
         flags: {},
-        schema: null,
-      },
+        },
     });
     // Act / Assert
     expect(() => _autoSeal()).toThrow(SealError);
@@ -435,7 +427,7 @@ describe('_autoSeal', () => {
   it('should clean up stale placeholders when _autoSeal fails', () => {
     // Arrange — nested DTO has banned field name 'constructor' → SealError
     class BrokenNested {}
-    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
+    (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
     freeClasses.push(BrokenNested);
 
     class ParentDto {}
@@ -447,8 +439,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => BrokenNested as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
     // Act — seal fails
     expect(() => _autoSeal()).toThrow(SealError);
@@ -472,8 +463,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => NestedA as any },
         flags: {}, // no validateNested — seal should auto-set it
-        schema: null,
-      },
+        },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
@@ -498,8 +488,7 @@ describe('_autoSeal', () => {
         exclude: null,
         type: { fn: () => NestedB as any },
         flags: {}, // no validateNested
-        schema: null,
-      },
+        },
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
@@ -531,12 +520,12 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseDto {}
     (BaseDto as any)[RAW] = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
 
     class ChildDto extends BaseDto {}
     (ChildDto as any)[RAW] = {
-      name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildDto);
@@ -556,11 +545,11 @@ describe('mergeInheritance', () => {
 
     class BaseTr {}
     (BaseTr as any)[RAW] = {
-      name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {}},
     };
     class ChildTr extends BaseTr {}
     (ChildTr as any)[RAW] = {
-      name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildTr);
@@ -574,11 +563,11 @@ describe('mergeInheritance', () => {
     const parentFn2 = (v: any) => v;
     class BaseTr2 {}
     (BaseTr2 as any)[RAW] = {
-      x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {}},
     };
     class ChildTr2 extends BaseTr2 {}
     (ChildTr2 as any)[RAW] = {
-      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildTr2);
@@ -591,11 +580,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseEx {}
     (BaseEx as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {}, schema: null },
+      field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {}},
     };
     class ChildEx extends BaseEx {}
     (ChildEx as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {}, schema: null },
+      field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildEx);
@@ -607,11 +596,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseEx2 {}
     (BaseEx2 as any)[RAW] = {
-      field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {}, schema: null },
+      field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {}},
     };
     class ChildEx2 extends BaseEx2 {}
     (ChildEx2 as any)[RAW] = {
-      field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildEx2);
@@ -624,11 +613,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseExcl {}
     (BaseExcl as any)[RAW] = {
-      secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {}, schema: null },
+      secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {}},
     };
     class ChildExcl extends BaseExcl {}
     (ChildExcl as any)[RAW] = {
-      secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildExcl);
@@ -641,11 +630,11 @@ describe('mergeInheritance', () => {
     class NestedDto {}
     class BaseType {}
     (BaseType as any)[RAW] = {
-      nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {}, schema: null },
+      nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {}},
     };
     class ChildType extends BaseType {}
     (ChildType as any)[RAW] = {
-      nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildType);
@@ -657,11 +646,11 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseFlag {}
     (BaseFlag as any)[RAW] = {
-      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true }, schema: null },
+      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true }},
     };
     class ChildFlag extends BaseFlag {}
     (ChildFlag as any)[RAW] = {
-      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildFlag);
@@ -669,99 +658,16 @@ describe('mergeInheritance', () => {
     expect(merged.age!.flags.isOptional).toBe(true);
   });
 
-  it('should inherit parent schema when child has no schema', () => {
-    // Arrange
-    class BaseSchema {}
-    (BaseSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent desc' } },
-    };
-    class ChildSchema extends BaseSchema {}
-    (ChildSchema as any)[RAW] = {
-      f: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
-    };
-    // Act
-    const merged = mergeInheritance(ChildSchema);
-    // Assert — parent schema inherited
-    expect(merged.f!.schema).toEqual({ description: 'parent desc' });
-  });
-
-  it('should inherit parent function schema when child has no schema', () => {
-    // Arrange
-    const schemaFn = () => ({ type: 'string' });
-    class BaseFnSchema {}
-    (BaseFnSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: schemaFn },
-    };
-    class ChildFnSchema extends BaseFnSchema {}
-    (ChildFnSchema as any)[RAW] = {
-      f: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
-    };
-    // Act
-    const merged = mergeInheritance(ChildFnSchema);
-    // Assert — parent function schema inherited
-    expect(merged.f!.schema).toBe(schemaFn);
-  });
-
-  it('should merge parent object schema keys into child object schema', () => {
-    // Arrange
-    class BaseObjSchema {}
-    (BaseObjSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent', example: 42 } },
-    };
-    class ChildObjSchema extends BaseObjSchema {}
-    (ChildObjSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'child' } },
-    };
-    // Act
-    const merged = mergeInheritance(ChildObjSchema);
-    // Assert — child description preserved, parent example merged
-    expect((merged.f!.schema as any).description).toBe('child');
-    expect((merged.f!.schema as any).example).toBe(42);
-  });
-
-  it('should keep child function schema when parent has object schema', () => {
-    // Arrange
-    const childSchemaFn = () => ({ type: 'number' });
-    class BaseMixSchema {}
-    (BaseMixSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'parent' } },
-    };
-    class ChildMixSchema extends BaseMixSchema {}
-    (ChildMixSchema as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: childSchemaFn },
-    };
-    // Act
-    const merged = mergeInheritance(ChildMixSchema);
-    // Assert — child function schema preserved
-    expect(merged.f!.schema).toBe(childSchemaFn);
-  });
-
-  it('should keep child object schema when parent has function schema', () => {
-    // Arrange
-    class BaseParentFn {}
-    (BaseParentFn as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: () => ({ type: 'string' }) },
-    };
-    class ChildObjOnly extends BaseParentFn {}
-    (ChildObjOnly as any)[RAW] = {
-      f: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: { description: 'child obj' } },
-    };
-    // Act
-    const merged = mergeInheritance(ChildObjOnly);
-    // Assert — child object schema preserved (parent function ignored)
-    expect((merged.f!.schema as any).description).toBe('child obj');
-  });
-
   it('should not add duplicate validation rules during union merge', () => {
     // Arrange — same rule instance in both parent and child
     const sharedRule = isString;
     class BaseDup {}
     (BaseDup as any)[RAW] = {
-      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     class ChildDup extends BaseDup {}
     (ChildDup as any)[RAW] = {
-      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(ChildDup);
@@ -788,7 +694,7 @@ describe('mergeInheritance', () => {
     // Arrange
     class BaseNR2 {}
     (BaseNR2 as any)[RAW] = {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     class ChildNR2 extends BaseNR2 {}
     // ChildNR2 has no own RAW — rule must appear exactly once
@@ -819,15 +725,15 @@ describe('mergeInheritance', () => {
     // Arrange
     class GrandParent {}
     (GrandParent as any)[RAW] = {
-      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     class ParentLevel extends GrandParent {}
     (ParentLevel as any)[RAW] = {
-      x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     class Child3 extends ParentLevel {}
     (Child3 as any)[RAW] = {
-      x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {}},
     };
     // Act
     const merged = mergeInheritance(Child3);
@@ -842,7 +748,7 @@ describe('mergeInheritance', () => {
 
 /** Helper that adds a field named bannedKey as an own enumerable property to the RAW meta */
 function makeRawWithBannedKey(bannedKey: string): RawClassMeta {
-  const fieldMeta = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null };
+  const fieldMeta = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}};
   const raw = Object.create(null) as RawClassMeta;
   Object.defineProperty(raw, bannedKey, {
     value: fieldMeta,
@@ -865,7 +771,7 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named constructor', () => {
     // Arrange
     class BannedConstructorDto {}
-    const raw = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
+    const raw = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
     registerClass(BannedConstructorDto, raw);
     // Act / Assert
     expect(() => _autoSeal()).toThrow(SealError);
@@ -874,7 +780,7 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named prototype', () => {
     // Arrange
     class BannedPrototypeDto {}
-    const raw = { prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null } } as unknown as RawClassMeta;
+    const raw = { prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
     registerClass(BannedPrototypeDto, raw);
     // Act / Assert
     expect(() => _autoSeal()).toThrow(SealError);
@@ -885,11 +791,11 @@ describe('sealOne — banned field names (C5)', () => {
     class MixedBannedDto {}
     const raw = Object.create(null) as RawClassMeta;
     Object.defineProperty(raw, 'name', {
-      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       enumerable: true, writable: true, configurable: true,
     });
     Object.defineProperty(raw, 'constructor', {
-      value: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      value: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}},
       enumerable: true, writable: true, configurable: true,
     });
     registerClass(MixedBannedDto, raw);
@@ -937,8 +843,7 @@ describe('analyzeAsync — discriminator', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
-      },
+        },
     });
 
     class SubB {}
@@ -962,8 +867,7 @@ describe('analyzeAsync — discriminator', () => {
           },
         },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
 
     // Act
@@ -981,7 +885,7 @@ describe('analyzeAsync — discriminator', () => {
     class CircSubB {}
 
     registerClass(CircSubA, {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       other: {
         validation: [],
         transform: [],
@@ -989,11 +893,10 @@ describe('analyzeAsync — discriminator', () => {
         exclude: null,
         type: { fn: () => CircSubB as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
     registerClass(CircSubB, {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       other: {
         validation: [],
         transform: [],
@@ -1001,8 +904,7 @@ describe('analyzeAsync — discriminator', () => {
         exclude: null,
         type: { fn: () => CircSubA as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
 
     class CircParent {}
@@ -1023,8 +925,7 @@ describe('analyzeAsync — discriminator', () => {
           },
         },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
 
     // Act / Assert — should not throw or infinite loop
@@ -1041,7 +942,7 @@ describe('analyzeAsync — discriminator', () => {
     class DiscC {}
 
     registerClass(DiscB, {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       ref: {
         validation: [],
         transform: [],
@@ -1049,11 +950,10 @@ describe('analyzeAsync — discriminator', () => {
         exclude: null,
         type: { fn: () => DiscC as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
     registerClass(DiscC, {
-      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {}},
       ref: {
         validation: [],
         transform: [],
@@ -1061,8 +961,7 @@ describe('analyzeAsync — discriminator', () => {
         exclude: null,
         type: { fn: () => DiscA as any },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
     registerClass(DiscA, {
       child: {
@@ -1081,8 +980,7 @@ describe('analyzeAsync — discriminator', () => {
           },
         },
         flags: { validateNested: true },
-        schema: null,
-      },
+        },
     });
 
     // Act / Assert — should not throw or infinite loop (visited Set shared across recursion)

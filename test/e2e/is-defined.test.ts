@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, BakerValidationError } from '../../index';
+import { Field, deserialize, isBakerError } from '../../index';
+import type { BakerErrors } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -7,7 +8,6 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-// In the new API, fields are required by default (isDefined is implicit)
 class DefinedDto {
   @Field(isString)
   name!: string;
@@ -18,7 +18,6 @@ class OptionalDto {
   nickname?: string;
 }
 
-// In the new API, required is the default — just @Field(isString) without optional
 class DefinedOverrideDto {
   @Field(isString)
   tag!: string;
@@ -28,47 +27,44 @@ class DefinedOverrideDto {
 
 describe('@IsDefined (implicit in new API)', () => {
   it('undefined → isDefined error', async () => {
-    try {
-      await deserialize(DefinedDto, {});
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      expect((e as BakerValidationError).errors.some(e => e.code === 'isDefined')).toBe(true);
+    const result = await deserialize(DefinedDto, {});
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.some(e => e.code === 'isDefined')).toBe(true);
     }
   });
 
   it('valid value → passes', async () => {
-    const result = await deserialize<DefinedDto>(DefinedDto, { name: 'Alice' });
+    const result = await deserialize<DefinedDto>(DefinedDto, { name: 'Alice' }) as DefinedDto;
     expect(result.name).toBe('Alice');
   });
 
   it('empty string → passes isDefined, proceeds to isString validation', async () => {
-    const result = await deserialize<DefinedDto>(DefinedDto, { name: '' });
+    const result = await deserialize<DefinedDto>(DefinedDto, { name: '' }) as DefinedDto;
     expect(result.name).toBe('');
   });
 });
 
 describe('optional', () => {
   it('undefined → skip', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, {});
+    const result = await deserialize<OptionalDto>(OptionalDto, {}) as OptionalDto;
     expect(result.nickname).toBeUndefined();
   });
 
   it('null → skip', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: null });
+    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: null }) as OptionalDto;
     expect(result.nickname).toBeUndefined();
   });
 
   it('valid value → validation passes', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: 'Bob' });
+    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: 'Bob' }) as OptionalDto;
     expect(result.nickname).toBe('Bob');
   });
 });
 
 describe('required field (not optional) → undefined rejected', () => {
   it('required → undefined rejected', async () => {
-    await expect(
-      deserialize(DefinedOverrideDto, {}),
-    ).rejects.toThrow(BakerValidationError);
+    const result = await deserialize(DefinedOverrideDto, {});
+    expect(isBakerError(result)).toBe(true);
   });
 });

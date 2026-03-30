@@ -27,28 +27,28 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   it('deserializeOnly @Expose name used for extraction', async () => {
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    });
+    }) as DirectionDto;
     expect(result.name).toBe('Alice');
   });
 
   it('serializeOnly @Exclude → included in deserialize', async () => {
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    });
+    }) as DirectionDto;
     expect(result.password).toBe('pw123');
   });
 
   it('deserializeOnly @Exclude → excluded from deserialize', async () => {
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    });
+    }) as DirectionDto;
     expect(result.token).toBeUndefined();
   });
 
   it('bidirectional @Exclude → excluded from deserialize', async () => {
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    });
+    }) as DirectionDto;
     expect(result.internal).toBeUndefined();
   });
 });
@@ -90,7 +90,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
     configure({ debug: true });
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    });
+    }) as DirectionDto;
     // deserializeOnly exclude → token excluded
     expect(result.token).toBeUndefined();
     // bidirectional exclude → internal excluded
@@ -129,7 +129,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
     configure({ debug: true });
     const result = await deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
       name: 'Alice', secret: 'hidden',
-    });
+    }) as SerializeOnlyExposeDto;
     expect(result.name).toBe('Alice');
   });
 

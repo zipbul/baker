@@ -1,21 +1,17 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import {
-  Field, arrayOf, deserialize, BakerValidationError,
+  Field, arrayOf, deserialize, isBakerError,
 } from '../../index';
 import { isString, isNumber, isInt, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
 
-/** Helper: extracts errors array from BakerValidationError */
+/** Helper: extracts errors array from BakerErrors */
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
-  try {
-    await deserialize(cls, input);
-    throw new Error('expected rejection');
-  } catch (e) {
-    if (!(e instanceof BakerValidationError)) throw e;
-    return e.errors;
-  }
+  const result = await deserialize(cls, input);
+  if (!isBakerError(result)) throw new Error('expected validation failure');
+  return [...result.errors];
 }
 
 // ─── basic field paths ─────────────────────────────────────────────────────
@@ -172,41 +168,16 @@ describe('multiple errors per field (collectErrors mode)', () => {
   });
 });
 
-// ─── error className ─────────────────────────────────────────────────────────
+// ─── error paths — BakerErrors ──────────────────────────────────────────────
 
-describe('BakerValidationError className', () => {
+describe('BakerErrors from deserialize', () => {
   class UserProfile { @Field(isString) name!: string; }
 
-  it('className matches DTO class name', async () => {
-    try {
-      await deserialize(UserProfile, { name: 123 });
-      throw new Error('expected rejection');
-    } catch (e) {
-      if (!(e instanceof BakerValidationError)) throw e;
-      expect(e.className).toBe('UserProfile');
-      expect(e.message).toContain('UserProfile');
-      expect(e.message).toContain('1 error(s)');
-    }
-  });
-});
-
-// ─── error message format ─────────────────────────────────────────────────
-
-describe('BakerValidationError message format', () => {
-  class Multi {
-    @Field(isString) a!: string;
-    @Field(isString) b!: string;
-    @Field(isString) c!: string;
-  }
-
-  it('error count reflected in message', async () => {
-    try {
-      await deserialize(Multi, { a: 1, b: 2, c: 3 });
-      throw new Error('expected rejection');
-    } catch (e) {
-      if (!(e instanceof BakerValidationError)) throw e;
-      expect(e.errors).toHaveLength(3);
-      expect(e.message).toContain('3 error(s)');
+  it('errors array accessible via isBakerError', async () => {
+    const result = await deserialize(UserProfile, { name: 123 });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.length).toBeGreaterThanOrEqual(1);
     }
   });
 });

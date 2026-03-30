@@ -229,7 +229,7 @@ function generateSerializeFieldCode(
         nestedCode += `  var __bk$out_item;\n`;
         nestedCode += buildInstanceofChain('__ser_item', awaitKw);
         nestedCode += `  return __bk$out_item;\n`;
-        nestedCode += `});`;
+        nestedCode += isAsync ? `}));` : `});`;
       } else {
         const awaitKw = isAsync ? 'await ' : '';
         const fkStr = JSON.stringify(fieldKey);

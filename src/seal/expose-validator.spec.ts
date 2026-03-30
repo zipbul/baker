@@ -21,7 +21,7 @@ function fieldWithExpose(...exposeDefs: Array<{
       exclude: null,
       type: null,
       flags: {},
-      schema: null,
+     
     },
   };
 }
@@ -32,7 +32,7 @@ describe('validateExposeStacks', () => {
   it('should not throw when expose stack is empty (no @Expose decorator)', () => {
     // Arrange
     const merged: RawClassMeta = {
-      name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
     // Act / Assert
     expect(() => validateExposeStacks(merged)).not.toThrow();
@@ -81,7 +81,7 @@ describe('validateExposeStacks', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
       email: {
         validation: [],
@@ -90,7 +90,7 @@ describe('validateExposeStacks', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
+       
       },
     };
     // Act / Assert
@@ -109,7 +109,7 @@ describe('validateExposeStacks', () => {
   it('should not throw when a field has no @Expose entries at all', () => {
     // Arrange
     const merged: RawClassMeta = {
-      field: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      field: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
     // Act / Assert
     expect(() => validateExposeStacks(merged)).not.toThrow();

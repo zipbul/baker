@@ -29,7 +29,7 @@ export interface EmittableRule {
    * @IsString itself is undefined (it includes its own typeof check).
    */
   readonly requiresType?: 'string' | 'number' | 'boolean' | 'date';
-  /** Expose rule parameters for external reading — used for toJsonSchema mapping */
+  /** Expose rule parameters for external reading */
   readonly constraints?: Record<string, unknown>;
   /** true when using an async validate function — deserialize-builder generates await code */
   readonly isAsync?: boolean;
@@ -137,7 +137,6 @@ export interface RawPropertyMeta {
   exclude: ExcludeDef | null;
   type: TypeDef | null;
   flags: PropertyFlags;
-  schema: Record<string, unknown> | ((auto: Record<string, unknown>) => Record<string, unknown>) | null;
 }
 
 export interface RawClassMeta {
@@ -161,85 +160,6 @@ export interface SealedExecutors<T> {
   _isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */
   _isSerializeAsync: boolean;
-  /** Merged metadata cache at seal time — used by toJsonSchema (valid even after RAW is deleted) */
+  /** Merged metadata cache — used internally by unseal helper */
   _merged?: RawClassMeta;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// JsonSchema202012 — JSON Schema Draft 2020-12 type interface (§6.7)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface JsonSchema202012 {
-  // Core structure
-  $schema?: string;
-  $id?: string;
-  $ref?: string;
-  $defs?: Record<string, JsonSchema202012>;
-  $comment?: string;
-
-  // Type
-  type?: string | string[];
-  enum?: unknown[];
-  const?: unknown;
-
-  // Number
-  minimum?: number;
-  maximum?: number;
-  exclusiveMinimum?: number;
-  exclusiveMaximum?: number;
-  multipleOf?: number;
-
-  // String
-  minLength?: number;
-  maxLength?: number;
-  pattern?: string;
-  format?: string;
-
-  // Array
-  items?: JsonSchema202012;
-  prefixItems?: JsonSchema202012[];
-  contains?: JsonSchema202012;
-  minContains?: number;
-  maxContains?: number;
-  minItems?: number;
-  maxItems?: number;
-  uniqueItems?: boolean;
-
-  // Object
-  properties?: Record<string, JsonSchema202012>;
-  required?: string[];
-  additionalProperties?: boolean | JsonSchema202012;
-  unevaluatedProperties?: boolean | JsonSchema202012;
-  patternProperties?: Record<string, JsonSchema202012>;
-  propertyNames?: JsonSchema202012;
-  minProperties?: number;
-  maxProperties?: number;
-  dependentRequired?: Record<string, string[]>;
-  dependentSchemas?: Record<string, JsonSchema202012>;
-
-  // Composition
-  allOf?: JsonSchema202012[];
-  anyOf?: JsonSchema202012[];
-  oneOf?: JsonSchema202012[];
-  not?: JsonSchema202012;
-  if?: JsonSchema202012;
-  then?: JsonSchema202012;
-  else?: JsonSchema202012;
-
-  // Annotation
-  title?: string;
-  description?: string;
-  default?: unknown;
-  examples?: unknown[];
-  deprecated?: boolean;
-  readOnly?: boolean;
-  writeOnly?: boolean;
-
-  // Content
-  contentEncoding?: string;
-  contentMediaType?: string;
-  contentSchema?: JsonSchema202012;
-
-  // Extension (user custom)
-  [key: string]: unknown;
 }

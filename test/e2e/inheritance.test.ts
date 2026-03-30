@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, toJsonSchema } from '../../index';
+import { Field, deserialize, serialize, isBakerError } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -26,7 +26,7 @@ class GrandChildDto extends ChildDto {
 
 describe('inheritance — deserialize', () => {
   it('child → includes parent fields', async () => {
-    const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 });
+    const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 }) as ChildDto;
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
@@ -35,7 +35,7 @@ describe('inheritance — deserialize', () => {
   it('grandchild → includes all ancestor fields', async () => {
     const result = await deserialize<GrandChildDto>(GrandChildDto, {
       name: 'Bob', age: 30, active: true,
-    });
+    }) as GrandChildDto;
     expect(result).toBeInstanceOf(GrandChildDto);
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
@@ -44,7 +44,8 @@ describe('inheritance — deserialize', () => {
 
   it('parent rule violation → error in child too', async () => {
     // age: -1 violates min(0) from ChildDto
-    await expect(deserialize(GrandChildDto, { name: 'X', age: -1, active: true })).rejects.toThrow();
+    const result = await deserialize(GrandChildDto, { name: 'X', age: -1, active: true });
+    expect(isBakerError(result)).toBe(true);
   });
 });
 
@@ -62,12 +63,3 @@ describe('inheritance — serialize', () => {
   });
 });
 
-describe('inheritance — toJsonSchema', () => {
-  it('grandchild schema includes all ancestor fields', () => {
-    const schema = toJsonSchema(GrandChildDto);
-    expect(schema.properties!.name).toBeDefined();
-    expect(schema.properties!.age).toBeDefined();
-    expect(schema.properties!.active).toBeDefined();
-    expect(schema.properties!.age!.minimum).toBe(0);
-  });
-});

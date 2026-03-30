@@ -16,7 +16,7 @@ function makeTypeMeta(fn: () => Function): RawClassMeta {
       exclude: null,
       type: { fn: fn as () => new (...args: any[]) => any },
       flags: {},
-      schema: null,
+     
     },
   };
 }
@@ -35,7 +35,7 @@ function makeDiscriminatorMeta(
         discriminator: { property: 'type', subTypes },
       },
       flags: {},
-      schema: null,
+     
     },
   };
 }
@@ -55,7 +55,7 @@ describe('analyzeCircular', () => {
     // Arrange
     class NoTypeDto {}
     (NoTypeDto as any)[RAW] = {
-      name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}, schema: null },
+      name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
     // Act
     const result = analyzeCircular(NoTypeDto);
@@ -150,7 +150,7 @@ describe('analyzeCircular', () => {
           },
         },
         flags: {},
-        schema: null,
+       
       },
     };
 

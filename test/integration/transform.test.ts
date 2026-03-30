@@ -26,12 +26,12 @@ afterEach(() => unseal());
 
 describe('transform — integration', () => {
   it('should apply transform function during deserialization', async () => {
-    const result = await deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' });
+    const result = await deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' }) as TrimmedDto;
     expect(result.name).toBe('Alice');
   });
 
   it('should apply uppercase transform during deserialization', async () => {
-    const result = await deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' });
+    const result = await deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' }) as ToUpperDto;
     expect(result.code).toBe('ABC');
   });
 
@@ -42,7 +42,7 @@ describe('transform — integration', () => {
   });
 
   it('should not apply serialize-only transform during deserialize', async () => {
-    const result = await deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 });
+    const result = await deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 }) as SerializeTransformDto;
     expect(result.price).toBe(9); // transform not applied during deserialize
   });
 });

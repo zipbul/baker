@@ -111,7 +111,7 @@ export function isEnum(entity: object): EmittableRule {
   };
 
   (fn as any).ruleName = 'isEnum';
-  (fn as any).constraints = { values: Object.values(entity) };
+  (fn as any).constraints = { values };
 
   return fn as EmittableRule;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, BakerValidationError, createRule } from '../../index';
+import { Field, deserialize, isBakerError, createRule } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -33,17 +33,15 @@ class AsyncRuleDto {
 
 describe('createRule — sync', () => {
   it('rule passes', async () => {
-    const r = await deserialize<EvenDto>(EvenDto, { value: 4 });
+    const r = await deserialize(EvenDto, { value: 4 }) as EvenDto;
     expect(r.value).toBe(4);
   });
 
   it('rule violation → custom error code', async () => {
-    try {
-      await deserialize(EvenDto, { value: 3 });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(e => e.code === 'isEven');
+    const result = await deserialize(EvenDto, { value: 3 });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(e => e.code === 'isEven');
       expect(err).toBeDefined();
     }
   });
@@ -56,17 +54,15 @@ describe('createRule — sync', () => {
 
 describe('createRule — async', () => {
   it('async rule passes', async () => {
-    const r = await deserialize<AsyncRuleDto>(AsyncRuleDto, { score: 10 });
+    const r = await deserialize(AsyncRuleDto, { score: 10 }) as AsyncRuleDto;
     expect(r.score).toBe(10);
   });
 
   it('async rule violation', async () => {
-    try {
-      await deserialize(AsyncRuleDto, { score: -1 });
-      expect.unreachable();
-    } catch (e) {
-      expect(e).toBeInstanceOf(BakerValidationError);
-      const err = (e as BakerValidationError).errors.find(e => e.code === 'asyncPositive');
+    const result = await deserialize(AsyncRuleDto, { score: -1 });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      const err = result.errors.find(e => e.code === 'asyncPositive');
       expect(err).toBeDefined();
     }
   });

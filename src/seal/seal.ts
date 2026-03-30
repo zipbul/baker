@@ -39,17 +39,8 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
       : meta.transform.filter(td => !td.options?.deserializeOnly);
     if (transforms.some(td => isAsyncFunction(td.fn))) return true;
     // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
-    if (meta.type?.resolvedClass || meta.type?.fn) {
-      let nestedClass: Function;
-      if (meta.type.resolvedClass) {
-        nestedClass = meta.type.resolvedClass;
-      } else {
-        try {
-          nestedClass = meta.type.fn!() as Function;
-        } catch (e) {
-          throw new SealError(`type function threw: ${(e as Error).message}`);
-        }
-      }
+    if (meta.type?.resolvedClass) {
+      const nestedClass = meta.type.resolvedClass;
       if (!v.has(nestedClass)) {
         v.add(nestedClass);
         const nestedMerged = mergeInheritance(nestedClass);
@@ -315,7 +306,6 @@ export function mergeInheritance(Class: Function): RawClassMeta {
           exclude: meta.exclude,
           type: meta.type,
           flags: { ...meta.flags },
-          schema: typeof meta.schema === 'function' ? meta.schema : (meta.schema ? { ...meta.schema } : null),
         };
       } else {
         // Already exists in child → independent merge per category (§4.2)
@@ -359,18 +349,6 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         if (pf.validateNested !== undefined && mf.validateNested === undefined) mf.validateNested = pf.validateNested;
         if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) mf.validateNestedEach = pf.validateNestedEach;
 
-        // schema: child takes priority, inherit from parent if absent in child
-        if (m.schema == null && p.schema != null) {
-          m.schema = typeof p.schema === 'function' ? p.schema : { ...p.schema };
-        } else if (m.schema != null && p.schema != null) {
-          if (typeof m.schema === 'function') { /* keep child function-type */ }
-          else if (typeof p.schema === 'function') { /* keep child object-type */ }
-          else {
-            for (const [sk, sv] of Object.entries(p.schema)) {
-              if (!(sk in m.schema)) m.schema[sk] = sv;
-            }
-          }
-        }
       }
     }
   }

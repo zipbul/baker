@@ -1,96 +1,99 @@
 import { describe, it, expect } from 'bun:test';
-import { BakerValidationError, SealError } from './errors';
-import type { BakerError } from './errors';
+import { isBakerError, BAKER_ERROR, SealError, _toBakerErrors } from './errors';
+import type { BakerError, BakerErrors } from './errors';
 
-describe('BakerValidationError', () => {
-  it('should be constructable when given an errors array', () => {
-    // Arrange
+describe('isBakerError', () => {
+  it('should return true for object with BAKER_ERROR symbol', () => {
+    const obj = { [BAKER_ERROR]: true as const, errors: [] };
+    expect(isBakerError(obj)).toBe(true);
+  });
+
+  it('should return true for BakerErrors created via _toBakerErrors', () => {
     const errors: BakerError[] = [{ path: 'name', code: 'isString' }];
-    // Act
-    const err = new BakerValidationError(errors);
-    // Assert
-    expect(err).toBeDefined();
+    const result = _toBakerErrors(errors);
+    expect(isBakerError(result)).toBe(true);
   });
 
-  it("should have name 'BakerValidationError' when accessing .name", () => {
-    // Arrange / Act
-    const err = new BakerValidationError([]);
-    // Assert
-    expect(err.name).toBe('BakerValidationError');
+  it('should return false for plain object without BAKER_ERROR symbol', () => {
+    expect(isBakerError({ errors: [] })).toBe(false);
   });
 
-  it("should produce 'Validation failed: N error(s)' format when accessing .message", () => {
-    // Arrange
+  it('should return false for null', () => {
+    expect(isBakerError(null)).toBe(false);
+  });
+
+  it('should return false for undefined', () => {
+    expect(isBakerError(undefined)).toBe(false);
+  });
+
+  it('should return false for primitive string', () => {
+    expect(isBakerError('error')).toBe(false);
+  });
+
+  it('should return false for primitive number', () => {
+    expect(isBakerError(42)).toBe(false);
+  });
+
+  it('should return false for Error instance', () => {
+    expect(isBakerError(new Error('fail'))).toBe(false);
+  });
+
+  it('should return false for array', () => {
+    expect(isBakerError([{ path: '', code: 'isString' }])).toBe(false);
+  });
+
+  it('should return false for Promise', () => {
+    expect(isBakerError(Promise.resolve(true))).toBe(false);
+  });
+
+  it('should return false for class instance without BAKER_ERROR', () => {
+    class Foo { errors = []; }
+    expect(isBakerError(new Foo())).toBe(false);
+  });
+
+  it('should return false for boolean true', () => {
+    expect(isBakerError(true)).toBe(false);
+  });
+
+  it('should return false for boolean false', () => {
+    expect(isBakerError(false)).toBe(false);
+  });
+
+  it('should expose errors array when narrowed via isBakerError', () => {
     const errors: BakerError[] = [
       { path: 'name', code: 'isString' },
       { path: 'email', code: 'isEmail' },
     ];
-    // Act
-    const err = new BakerValidationError(errors);
-    // Assert
-    expect(err.message).toBe('Validation failed: 2 error(s)');
-  });
-
-  it('should expose the passed errors array when accessing .errors', () => {
-    // Arrange
-    const errors: BakerError[] = [{ path: 'name', code: 'isString' }];
-    // Act
-    const err = new BakerValidationError(errors);
-    // Assert
-    expect(err.errors).toBe(errors);
-  });
-
-  it("should produce 'Validation failed: 0 error(s)' when given an empty errors array", () => {
-    // Arrange / Act
-    const err = new BakerValidationError([]);
-    // Assert
-    expect(err.message).toBe('Validation failed: 0 error(s)');
-  });
-
-  it('should be instanceof Error when checking instanceof', () => {
-    // Arrange / Act
-    const err = new BakerValidationError([]);
-    // Assert
-    expect(err instanceof Error).toBe(true);
-  });
-
-  it('should allow accessing .errors after throw and catch when used with try/catch', () => {
-    // Arrange
-    const errors: BakerError[] = [{ path: '', code: 'invalidInput' }];
-    let caught: unknown;
-    // Act
-    try {
-      throw new BakerValidationError(errors);
-    } catch (e) {
-      caught = e;
+    const result: unknown = _toBakerErrors(errors);
+    if (isBakerError(result)) {
+      expect(result.errors).toEqual(errors);
+      expect(result.errors).toHaveLength(2);
+    } else {
+      expect.unreachable();
     }
-    // Assert
-    expect(caught instanceof BakerValidationError).toBe(true);
-    expect((caught as BakerValidationError).errors).toEqual(errors);
+  });
+
+  it('should return true for BakerErrors with empty errors array', () => {
+    const result = _toBakerErrors([]);
+    expect(isBakerError(result)).toBe(true);
+    expect(result.errors).toHaveLength(0);
   });
 });
 
 describe('SealError', () => {
   it('should be constructable when given a message string', () => {
-    // Arrange / Act
     const err = new SealError('not sealed: Foo');
-    // Assert
     expect(err).toBeDefined();
   });
 
   it("should have name 'SealError' when accessing .name", () => {
-    // Arrange / Act
     const err = new SealError('not sealed: Foo');
-    // Assert
     expect(err.name).toBe('SealError');
   });
 
   it('should expose the passed message when accessing .message', () => {
-    // Arrange
     const msg = 'already sealed: seal() must be called exactly once';
-    // Act
     const err = new SealError(msg);
-    // Assert
     expect(err.message).toBe(msg);
   });
 });
