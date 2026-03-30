@@ -39,16 +39,19 @@ Baker는 검증, 변환, 노출 제어, 타입 힌트를 결합하는 **단일 `
 - **단일 데코레이터** — `@Field()`가 30개 이상의 개별 데코레이터를 대체
 - **80개 이상의 내장 규칙** — `isString`, `min()`, `isEmail()` 등을 인자로 조합
 - **인라인 코드 생성** — 첫 `deserialize()`/`serialize()` 호출 시 auto-seal로 검증기를 컴파일
-- **검증 + 변환 통합** — `deserialize()`와 `serialize()`를 하나의 async 호출로
+- **검증 + 변환 통합** — `deserialize()`와 `serialize()`를 하나의 호출로 (동기 DTO는 비동기 오버헤드 없음)
+- **throw 없는 검증** — try/catch 대신 `isBakerError()` 타입 가드 사용
+- **독립 `validate()`** — DTO 레벨 또는 단일 값 애드혹 검증
 - **reflect-metadata 불필요** — `reflect-metadata` import 없이 동작
 - **순환 참조 감지** — seal 시점에 자동 정적 분석
 - **그룹 기반 검증** — `groups` 옵션으로 요청별 다른 규칙 적용
 - **커스텀 규칙** — `createRule()`로 코드생성을 지원하는 사용자 정의 검증기 작성
-- **JSON Schema 출력** — `toJsonSchema()`로 DTO에서 JSON Schema Draft 2020-12 생성
 - **다형성 discriminator** — `@Field({ discriminator })`로 유니온 타입 지원
 - **Whitelist 모드** — `configure({ forbidUnknown: true })`로 미선언 필드 거부
 - **클래스 상속** — 자식 DTO가 부모 `@Field()` 데코레이터를 자동으로 상속
 - **비동기 transform** — transform 함수에 async 사용 가능
+- **Map/Set 지원** — `Map`/`Set`과 JSON 호환 타입 간 자동 변환
+- **필드별 에러 메시지** — `@Field()`의 `message`와 `context` 옵션으로 커스텀 에러
 
 ---
 
@@ -94,15 +97,16 @@ class CreateUserDto {
 ### 2. Deserialize (첫 호출 시 auto-seal)
 
 ```typescript
-import { deserialize, BakerValidationError } from '@zipbul/baker';
+import { deserialize, isBakerError } from '@zipbul/baker';
 
-try {
-  const user = await deserialize(CreateUserDto, requestBody);
-  // user는 검증 완료된 CreateUserDto 인스턴스
-} catch (e) {
-  if (e instanceof BakerValidationError) {
-    console.log(e.errors); // BakerError[]
-  }
+const result = await deserialize(CreateUserDto, requestBody);
+
+if (isBakerError(result)) {
+  // 검증 실패
+  console.log(result.errors); // BakerError[]
+} else {
+  // result는 검증 완료된 CreateUserDto 인스턴스
+  console.log(result.name);
 }
 ```
 
@@ -115,7 +119,7 @@ const plain = await serialize(userInstance);
 // plain: Record<string, unknown>
 ```
 
-> `seal()` 호출이 필요 없습니다 — baker는 첫 `deserialize()` 또는 `serialize()` 호출 시 등록된 모든 DTO를 자동으로 seal합니다.
+> `seal()` 호출이 필요 없습니다 — baker는 첫 `deserialize()`, `serialize()`, 또는 `validate()` 호출 시 등록된 모든 DTO를 자동으로 seal합니다.
 
 ---
 
@@ -158,19 +162,31 @@ interface FieldOptions {
   exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
   groups?: string[];                          // 가시성 + 조건부 검증
   when?: (obj: any) => boolean;               // 조건부 검증
-  schema?: JsonSchemaOverride;                // JSON Schema 메타데이터
   transform?: (params: FieldTransformParams) => unknown;
   transformDirection?: 'deserializeOnly' | 'serializeOnly';
+  message?: string | ((args: MessageArgs) => string); // 모든 규칙의 에러 메시지
+  context?: unknown;                                   // 모든 규칙의 에러 컨텍스트
+  mapValue?: () => Constructor;                        // Map 값 DTO 타입
+  setValue?: () => Constructor;                        // Set 요소 DTO 타입
 }
 ```
 
-### 규칙별 옵션 (message, groups)
+### 필드별 에러 메시지
 
-개별 규칙 함수에 `message`, `groups`, `context`를 직접 전달하는 것은 **불가능**합니다. 대신 `@Field()` 레벨에서 제어합니다:
+`message`와 `context`로 검증 에러 출력을 커스터마이즈합니다:
 
-- **`groups`** — `FieldOptions.groups`로 설정 (해당 필드의 모든 규칙에 적용)
-- **`message`** / **`context`** — `createRule()`로 커스텀 에러 메시지 설정하거나 `BakerError.code`로 처리
-- **`each` (배열 요소 검증)** — `arrayOf()` 사용 (아래 참조)
+```typescript
+@Field(isString, minLength(3), { message: 'Name is invalid' })
+name!: string;
+
+@Field(isEmail(), {
+  message: ({ property, value }) => `${property} got bad value: ${value}`,
+  context: { severity: 'error' },
+})
+email!: string;
+```
+
+`message`와 `context`는 해당 필드의 모든 규칙에 적용됩니다. 검증 실패 시 `BakerError.message`와 `BakerError.context`에 포함됩니다.
 
 ### `arrayOf()` — 배열 요소 검증
 
@@ -194,6 +210,43 @@ import { arrayMinSize, arrayMaxSize } from '@zipbul/baker/rules';
 class ScoresDto {
   @Field(arrayMinSize(1), arrayMaxSize(10), arrayOf(isInt, min(0), max(100)))
   scores!: number[];
+}
+```
+
+---
+
+## Validate
+
+`validate()`는 인스턴스를 생성하지 않고 입력을 검사합니다. 두 가지 모드가 있습니다:
+
+### DTO 레벨 검증
+
+```typescript
+import { validate, isBakerError } from '@zipbul/baker';
+
+const result = await validate(CreateUserDto, input);
+
+if (isBakerError(result)) {
+  console.log(result.errors); // BakerError[]
+} else {
+  // result === true
+}
+```
+
+### 애드혹 검증
+
+DTO 없이 단일 값을 하나 이상의 규칙으로 직접 검증합니다:
+
+```typescript
+import { validate, isBakerError } from '@zipbul/baker';
+import { isString, isEmail } from '@zipbul/baker/rules';
+
+const result = validate('hello@test.com', isString, isEmail());
+// result === true
+
+const bad = validate(42, isString);
+if (isBakerError(bad)) {
+  console.log(bad.errors); // [{ path: '', code: 'isString' }]
 }
 ```
 
@@ -361,7 +414,7 @@ class ScoresDto {
 
 ## 설정
 
-첫 `deserialize()`/`serialize()` 호출 **이전에** `configure()`를 호출하세요:
+첫 `deserialize()`/`serialize()`/`validate()` 호출 **이전에** `configure()`를 호출하세요:
 
 ```typescript
 import { configure } from '@zipbul/baker';
@@ -381,21 +434,34 @@ configure({
 
 ## 에러 처리
 
-검증 실패 시 `deserialize()`는 `BakerValidationError`를 throw합니다:
+검증은 절대 throw하지 않습니다. `deserialize()`와 `validate()`는 성공 값 또는 `BakerErrors` 객체를 반환합니다. `isBakerError()` 타입 가드로 결과를 좁힙니다:
 
 ```typescript
-class BakerValidationError extends Error {
-  readonly errors: BakerError[];
-  readonly className: string;
-}
+import { deserialize, isBakerError } from '@zipbul/baker';
 
-interface BakerError {
-  readonly path: string;      // 'user.address.city'
-  readonly code: string;      // 'isString', 'min', 'isEmail'
-  readonly message?: string;  // 커스텀 메시지
-  readonly context?: unknown; // 커스텀 컨텍스트
+const result = await deserialize(CreateUserDto, input);
+
+if (isBakerError(result)) {
+  // result.errors: readonly BakerError[]
+  for (const err of result.errors) {
+    console.log(err.path, err.code, err.message);
+  }
+} else {
+  // result: CreateUserDto
+  console.log(result.name);
 }
 ```
+
+```typescript
+interface BakerError {
+  readonly path: string;      // 'user.address.city', 'items[0].value'
+  readonly code: string;      // 'isString', 'min', 'isEmail', 'invalidInput', ...
+  readonly message?: string;  // 커스텀 메시지 (@Field message 옵션 설정 시)
+  readonly context?: unknown; // 커스텀 컨텍스트 (@Field context 옵션 설정 시)
+}
+```
+
+> `SealError`는 Baker가 throw하는 유일한 예외입니다 — `@Field()` 데코레이터가 없는 클래스에 `deserialize()`를 호출하는 등의 프로그래밍 오류를 나타냅니다.
 
 ---
 
@@ -445,6 +511,30 @@ class PetOwnerDto {
 ```
 
 Discriminator는 양방향으로 동작합니다 — `deserialize()`는 프로퍼티 값으로 분기하고, `serialize()`는 `instanceof`로 분기합니다.
+
+### Map / Set 컬렉션
+
+Baker는 `Map`/`Set`과 JSON 호환 타입 간 자동 변환을 지원합니다:
+
+```typescript
+// Set<primitive>: JSON 배열 <-> Set
+@Field({ type: () => Set })
+tags!: Set<string>;
+
+// Set<DTO>: JSON 객체 배열 <-> DTO 인스턴스 Set
+@Field({ type: () => Set, setValue: () => TagDto })
+tags!: Set<TagDto>;
+
+// Map<string, primitive>: JSON 객체 <-> Map
+@Field({ type: () => Map })
+config!: Map<string, unknown>;
+
+// Map<string, DTO>: JSON 객체 <-> DTO 인스턴스 Map
+@Field({ type: () => Map, mapValue: () => PriceDto })
+prices!: Map<string, PriceDto>;
+```
+
+Map 키는 항상 문자열입니다 (JSON 제약).
 
 ---
 
@@ -499,64 +589,25 @@ class UserDto {
 ```typescript
 import { createRule } from '@zipbul/baker';
 
+// 간단한 형태
+const isEven = createRule('isEven', (v) => typeof v === 'number' && v % 2 === 0);
+
+// 옵션 형태
 const isPositiveInt = createRule({
   name: 'isPositiveInt',
   validate: (value) => Number.isInteger(value) && (value as number) > 0,
+});
+
+// 비동기 규칙
+const isUnique = createRule({
+  name: 'isUnique',
+  validate: async (v) => await db.checkUnique(v),
 });
 
 class Dto {
   @Field(isPositiveInt)
   count!: number;
 }
-```
-
----
-
-## 클래스 레벨 JSON Schema 메타데이터
-
-`collectClassSchema()`를 사용하여 DTO에 클래스 레벨 JSON Schema 메타데이터(title, description 등)를 부착합니다. 이 메타데이터는 `toJsonSchema()` 출력에 병합됩니다.
-
-> `collectClassSchema`는 `src/collect.ts`에서 제공하는 저수준 API입니다. 서브패스 익스포트로는 사용할 수 없으며 직접 import해야 합니다.
-
-```typescript
-import { collectClassSchema } from '@zipbul/baker/src/collect';
-
-class CreateUserDto {
-  @Field(isString) name!: string;
-  @Field(isEmail()) email!: string;
-}
-
-collectClassSchema(CreateUserDto, {
-  title: 'CreateUserRequest',
-  description: '새 사용자 생성을 위한 페이로드',
-});
-```
-
-프로퍼티 레벨 스키마 오버라이드는 `@Field()`의 `schema` 옵션을 사용합니다:
-
-```typescript
-class Dto {
-  @Field(isString, minLength(1), {
-    schema: { description: '사용자 표시 이름', minLength: 5 },
-  })
-  name!: string;
-}
-```
-
----
-
-## JSON Schema
-
-DTO에서 JSON Schema Draft 2020-12를 생성합니다:
-
-```typescript
-import { toJsonSchema } from '@zipbul/baker';
-
-const schema = toJsonSchema(CreateUserDto, {
-  direction: 'deserialize',  // 'deserialize' | 'serialize'
-  groups: ['create'],         // 그룹별 필터링
-  onUnmappedRule: (name) => { /* 스키마 매핑이 없는 커스텀 규칙 */ },
-});
 ```
 
 ---
@@ -569,7 +620,7 @@ Decorators (@Field)     auto-seal (첫 호출)       deserialize() / serialize()
 ```
 
 1. `@Field()`가 정의 시점에 클래스 프로퍼티에 검증 메타데이터를 부착합니다
-2. 첫 `deserialize()`/`serialize()` 호출이 **auto-seal**을 트리거합니다 — 모든 메타데이터를 읽고, 순환 참조를 분석하고, `new Function()`으로 최적화된 JavaScript 함수를 생성합니다
+2. 첫 `deserialize()`/`serialize()`/`validate()` 호출이 **auto-seal**을 트리거합니다 — 모든 메타데이터를 읽고, 순환 참조를 분석하고, `new Function()`으로 최적화된 JavaScript 함수를 생성합니다
 3. 이후 호출은 생성된 함수를 직접 실행합니다 — 해석 루프 없음
 
 ---
@@ -578,8 +629,19 @@ Decorators (@Field)     auto-seal (첫 호출)       deserialize() / serialize()
 
 | 임포트 경로 | 용도 |
 |---|---|
-| `@zipbul/baker` | 메인 API: `deserialize`, `serialize`, `configure`, `toJsonSchema`, `Field`, `arrayOf`, `createRule` |
+| `@zipbul/baker` | 메인 API: `deserialize`, `serialize`, `validate`, `configure`, `Field`, `arrayOf`, `createRule`, `isBakerError` |
 | `@zipbul/baker/rules` | 규칙 함수 및 상수: `isString`, `min()`, `isEmail()`, `arrayOf()` 등 |
+
+---
+
+## 성능
+
+seal 시점 인라인 코드 생성 — 런타임 해석 오버헤드 없음.
+
+| 시나리오 | Baker | class-validator | zod |
+|----------|------:|----------------:|----:|
+| Valid (5 fields) | 39ns | 8.47us | 879ns |
+| Invalid (5 fields) | 93ns | 10.68us | 8.57us |
 
 ---
 

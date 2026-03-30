@@ -40,11 +40,12 @@ Baker gives you a **single `@Field()` decorator** that combines validation, tran
 - **80+ built-in rules** — `isString`, `min()`, `isEmail()` and more, composed as arguments
 - **Inline code generation** — auto-seal compiles validators at first `deserialize()`/`serialize()` call
 - **Unified validate + transform** — `deserialize()` and `serialize()` in one call (sync DTOs skip async overhead)
+- **No-throw validation** — `isBakerError()` type guard instead of try/catch
+- **Standalone `validate()`** — DTO-level or ad-hoc single-value validation
 - **Zero reflect-metadata** — no `reflect-metadata` import needed
 - **Circular reference detection** — automatic static analysis at seal time
 - **Group-based validation** — apply different rules per request with `groups`
 - **Custom rules** — `createRule()` for user-defined validators with codegen support
-- **JSON Schema output** — `toJsonSchema()` generates JSON Schema Draft 2020-12 from your DTOs
 - **Polymorphic discriminator** — `@Field({ discriminator })` for union types
 - **Whitelist mode** — reject undeclared fields with `configure({ forbidUnknown: true })`
 - **Class inheritance** — child DTOs inherit parent `@Field()` decorators automatically
@@ -96,15 +97,16 @@ class CreateUserDto {
 ### 2. Deserialize (auto-seals on first call)
 
 ```typescript
-import { deserialize, BakerValidationError } from '@zipbul/baker';
+import { deserialize, isBakerError } from '@zipbul/baker';
 
-try {
-  const user = await deserialize(CreateUserDto, requestBody);
-  // user is a validated CreateUserDto instance
-} catch (e) {
-  if (e instanceof BakerValidationError) {
-    console.log(e.errors); // BakerError[]
-  }
+const result = await deserialize(CreateUserDto, requestBody);
+
+if (isBakerError(result)) {
+  // Validation failed
+  console.log(result.errors); // BakerError[]
+} else {
+  // result is a validated CreateUserDto instance
+  console.log(result.name);
 }
 ```
 
@@ -117,7 +119,7 @@ const plain = await serialize(userInstance);
 // plain: Record<string, unknown>
 ```
 
-> No `seal()` call needed — baker auto-seals all registered DTOs on the first `deserialize()` or `serialize()` call.
+> No `seal()` call needed — baker auto-seals all registered DTOs on the first `deserialize()`, `serialize()`, or `validate()` call.
 
 ---
 
@@ -160,7 +162,6 @@ interface FieldOptions {
   exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
   groups?: string[];                          // Visibility + conditional validation
   when?: (obj: any) => boolean;               // Conditional validation
-  schema?: JsonSchemaOverride;                // JSON Schema metadata
   transform?: (params: FieldTransformParams) => unknown;
   transformDirection?: 'deserializeOnly' | 'serializeOnly';
   message?: string | ((args: MessageArgs) => string); // Error message for all rules
@@ -209,6 +210,43 @@ import { arrayMinSize, arrayMaxSize } from '@zipbul/baker/rules';
 class ScoresDto {
   @Field(arrayMinSize(1), arrayMaxSize(10), arrayOf(isInt, min(0), max(100)))
   scores!: number[];
+}
+```
+
+---
+
+## Validate
+
+`validate()` checks input without creating an instance. Two modes:
+
+### DTO-level validation
+
+```typescript
+import { validate, isBakerError } from '@zipbul/baker';
+
+const result = await validate(CreateUserDto, input);
+
+if (isBakerError(result)) {
+  console.log(result.errors); // BakerError[]
+} else {
+  // result === true
+}
+```
+
+### Ad-hoc validation
+
+Validate a single value against one or more rules directly — no DTO needed:
+
+```typescript
+import { validate, isBakerError } from '@zipbul/baker';
+import { isString, isEmail } from '@zipbul/baker/rules';
+
+const result = validate('hello@test.com', isString, isEmail());
+// result === true
+
+const bad = validate(42, isString);
+if (isBakerError(bad)) {
+  console.log(bad.errors); // [{ path: '', code: 'isString' }]
 }
 ```
 
@@ -376,7 +414,7 @@ Locale-specific validators that accept a locale string parameter.
 
 ## Configuration
 
-Call `configure()` **before** the first `deserialize()`/`serialize()`:
+Call `configure()` **before** the first `deserialize()`/`serialize()`/`validate()`:
 
 ```typescript
 import { configure } from '@zipbul/baker';
@@ -396,21 +434,34 @@ configure({
 
 ## Error Handling
 
-When validation fails, `deserialize()` throws a `BakerValidationError`:
+Validation never throws. `deserialize()` and `validate()` return either the success value or a `BakerErrors` object. Use the `isBakerError()` type guard to narrow the result:
 
 ```typescript
-class BakerValidationError extends Error {
-  readonly errors: BakerError[];
-  readonly className: string;
-}
+import { deserialize, isBakerError } from '@zipbul/baker';
 
-interface BakerError {
-  readonly path: string;      // 'user.address.city'
-  readonly code: string;      // 'isString', 'min', 'isEmail'
-  readonly message?: string;  // Custom message
-  readonly context?: unknown; // Custom context
+const result = await deserialize(CreateUserDto, input);
+
+if (isBakerError(result)) {
+  // result.errors: readonly BakerError[]
+  for (const err of result.errors) {
+    console.log(err.path, err.code, err.message);
+  }
+} else {
+  // result: CreateUserDto
+  console.log(result.name);
 }
 ```
+
+```typescript
+interface BakerError {
+  readonly path: string;      // 'user.address.city', 'items[0].value'
+  readonly code: string;      // 'isString', 'min', 'isEmail', 'invalidInput', ...
+  readonly message?: string;  // Custom message (when set via @Field message option)
+  readonly context?: unknown; // Custom context (when set via @Field context option)
+}
+```
+
+> `SealError` is the only exception Baker throws — it indicates a programming error such as calling `deserialize()` on a class with no `@Field()` decorators.
 
 ---
 
@@ -466,24 +517,24 @@ Discriminator works in both directions — `deserialize()` switches on the prope
 Baker auto-converts between `Map`/`Set` and JSON-compatible types:
 
 ```typescript
-// Set<primitive>: JSON array ↔ Set
+// Set<primitive>: JSON array <-> Set
 @Field({ type: () => Set })
 tags!: Set<string>;
 
-// Set<DTO>: JSON array of objects ↔ Set of DTO instances
+// Set<DTO>: JSON array of objects <-> Set of DTO instances
 @Field({ type: () => Set, setValue: () => TagDto })
 tags!: Set<TagDto>;
 
-// Map<string, primitive>: JSON object ↔ Map
+// Map<string, primitive>: JSON object <-> Map
 @Field({ type: () => Map })
 config!: Map<string, unknown>;
 
-// Map<string, DTO>: JSON object ↔ Map of DTO instances
+// Map<string, DTO>: JSON object <-> Map of DTO instances
 @Field({ type: () => Map, mapValue: () => PriceDto })
 prices!: Map<string, PriceDto>;
 ```
 
-Map keys are always strings (JSON constraint). JSON Schema maps `Set` to `{ type: 'array', uniqueItems: true }` and `Map` to `{ type: 'object', additionalProperties: ... }`.
+Map keys are always strings (JSON constraint).
 
 ---
 
@@ -538,64 +589,25 @@ class UserDto {
 ```typescript
 import { createRule } from '@zipbul/baker';
 
+// Simple form
+const isEven = createRule('isEven', (v) => typeof v === 'number' && v % 2 === 0);
+
+// Options form
 const isPositiveInt = createRule({
   name: 'isPositiveInt',
   validate: (value) => Number.isInteger(value) && (value as number) > 0,
+});
+
+// Async rule
+const isUnique = createRule({
+  name: 'isUnique',
+  validate: async (v) => await db.checkUnique(v),
 });
 
 class Dto {
   @Field(isPositiveInt)
   count!: number;
 }
-```
-
----
-
-## Class-level JSON Schema Metadata
-
-Use `collectClassSchema()` to attach class-level JSON Schema metadata (title, description, etc.) to a DTO. This metadata is merged into the output of `toJsonSchema()`.
-
-> `collectClassSchema` is a low-level API exported from `src/collect.ts`. It is not available as a subpath export and must be imported directly.
-
-```typescript
-import { collectClassSchema } from '@zipbul/baker/src/collect';
-
-class CreateUserDto {
-  @Field(isString) name!: string;
-  @Field(isEmail()) email!: string;
-}
-
-collectClassSchema(CreateUserDto, {
-  title: 'CreateUserRequest',
-  description: 'Payload for creating a new user',
-});
-```
-
-For property-level schema overrides, use the `schema` option in `@Field()`:
-
-```typescript
-class Dto {
-  @Field(isString, minLength(1), {
-    schema: { description: 'User display name', minLength: 5 },
-  })
-  name!: string;
-}
-```
-
----
-
-## JSON Schema
-
-Generate JSON Schema Draft 2020-12 from your DTOs:
-
-```typescript
-import { toJsonSchema } from '@zipbul/baker';
-
-const schema = toJsonSchema(CreateUserDto, {
-  direction: 'deserialize',  // 'deserialize' | 'serialize'
-  groups: ['create'],         // Filter by group
-  onUnmappedRule: (name) => { /* custom rules without schema mapping */ },
-});
 ```
 
 ---
@@ -608,7 +620,7 @@ Decorators (@Field)     auto-seal (first call)     deserialize() / serialize()
 ```
 
 1. `@Field()` attaches validation metadata to class properties at definition time
-2. First `deserialize()`/`serialize()` call triggers **auto-seal** — reads all metadata, analyzes circular references, generates optimized JavaScript functions via `new Function()`
+2. First `deserialize()`/`serialize()`/`validate()` call triggers **auto-seal** — reads all metadata, analyzes circular references, generates optimized JavaScript functions via `new Function()`
 3. Subsequent calls execute the generated function directly — no interpretation loops
 
 ---
@@ -617,8 +629,19 @@ Decorators (@Field)     auto-seal (first call)     deserialize() / serialize()
 
 | Import path | Purpose |
 |---|---|
-| `@zipbul/baker` | Main API: `deserialize`, `serialize`, `configure`, `toJsonSchema`, `Field`, `arrayOf`, `createRule` |
+| `@zipbul/baker` | Main API: `deserialize`, `serialize`, `validate`, `configure`, `Field`, `arrayOf`, `createRule`, `isBakerError` |
 | `@zipbul/baker/rules` | Rule functions and constants: `isString`, `min()`, `isEmail()`, `arrayOf()`, etc. |
+
+---
+
+## Performance
+
+Inline code generation at seal time — no runtime interpretation overhead.
+
+| Scenario | Baker | class-validator | zod |
+|----------|------:|----------------:|----:|
+| Valid (5 fields) | 39ns | 8.47us | 879ns |
+| Invalid (5 fields) | 93ns | 10.68us | 8.57us |
 
 ---
 
