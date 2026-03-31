@@ -5,10 +5,17 @@ import { isString } from '../../src/rules/index';
 
 class TrimLowerDto {
   @Field(isString, {
-    transform: ({ value }) => {
-      let v = typeof value === 'string' ? value.trim() : value;
-      v = typeof v === 'string' ? v.toLowerCase() : v;
-      return v;
+    transform: {
+      deserialize: ({ value }) => {
+        let v = typeof value === 'string' ? value.trim() : value;
+        v = typeof v === 'string' ? v.toLowerCase() : v;
+        return v;
+      },
+      serialize: ({ value }) => {
+        let v = typeof value === 'string' ? value.trim() : value;
+        v = typeof v === 'string' ? v.toLowerCase() : v;
+        return v;
+      },
     },
   })
   email!: string;
@@ -16,10 +23,9 @@ class TrimLowerDto {
 
 class DirectionTransformDto {
   @Field(isString, {
-    transform: ({ value, direction }) => {
-      if (direction === 'deserialize') return (value as string).trim();
-      if (direction === 'serialize') return `<${value}>`;
-      return value;
+    transform: {
+      deserialize: ({ value }) => (value as string).trim(),
+      serialize: ({ value }) => `<${value}>`,
     },
   })
   tag!: string;
@@ -27,8 +33,10 @@ class DirectionTransformDto {
 
 class TypeAwareDto {
   @Field(isString, {
-    transform: ({ value, direction }) =>
-      direction === 'deserialize' ? (value as string).toUpperCase() : (value as string).toLowerCase(),
+    transform: {
+      deserialize: ({ value }) => (value as string).toUpperCase(),
+      serialize: ({ value }) => (value as string).toLowerCase(),
+    },
   })
   code!: string;
 }
@@ -78,7 +86,10 @@ describe('@Transform — stacking serialize', () => {
 describe('@Transform callback parameters', () => {
   class CallbackDto {
     @Field(isString, {
-      transform: ({ value, key, obj }) => `${key}:${obj.prefix}:${value}`,
+      transform: {
+        deserialize: ({ value, key, obj }) => `${key}:${obj.prefix}:${value}`,
+        serialize: ({ value, key, obj }) => `${key}:${obj.prefix}:${value}`,
+      },
     })
     data!: string;
 
@@ -98,7 +109,10 @@ describe('E-24: async transform failure error path', () => {
   it('async transform returns invalid value → subsequent validation error has correct path/code', async () => {
     class AsyncInvalidDto {
       @Field(isString, {
-        transform: async ({ value }) => typeof value === 'string' ? 42 : value,
+        transform: {
+          deserialize: async ({ value }) => typeof value === 'string' ? 42 : value,
+          serialize: ({ value }) => value,
+        },
       })
       name!: string;
     }
@@ -114,7 +128,10 @@ describe('E-24: async transform failure error path', () => {
   it('async transform throws → error propagated', async () => {
     class AsyncThrowDto {
       @Field(isString, {
-        transform: async () => { throw new Error('transform boom'); },
+        transform: {
+          deserialize: async () => { throw new Error('transform boom'); },
+          serialize: ({ value }) => value,
+        },
       })
       value!: string;
     }
@@ -130,7 +147,10 @@ describe('@Transform null return behavior', () => {
   it('Transform → null return causes isString failure (guard runs on original input)', async () => {
     class NullTransformDto {
       @Field(isString, {
-        transform: ({ value }) => value === 'EMPTY' ? null : value,
+        transform: {
+          deserialize: ({ value }) => value === 'EMPTY' ? null : value,
+          serialize: ({ value }) => value,
+        },
       })
       v!: string;
     }
@@ -141,7 +161,10 @@ describe('@Transform null return behavior', () => {
   it('Transform returning valid value → validation passes', async () => {
     class TransformDto {
       @Field(isString, {
-        transform: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+        transform: {
+          deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+          serialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+        },
       })
       v!: string;
     }
@@ -153,7 +176,10 @@ describe('@Transform null return behavior', () => {
     class NullableDto {
       @Field(isString, {
         nullable: true,
-        transform: ({ value }) => 'transformed',
+        transform: {
+          deserialize: ({ value }) => 'transformed',
+          serialize: ({ value }) => 'transformed',
+        },
       })
       v!: string | null;
     }

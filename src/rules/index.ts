@@ -17,6 +17,7 @@ export {
   isHash, isRFC3339, isMilitaryTime, isLatitude, isLongitude,
   isEthereumAddress, isBtcAddress, isISO4217CurrencyCode, isPhoneNumber,
   isStrongPassword, isTaxId,
+  isULID, isCUID2,
 } from './string';
 export type {
   IsURLOptions, IsBase64Options,

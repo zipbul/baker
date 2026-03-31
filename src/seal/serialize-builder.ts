@@ -1,6 +1,6 @@
 import { SEALED } from '../symbols';
 import { isAsyncFunction } from '../utils';
-import type { RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
+import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +26,31 @@ function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): strin
   const all = new Set<string>();
   for (const e of serEntries) for (const g of e.groups!) all.add(g);
   return [...all];
+}
+
+/**
+ * Generate transform chain code to apply after nested/collection serialize.
+ * Reads the current value from outputTarget, chains transforms, writes back.
+ */
+function buildPostNestedTransformCode(
+  outputTarget: string,
+  fieldKey: string,
+  serTransforms: TransformDef[],
+  refs: unknown[],
+  isAsync: boolean,
+): string {
+  if (serTransforms.length === 0) return '';
+  // Serialize direction: reverse order (codec stack — unwrap in opposite order)
+  const reversed = [...serTransforms].reverse();
+  let valueExpr = outputTarget;
+  for (const td of reversed) {
+    const refIdx = refs.length;
+    refs.push(td.fn);
+    const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
+    const isAsyncTransform = isAsync && isAsyncFunction(td.fn);
+    valueExpr = isAsyncTransform ? `(await ${callExpr})` : callExpr;
+  }
+  return `\n${outputTarget} = ${valueExpr};`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -130,8 +155,11 @@ function generateSerializeFieldCode(
   // ② @IsOptional → skip output if undefined (§4.3 serialize step 2)
   const useOptionalGuard = meta.flags.isOptional;
 
+  // Collect serialize-direction transforms once
+  const serTransforms = meta.transform.filter(td => !td.options?.deserializeOnly);
+
   // ③a Collection (Map/Set) serialize — Set → Array, Map → plain object
-  if (meta.type?.collection && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
+  if (meta.type?.collection) {
     const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
     const collection = meta.type.collection;
     let nestedCode: string;
@@ -166,6 +194,9 @@ function generateSerializeFieldCode(
       }
     }
 
+    // Apply serialize transforms after collection serialize (nested → transform)
+    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs, isAsync);
+
     if (useOptionalGuard) {
       innerCode = `if (instance[${JSON.stringify(fieldKey)}] !== undefined && instance[${JSON.stringify(fieldKey)}] !== null) {\n  ${nestedCode}\n} else if (instance[${JSON.stringify(fieldKey)}] === null) {\n  ${outputTarget} = null;\n}\n`;
     } else {
@@ -176,8 +207,8 @@ function generateSerializeFieldCode(
     return fieldCode;
   }
 
-  // ③b nested @Type handling (H4) — only when no @Transform present (§4.3 serialize pipeline)
-  if ((meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) && !meta.transform.filter(td => !td.options?.deserializeOnly).length) {
+  // ③b nested @Type handling (H4) — supports type + transform combination (nested serialize → transform)
+  if (meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) {
 
     // Determine array/each mode
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
@@ -256,6 +287,9 @@ function generateSerializeFieldCode(
       }
     }
 
+    // Apply serialize transforms after nested serialize (nested serialize → transform)
+    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs, isAsync);
+
     if (useOptionalGuard) {
       innerCode = `if (instance[${JSON.stringify(fieldKey)}] !== undefined && instance[${JSON.stringify(fieldKey)}] !== null) {\n  ${nestedCode}\n} else if (instance[${JSON.stringify(fieldKey)}] === null) {\n  ${outputTarget} = null;\n}\n`;
     } else {
@@ -296,11 +330,13 @@ function buildSerializeOutputExpr(
   );
 
   if (serTransforms.length > 0) {
+    // Serialize direction: reverse order (codec stack — unwrap in opposite order)
+    const reversed = [...serTransforms].reverse();
     let valueExpr = `instance[${JSON.stringify(fieldKey)}]`;
-    for (const td of serTransforms) {
+    for (const td of reversed) {
       const refIdx = refs.length;
       refs.push(td.fn);
-      const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance,type:'serialize'})`;
+      const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
       const isAsyncTransform = isAsync && isAsyncFunction(td.fn);
       valueExpr = isAsyncTransform ? `(await ${callExpr})` : callExpr;
     }

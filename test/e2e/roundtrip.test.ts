@@ -80,12 +80,13 @@ describe('@Field({ name }) mapping roundtrip', () => {
 describe('@Transform roundtrip', () => {
   class TrimDto {
     @Field(isString, {
-      transform: ({ value, direction }) => {
-        let v = typeof value === 'string' ? value.trim() : value;
-        if (direction === 'serialize') {
+      transform: {
+        deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value,
+        serialize: ({ value }) => {
+          let v = typeof value === 'string' ? value.trim() : value;
           v = typeof v === 'string' ? v.toUpperCase() : v;
-        }
-        return v;
+          return v;
+        },
       },
     })
     tag!: string;

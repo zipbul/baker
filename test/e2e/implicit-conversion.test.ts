@@ -23,7 +23,7 @@ class ConvDto {
 }
 
 class ConvWithTransformDto {
-  @Field(isNumber(), { transform: ({ value }) => Number(value) })
+  @Field(isNumber(), { transform: { deserialize: ({ value }) => Number(value), serialize: ({ value }) => value } })
   score!: number;
 }
 

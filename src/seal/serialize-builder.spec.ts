@@ -188,12 +188,12 @@ describe('buildSerializeCode', () => {
     expect(result.name).toBe('PREFIX_ALICE');
   });
 
-  it('should apply all three @Transform functions in sequence (CO: three chained transforms)', () => {
-    // Arrange — three serialize transforms
+  it('should apply all three @Transform functions in reverse order for serialize (codec stack)', () => {
+    // Arrange — three serialize transforms (serialize applies in reverse: t3 → t2 → t1)
     class TriTransDto { tag = 'hello'; }
-    const t1 = mock(({ value }: any) => (value as string).toUpperCase());        // 'HELLO'
-    const t2 = mock(({ value }: any) => (value as string) + '!');               // 'HELLO!'
-    const t3 = mock(({ value }: any) => '[' + (value as string) + ']');         // '[HELLO!]'
+    const t1 = mock(({ value }: any) => (value as string).toUpperCase());
+    const t2 = mock(({ value }: any) => (value as string) + '!');
+    const t3 = mock(({ value }: any) => '[' + (value as string) + ']');
     const merged: RawClassMeta = {
       tag: {
         validation: [],
@@ -202,14 +202,14 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
+
       },
     };
     const exec = buildSerializeCode(TriTransDto, merged, undefined, false);
     // Act
     const result = exec(new TriTransDto()) as Record<string, unknown>;
-    // Assert
-    expect(result.tag).toBe('[HELLO!]');
+    // Assert — reverse order: 'hello' → t3('[hello]') → t2('[hello]!') → t1('[HELLO]!')
+    expect(result.tag).toBe('[HELLO]!');
   });
 
   // ── Edge ───────────────────────────────────────────────────────────────────
@@ -444,7 +444,7 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AsyncItemDto2 as any },
         flags: { validateNested: true },
-       
+
       },
     };
     const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true);
@@ -454,6 +454,122 @@ describe('buildSerializeCode', () => {
     // Assert — empty array → empty result
     expect(mockItemSerialize2).not.toHaveBeenCalled();
     expect(result.items).toEqual([]);
+  });
+
+  // ── type + transform combination ────────────────────────────────────────────
+
+  it('should run nested serialize first then apply transform (type + transform)', () => {
+    // Arrange
+    class AddressDto {}
+    const mockNestedSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ city: 'Seoul', zip: '12345' }));
+    (AddressDto as any)[SEALED] = {
+      _deserialize: mock(() => {}),
+      _serialize: mockNestedSerialize,
+      _isAsync: false,
+      _isSerializeAsync: false,
+    } satisfies SealedExecutors<unknown>;
+
+    const transformFn = mock(({ value }: any) => {
+      // Transform adds a computed field to the nested result
+      return { ...(value as Record<string, unknown>), formatted: `${(value as any).city} ${(value as any).zip}` };
+    });
+
+    class UserDto { address = new AddressDto(); }
+    const merged: RawClassMeta = {
+      address: {
+        validation: [],
+        transform: [{ fn: transformFn, options: { serializeOnly: true } }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => AddressDto as any, resolvedClass: AddressDto as any },
+        flags: { validateNested: true },
+      },
+    };
+    const exec = buildSerializeCode(UserDto, merged, undefined, false);
+    const instance = new UserDto();
+    // Act
+    const result = exec(instance) as Record<string, unknown>;
+    // Assert — nested serialize ran first, then transform was applied to its result
+    expect(mockNestedSerialize).toHaveBeenCalled();
+    expect(transformFn).toHaveBeenCalled();
+    const addr = result.address as Record<string, unknown>;
+    expect(addr.city).toBe('Seoul');
+    expect(addr.zip).toBe('12345');
+    expect(addr.formatted).toBe('Seoul 12345');
+  });
+
+  it('should omit optional field when undefined, and apply type + transform when present', () => {
+    // Arrange
+    class ProfileDto {}
+    const mockProfileSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ bio: 'hello' }));
+    (ProfileDto as any)[SEALED] = {
+      _deserialize: mock(() => {}),
+      _serialize: mockProfileSerialize,
+      _isAsync: false,
+      _isSerializeAsync: false,
+    } satisfies SealedExecutors<unknown>;
+
+    const transformFn = mock(({ value }: any) => {
+      return { ...(value as Record<string, unknown>), bioUpper: ((value as any).bio as string).toUpperCase() };
+    });
+
+    class MemberDto { profile?: ProfileDto; }
+    const merged: RawClassMeta = {
+      profile: {
+        validation: [],
+        transform: [{ fn: transformFn, options: { serializeOnly: true } }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => ProfileDto as any, resolvedClass: ProfileDto as any },
+        flags: { validateNested: true, isOptional: true },
+      },
+    };
+    const exec = buildSerializeCode(MemberDto, merged, undefined, false);
+
+    // Act — undefined case
+    const undefinedInstance = new MemberDto(); // profile is undefined
+    const undefinedResult = exec(undefinedInstance) as Record<string, unknown>;
+    // Assert — field is omitted
+    expect('profile' in undefinedResult).toBe(false);
+    expect(mockProfileSerialize).not.toHaveBeenCalled();
+    expect(transformFn).not.toHaveBeenCalled();
+
+    // Act — present case
+    const presentInstance = Object.assign(new MemberDto(), { profile: new ProfileDto() });
+    const presentResult = exec(presentInstance) as Record<string, unknown>;
+    // Assert — nested serialize + transform both applied
+    expect(mockProfileSerialize).toHaveBeenCalled();
+    expect(transformFn).toHaveBeenCalled();
+    const prof = presentResult.profile as Record<string, unknown>;
+    expect(prof.bio).toBe('hello');
+    expect(prof.bioUpper).toBe('HELLO');
+  });
+
+  it('should convert Set to array first then apply transform (collection + transform)', () => {
+    // Arrange
+    const transformFn = mock(({ value }: any) => {
+      // Transform sorts the array
+      return [...(value as number[])].sort((a, b) => a - b);
+    });
+
+    class TagsDto { tags = new Set([3, 1, 2]); }
+    const merged: RawClassMeta = {
+      tags: {
+        validation: [],
+        transform: [{ fn: transformFn, options: { serializeOnly: true } }],
+        expose: [],
+        exclude: null,
+        type: { fn: () => Number as any, collection: 'Set' },
+        flags: {},
+      },
+    };
+    const exec = buildSerializeCode(TagsDto, merged, undefined, false);
+    const instance = new TagsDto();
+    // Act
+    const result = exec(instance) as Record<string, unknown>;
+    // Assert — Set converted to array first, then transform sorted it
+    expect(transformFn).toHaveBeenCalled();
+    expect(result.tags).toEqual([1, 2, 3]);
   });
 
 });

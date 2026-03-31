@@ -68,7 +68,7 @@ describe('async serialize Set<DTO>', () => {
     items!: Set<SetItemDto>;
 
     @Field(isString, {
-      transform: async ({ value }) => value,
+      transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
     })
     other!: string;
   }
@@ -127,7 +127,7 @@ describe('async serialize array of nested DTOs', () => {
     @Field({ type: () => [ItemDto] })
     items!: ItemDto[];
 
-    @Field(isString, { transform: async ({ value }) => value })
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } })
     tag!: string;
   }
 
@@ -167,7 +167,7 @@ describe('async serialize discriminator array (serialize-builder.ts:225)', () =>
     })
     pets!: (CatDto | DogDto)[];
 
-    @Field(isString, { transform: async ({ value }) => value })
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } })
     tag!: string;
   }
 

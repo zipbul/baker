@@ -6,17 +6,17 @@ import { unseal } from './helpers/unseal';
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class TrimmedDto {
-  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim() : value })
+  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value, serialize: ({ value }) => value } })
   name!: string;
 }
 
 class ToUpperDto {
-  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value })
+  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value, serialize: ({ value }) => value } })
   code!: string;
 }
 
 class SerializeTransformDto {
-  @Field(isNumber(), { transform: ({ value, direction }) => direction === 'serialize' && typeof value === 'number' ? value * 100 : value })
+  @Field(isNumber(), { transform: { deserialize: ({ value }) => value, serialize: ({ value }) => typeof value === 'number' ? value * 100 : value } })
   price!: number;
 }
 

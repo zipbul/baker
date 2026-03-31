@@ -356,9 +356,12 @@ describe('chaos — prototype pollution attempt', () => {
 describe('chaos — async transform with delay', () => {
   class AsyncDelayDto {
     @Field(isString, {
-      transform: async ({ value }) => {
-        await new Promise(r => setTimeout(r, 10));
-        return typeof value === 'string' ? value.toUpperCase() : value;
+      transform: {
+        deserialize: async ({ value }) => {
+          await new Promise(r => setTimeout(r, 10));
+          return typeof value === 'string' ? value.toUpperCase() : value;
+        },
+        serialize: ({ value }) => value,
       },
     })
     name!: string;
