@@ -70,8 +70,10 @@ class SyncDto {
 
 class AsyncTransformDeserializeDto {
   @Field(isString, {
-    transform: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
-    transformDirection: 'deserializeOnly',
+    transform: {
+      deserialize: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
+      serialize: ({ value }) => value,
+    },
   })
   name!: string;
 }
@@ -88,8 +90,10 @@ class AsyncRuleDto {
 
 class AsyncTransformSerializeDto {
   @Field(isNumber(), {
-    transform: async ({ value }) => (typeof value === 'number' ? value * 100 : value),
-    transformDirection: 'serializeOnly',
+    transform: {
+      deserialize: ({ value }) => value,
+      serialize: async ({ value }) => (typeof value === 'number' ? value * 100 : value),
+    },
   })
   price!: number;
 }

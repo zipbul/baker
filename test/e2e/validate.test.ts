@@ -302,7 +302,7 @@ describe('validate DTO — optional/nullable', () => {
 describe('validate DTO — async', () => {
   class AsyncDto {
     @Field(isString, {
-      transform: async ({ value }) => (value as string).trim(),
+      transform: { deserialize: async ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
     }) name!: string;
   }
 

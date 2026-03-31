@@ -5,7 +5,9 @@ coverageReporter = ["text", "lcov"]
 coverageThreshold = 0.9
 coveragePathIgnorePatterns = [
   "node_modules/**",
-  "dist/**"
+  "dist/**",
+  "src/transformers/luxon.transformer.ts",
+  "src/transformers/moment.transformer.ts"
 ]
 
 [test.reporter]

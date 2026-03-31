@@ -389,7 +389,7 @@ function generateValidationCode(
       const refIdx = ctx.refs.length;
       ctx.refs.push(td.fn);
       const isAsyncTransform = ctx.isAsync && isAsyncFunction(td.fn);
-      const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:input,type:'deserialize'})`;
+      const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:input})`;
       code += `${varName} = ${isAsyncTransform ? 'await ' : ''}${callExpr};\n`;
     }
   }

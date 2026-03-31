@@ -1,6 +1,5 @@
 import { ensureMeta } from '../collect';
-import { isAsyncFunction } from '../utils';
-import type { EmittableRule, RawPropertyMeta, RuleDef, TypeDef } from '../types';
+import type { EmittableRule, RawPropertyMeta, RuleDef, TypeDef, Transformer } from '../types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (replaces each: true)
@@ -34,13 +33,6 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 // FieldOptions — @Field options object
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface FieldTransformParams {
-  value: unknown;
-  key: string;
-  obj: Record<string, unknown>;
-  direction: 'deserialize' | 'serialize';
-}
-
 export interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
   type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
@@ -68,11 +60,9 @@ export interface FieldOptions {
   /** Groups — field visibility control + conditional validation rule application */
   groups?: string[];
   /** Conditional validation — skip all field validation when false */
-  when?: (obj: any) => boolean;
-  /** Value transform function */
-  transform?: (params: FieldTransformParams) => unknown;
-  /** Transform direction restriction */
-  transformDirection?: 'deserializeOnly' | 'serializeOnly';
+  when?: (obj: Record<string, any>) => boolean;
+  /** Transformer or array of transformers (serialize direction applies in reverse order) */
+  transform?: Transformer | Transformer[];
   /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
   message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
   /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
@@ -90,7 +80,7 @@ export interface FieldOptions {
 const FIELD_OPTION_KEYS = new Set([
   'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
   'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
-  'exclude', 'groups', 'when', 'transform', 'transformDirection',
+  'exclude', 'groups', 'when', 'transform',
   'message', 'context', 'mapValue', 'setValue',
 ]);
 
@@ -171,31 +161,16 @@ function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   }
 }
 
-/** Detect async + wrap direction + register transform */
+/** Register Transformer — split into direction-specific TransformDefs */
 function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
   if (!options.transform) return;
-  const userFn = options.transform;
-  const isAsync = isAsyncFunction(userFn);
-  const wrapperFn = isAsync
-    ? async (params: any) => userFn({
-        value: params.value,
-        key: params.key,
-        obj: params.obj,
-        direction: params.type,
-      })
-    : (params: any) => userFn({
-        value: params.value,
-        key: params.key,
-        obj: params.obj,
-        direction: params.type,
-      });
-  const transformOptions: any = {};
-  if (options.transformDirection === 'deserializeOnly') transformOptions.deserializeOnly = true;
-  if (options.transformDirection === 'serializeOnly') transformOptions.serializeOnly = true;
-  meta.transform.push({
-    fn: wrapperFn,
-    options: Object.keys(transformOptions).length > 0 ? transformOptions : undefined,
-  });
+  const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
+  for (const t of transformers) {
+    meta.transform.push(
+      { fn: t.deserialize, options: { deserializeOnly: true } },
+      { fn: t.serialize, options: { serializeOnly: true } },
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

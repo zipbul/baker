@@ -16,7 +16,7 @@ afterEach(() => { unseal(); configure({}); });
 
 describe('_runSealed — async executor success', () => {
   class AsyncDto {
-    @Field(isString, { transform: async ({ value }) => (value as string).toUpperCase() })
+    @Field(isString, { transform: { deserialize: async ({ value }) => (value as string).toUpperCase(), serialize: ({ value }) => value } })
     name!: string;
   }
 
@@ -29,7 +29,7 @@ describe('_runSealed — async executor success', () => {
 
 describe('_runSealed — async executor returning error', () => {
   class AsyncErrDto {
-    @Field(isString, { transform: async ({ value }) => value })
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } })
     name!: string;
   }
 
@@ -335,7 +335,7 @@ describe('validate ad-hoc async — async rule returns Promise<false>', () => {
 
 describe('analyzeAsync — DTO with nested async DTO detected as async', () => {
   class InnerAsync {
-    @Field(isString, { transform: async ({ value }) => value }) val!: string;
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } }) val!: string;
   }
 
   class OuterWithAsync {

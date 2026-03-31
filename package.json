@@ -1,7 +1,7 @@
 {
   "name": "@zipbul/baker",
   "version": "2.0.0",
-  "description": "Decorator-based validate + transform with inline code generation. class-validator DX, AOT-level performance, zero reflect-metadata.",
+  "description": "Fastest decorator-based DTO validation for TypeScript. AOT code generation, 42ns per validation, 163x faster than class-validator. Zero reflect-metadata.",
   "license": "MIT",
   "author": "Junhyung Park (https://github.com/parkrevil)",
   "repository": {
@@ -12,7 +12,9 @@
   "homepage": "https://github.com/zipbul/baker#readme",
   "keywords": [
     "validation",
+    "validator",
     "transform",
+    "transformer",
     "decorator",
     "dto",
     "typescript",
@@ -20,11 +22,15 @@
     "type-safe",
     "class-validator",
     "class-transformer",
+    "class-validator-alternative",
+    "zod-alternative",
     "serialize",
     "deserialize",
     "code-generation",
+    "aot",
     "bun",
-    "zipbul"
+    "fast-validation",
+    "schema-validation"
   ],
   "engines": {
     "bun": ">=1.0.0"
@@ -50,6 +56,10 @@
     "./symbols": {
       "import": "./dist/src/symbols.js",
       "types": "./dist/src/symbols.d.ts"
+    },
+    "./transformers": {
+      "import": "./dist/src/transformers/index.js",
+      "types": "./dist/src/transformers/index.d.ts"
     }
   },
   "files": [
@@ -62,11 +72,23 @@
     "access": "public",
     "provenance": true
   },
+  "peerDependencies": {
+    "luxon": ">=3.0.0",
+    "moment": ">=2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "luxon": {
+      "optional": true
+    },
+    "moment": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@zipbul/result": "1.0.0"
   },
   "scripts": {
-    "build": "bun build index.ts src/decorators/index.ts src/rules/index.ts src/symbols.ts --outdir dist --target bun --format esm --splitting --packages external --sourcemap=linked --root . --production && tsc -p tsconfig.build.json",
+    "build": "bun build index.ts src/decorators/index.ts src/rules/index.ts src/symbols.ts src/transformers/index.ts --outdir dist --target bun --format esm --splitting --packages external --root . --production && tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
@@ -82,6 +104,8 @@
     "@commitlint/config-conventional": "^20.4.2",
     "@sinclair/typebox": "^0.34.48",
     "@types/bun": "^1.3.9",
+    "@types/luxon": "^3.7.1",
+    "@types/moment": "^2.13.0",
     "ajv": "^8.18.0",
     "arktype": "^2.2.0",
     "class-transformer": "^0.5.1",

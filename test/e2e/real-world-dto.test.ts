@@ -50,7 +50,7 @@ class CreateUserDto {
   @Field(isString, { exclude: 'serializeOnly' })
   password!: string;
 
-  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value })
+  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value, serialize: ({ value }) => value } })
   tag!: string;
 }
 
