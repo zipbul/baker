@@ -56,16 +56,19 @@ export interface RuleDef {
   context?: unknown;
 }
 
-/** @Transform callback signature */
-export type TransformFunction = (params: TransformParams) => unknown;
-
 export interface TransformParams {
   value: unknown;
   key: string;
-  /** deserialize: original input object, serialize: class instance */
   obj: Record<string, unknown>;
-  type: 'deserialize' | 'serialize';
 }
+
+export interface Transformer {
+  deserialize(params: TransformParams): unknown;
+  serialize(params: TransformParams): unknown;
+}
+
+/** Internal — direction-specific transform function stored after @Field processing */
+export type TransformFunction = (params: TransformParams) => unknown;
 
 export interface TransformDef {
   fn: TransformFunction;
@@ -119,7 +122,7 @@ export interface PropertyFlags {
   /** @IsNullable() — allow and assign null, reject undefined */
   isNullable?: boolean;
   /** @ValidateIf(cond) — skip all field validation when false */
-  validateIf?: (obj: any) => boolean;
+  validateIf?: (obj: Record<string, any>) => boolean;
   /** @ValidateNested() — trigger recursive validation for nested DTOs. Used with @Type */
   validateNested?: boolean;
   /** @ValidateNested({ each: true }) — validate nested DTOs per array element */

@@ -21,7 +21,10 @@ class SyncDto {
 
 class AsyncDto {
   @Field(isString, {
-    transform: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+    transform: {
+      deserialize: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+      serialize: ({ value }) => value,
+    },
   })
   name!: string;
 }

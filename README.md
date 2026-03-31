@@ -1,18 +1,14 @@
 # @zipbul/baker
 
-Decorator-based validation + transformation with inline code generation. Zero `reflect-metadata`.
+The fastest decorator-based DTO validation library for TypeScript. Generates optimized validation code at class definition time (AOT), delivering **42ns per validation** — up to 163x faster than class-validator, 16x faster than Zod.
 
 ```bash
 bun add @zipbul/baker
 ```
 
-Requires `"experimentalDecorators": true` in `tsconfig.json`.
+Zero `reflect-metadata`. Zero runtime overhead. 1,890 tests. 99%+ line coverage.
 
-## API
-
-### `deserialize<T>(Class, input, options?): T | BakerErrors | Promise<T | BakerErrors>`
-
-Validates input and creates a class instance. Sync DTOs return directly. Async DTOs (async transform/rules) return Promise. Always safe to `await`.
+## Quick Start
 
 ```typescript
 import { deserialize, isBakerError, Field } from '@zipbul/baker';
@@ -24,92 +20,82 @@ class UserDto {
   @Field(isString, isEmail()) email!: string;
 }
 
-const result = await deserialize(UserDto, { name: 'Alice', age: 30, email: 'alice@test.com' });
+const result = await deserialize(UserDto, {
+  name: 'Alice', age: 30, email: 'alice@test.com',
+});
 
 if (isBakerError(result)) {
-  console.log(result.errors); // { path: string, code: string }[]
+  console.log(result.errors); // [{ path: 'email', code: 'isEmail' }]
 } else {
-  console.log(result.name);  // 'Alice'
+  console.log(result.name);   // 'Alice' — typed as UserDto
 }
 ```
 
-Never throws on validation failure. Throws `SealError` only for programming errors (no `@Field` decorators, banned field names).
+## Why Baker?
 
-### `validate(Class, input, options?): true | BakerErrors | Promise<true | BakerErrors>`
+Baker generates optimized JavaScript validation functions **once** at class definition time, then executes them on every call — no interpretation, no schema traversal, no runtime compilation cost after the first seal.
 
-Same validation as `deserialize` without instance creation.
+| Feature | baker | class-validator | Zod |
+|---|---|---|---|
+| Valid path (5 fields) | **42ns** | 6,852ns | 675ns |
+| Invalid path (5 fields) | **93ns** | 10,109ns | 7,948ns |
+| Approach | AOT code generation | Runtime interpretation | Schema method chain |
+| Decorators | `@Field` (unified) | 30+ individual | N/A |
+| `reflect-metadata` | Not needed | Required | N/A |
+| Sync DTO return | Direct value | Promise | Direct value |
+
+## Performance
+
+Benchmarked against 6 libraries on a simple 5-field DTO (valid + invalid input):
+
+| Library | Valid | Invalid | vs baker (valid) | vs baker (invalid) |
+|---|---|---|---|---|
+| **baker** | **42ns** | **93ns** | — | — |
+| TypeBox | 123ns | 112ns | 2.9x slower | 1.2x slower |
+| AJV | 142ns | 201ns | 3.4x slower | 2.2x slower |
+| ArkType | 145ns | 8,591ns | 3.4x slower | 92x slower |
+| Valibot | 281ns | 1,070ns | 6.7x slower | 12x slower |
+| Zod | 675ns | 7,948ns | 16x slower | 85x slower |
+| class-validator | 6,852ns | 10,109ns | 163x slower | 109x slower |
+
+## API
+
+### `deserialize<T>(Class, input, options?)`
+
+Returns `T | BakerErrors | Promise<T | BakerErrors>`. Sync DTOs return directly — no Promise wrapping. Never throws on validation failure.
+
+### `serialize<T>(instance, options?)`
+
+Returns `Record<string, unknown> | Promise<Record<string, unknown>>`. No validation. Sync DTOs return directly.
+
+### `validate(Class, input, options?)` / `validate(input, ...rules)`
+
+DTO-level or ad-hoc single-value validation. Returns `true | BakerErrors`.
+
+### `isBakerError(value)`
+
+Type guard. Narrows result to `BakerErrors` containing `{ path, code, message?, context? }[]`.
+
+### `configure(config)`
+
+Global configuration. Call before first deserialize/serialize/validate.
 
 ```typescript
-import { validate, isBakerError } from '@zipbul/baker';
-
-const result = await validate(UserDto, input);
-if (isBakerError(result)) { /* errors */ }
-```
-
-### `validate(input, ...rules): true | BakerErrors | Promise<true | BakerErrors>`
-
-Ad-hoc single value validation. No DTO needed.
-
-```typescript
-const result = await validate('hello@test.com', isString, isEmail());
-// result === true
-```
-
-### `serialize<T>(instance, options?): Record<string, unknown> | Promise<Record<string, unknown>>`
-
-Converts a class instance to a plain object. No validation. Sync DTOs return directly.
-
-```typescript
-import { serialize } from '@zipbul/baker';
-
-const plain = await serialize(userInstance);
-```
-
-### `isBakerError(value): value is BakerErrors`
-
-Type guard. Narrows `deserialize`/`validate` result to error type.
-
-```typescript
-interface BakerError {
-  readonly path: string;     // 'name', 'address.city', 'items[0].value'
-  readonly code: string;     // 'isString', 'minLength', 'invalidInput'
-  readonly message?: string; // custom message if set
-  readonly context?: unknown; // custom context if set
-}
-```
-
-### `configure(config): ConfigureResult`
-
-Global configuration. Call before first `deserialize`/`serialize`/`validate`.
-
-```typescript
-import { configure } from '@zipbul/baker';
-
 configure({
-  autoConvert: true,        // "123" → 123. Default: false
-  allowClassDefaults: true, // use class field initializers for missing keys. Default: false
-  stopAtFirstError: true,   // return on first validation failure. Default: false
-  forbidUnknown: true,      // reject undeclared fields. Default: false
+  autoConvert: true,        // coerce "123" → 123
+  allowClassDefaults: true, // use class field initializers for missing keys
+  stopAtFirstError: true,   // return on first validation failure
+  forbidUnknown: true,      // reject undeclared fields
 });
 ```
 
-### `createRule(name, validate): EmittableRule`
+### `createRule(name, validate)`
 
-Creates a custom validation rule.
+Custom validation rule with optional AOT `emit()` for maximum performance.
 
-```typescript
-import { createRule } from '@zipbul/baker';
+## @Field Decorator
 
-const isEven = createRule('isEven', (v) => typeof v === 'number' && v % 2 === 0);
-
-const isUnique = createRule({
-  name: 'isUnique',
-  validate: async (v) => await db.checkUnique(v),
-  constraints: { table: 'users' },
-});
-```
-
-## `@Field` Decorator
+One decorator for everything — replaces 30+ individual decorators from class-validator.
 
 ```typescript
 @Field(...rules)
@@ -119,43 +105,103 @@ const isUnique = createRule({
 
 ### Options
 
+| Option | Type | Description |
+|---|---|---|
+| `type` | `() => Dto \| [Dto]` | Nested DTO. `[Dto]` for arrays |
+| `discriminator` | `{ property, subTypes }` | Polymorphic dispatch |
+| `optional` | `boolean` | Allow undefined |
+| `nullable` | `boolean` | Allow null |
+| `name` | `string` | Bidirectional key mapping |
+| `deserializeName` | `string` | Input key mapping |
+| `serializeName` | `string` | Output key mapping |
+| `exclude` | `boolean \| 'deserializeOnly' \| 'serializeOnly'` | Field exclusion |
+| `groups` | `string[]` | Conditional visibility |
+| `when` | `(obj) => boolean` | Conditional validation |
+| `transform` | `Transformer \| Transformer[]` | Value transformer |
+| `message` | `string \| (args) => string` | Error message override |
+| `context` | `unknown` | Error context |
+| `mapValue` | `() => Dto` | Map value DTO |
+| `setValue` | `() => Dto` | Set element DTO |
+
+## Transformers
+
+Bidirectional value transformers with separate `deserialize` and `serialize` methods.
+
 ```typescript
-interface FieldOptions {
-  type?: () => DtoClass | [DtoClass];        // nested DTO. [Dto] for arrays
-  discriminator?: {                           // polymorphic dispatch
-    property: string;
-    subTypes: { value: Function; name: string }[];
-  };
-  keepDiscriminatorProperty?: boolean;        // preserve discriminator in result. Default: false
-  rules?: EmittableRule[];                    // rules as array (alternative to variadic)
-  optional?: boolean;                         // allow undefined. Default: false
-  nullable?: boolean;                         // allow null. Default: false
-  name?: string;                              // bidirectional key mapping
-  deserializeName?: string;                   // input key mapping
-  serializeName?: string;                     // output key mapping
-  exclude?: boolean | 'deserializeOnly' | 'serializeOnly';  // field exclusion
-  groups?: string[];                          // conditional visibility
-  when?: (obj: any) => boolean;               // conditional validation
-  transform?: (params: FieldTransformParams) => unknown;     // value transform
-  transformDirection?: 'deserializeOnly' | 'serializeOnly';  // transform direction
-  message?: string | ((args) => string);      // error message override
-  context?: unknown;                          // error context
-  mapValue?: () => DtoClass;                  // Map value DTO
-  setValue?: () => DtoClass;                  // Set element DTO
+import type { Transformer } from '@zipbul/baker';
+
+const centsTransformer: Transformer = {
+  deserialize: ({ value }) => typeof value === 'number' ? value * 100 : value,
+  serialize: ({ value }) => typeof value === 'number' ? value / 100 : value,
+};
+```
+
+### Built-in Transformers
+
+```typescript
+import {
+  trimTransformer, toLowerCaseTransformer, toUpperCaseTransformer,
+  roundTransformer, unixSecondsTransformer, unixMillisTransformer,
+  isoStringTransformer, csvTransformer, jsonTransformer,
+} from '@zipbul/baker/transformers';
+```
+
+| Transformer | deserialize | serialize |
+|---|---|---|
+| `trimTransformer` | trim string | trim string |
+| `toLowerCaseTransformer` | lowercase | lowercase |
+| `toUpperCaseTransformer` | uppercase | uppercase |
+| `roundTransformer(n?)` | round to n decimals | round to n decimals |
+| `unixSecondsTransformer` | unix seconds &rarr; Date | Date &rarr; unix seconds |
+| `unixMillisTransformer` | unix ms &rarr; Date | Date &rarr; unix ms |
+| `isoStringTransformer` | ISO string &rarr; Date | Date &rarr; ISO string |
+| `csvTransformer(sep?)` | `"a,b"` &rarr; `["a","b"]` | `["a","b"]` &rarr; `"a,b"` |
+| `jsonTransformer` | JSON string &rarr; object | object &rarr; JSON string |
+
+### Transform Array Order
+
+Multiple transformers apply as a codec stack:
+- **Deserialize**: left to right — `[A, B, C]` applies A, then B, then C
+- **Serialize**: right to left — `[A, B, C]` applies C, then B, then A
+
+```typescript
+@Field(isString, { transform: [trimTransformer, toLowerCaseTransformer] })
+email!: string;
+// deserialize "  HELLO  " → trim → toLowerCase → "hello"
+// serialize   "hello"     → toLowerCase → trim → "hello"
+```
+
+### Optional Peer Transformers
+
+```typescript
+// bun add luxon
+import { luxonTransformer } from '@zipbul/baker/transformers';
+const luxon = await luxonTransformer({ zone: 'Asia/Seoul' });
+
+class EventDto {
+  @Field({ transform: luxon }) startAt!: DateTime;
 }
+```
+
+```typescript
+// bun add moment
+import { momentTransformer } from '@zipbul/baker/transformers';
+const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 ```
 
 ## Rules
 
+104 built-in validation rules.
+
 ### Type Checkers
 
-`isString`, `isInt`, `isBoolean`, `isDate`, `isArray`, `isObject` — constants, no `()`.
+`isString`, `isInt`, `isBoolean`, `isDate`, `isArray`, `isObject` — constants, no `()` needed.
 
-`isNumber(options?)`, `isEnum(entity)` — factories, need `()`.
+`isNumber(options?)`, `isEnum(entity)` — factories, require `()`.
 
 ### Numbers
 
-`min(n)`, `max(n)`, `min(n, { exclusive: true })`, `isPositive`, `isNegative`, `isDivisibleBy(n)`
+`min(n)`, `max(n)`, `isPositive`, `isNegative`, `isDivisibleBy(n)`
 
 ### Strings
 
@@ -163,7 +209,7 @@ interface FieldOptions {
 
 ### Formats
 
-`isEmail()`, `isURL()`, `isUUID(version?)`, `isIP(version?)`, `isISO8601()`, `isJSON`, `isJWT`, `isCreditCard`, `isIBAN()`, `isFQDN()`, `isMACAddress()`, `isBase64()`, `isHexColor`, `isSemVer`, `isMongoId`, `isPhoneNumber`, `isStrongPassword()`
+`isEmail()`, `isURL()`, `isUUID(version?)`, `isIP(version?)`, `isISO8601()`, `isJSON`, `isJWT`, `isCreditCard`, `isIBAN()`, `isFQDN()`, `isMACAddress()`, `isBase64()`, `isHexColor`, `isSemVer`, `isMongoId`, `isPhoneNumber()`, `isStrongPassword()`, `isULID()`, `isCUID2()`
 
 ### Arrays
 
@@ -199,7 +245,7 @@ class UserDto {
 ```typescript
 class UserDto {
   @Field({ type: () => Set as any, setValue: () => TagDto }) tags!: Set<TagDto>;
-  @Field({ type: () => Map as any, mapValue: () => TagDto }) tagMap!: Map<string, TagDto>;
+  @Field({ type: () => Map as any, mapValue: () => PriceDto }) prices!: Map<string, PriceDto>;
 }
 ```
 
@@ -233,34 +279,36 @@ class UserDto extends BaseDto {
 }
 ```
 
+## FAQ
+
+### When should I use baker instead of class-validator?
+
+When performance matters. baker is 163x faster on valid input and 109x faster on invalid input, while providing the same decorator-based DX. baker also eliminates the `reflect-metadata` dependency.
+
+### How does baker compare to Zod?
+
+Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker is 16x faster on valid input because it generates optimized code at definition time instead of interpreting schemas at runtime. Choose Zod if you need schema-first design; choose baker if you need class-based DTOs with maximum performance.
+
+### Does baker support async validation?
+
+Yes. If any rule or transformer is async, baker automatically detects it at seal time and generates an async executor. Sync DTOs return values directly without Promise wrapping.
+
+### Can I use baker with NestJS?
+
+Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `deserialize()` in a custom validation pipe.
+
+### How does the AOT code generation work?
+
+On the first call to `deserialize`/`serialize`/`validate`, baker seals all registered DTOs: it analyzes field metadata, generates optimized JavaScript validation functions via `new Function()`, and caches them. Subsequent calls execute the pre-compiled functions directly.
+
 ## Exports
 
 ```typescript
-// Functions
-import { deserialize, validate, serialize, configure, createRule } from '@zipbul/baker';
-
-// Decorators
-import { Field, arrayOf } from '@zipbul/baker';
-
-// Error handling
-import { isBakerError, SealError } from '@zipbul/baker';
-
-// Types
-import type {
-  BakerError, BakerErrors, FieldOptions, FieldTransformParams,
-  ArrayOfMarker, EmittableRule, BakerConfig, ConfigureResult, RuntimeOptions,
-} from '@zipbul/baker';
-
-// Rules (subpath)
-import { isString, isNumber, ... } from '@zipbul/baker/rules';
+import { deserialize, validate, serialize, configure, createRule, Field, arrayOf, isBakerError, SealError } from '@zipbul/baker';
+import type { Transformer, TransformParams, BakerError, BakerErrors, FieldOptions, EmittableRule, RuntimeOptions } from '@zipbul/baker';
+import { isString, isEmail, isULID, isCUID2, ... } from '@zipbul/baker/rules';
+import { trimTransformer, jsonTransformer, ... } from '@zipbul/baker/transformers';
 ```
-
-## What Baker Does Not Do
-
-- JSON Schema / OpenAPI generation
-- GraphQL schema generation
-- Runtime type inference from schemas
-- `reflect-metadata` dependency
 
 ## License
 

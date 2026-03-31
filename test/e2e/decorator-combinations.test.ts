@@ -67,7 +67,7 @@ describe('@IsOptional + @Min + @Transform combination', () => {
   class ScoreDto {
     @Field(isNumber(), min(0), {
       optional: true,
-      transform: ({ value }) => typeof value === 'string' ? parseInt(value, 10) : value,
+      transform: { deserialize: ({ value }) => typeof value === 'string' ? parseInt(value, 10) : value, serialize: ({ value }) => value },
     })
     score?: number;
   }
@@ -119,7 +119,7 @@ describe('@Transform + @IsEnum combination', () => {
 
   class StatusDto {
     @Field(isEnum(Status), {
-      transform: ({ value }) => typeof value === 'string' ? value.toLowerCase() : value,
+      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toLowerCase() : value, serialize: ({ value }) => value },
     })
     status!: Status;
   }
@@ -177,8 +177,10 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () 
 
     @Field(isString, {
       exclude: 'deserializeOnly',
-      transform: ({ value, direction }) =>
-        direction === 'serialize' ? `***${value}***` : value,
+      transform: {
+        deserialize: ({ value }) => value,
+        serialize: ({ value }) => `***${value}***`,
+      },
     })
     secret!: string;
   }
@@ -242,7 +244,7 @@ describe('@Expose + @Transform + @IsString + @MinLength deep stack', () => {
   class DeepStackDto {
     @Field(isString, minLength(2), {
       name: 'raw_input',
-      transform: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value,
+      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value, serialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value },
     })
     processedInput!: string;
   }
@@ -272,7 +274,7 @@ describe('@ValidateIf + @Transform interaction', () => {
 
     @Field(isString, {
       when: (obj: any) => obj.enabled === true,
-      transform: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value, serialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value },
     })
     data!: string;
   }

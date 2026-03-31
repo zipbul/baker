@@ -63,26 +63,16 @@ describe('@Field — metadata collection', () => {
 
   // ── transform ──
 
-  it('@Field({ transform }) stores wrapped fn in transform stack', () => {
+  it('@Field({ transform }) stores deserialize+serialize fns in transform stack', () => {
     const Cls = makeClass();
-    const fn = ({ value }: any) => value;
-    Field({ transform: fn })(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').transform).toHaveLength(1);
-    expect(typeof getRaw(Cls, 'name').transform[0].fn).toBe('function');
-  });
-
-  it('@Field({ transform, transformDirection: "deserializeOnly" }) stores option', () => {
-    const Cls = makeClass();
-    const fn = ({ value }: any) => value;
-    Field({ transform: fn, transformDirection: 'deserializeOnly' })(Cls.prototype, 'name');
+    const desFn = ({ value }: any) => value;
+    const serFn = ({ value }: any) => value;
+    Field({ transform: { deserialize: desFn, serialize: serFn } })(Cls.prototype, 'name');
+    expect(getRaw(Cls, 'name').transform).toHaveLength(2);
+    expect(getRaw(Cls, 'name').transform[0].fn).toBe(desFn);
     expect(getRaw(Cls, 'name').transform[0].options?.deserializeOnly).toBe(true);
-  });
-
-  it('@Field({ transform, transformDirection: "serializeOnly" }) stores option', () => {
-    const Cls = makeClass();
-    const fn = ({ value }: any) => value;
-    Field({ transform: fn, transformDirection: 'serializeOnly' })(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').transform[0].options?.serializeOnly).toBe(true);
+    expect(getRaw(Cls, 'name').transform[1].fn).toBe(serFn);
+    expect(getRaw(Cls, 'name').transform[1].options?.serializeOnly).toBe(true);
   });
 
   // ── type ──

@@ -1442,3 +1442,41 @@ export function isTaxId(locale: string): EmittableRule {
 
   return fn as EmittableRule;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ULID
+// ─────────────────────────────────────────────────────────────────────────────
+
+const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+
+export function isULID(): EmittableRule {
+  return makeStringRule(
+    'isULID',
+    (v) => ULID_RE.test(v),
+    (varName, ctx) => {
+      const i = ctx.addRegex(ULID_RE);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isULID')};`;
+    },
+    'string',
+    { format: 'ulid' },
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUID2
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CUID2_RE = /^[a-z][0-9a-z]{23,}$/;
+
+export function isCUID2(): EmittableRule {
+  return makeStringRule(
+    'isCUID2',
+    (v) => CUID2_RE.test(v),
+    (varName, ctx) => {
+      const i = ctx.addRegex(CUID2_RE);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isCUID2')};`;
+    },
+    'string',
+    { format: 'cuid2' },
+  );
+}

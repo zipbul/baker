@@ -10,26 +10,34 @@ afterEach(() => unseal());
 
 class AsyncTrimDto {
   @Field(isString, {
-    transform: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+    transform: {
+      deserialize: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+      serialize: ({ value }) => value,
+    },
   })
   name!: string;
 }
 
 class AsyncSerializeDto {
   @Field(isString, {
-    transform: async ({ value, direction }) =>
-      direction === 'serialize' ? `[${value}]` : value,
+    transform: {
+      deserialize: ({ value }) => value,
+      serialize: async ({ value }) => `[${value}]`,
+    },
   })
   tag!: string;
 }
 
 class AsyncChainDto {
   @Field(isString, {
-    transform: async ({ value }) => {
-      let v = value;
-      if (typeof v === 'string') v = v.trim();
-      if (typeof v === 'string') v = v.toUpperCase();
-      return v;
+    transform: {
+      deserialize: async ({ value }) => {
+        let v = value;
+        if (typeof v === 'string') v = v.trim();
+        if (typeof v === 'string') v = v.toUpperCase();
+        return v;
+      },
+      serialize: ({ value }) => value,
     },
   })
   code!: string;
@@ -86,7 +94,7 @@ describe('E-10: isAsyncFunction robustness', () => {
     Object.defineProperty(mangledAsync, 'name', { value: 'x' });
 
     class MangledDto {
-      @Field(isString, { transform: mangledAsync })
+      @Field(isString, { transform: { deserialize: mangledAsync, serialize: ({ value }: { value: unknown }) => value } })
       val!: string;
     }
 

@@ -24,16 +24,14 @@ class ExcludeSerDto {
 
 class SerOnlyTransformDto {
   @Field(isNumber(), {
-    transform: ({ value }) => (value as number) * 100,
-    transformDirection: 'serializeOnly',
+    transform: { deserialize: ({ value }) => value, serialize: ({ value }) => (value as number) * 100 },
   })
   price!: number;
 }
 
 class DeserOnlyTransformDto {
   @Field(isString, {
-    transform: ({ value }) => (value as string).trim(),
-    transformDirection: 'deserializeOnly',
+    transform: { deserialize: ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
   })
   tag!: string;
 }
@@ -46,8 +44,7 @@ class DirectionExposeDto {
 class PipelineDto {
   @Field(isString, {
     serializeName: 'display_name',
-    transform: ({ value }) => `[${value}]`,
-    transformDirection: 'serializeOnly',
+    transform: { deserialize: ({ value }) => value, serialize: ({ value }) => `[${value}]` },
   })
   name!: string;
 }

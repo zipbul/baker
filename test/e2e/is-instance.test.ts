@@ -11,9 +11,12 @@ class MyDate extends Date {}
 
 class InstanceDto {
   @Field(isInstance(MyDate), {
-    transform: ({ value }) => {
-      if (typeof value === 'string') return new MyDate(value);
-      return value;
+    transform: {
+      deserialize: ({ value }) => {
+        if (typeof value === 'string') return new MyDate(value);
+        return value;
+      },
+      serialize: ({ value }) => value,
     },
   })
   date!: MyDate;

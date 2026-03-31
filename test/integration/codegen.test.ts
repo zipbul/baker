@@ -24,7 +24,7 @@ class CodegenOptionalDto {
 }
 
 class CodegenTransformDto {
-  @Field(isString, { transform: ({ value }) => typeof value === 'string' ? value.trim() : value })
+  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value, serialize: ({ value }) => value } })
   text!: string;
 }
 
