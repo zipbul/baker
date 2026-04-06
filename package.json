@@ -1,6 +1,6 @@
 {
   "name": "@zipbul/baker",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Fastest decorator-based DTO validation for TypeScript. AOT code generation, 42ns per validation, 163x faster than class-validator. Zero reflect-metadata.",
   "license": "MIT",
   "author": "Junhyung Park (https://github.com/parkrevil)",
