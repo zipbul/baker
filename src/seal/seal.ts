@@ -2,7 +2,7 @@ import { RAW, SEALED } from '../symbols';
 import { globalRegistry } from '../registry';
 import { SealError } from '../errors';
 import { _getGlobalOptions } from '../configure';
-import { buildDeserializeCode } from './deserialize-builder';
+import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
 import { buildSerializeCode } from './serialize-builder';
 import { analyzeCircular } from './circular-analyzer';
 import { validateExposeStacks } from './expose-validator';
@@ -19,6 +19,7 @@ function _circularPlaceholder(className: string): SealedExecutors<unknown> {
   return {
     _deserialize() { throw new SealError(msg); },
     _serialize() { throw new SealError(msg); },
+    _validate() { throw new SealError(msg); },
     _isAsync: false,
     _isSerializeAsync: false,
   };
@@ -31,13 +32,13 @@ function _circularPlaceholder(className: string): SealedExecutors<unknown> {
 function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serialize', visited?: Set<Function>): boolean {
   const v = visited ?? new Set<Function>();
   for (const meta of Object.values(merged)) {
-    // 1. createRule async (deserialize direction only)
+    // 1. createRule may return Promise<boolean> even without `async` syntax.
     if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) return true;
     // 2. @Transform async
     const transforms = direction === 'deserialize'
       ? meta.transform.filter(td => !td.options?.serializeOnly)
       : meta.transform.filter(td => !td.options?.deserializeOnly);
-    if (transforms.some(td => isAsyncFunction(td.fn))) return true;
+    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) return true;
     // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
     if (meta.type?.resolvedClass) {
       const nestedClass = meta.type.resolvedClass;
@@ -67,7 +68,7 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
 let _sealed = false;
 
-/** @internal — used by configure() to warn about post-seal calls */
+/** @internal — used by configure() to reject post-seal calls */
 export function _isSealed(): boolean { return _sealed; }
 
 /** List of sealed classes — used by unseal to remove SEALED */
@@ -253,6 +254,9 @@ function sealOne(Class: Function, options?: SealOptions): void {
   // 6. Generate deserialize executor code
   const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
 
+  // 6b. Generate validate-only executor code (no Object.create, no assignments)
+  const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync);
+
   // 7. Generate serialize executor code
   const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
 
@@ -260,6 +264,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
   Object.assign(placeholder, {
     _deserialize: deserializeExecutor,
     _serialize: serializeExecutor,
+    _validate: validateExecutor,
     _isAsync: isAsync,
     _isSerializeAsync: isSerializeAsync,
     _merged: merged,

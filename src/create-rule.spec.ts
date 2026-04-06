@@ -88,7 +88,7 @@ describe('createRule', () => {
     // Act
     rule.emit('_val', ctx as any);
     // Assert
-    expect(addRefMock).toHaveBeenCalledWith(validateFn);
+    expect(addRefMock).toHaveBeenCalledWith(rule);
   });
 
   it('should include _refs[0] in emitted code when ctx.addRef returns 0', () => {
@@ -120,11 +120,11 @@ describe('createRule', () => {
     expect(rule.isAsync).toBe(true);
   });
 
-  it('should not set isAsync when validate is a sync function', () => {
+  it('should set isAsync when validate is a sync function', () => {
     // Arrange / Act
     const rule = createRule({ name: 'syncRule', validate: (_v) => true });
     // Assert
-    expect(rule.isAsync).toBeFalsy();
+    expect(rule.isAsync).toBe(false);
   });
 
   it('should include await in emitted code when validate is async', () => {
@@ -137,7 +137,7 @@ describe('createRule', () => {
     expect(code).toContain('await');
   });
 
-  it('should not include await in emitted code when validate is sync', () => {
+  it('should include await in emitted code when validate is sync', () => {
     // Arrange
     const rule = createRule({ name: 'syncRule', validate: (_v) => true });
     const { ctx } = makeCtx(0);
@@ -155,5 +155,10 @@ describe('createRule', () => {
     // Assert
     expect(result).toBeInstanceOf(Promise);
     expect(await result).toBe(true);
+  });
+
+  it('should throw when a sync rule returns Promise', () => {
+    const rule = createRule({ name: 'badRule', validate: () => Promise.resolve(true) });
+    expect(() => rule('hello')).toThrow('sync rule returned Promise');
   });
 });

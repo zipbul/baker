@@ -282,6 +282,7 @@ describe('buildSerializeCode', () => {
     (AddressDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockNestedSerialize,
+      _validate: mock(() => null),
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
@@ -314,6 +315,7 @@ describe('buildSerializeCode', () => {
     (ItemDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockItemSerialize,
+      _validate: mock(() => null),
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
@@ -345,6 +347,7 @@ describe('buildSerializeCode', () => {
     (ProfileDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mock(() => ({ bio: 'test' })),
+      _validate: mock(() => null),
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
@@ -399,6 +402,7 @@ describe('buildSerializeCode', () => {
     (AsyncItemDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockItemSerialize,
+      _validate: mock(() => null),
       _isAsync: true,
       _isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
@@ -431,6 +435,7 @@ describe('buildSerializeCode', () => {
     (AsyncItemDto2 as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockItemSerialize2,
+      _validate: mock(() => null),
       _isAsync: true,
       _isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
@@ -465,6 +470,7 @@ describe('buildSerializeCode', () => {
     (AddressDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockNestedSerialize,
+      _validate: mock(() => null),
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
@@ -505,6 +511,7 @@ describe('buildSerializeCode', () => {
     (ProfileDto as any)[SEALED] = {
       _deserialize: mock(() => {}),
       _serialize: mockProfileSerialize,
+      _validate: mock(() => null),
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;

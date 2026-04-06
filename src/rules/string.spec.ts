@@ -482,16 +482,15 @@ describe('isNumberString', () => {
     expect(isNumberString().ruleName).toBe('isNumberString');
   });
 
-  it('should invoke the addRef checkFn (covers L207-209 closure body)', () => {
+  it('should emit inline Number+isNaN+isFinite check (no addRef)', () => {
     const { ctx, addRefMock } = makeCtx(0);
-    isNumberString().emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
-    // empty string → false (L208: if (s.length === 0) return false)
-    expect(checkFn('')).toBe(false);
-    // non-numeric string → false (L209-210: NaN check)
-    expect(checkFn('hello')).toBe(false);
-    // valid number string → true
-    expect(checkFn('3.14')).toBe(true);
+    const code = isNumberString().emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    // inline code checks empty length, then Number() + isNaN/isFinite
+    expect(code).toContain('_v.length === 0');
+    expect(code).toContain('Number(');
+    expect(code).toContain('isNaN');
+    expect(code).toContain('isFinite');
   });
 });
 
@@ -1048,11 +1047,12 @@ describe('isISIN', () => {
     expect(isISIN('US0378331006')).toBe(false);
   });
 
-  it('should emit code using addRef to register full validate function (regex + Luhn)', () => {
-    // After fix: emit uses addRef (full validate), not just addRegex
+  it('should emit inline regex + Luhn checksum code (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    isISIN.emit('_v', ctx);
-    expect(addRefMock).toHaveBeenCalled();
+    const code = isISIN.emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('_re[');
+    expect(code).toContain('_isSum');
     expect(failMock).toHaveBeenCalledWith('isISIN');
     expect(isISIN.ruleName).toBe('isISIN');
   });
@@ -1091,10 +1091,13 @@ describe('isISO8601', () => {
     expect(isISO8601({ strict: true })('2023-02-30')).toBe(false);
   });
 
-  it('strict: true emit uses addRef (function ref path)', () => {
+  it('strict: true emit uses inline regex + date validation (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    isISO8601({ strict: true }).emit('_v', ctx);
-    expect(addRefMock).toHaveBeenCalledTimes(1);
+    const code = isISO8601({ strict: true }).emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('_re[');
+    expect(code).toContain('_mo');
+    expect(code).toContain('_da');
     expect(failMock).toHaveBeenCalledWith('isISO8601');
   });
 
@@ -1139,11 +1142,12 @@ describe('isISSN', () => {
     expect(isISSN()('0378-5950')).toBe(false);
   });
 
-  it('should emit code using addRef to register full validate function (regex + mod-11)', () => {
-    // After fix: emit uses addRef (full validate), not just addRegex
+  it('should emit inline regex + mod-11 checksum code (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    isISSN().emit('_v', ctx);
-    expect(addRefMock).toHaveBeenCalled();
+    const code = isISSN().emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('_re[');
+    expect(code).toContain('_iss');
     expect(failMock).toHaveBeenCalledWith('isISSN');
     expect(isISSN().ruleName).toBe('isISSN');
   });
@@ -1467,14 +1471,12 @@ describe('isJSON', () => {
     expect(isJSON.ruleName).toBe('isJSON');
   });
 
-  it('should invoke the addRef checkFn (covers L919 catch return false)', () => {
+  it('should emit inline try/catch JSON.parse code (no addRef)', () => {
     const { ctx, addRefMock } = makeCtx(0);
-    isJSON.emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
-    // invalid JSON → catch → return false  (L919)
-    expect(checkFn('{invalid}')).toBe(false);
-    // valid JSON → return true
-    expect(checkFn('{"a":1}')).toBe(true);
+    const code = isJSON.emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('JSON.parse');
+    expect(code).toContain('catch');
   });
 });
 
@@ -1734,17 +1736,14 @@ describe('isByteLength', () => {
     expect(rule.requiresType).toBe('string');
   });
 
-  it('should invoke the addRef checkFn (covers L1165-1168 closure body)', () => {
+  it('should emit inline Buffer.byteLength check (no addRef)', () => {
     const rule = isByteLength(2, 5);
     const { ctx, addRefMock } = makeCtx(0);
-    rule.emit('_v', ctx);
-    const checkFn = addRefMock.mock.calls[0]![0] as (s: string) => boolean;
-    // 'a' = 1 byte < min(2) → false  (L1167)
-    expect(checkFn('a')).toBe(false);
-    // '日本語' = 9 bytes > max(5) → false  (L1168)
-    expect(checkFn('日本語')).toBe(false);
-    // 'hi' = 2 bytes in [2,5] → true
-    expect(checkFn('hi')).toBe(true);
+    const code = rule.emit('_v', ctx);
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('_bl');
+    expect(code).toContain('2');
+    expect(code).toContain('5');
   });
 
   it('should return independent rule objects on multiple factory calls', () => {

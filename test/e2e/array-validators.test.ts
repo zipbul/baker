@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 import { Field, deserialize, isBakerError } from '../../index';
-import { isArray, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains } from '../../src/rules/index';
+import { isArray, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains, arrayNotContains } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 afterEach(() => unseal());
@@ -22,6 +22,9 @@ class NotEmptyDto {
 class ContainsDto {
   @Field(arrayContains(['a', 'b'])) items!: string[];
 }
+class NotContainsDto {
+  @Field(arrayNotContains(['z'])) items!: string[];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -33,6 +36,9 @@ describe('@ArrayMinSize', () => {
   it('size below minimum rejected', async () => {
     expect(isBakerError(await deserialize(MinSizeDto, { items: [1] }))).toBe(true);
   });
+  it('non-array value rejected even when it has length', async () => {
+    expect(isBakerError(await deserialize(MinSizeDto, { items: 'abcd' }))).toBe(true);
+  });
 });
 
 describe('@ArrayMaxSize', () => {
@@ -42,6 +48,9 @@ describe('@ArrayMaxSize', () => {
   });
   it('size above maximum rejected', async () => {
     expect(isBakerError(await deserialize(MaxSizeDto, { items: [1, 2, 3, 4] }))).toBe(true);
+  });
+  it('non-array value rejected even when it fits max length', async () => {
+    expect(isBakerError(await deserialize(MaxSizeDto, { items: 'abc' }))).toBe(true);
   });
 });
 
@@ -53,6 +62,9 @@ describe('@ArrayUnique', () => {
   it('duplicate elements rejected', async () => {
     expect(isBakerError(await deserialize(UniqueDto, { items: [1, 2, 2] }))).toBe(true);
   });
+  it('non-array value rejected instead of being treated like an iterable', async () => {
+    expect(isBakerError(await deserialize(UniqueDto, { items: 'aba' }))).toBe(true);
+  });
 });
 
 describe('@ArrayNotEmpty', () => {
@@ -62,6 +74,9 @@ describe('@ArrayNotEmpty', () => {
   });
   it('empty array rejected', async () => {
     expect(isBakerError(await deserialize(NotEmptyDto, { items: [] }))).toBe(true);
+  });
+  it('non-array value rejected instead of using string length', async () => {
+    expect(isBakerError(await deserialize(NotEmptyDto, { items: 'x' }))).toBe(true);
   });
 });
 
@@ -76,5 +91,18 @@ describe('@ArrayContains', () => {
   it('exactly the required elements passes', async () => {
     const r = await deserialize(ContainsDto, { items: ['a', 'b'] }) as ContainsDto;
     expect(r.items).toEqual(['a', 'b']);
+  });
+  it('non-array value rejected even when string search would match', async () => {
+    expect(isBakerError(await deserialize(ContainsDto, { items: 'catab' }))).toBe(true);
+  });
+});
+
+describe('@ArrayNotContains', () => {
+  it('array without forbidden values passes', async () => {
+    const r = await deserialize(NotContainsDto, { items: ['a', 'b'] }) as NotContainsDto;
+    expect(r.items).toEqual(['a', 'b']);
+  });
+  it('non-array value rejected even when string search would not match', async () => {
+    expect(isBakerError(await deserialize(NotContainsDto, { items: 'abc' }))).toBe(true);
   });
 });

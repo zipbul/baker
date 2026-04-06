@@ -31,14 +31,14 @@ export interface BakerError {
 /** Symbol tag for isBakerError() type guard — collision-proof discriminator */
 export const BAKER_ERROR: unique symbol = Symbol.for('baker:error');
 
-/** Validation failure — returned by deserialize() on invalid input */
+/** Validation failure — returned by deserialize()/validate() on invalid input */
 export interface BakerErrors {
   readonly [BAKER_ERROR]: true;
   readonly errors: readonly BakerError[];
 }
 
 /**
- * Type guard — narrows deserialize() result to BakerErrors.
+ * Type guard — narrows deserialize()/validate() result to BakerErrors.
  *
  * @example
  * const result = await deserialize(UserDto, input);
@@ -64,7 +64,8 @@ export function _toBakerErrors(errors: BakerError[]): BakerErrors {
 /**
  * Seal-related error:
  * - When seal() is called more than once
- * - When deserialize()/serialize() is called on an unsealed class
+ * - When deserialize()/serialize()/validate() is called on an unsealed class
+ * - When configure() is called after auto-seal
  */
 export class SealError extends Error {
   constructor(message: string) {

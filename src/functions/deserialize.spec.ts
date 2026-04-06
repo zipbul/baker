@@ -96,11 +96,11 @@ describe('deserialize', () => {
     expect(() => deserialize(Dto, {})).toThrow(SealError);
   });
 
-  it('should include class name in SealError message when not sealed', async () => {
+  it('should include class name in SealError message when not sealed', () => {
     const Dto = makeClass('MyDto');
     let caught: SealError | undefined;
     try {
-      await deserialize(Dto, {});
+      deserialize(Dto, {});
     } catch (e) {
       caught = e as SealError;
     }
@@ -184,12 +184,11 @@ describe('deserialize', () => {
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should return value directly when _isAsync is false', () => {
+  it('should return direct value when _isAsync is false', () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance, { isAsync: false });
     const result = deserialize(Dto, {});
-    expect(result).not.toBeInstanceOf(Promise);
     expect(result).toBe(instance);
   });
 

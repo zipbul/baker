@@ -9,10 +9,18 @@ import type { RuntimeOptions } from '../interfaces';
 /**
  * Converts a Class instance to a plain object.
  * - Auto-seals on first call (batches entire globalRegistry)
- * - Sync DTOs return directly, async DTOs return Promise
+ * - Sync DTOs return directly; async DTOs return Promise
  * - No validation — always returns Record<string, unknown>
  * - Class without decorators: throws SealError
  */
+export function serialize<T>(
+  instance: T,
+  options?: RuntimeOptions,
+): Record<string, unknown>;
+export function serialize<T>(
+  instance: T,
+  options?: RuntimeOptions,
+): Promise<Record<string, unknown>>;
 export function serialize<T>(
   instance: T,
   options?: RuntimeOptions,

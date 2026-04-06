@@ -98,8 +98,8 @@ const arkList = type({ items: arkItem.array().atLeastLength(1) });
 let sink: unknown;
 
 group('array 1000 items — valid input', () => {
-  bench('baker', async () => {
-    sink = await deserialize(BakerList, ARRAY_VALID);
+  bench('baker', () => {
+    sink = deserialize(BakerList, ARRAY_VALID);
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvList, ARRAY_VALID);

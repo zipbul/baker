@@ -157,8 +157,8 @@ const arkOrder = type({
 let sink: unknown;
 
 group('nested 3-level — valid input', () => {
-  bench('baker', async () => {
-    sink = await deserialize(BakerOrder, NESTED_VALID);
+  bench('baker', () => {
+    sink = deserialize(BakerOrder, NESTED_VALID);
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvOrder, NESTED_VALID);
@@ -182,8 +182,8 @@ group('nested 3-level — valid input', () => {
 });
 
 group('nested 3-level — invalid input', () => {
-  bench('baker', async () => {
-    sink = await deserialize(BakerOrder, NESTED_INVALID);
+  bench('baker', () => {
+    sink = deserialize(BakerOrder, NESTED_INVALID);
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvOrder, NESTED_INVALID);

@@ -1,12 +1,12 @@
 # @zipbul/baker
 
-The fastest decorator-based DTO validation library for TypeScript. Generates optimized validation code at class definition time (AOT), delivering **42ns per validation** — up to 163x faster than class-validator, 16x faster than Zod.
+The fastest decorator-based DTO validation library for TypeScript. Generates optimized validation and serialization code on first seal, then reuses the sealed executors on every call.
 
 ```bash
 bun add @zipbul/baker
 ```
 
-Zero `reflect-metadata`. Zero runtime overhead. 1,890 tests. 99%+ line coverage.
+Zero `reflect-metadata`. Sealed codegen. 1,975 tests. 99%+ line coverage.
 
 ## Quick Start
 
@@ -33,12 +33,12 @@ if (isBakerError(result)) {
 
 ## Why Baker?
 
-Baker generates optimized JavaScript validation functions **once** at class definition time, then executes them on every call — no interpretation, no schema traversal, no runtime compilation cost after the first seal.
+Baker generates optimized JavaScript functions once on first seal, then executes them on every call.
 
 | Feature | baker | class-validator | Zod |
 |---|---|---|---|
-| Valid path (5 fields) | **42ns** | 6,852ns | 675ns |
-| Invalid path (5 fields) | **93ns** | 10,109ns | 7,948ns |
+| Valid path (5 fields) | **fast sealed path** | slower | slower |
+| Invalid path (5 fields) | **fast sealed path** | slower | slower |
 | Approach | AOT code generation | Runtime interpretation | Schema method chain |
 | Decorators | `@Field` (unified) | 30+ individual | N/A |
 | `reflect-metadata` | Not needed | Required | N/A |
@@ -46,31 +46,23 @@ Baker generates optimized JavaScript validation functions **once** at class defi
 
 ## Performance
 
-Benchmarked against 6 libraries on a simple 5-field DTO (valid + invalid input):
+Benchmarked against multiple libraries on simple, nested, array, and error-collection scenarios. Exact numbers vary by machine and runtime.
 
-| Library | Valid | Invalid | vs baker (valid) | vs baker (invalid) |
-|---|---|---|---|---|
-| **baker** | **42ns** | **93ns** | — | — |
-| TypeBox | 123ns | 112ns | 2.9x slower | 1.2x slower |
-| AJV | 142ns | 201ns | 3.4x slower | 2.2x slower |
-| ArkType | 145ns | 8,591ns | 3.4x slower | 92x slower |
-| Valibot | 281ns | 1,070ns | 6.7x slower | 12x slower |
-| Zod | 675ns | 7,948ns | 16x slower | 85x slower |
-| class-validator | 6,852ns | 10,109ns | 163x slower | 109x slower |
+See [`bench/`](./bench) for the current benchmark suite and exact scenarios.
 
 ## API
 
 ### `deserialize<T>(Class, input, options?)`
 
-Returns `T | BakerErrors | Promise<T | BakerErrors>`. Sync DTOs return directly — no Promise wrapping. Never throws on validation failure.
+Returns `T | BakerErrors` for sync DTOs, `Promise<T | BakerErrors>` for async DTOs. Never throws on validation failure.
 
 ### `serialize<T>(instance, options?)`
 
-Returns `Record<string, unknown> | Promise<Record<string, unknown>>`. No validation. Sync DTOs return directly.
+Returns `Record<string, unknown>` for sync DTOs, `Promise<Record<string, unknown>>` for async DTOs. No validation.
 
 ### `validate(Class, input, options?)` / `validate(input, ...rules)`
 
-DTO-level or ad-hoc single-value validation. Returns `true | BakerErrors`.
+DTO-level or ad-hoc single-value validation. Returns `true | BakerErrors` for sync paths, `Promise<true | BakerErrors>` for async paths.
 
 ### `isBakerError(value)`
 
@@ -78,7 +70,7 @@ Type guard. Narrows result to `BakerErrors` containing `{ path, code, message?, 
 
 ### `configure(config)`
 
-Global configuration. Call before first deserialize/serialize/validate.
+Global configuration. Call before first deserialize/serialize/validate. Calling it after auto-seal throws `SealError`.
 
 ```typescript
 configure({
@@ -91,7 +83,15 @@ configure({
 
 ### `createRule(name, validate)`
 
-Custom validation rule with optional AOT `emit()` for maximum performance.
+Custom validation rule.
+
+```typescript
+const isEven = createRule({
+  name: 'isEven',
+  validate: (v) => typeof v === 'number' && v % 2 === 0,
+  requiresType: 'number',
+});
+```
 
 ## @Field Decorator
 

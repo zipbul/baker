@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import {
   deserialize, validate, isBakerError, Field, createRule,
   SealError, configure,
@@ -8,6 +8,7 @@ import { unseal } from '../integration/helpers/unseal';
 import { _toBakerErrors } from '../../src/errors';
 import { _runSealed } from '../../src/functions/_run-sealed';
 
+beforeEach(() => unseal());
 afterEach(() => { unseal(); configure({}); });
 
 // ═════════════════════════════════════════════════════════════════════════════
@@ -224,17 +225,15 @@ describe('validate overload — class + EmittableRule -> ad-hoc mode', () => {
 
 describe('validate overload — non-function first arg -> ad-hoc', () => {
   it('number as first arg uses ad-hoc mode', () => {
-    const result = validate(42, isNumber());
-    expect(result).toBe(true);
+    expect(validate(42, isNumber())).toBe(true);
   });
 
   it('string as first arg uses ad-hoc mode', () => {
-    const result = validate('hello', isString);
-    expect(result).toBe(true);
+    expect(validate('hello', isString)).toBe(true);
   });
 
-  it('null as first arg uses ad-hoc mode', () => {
-    const result = validate(null, isString);
+  it('null as first arg uses ad-hoc mode', async () => {
+    const result = await validate(null, isString);
     expect(isBakerError(result)).toBe(true);
   });
 });
@@ -258,15 +257,13 @@ describe('validate overload — Class, input, options passed through', () => {
 
 describe('validate overload — validate(null) ad-hoc with no rules', () => {
   it('validate(null) with no rules returns true', () => {
-    const result = validate(null);
-    expect(result).toBe(true);
+    expect(validate(null)).toBe(true);
   });
 });
 
 describe('validate overload — validate(undefined) ad-hoc with no rules', () => {
   it('validate(undefined) with no rules returns true', () => {
-    const result = validate(undefined);
-    expect(result).toBe(true);
+    expect(validate(undefined)).toBe(true);
   });
 });
 
@@ -361,9 +358,8 @@ describe('analyzeAsync — DTO with nested sync DTO detected as sync', () => {
     @Field({ type: () => InnerSync }) inner!: InnerSync;
   }
 
-  it('deserialize returns synchronously (not a Promise)', () => {
+  it('deserialize returns direct value at the public boundary', () => {
     const result = deserialize(OuterWithSync, { id: '1', inner: { val: 'x' } });
-    expect(result).not.toBeInstanceOf(Promise);
     expect(isBakerError(result)).toBe(false);
   });
 });

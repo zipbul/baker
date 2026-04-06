@@ -203,11 +203,10 @@ describe('E-13: -0, NaN, Infinity edge cases', () => {
     expect(await failCode(Dto, { v: -0 })).toBe('isNegative');
   });
 
-  it('isPositive(NaN) — function returns false but emit code lets NaN through (NaN <= 0 is false)', () => {
-    // isPositive function: NaN > 0 → false (correct)
+  it('isPositive(NaN) rejected to match runtime rule semantics', async () => {
+    class Dto { @Field(isPositive) v!: number; }
     expect(isPositive(NaN)).toBe(false);
-    // However, emitted code `if (v <= 0)` does NOT catch NaN because NaN <= 0 is false.
-    // This is a known limitation of the emit optimization — guard with isNumber() for safety.
+    expect(isBakerError(await deserialize(Dto, { v: NaN }))).toBe(true);
   });
 
   it('@Field(isNumber(), isPositive) rejects NaN via isNumber gate', async () => {

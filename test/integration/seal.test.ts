@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, createRule, configure, isBakerError } from '../../index';
+import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -146,7 +146,7 @@ describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
     expect(sealed._isSerializeAsync).toBe(false);
   });
 
-  it('async @Transform (deserialize only) → _isSerializeAsync === false', async () => {
+  it('deserialize-only async transform keeps _isSerializeAsync false', async () => {
     await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
@@ -182,7 +182,7 @@ describe('_ensureSealed — _sealOnDemand fallback', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// B-10: configure() returns { warnings } for testability
+// B-10: configure() rejects post-seal misuse
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ─── E-25: concurrent seal via Promise.all ──────────────────────────────────
@@ -233,26 +233,23 @@ describe('E-25: concurrent seal via Promise.all', () => {
   });
 });
 
-describe('configure() — return warnings (B-10)', () => {
-  it('should return empty warnings when called before seal', () => {
-    const result = configure({});
-    expect(result.warnings).toEqual([]);
+describe('configure() — post-seal misuse', () => {
+  it('should not throw when called before seal', () => {
+    expect(() => configure({})).not.toThrow();
   });
 
-  it('should return a warning when called after auto-seal', async () => {
+  it('should throw SealError when called after auto-seal', async () => {
     await deserialize(SealTestDto, { name: 'Alice', age: 25 });
 
-    const result = configure({ autoConvert: true });
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain('called after auto-seal');
+    expect(() => configure({ autoConvert: true })).toThrow(SealError);
+    expect(() => configure({ autoConvert: true })).toThrow('called after auto-seal');
   });
 
-  it('should return empty warnings again after unseal + re-configure', async () => {
+  it('should allow configure() again after unseal', async () => {
     await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     unseal();
 
-    const result = configure({});
-    expect(result.warnings).toEqual([]);
+    expect(() => configure({})).not.toThrow();
   });
 });
 

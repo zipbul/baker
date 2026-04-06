@@ -15,7 +15,7 @@ export { isBakerError, SealError } from './src/errors';
 
 // Types
 export type { EmittableRule, Transformer, TransformParams } from './src/types';
-export type { BakerConfig, ConfigureResult } from './src/configure';
+export type { BakerConfig } from './src/configure';
 
 // Interfaces / Options
 export type { RuntimeOptions } from './src/interfaces';

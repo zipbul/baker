@@ -1,5 +1,6 @@
 import { ensureMeta } from '../collect';
-import type { EmittableRule, RawPropertyMeta, RuleDef, TypeDef, Transformer } from '../types';
+import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, TypeDef, Transformer } from '../types';
+import { isAsyncFunction, isPromiseLike } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (replaces each: true)
@@ -135,7 +136,7 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
         meta.validation.push(rd);
       }
     } else {
-      const rd: RuleDef = { rule: rule as EmittableRule, groups: options.groups };
+      const rd: RuleDef = { rule: rule as InternalRule, groups: options.groups };
       if (options.message !== undefined) rd.message = options.message;
       if (options.context !== undefined) rd.context = options.context;
       meta.validation.push(rd);
@@ -162,13 +163,32 @@ function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
 }
 
 /** Register Transformer — split into direction-specific TransformDefs */
-function applyTransform(meta: RawPropertyMeta, options: FieldOptions): void {
+function wrapTransform(
+  propertyKey: string,
+  direction: 'deserialize' | 'serialize',
+  fn: Transformer['deserialize'] | Transformer['serialize'],
+): { fn: typeof fn; isAsync: boolean } {
+  const isAsync = isAsyncFunction(fn);
+  const wrapped = ((params) => {
+    const result = fn(params);
+    if (!isAsync && isPromiseLike(result)) {
+      throw new Error(`@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`);
+    }
+    return result;
+  }) as typeof fn;
+  return { fn: wrapped, isAsync };
+}
+
+/** Register Transformer — split into direction-specific TransformDefs */
+function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions): void {
   if (!options.transform) return;
   const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
   for (const t of transformers) {
+    const deserialize = wrapTransform(propertyKey, 'deserialize', t.deserialize);
+    const serialize = wrapTransform(propertyKey, 'serialize', t.serialize);
     meta.transform.push(
-      { fn: t.deserialize, options: { deserializeOnly: true } },
-      { fn: t.serialize, options: { serializeOnly: true } },
+      { fn: deserialize.fn, isAsync: deserialize.isAsync, options: { deserializeOnly: true } },
+      { fn: serialize.fn, isAsync: serialize.isAsync, options: { serializeOnly: true } },
     );
   }
 }
@@ -223,6 +243,6 @@ export function Field(...args: any[]): PropertyDecorator {
       }
     }
 
-    applyTransform(meta, options);
+    applyTransform(meta, propertyKey, options);
   };
 }

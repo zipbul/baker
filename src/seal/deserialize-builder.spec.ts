@@ -580,6 +580,7 @@ describe('buildDeserializeCode', () => {
         return err([{ path: 'street', code: 'isString' }]);
       },
       _serialize: () => ({}),
+      _validate() { return null; },
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<AddressDto>;
@@ -615,6 +616,7 @@ describe('buildDeserializeCode', () => {
         return err([{ path: 'number', code: 'isString' }]);
       },
       _serialize: () => ({}),
+      _validate() { return null; },
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<PhoneDto>;
@@ -650,6 +652,7 @@ describe('buildDeserializeCode', () => {
         return err([{ path: 'name', code: 'isString' }]);
       },
       _serialize: () => ({}),
+      _validate() { return null; },
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<CityDto>;
@@ -687,6 +690,7 @@ describe('buildDeserializeCode', () => {
         return err([{ path: 'label', code: 'isString' }]);
       },
       _serialize: () => ({}),
+      _validate() { return null; },
       _isAsync: false,
       _isSerializeAsync: false,
     } satisfies SealedExecutors<TagDto>;
@@ -780,6 +784,7 @@ describe('buildDeserializeCode', () => {
     const dummySealedExec: SealedExecutors<unknown> = {
       _deserialize: () => ({}),
       _serialize: () => ({}),
+      _validate() { return null; },
       _isAsync: false,
       _isSerializeAsync: false,
     };

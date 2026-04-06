@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { deserialize, serialize, Field, isBakerError, configure } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString } from '../../src/rules/index';
@@ -24,6 +24,7 @@ class UserWithAddressDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => unseal());
 afterEach(() => { unseal(); configure({}); });
 
 describe('nested — integration', () => {

@@ -13,6 +13,10 @@ export interface EmitContext {
   fail(code: string): string;
   /** Whether error collection mode is enabled (= !stopAtFirstError) */
   collectErrors: boolean;
+  /** Whether this emit runs inside a type gate (typeof/instanceof already verified) */
+  insideTypeGate?: boolean;
+  /** @internal Path expression for inline nested — used by makeRuleEmitCtx */
+  _pathExpr?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,11 +32,31 @@ export interface EmittableRule {
    * Only set for rules that assume a specific type (e.g., isEmail → 'string').
    * @IsString itself is undefined (it includes its own typeof check).
    */
-  readonly requiresType?: 'string' | 'number' | 'boolean' | 'date';
+  readonly requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
   /** Expose rule parameters for external reading */
   readonly constraints?: Record<string, unknown>;
-  /** true when using an async validate function — deserialize-builder generates await code */
+  /** true when the rule is explicitly async and must be awaited */
   readonly isAsync?: boolean;
+}
+
+/** @internal internal rule shape used by builders for optimization metadata */
+export interface InternalRule extends EmittableRule {
+  readonly plan?: RulePlan;
+}
+
+export type RulePlanExpr =
+  | { kind: 'value' }
+  | { kind: 'member'; object: RulePlanExpr; property: 'length' }
+  | { kind: 'call0'; object: RulePlanExpr; method: 'getTime' }
+  | { kind: 'literal'; value: number };
+
+export type RulePlanCheck =
+  | { kind: 'compare'; left: RulePlanExpr; op: '<' | '<=' | '>' | '>=' | '===' | '!=='; right: RulePlanExpr }
+  | { kind: 'and' | 'or'; checks: RulePlanCheck[] };
+
+export interface RulePlan {
+  cacheKey?: 'length' | 'time';
+  failure: RulePlanCheck;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -47,7 +71,7 @@ export interface MessageArgs {
 }
 
 export interface RuleDef {
-  rule: EmittableRule;
+  rule: InternalRule;
   each?: boolean;
   groups?: string[];
   /** Value to include in BakerError.message on validation failure */
@@ -63,15 +87,16 @@ export interface TransformParams {
 }
 
 export interface Transformer {
-  deserialize(params: TransformParams): unknown;
-  serialize(params: TransformParams): unknown;
+  deserialize(params: TransformParams): unknown | Promise<unknown>;
+  serialize(params: TransformParams): unknown | Promise<unknown>;
 }
 
 /** Internal — direction-specific transform function stored after @Field processing */
-export type TransformFunction = (params: TransformParams) => unknown;
+export type TransformFunction = (params: TransformParams) => unknown | Promise<unknown>;
 
 export interface TransformDef {
   fn: TransformFunction;
+  isAsync?: boolean;
   options?: {
     groups?: string[];
     deserializeOnly?: boolean;
@@ -159,6 +184,8 @@ export interface SealedExecutors<T> {
   _deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
   /** Internal executor — always succeeds. serialize assumes no validation */
   _serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
+  /** Internal executor — validate-only (no object creation). Returns null on success, BakerError[] on failure */
+  _validate(input: unknown, options?: RuntimeOptions): BakerError[] | null | Promise<BakerError[] | null>;
   /** true if the deserialize direction has async rules/transforms/nested */
   _isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */

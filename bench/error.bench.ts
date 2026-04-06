@@ -108,8 +108,8 @@ const arkErrors = type({
 let sink: unknown;
 
 group('error collection — 10 fields all invalid', () => {
-  bench('baker', async () => {
-    sink = await deserialize(BakerErrors, ERROR_ALL_FAIL);
+  bench('baker', () => {
+    sink = deserialize(BakerErrors, ERROR_ALL_FAIL);
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvErrors, ERROR_ALL_FAIL);

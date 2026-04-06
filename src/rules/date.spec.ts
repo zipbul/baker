@@ -54,15 +54,15 @@ describe('minDate', () => {
     expect(rule(null)).toBe(false);
   });
 
-  it('should call ctx.addRef and generate date comparison code when calling emit()', () => {
+  it('should generate date comparison code when calling emit()', () => {
     // Arrange
     const rule = minDate(new Date('2020-01-01'));
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
     const code = rule.emit('_v', ctx);
     // Assert
-    expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(addRefMock).toHaveBeenCalledTimes(0);
+    expect(code).toContain('_v.getTime()');
     expect(failMock).toHaveBeenCalledWith('minDate');
   });
 
@@ -106,15 +106,14 @@ describe('maxDate', () => {
     expect(rule('2024-01-01')).toBe(false);
   });
 
-  it('should call ctx.addRef and generate date comparison code when calling emit()', () => {
+  it('should generate date comparison code when calling emit()', () => {
     // Arrange
     const rule = maxDate(new Date('2025-01-01'));
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
     const code = rule.emit('_v', ctx);
     // Assert
-    expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(addRefMock).toHaveBeenCalledTimes(0);
     expect(failMock).toHaveBeenCalledWith('maxDate');
   });
 

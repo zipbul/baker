@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { deserialize, isBakerError, Field, configure } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
@@ -30,6 +30,7 @@ class MultiFieldErrorDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => unseal());
 afterEach(() => { unseal(); configure({}); });
 
 describe('error — integration', () => {

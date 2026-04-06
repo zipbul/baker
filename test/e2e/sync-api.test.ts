@@ -31,7 +31,7 @@ class AsyncDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('sync API — deserialize', () => {
+describe('dual sync/async API — deserialize', () => {
   it('sync DTO has _isAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
     const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
@@ -44,9 +44,9 @@ describe('sync API — deserialize', () => {
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('sync DTO deserialize returns value directly', () => {
+  it('sync DTO deserialize returns direct value', () => {
     const result = deserialize(SyncDto, { name: 'Alice', age: 30 });
-    expect(result).not.toBeInstanceOf(Promise);
+    expect(result).toBeInstanceOf(SyncDto);
   });
 
   it('sync DTO deserialize succeeds', async () => {
@@ -66,7 +66,7 @@ describe('sync API — deserialize', () => {
   });
 });
 
-describe('sync API — serialize', () => {
+describe('dual sync/async API — serialize', () => {
   it('sync DTO has _isSerializeAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
     const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
@@ -79,9 +79,9 @@ describe('sync API — serialize', () => {
     expect(result).toEqual({ name: 'Bob', age: 25 });
   });
 
-  it('sync DTO serialize returns directly (not Promise)', () => {
+  it('sync DTO serialize returns direct value', () => {
     const dto = Object.assign(new SyncDto(), { name: 'Bob', age: 25 });
     const result = serialize(dto);
-    expect(result).not.toBeInstanceOf(Promise);
+    expect(result).toEqual({ name: 'Bob', age: 25 });
   });
 });
