@@ -1,4 +1,5 @@
 import type { SealOptions } from './interfaces';
+import { SealError } from './errors';
 import { _isSealed } from './seal/seal';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,22 +21,15 @@ export interface BakerConfig {
 
 let _globalOptions: SealOptions = {};
 
-export interface ConfigureResult {
-  warnings: string[];
-}
-
 /**
  * Baker global configuration. Call before the first auto-seal.
  * If not called, defaults are applied.
- *
- * @returns `{ warnings }` — contains warning messages if called after seal.
  */
-export function configure(config: BakerConfig): ConfigureResult {
-  const warnings: string[] = [];
+export function configure(config: BakerConfig): void {
   if (_isSealed()) {
-    const msg = '[baker] configure() called after auto-seal. Already-sealed classes are not affected. Call configure() before the first deserialize/serialize.';
-    warnings.push(msg);
-    console.warn(msg);
+    throw new SealError(
+      '[baker] configure() called after auto-seal. Already-sealed classes are not affected. Call configure() before the first deserialize/serialize/validate.',
+    );
   }
   _globalOptions = {
     enableImplicitConversion: config.autoConvert ?? false,
@@ -44,7 +38,6 @@ export function configure(config: BakerConfig): ConfigureResult {
     whitelist: config.forbidUnknown ?? false,
     debug: config.debug ?? false,
   };
-  return { warnings };
 }
 
 /** @internal — used by seal */

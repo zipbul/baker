@@ -21,7 +21,7 @@ function makeClass(name = 'TestDto'): new (...args: any[]) => any {
 
 function attachSealed(
   ctor: Function,
-  serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown>,
+  serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>,
   opts?: { isSerializeAsync?: boolean },
 ): void {
   (ctor as any)[SEALED] = {
@@ -152,7 +152,7 @@ describe('serialize', () => {
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should use sync path (Promise.resolve) when _isSerializeAsync is false', async () => {
+  it('should return direct value when _isSerializeAsync is false', () => {
     // Arrange
     const Dto = makeClass();
     const record = { x: 1 };
@@ -161,7 +161,6 @@ describe('serialize', () => {
     // Act
     const result = serialize(instance);
     // Assert
-    expect(result).not.toBeInstanceOf(Promise);
     expect(result).toBe(record);
   });
 
@@ -183,7 +182,7 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should throw SealError synchronously when class is not sealed', () => {
+  it('should throw SealError when class is not sealed', () => {
     // Arrange
     const Dto = makeClass('NotSealedSerDto');
     const instance = new Dto();

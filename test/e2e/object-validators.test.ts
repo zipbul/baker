@@ -25,6 +25,10 @@ describe('isNotEmptyObject', () => {
     expect(isBakerError(await deserialize(EmptyObjDto, { config: {} }))).toBe(true);
   });
 
+  it('string rejected instead of passing Object.keys check', async () => {
+    expect(isBakerError(await deserialize(EmptyObjDto, { config: 'x' }))).toBe(true);
+  });
+
   it('nullable option — ignores null-valued keys', async () => {
     class NullableObjDto {
       @Field(isNotEmptyObject({ nullable: true }))
@@ -35,6 +39,8 @@ describe('isNotEmptyObject', () => {
     // non-null value exists → passes
     const r = await deserialize(NullableObjDto, { config: { a: null, b: 1 } }) as NullableObjDto;
     expect(r.config.b).toBe(1);
+
+    expect(isBakerError(await deserialize(NullableObjDto, { config: 'x' }))).toBe(true);
   });
 });
 

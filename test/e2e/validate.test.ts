@@ -68,9 +68,9 @@ describe('validate ad-hoc — sync rules', () => {
     }
   });
 
-  it('sync rules return value directly', () => {
+  it('sync rules return directly', () => {
     const result = validate('hello', isString);
-    expect(result).not.toBeInstanceOf(Promise);
+    expect(result).toBe(true);
   });
 });
 
@@ -110,6 +110,15 @@ describe('validate ad-hoc — async rules', () => {
   it('returns Promise for async rules', () => {
     const result = validate('hello', asyncPass);
     expect(result).toBeInstanceOf(Promise);
+  });
+
+  it('promise-returning non-async rule throws contract error', () => {
+    const promiseFalse = createRule({
+      name: 'promiseFalse',
+      validate: () => Promise.resolve(false),
+    });
+
+    expect(() => validate('hello', promiseFalse)).toThrow('sync rule returned Promise');
   });
 });
 
@@ -205,9 +214,9 @@ describe('validate DTO — basic', () => {
     }
   });
 
-  it('sync DTO returns value directly', () => {
+  it('sync DTO returns directly', () => {
     const result = validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
-    expect(result).not.toBeInstanceOf(Promise);
+    expect(result).toBe(true);
   });
 });
 
@@ -340,7 +349,7 @@ describe('validate ad-hoc — no rules', () => {
 describe('validate ad-hoc — throwing rule', () => {
   const throwRule = createRule('throwRule', () => { throw new Error('boom'); });
 
-  it('sync rule that throws → throws the thrown error', () => {
+  it('sync rule that throws → throws the same error', () => {
     expect(() => validate('hello', throwRule)).toThrow('boom');
   });
 

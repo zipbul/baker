@@ -69,10 +69,12 @@ describe('@Field — metadata collection', () => {
     const serFn = ({ value }: any) => value;
     Field({ transform: { deserialize: desFn, serialize: serFn } })(Cls.prototype, 'name');
     expect(getRaw(Cls, 'name').transform).toHaveLength(2);
-    expect(getRaw(Cls, 'name').transform[0].fn).toBe(desFn);
+    expect(getRaw(Cls, 'name').transform[0].fn).not.toBe(desFn);
     expect(getRaw(Cls, 'name').transform[0].options?.deserializeOnly).toBe(true);
-    expect(getRaw(Cls, 'name').transform[1].fn).toBe(serFn);
+    expect(getRaw(Cls, 'name').transform[0].fn({ value: 'x', key: 'name', obj: {} })).toBe('x');
+    expect(getRaw(Cls, 'name').transform[1].fn).not.toBe(serFn);
     expect(getRaw(Cls, 'name').transform[1].options?.serializeOnly).toBe(true);
+    expect(getRaw(Cls, 'name').transform[1].fn({ value: 'y', key: 'name', obj: {} })).toBe('y');
   });
 
   // ── type ──

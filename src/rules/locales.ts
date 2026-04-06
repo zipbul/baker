@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from '../types';
+import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Locale-specific Validators
@@ -31,23 +32,7 @@ const MOBILE_PHONE_REGEXES: Record<string, RegExp> = {
 };
 
 export function isMobilePhone(locale: string): EmittableRule {
-  const re = MOBILE_PHONE_REGEXES[locale];
-  if (!re) throw new Error(`Unsupported locale: "${locale}" for isMobilePhone`);
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMobilePhone')};`;
-  };
-  (fn as any).ruleName = 'isMobilePhone';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { locale };
-
-  return fn as EmittableRule;
+  return makeLocaleRegexRule('isMobilePhone', locale, MOBILE_PHONE_REGEXES);
 }
 
 // ─── isPostalCode ─────────────────────────────────────────────────────────────
@@ -114,23 +99,7 @@ const POSTAL_CODE_REGEXES: Record<string, RegExp> = {
 };
 
 export function isPostalCode(locale: string): EmittableRule {
-  const re = POSTAL_CODE_REGEXES[locale];
-  if (!re) throw new Error(`Unsupported locale: "${locale}" for isPostalCode`);
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPostalCode')};`;
-  };
-  (fn as any).ruleName = 'isPostalCode';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { locale };
-
-  return fn as EmittableRule;
+  return makeLocaleRegexRule('isPostalCode', locale, POSTAL_CODE_REGEXES);
 }
 
 // ─── isIdentityCard ───────────────────────────────────────────────────────────
@@ -193,23 +162,7 @@ const IDENTITY_CARD_REGEXES: Record<string, RegExp> = {
 };
 
 export function isIdentityCard(locale: string): EmittableRule {
-  const re = IDENTITY_CARD_REGEXES[locale];
-  if (!re) throw new Error(`Unsupported locale: "${locale}" for isIdentityCard`);
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIdentityCard')};`;
-  };
-  (fn as any).ruleName = 'isIdentityCard';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { locale };
-
-  return fn as EmittableRule;
+  return makeLocaleRegexRule('isIdentityCard', locale, IDENTITY_CARD_REGEXES);
 }
 
 // ─── isPassportNumber ─────────────────────────────────────────────────────────
@@ -288,21 +241,23 @@ const PASSPORT_REGEXES: Record<string, RegExp> = {
 };
 
 export function isPassportNumber(locale: string): EmittableRule {
-  const re = PASSPORT_REGEXES[locale];
-  if (!re) throw new Error(`Unsupported locale: "${locale}" for isPassportNumber`);
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isPassportNumber')};`;
-  };
-  (fn as any).ruleName = 'isPassportNumber';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { locale };
-
-  return fn as EmittableRule;
+  return makeLocaleRegexRule('isPassportNumber', locale, PASSPORT_REGEXES);
+}
+function makeLocaleRegexRule(
+  name: string,
+  locale: string,
+  registry: Record<string, RegExp>,
+): EmittableRule {
+  const re = registry[locale];
+  if (!re) throw new Error(`Unsupported locale: "${locale}" for ${name}`);
+  return makeRule({
+    name,
+    requiresType: 'string',
+    constraints: { locale },
+    validate: (value) => typeof value === 'string' && re.test(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      const i = ctx.addRegex(re);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail(name)};`;
+    },
+  });
 }

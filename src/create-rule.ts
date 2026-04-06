@@ -1,5 +1,5 @@
-import type { EmittableRule, EmitContext } from './types';
-import { isAsyncFunction } from './utils';
+import type { EmittableRule, EmitContext, InternalRule } from './types';
+import { isAsyncFunction, isPromiseLike } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createRule — Custom validation rule creation Public API (§1.1)
@@ -13,7 +13,7 @@ export interface CreateRuleOptions {
   /** Rule parameters */
   constraints?: Record<string, unknown>;
   /** Type assumed by this rule — used for type gate optimization */
-  requiresType?: 'string' | 'number' | 'boolean' | 'date';
+  requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
 }
 
 /**
@@ -40,21 +40,21 @@ export function createRule(
   const constraints = typeof nameOrOptions === 'object' ? nameOrOptions.constraints : undefined;
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
 
-  // Auto-detect whether the function is async
   const isAsyncFn = isAsyncFunction(validate);
 
-  // Validation function wrapper — delegates directly to validate
+  // Validation function wrapper — enforces that sync rules stay sync.
   const fn = function (value: unknown): boolean | Promise<boolean> {
-    return validate(value);
-  } as EmittableRule;
+    const result = validate(value);
+    if (!isAsyncFn && isPromiseLike(result)) {
+      throw new Error(`createRule(${name}): sync rule returned Promise. Declare the validator with async if it is asynchronous.`);
+    }
+    return result;
+  } as InternalRule;
 
   // .emit() — generates function call code via the refs array
   fn.emit = function (varName: string, ctx: EmitContext): string {
-    const i = ctx.addRef(validate);
-    if (isAsyncFn) {
-      return `if(!(await _refs[${i}](${varName}))) ${ctx.fail(name)};`;
-    }
-    return `if(!_refs[${i}](${varName})) ${ctx.fail(name)};`;
+    const i = ctx.addRef(fn);
+    return `if(!(${isAsyncFn ? 'await ' : ''}_refs[${i}](${varName}))) ${ctx.fail(name)};`;
   };
 
   (fn as any).ruleName = name;

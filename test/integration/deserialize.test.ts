@@ -221,9 +221,8 @@ describe('deserialize — integration', () => {
     expect(result.value).toBe(Infinity);
   });
 
-  it('should assign NaN when @Field(min(0)) only field receives NaN (no isNumber gate)', async () => {
-    const result = await deserialize(MinOnlyDto, { value: NaN }) as MinOnlyDto;
-    expect(result.value).toBeNaN();
+  it('should return BakerErrors when @Field(min(0)) only field receives NaN', async () => {
+    expect(isBakerError(await deserialize(MinOnlyDto, { value: NaN }))).toBe(true);
   });
 
   it('should return BakerErrors when @Field(isNumber(), min(0)) receives NaN', async () => {
@@ -244,19 +243,18 @@ class AdminOnlyDto {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sync API — operates as a regular function, not an async function
+// Public API — dual sync/async
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('deserialize — sync path', () => {
+describe('deserialize — public sync/async path', () => {
   afterEach(() => unseal());
 
-  it('sync DTO returns via Promise.resolve, not async function', async () => {
-    // Verify that deserialize itself is a regular function, not an async function
-    expect(deserialize.constructor.name).not.toBe('AsyncFunction');
+  it('deserialize is a regular function', () => {
+    expect(deserialize.constructor.name).toBe('Function');
   });
 
-  it('sync DTO success returns Promise<T> and await works correctly', async () => {
-    const result = await deserialize(SimpleDto, { name: 'Test', age: 1 });
+  it('sync DTO success returns value directly', () => {
+    const result = deserialize(SimpleDto, { name: 'Test', age: 1 });
     expect(result).toBeInstanceOf(SimpleDto);
   });
 

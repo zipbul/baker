@@ -66,4 +66,18 @@ describe('createRule — async', () => {
       expect(err).toBeDefined();
     }
   });
+
+  it('promise-returning non-async rule violation throws contract error', () => {
+    const promiseFalseRule = createRule({
+      name: 'promiseFalse',
+      validate: () => Promise.resolve(false),
+    });
+
+    class PromiseRuleDto {
+      @Field(promiseFalseRule)
+      value!: string;
+    }
+
+    expect(() => deserialize(PromiseRuleDto, { value: 'x' })).toThrow('sync rule returned Promise');
+  });
 });

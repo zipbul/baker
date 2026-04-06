@@ -180,4 +180,3 @@ describe('async serialize discriminator array (serialize-builder.ts:225)', () =>
     expect((result.pets as any[]).length).toBe(2);
   });
 });
-

@@ -49,6 +49,10 @@ describe('@MinDate/@MaxDate', () => {
     expect(isBakerError(await deserialize(DateRangeDto, { eventDate: '2023-01-01' }))).toBe(true);
   });
 
+  it('invalid Date object rejected', async () => {
+    expect(isBakerError(await deserialize(DateOnlyMinDto, { start: new Date('invalid') }))).toBe(true);
+  });
+
   it('MinDate only', async () => {
     const future = new Date('2099-01-01T00:00:00.000Z');
     const result = await deserialize(DateOnlyMinDto, { start: future }) as DateOnlyMinDto;

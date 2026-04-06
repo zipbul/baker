@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from '../types';
+import { makePlannedRule, makeRule, planCompare, planLength, planOr } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -11,15 +12,13 @@ function makeStringRule(
   requiresType: 'string' | undefined = 'string',
   constraints: Record<string, unknown> = {},
 ): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return validate(value);
-  };
-  (fn as any).emit = buildEmit;
-  (fn as any).ruleName = name;
-  if (requiresType !== undefined) (fn as any).requiresType = requiresType;
-  (fn as any).constraints = constraints;
-  return fn as EmittableRule;
+  return makeRule({
+    name,
+    requiresType,
+    constraints,
+    validate: (value) => typeof value === 'string' && validate(value),
+    emit: buildEmit,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -27,114 +26,106 @@ function makeStringRule(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function minLength(min: number): EmittableRule {
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && value.length >= min;
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string =>
-    `if (${varName}.length < ${min}) ${ctx.fail('minLength')};`;
-  (fn as any).ruleName = 'minLength';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { min };
-
-  return fn as EmittableRule;
+  const plan = { cacheKey: 'length', failure: planCompare(planLength(), '<', min) } as const;
+  return makePlannedRule({
+    name: 'minLength',
+    requiresType: 'string',
+    constraints: { min },
+    plan,
+    validate: (value) => typeof value === 'string' && value.length >= min,
+  });
 }
 
 export function maxLength(max: number): EmittableRule {
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && value.length <= max;
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string =>
-    `if (${varName}.length > ${max}) ${ctx.fail('maxLength')};`;
-  (fn as any).ruleName = 'maxLength';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { max };
-
-  return fn as EmittableRule;
+  const plan = { cacheKey: 'length', failure: planCompare(planLength(), '>', max) } as const;
+  return makePlannedRule({
+    name: 'maxLength',
+    requiresType: 'string',
+    constraints: { max },
+    plan,
+    validate: (value) => typeof value === 'string' && value.length <= max,
+  });
 }
 
 export function length(minLen: number, maxLen: number): EmittableRule {
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && value.length >= minLen && value.length <= maxLen;
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string =>
-    `if (${varName}.length < ${minLen} || ${varName}.length > ${maxLen}) ${ctx.fail('length')};`;
-  (fn as any).ruleName = 'length';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { min: minLen, max: maxLen };
-
-  return fn as EmittableRule;
+  const plan = {
+    cacheKey: 'length',
+    failure: planOr(
+      planCompare(planLength(), '<', minLen),
+      planCompare(planLength(), '>', maxLen),
+    ),
+  } as const;
+  return makePlannedRule({
+    name: 'length',
+    requiresType: 'string',
+    constraints: { min: minLen, max: maxLen },
+    plan,
+    validate: (value) =>
+      typeof value === 'string' && value.length >= minLen && value.length <= maxLen,
+  });
 }
 
 export function contains(seed: string): EmittableRule {
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && value.includes(seed);
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(seed);
-    return `if (${varName}.indexOf(_refs[${i}]) === -1) ${ctx.fail('contains')};`;
-  };
-  (fn as any).ruleName = 'contains';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { seed };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'contains',
+    requiresType: 'string',
+    constraints: { seed },
+    validate: (value) => typeof value === 'string' && value.includes(seed),
+    emit: (varName: string, ctx: EmitContext): string => {
+      const i = ctx.addRef(seed);
+      return `if (${varName}.indexOf(_refs[${i}]) === -1) ${ctx.fail('contains')};`;
+    },
+  });
 }
 
 export function notContains(seed: string): EmittableRule {
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && !value.includes(seed);
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(seed);
-    return `if (${varName}.indexOf(_refs[${i}]) !== -1) ${ctx.fail('notContains')};`;
-  };
-  (fn as any).ruleName = 'notContains';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { seed };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'notContains',
+    requiresType: 'string',
+    constraints: { seed },
+    validate: (value) => typeof value === 'string' && !value.includes(seed),
+    emit: (varName: string, ctx: EmitContext): string => {
+      const i = ctx.addRef(seed);
+      return `if (${varName}.indexOf(_refs[${i}]) !== -1) ${ctx.fail('notContains')};`;
+    },
+  });
 }
 
 export function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
   const re = pattern instanceof RegExp ? pattern : new RegExp(pattern, modifiers);
-
-  const fn = (value: unknown): boolean =>
-    typeof value === 'string' && re.test(value);
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('matches')};`;
-  };
-  (fn as any).ruleName = 'matches';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { pattern: re.source };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'matches',
+    requiresType: 'string',
+    constraints: { pattern: re.source },
+    validate: (value) => typeof value === 'string' && re.test(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      const i = ctx.addRegex(re);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('matches')};`;
+    },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Group B: Simple Boolean Checks
 // ─────────────────────────────────────────────────────────────────────────────
 
-const _isLowercase = (value: unknown): boolean =>
-  typeof value === 'string' && value === value.toLowerCase();
+export const isLowercase = makeRule({
+  name: 'isLowercase',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => typeof value === 'string' && value === value.toLowerCase(),
+  emit: (varName: string, ctx: EmitContext): string =>
+    `if (${varName} !== ${varName}.toLowerCase()) ${ctx.fail('isLowercase')};`,
+});
 
-(_isLowercase as any).emit = (varName: string, ctx: EmitContext): string =>
-  `if (${varName} !== ${varName}.toLowerCase()) ${ctx.fail('isLowercase')};`;
-(_isLowercase as any).ruleName = 'isLowercase';
-(_isLowercase as any).requiresType = 'string';
-(_isLowercase as any).constraints = {};
-export const isLowercase = _isLowercase as EmittableRule;
-
-const _isUppercase = (value: unknown): boolean =>
-  typeof value === 'string' && value === value.toUpperCase();
-
-(_isUppercase as any).emit = (varName: string, ctx: EmitContext): string =>
-  `if (${varName} !== ${varName}.toUpperCase()) ${ctx.fail('isUppercase')};`;
-(_isUppercase as any).ruleName = 'isUppercase';
-(_isUppercase as any).requiresType = 'string';
-(_isUppercase as any).constraints = {};
-export const isUppercase = _isUppercase as EmittableRule;
+export const isUppercase = makeRule({
+  name: 'isUppercase',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => typeof value === 'string' && value === value.toUpperCase(),
+  emit: (varName: string, ctx: EmitContext): string =>
+    `if (${varName} !== ${varName}.toUpperCase()) ${ctx.fail('isUppercase')};`,
+});
 
 // ASCII: all code points in [0x00, 0x7F]
 const ASCII_RE = /^[\x00-\x7F]*$/;
@@ -170,15 +161,14 @@ export const isAlphanumeric = makeStringRule(
 );
 
 // BooleanString: 'true' | 'false' | '1' | '0'
-const _isBooleanString = (value: unknown): boolean =>
-  value === 'true' || value === 'false' || value === '1' || value === '0';
-
-(_isBooleanString as any).emit = (varName: string, ctx: EmitContext): string =>
-  `if (${varName} !== 'true' && ${varName} !== 'false' && ${varName} !== '1' && ${varName} !== '0') ${ctx.fail('isBooleanString')};`;
-(_isBooleanString as any).ruleName = 'isBooleanString';
-(_isBooleanString as any).requiresType = 'string';
-(_isBooleanString as any).constraints = {};
-export const isBooleanString = _isBooleanString as EmittableRule;
+export const isBooleanString = makeRule({
+  name: 'isBooleanString',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => value === 'true' || value === 'false' || value === '1' || value === '0',
+  emit: (varName: string, ctx: EmitContext): string =>
+    `if (${varName} !== 'true' && ${varName} !== 'false' && ${varName} !== '1' && ${varName} !== '0') ${ctx.fail('isBooleanString')};`,
+});
 
 export interface IsNumberStringOptions {
   no_symbols?: boolean;
@@ -201,8 +191,11 @@ export function isNumberString(options?: IsNumberStringOptions): EmittableRule {
     'isNumberString',
     checkFn,
     (varName, ctx) => {
-      const i = ctx.addRef(checkFn);
-      return `if (!_refs[${i}](${varName})) ${ctx.fail('isNumberString')};`;
+      if (noSymbols) {
+        const i = ctx.addRegex(NO_SYMBOLS_RE);
+        return `if (${varName}.length === 0 || !_re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
+      }
+      return `if (${varName}.length === 0) ${ctx.fail('isNumberString')};\nelse { var _ns=Number(${varName}); if (isNaN(_ns) || !isFinite(_ns)) ${ctx.fail('isNumberString')}; }`;
     },
     'string',
     { no_symbols: noSymbols },
@@ -331,21 +324,16 @@ export function isURL(options?: IsURLOptions): EmittableRule {
   const re = new RegExp(
     `^(?:${protocolPattern}):\\/\\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)(?::(6553[0-5]|655[0-2]\\d|65[0-4]\\d{2}|6[0-4]\\d{3}|[1-5]\\d{4}|[1-9]\\d{0,3}|0))?(?:\\/[^\\s]*)?$`,
   );
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string' || value.length === 0) return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isURL')};`;
-  };
-  (fn as any).ruleName = 'isURL';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { format: 'uri', protocols };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isURL',
+    requiresType: 'string',
+    constraints: { format: 'uri', protocols },
+    validate: (value) => typeof value === 'string' && value.length > 0 && re.test(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      const i = ctx.addRegex(re);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isURL')};`;
+    },
+  });
 }
 
 // UUID
@@ -377,31 +365,30 @@ const IPV4_RE = /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}
 const IPV6_RE = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^::$|^::1$|^::(?:ffff(?::0{1,4})?:)?(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$|^(?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
 export function isIP(version?: 4 | 6): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    if (version === 4) return IPV4_RE.test(value);
-    if (version === 6) return IPV6_RE.test(value);
-    return IPV4_RE.test(value) || IPV6_RE.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (version === 4) {
-      const i = ctx.addRegex(IPV4_RE);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIP')};`;
-    }
-    if (version === 6) {
-      const i = ctx.addRegex(IPV6_RE);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIP')};`;
-    }
-    const i4 = ctx.addRegex(IPV4_RE);
-    const i6 = ctx.addRegex(IPV6_RE);
-    return `if (!_re[${i4}].test(${varName}) && !_re[${i6}].test(${varName})) ${ctx.fail('isIP')};`;
-  };
-  (fn as any).ruleName = 'isIP';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { version };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isIP',
+    requiresType: 'string',
+    constraints: { version },
+    validate: (value) => {
+      if (typeof value !== 'string') return false;
+      if (version === 4) return IPV4_RE.test(value);
+      if (version === 6) return IPV6_RE.test(value);
+      return IPV4_RE.test(value) || IPV6_RE.test(value);
+    },
+    emit: (varName: string, ctx: EmitContext): string => {
+      if (version === 4) {
+        const i = ctx.addRegex(IPV4_RE);
+        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIP')};`;
+      }
+      if (version === 6) {
+        const i = ctx.addRegex(IPV6_RE);
+        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isIP')};`;
+      }
+      const i4 = ctx.addRegex(IPV4_RE);
+      const i6 = ctx.addRegex(IPV6_RE);
+      return `if (!_re[${i4}].test(${varName}) && !_re[${i6}].test(${varName})) ${ctx.fail('isIP')};`;
+    },
+  });
 }
 
 // HexColor: #RGB or #RRGGBB
@@ -421,26 +408,25 @@ const RGBA_RE = /^rgba\(\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2
 const RGB_PERCENT_RE = /^rgba?\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/;
 
 export function isRgbColor(includePercentValues: boolean = false): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    if (includePercentValues) return RGB_PERCENT_RE.test(value);
-    return RGB_RE.test(value) || RGBA_RE.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (includePercentValues) {
-      const i = ctx.addRegex(RGB_PERCENT_RE);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isRgbColor')};`;
-    }
-    const i1 = ctx.addRegex(RGB_RE);
-    const i2 = ctx.addRegex(RGBA_RE);
-    return `if (!_re[${i1}].test(${varName}) && !_re[${i2}].test(${varName})) ${ctx.fail('isRgbColor')};`;
-  };
-  (fn as any).ruleName = 'isRgbColor';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { includePercentValues };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isRgbColor',
+    requiresType: 'string',
+    constraints: { includePercentValues },
+    validate: (value) => {
+      if (typeof value !== 'string') return false;
+      if (includePercentValues) return RGB_PERCENT_RE.test(value);
+      return RGB_RE.test(value) || RGBA_RE.test(value);
+    },
+    emit: (varName: string, ctx: EmitContext): string => {
+      if (includePercentValues) {
+        const i = ctx.addRegex(RGB_PERCENT_RE);
+        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isRgbColor')};`;
+      }
+      const i1 = ctx.addRegex(RGB_RE);
+      const i2 = ctx.addRegex(RGBA_RE);
+      return `if (!_re[${i1}].test(${varName}) && !_re[${i2}].test(${varName})) ${ctx.fail('isRgbColor')};`;
+    },
+  });
 }
 
 // HSL: hsl(H, S%, L%) or hsla(H, S%, L%, A)
@@ -464,26 +450,25 @@ const MAC_HYPHEN_RE = /^[0-9a-fA-F]{2}(?:-[0-9a-fA-F]{2}){5}$/;
 const MAC_NO_SEP_RE = /^[0-9a-fA-F]{12}$/;
 
 export function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    if (options?.no_separators) return MAC_NO_SEP_RE.test(value);
-    return MAC_COLON_RE.test(value) || MAC_HYPHEN_RE.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (options?.no_separators) {
-      const i = ctx.addRegex(MAC_NO_SEP_RE);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMACAddress')};`;
-    }
-    const i1 = ctx.addRegex(MAC_COLON_RE);
-    const i2 = ctx.addRegex(MAC_HYPHEN_RE);
-    return `if (!_re[${i1}].test(${varName}) && !_re[${i2}].test(${varName})) ${ctx.fail('isMACAddress')};`;
-  };
-  (fn as any).ruleName = 'isMACAddress';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { no_separators: options?.no_separators };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isMACAddress',
+    requiresType: 'string',
+    constraints: { no_separators: options?.no_separators },
+    validate: (value) => {
+      if (typeof value !== 'string') return false;
+      if (options?.no_separators) return MAC_NO_SEP_RE.test(value);
+      return MAC_COLON_RE.test(value) || MAC_HYPHEN_RE.test(value);
+    },
+    emit: (varName: string, ctx: EmitContext): string => {
+      if (options?.no_separators) {
+        const i = ctx.addRegex(MAC_NO_SEP_RE);
+        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isMACAddress')};`;
+      }
+      const i1 = ctx.addRegex(MAC_COLON_RE);
+      const i2 = ctx.addRegex(MAC_HYPHEN_RE);
+      return `if (!_re[${i1}].test(${varName}) && !_re[${i2}].test(${varName})) ${ctx.fail('isMACAddress')};`;
+    },
+  });
 }
 
 // ISBN
@@ -516,15 +501,34 @@ export function isISBN(version?: 10 | 13): EmittableRule {
     return _validateISBN10(value) || _validateISBN13(value);
   };
 
-  (validateFn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(validateFn);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isISBN')};`;
-  };
-  (validateFn as any).ruleName = 'isISBN';
-  (validateFn as any).requiresType = 'string';
-  (validateFn as any).constraints = { version };
+  const emitISBN10 = (v: string): string =>
+    `{var _s=${v}.replace(/[-\\s]/g,'');` +
+    `if(!/^\\d{9}[\\dX]$/.test(_s)){%%FAIL%%}` +
+    `else{var _sm=0;for(var _i=0;_i<9;_i++)_sm+=(10-_i)*(_s.charCodeAt(_i)-48);` +
+    `var _l=_s[9]==='X'?10:(_s.charCodeAt(9)-48);_sm+=_l;` +
+    `if(_sm%11!==0){%%FAIL%%}}}`;
 
-  return validateFn as EmittableRule;
+  const emitISBN13 = (v: string): string =>
+    `{var _s=${v}.replace(/[-\\s]/g,'');` +
+    `if(!/^\\d{13}$/.test(_s)){%%FAIL%%}` +
+    `else{var _sm=0;for(var _i=0;_i<12;_i++)_sm+=(_s.charCodeAt(_i)-48)*(_i%2===0?1:3);` +
+    `var _ck=(10-(_sm%10))%10;` +
+    `if(_ck!==(_s.charCodeAt(12)-48)){%%FAIL%%}}}`;
+
+  return makeRule({
+    name: 'isISBN',
+    requiresType: 'string',
+    constraints: { version },
+    validate: validateFn,
+    emit: (varName: string, ctx: EmitContext): string => {
+      const fail = ctx.fail('isISBN');
+      if (version === 10) return emitISBN10(varName).replace(/%%FAIL%%/g, fail);
+      if (version === 13) return emitISBN13(varName).replace(/%%FAIL%%/g, fail);
+      const emit10 = emitISBN10(varName).replace(/%%FAIL%%/g, '__isbn_ok=false');
+      const emit13 = emitISBN13(varName).replace(/%%FAIL%%/g, '__isbn_ok=false');
+      return `{var __isbn_ok=true;${emit10} if(!__isbn_ok){__isbn_ok=true;${emit13}} if(!__isbn_ok)${fail};}`;
+    },
+  });
 }
 
 // ISIN — ISO 6166
@@ -558,8 +562,11 @@ export const isISIN = makeStringRule(
   'isISIN',
   _validateISINStr,
   (varName, ctx) => {
-    const i = ctx.addRef(_validateISINStr);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isISIN')};`;
+    const i = ctx.addRegex(ISIN_RE);
+    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isISIN')};\n` +
+      `else { var _isExp=${varName}.split('').map(function(c){var _cd=c.charCodeAt(0);return _cd>=65?String(_cd-55):c;}).join('');\n` +
+      `var _isSum=0,_isAlt=false;for(var _isI=_isExp.length-1;_isI>=0;_isI--){var _isN=parseInt(_isExp[_isI],10);if(_isAlt){_isN*=2;if(_isN>9)_isN-=9;}_isSum+=_isN;_isAlt=!_isAlt;}\n` +
+      `if(_isSum%10!==0)${ctx.fail('isISIN')}; }`;
   },
 );
 
@@ -585,18 +592,22 @@ function _validateISO8601Strict(v: string): boolean {
 
 export function isISO8601(options?: IsISO8601Options): EmittableRule {
   if (options?.strict) {
-    // strict: validate and emit use the same function ref to stay in sync
-    const fn = (v: unknown): boolean => {
-      if (typeof v !== 'string') return false;
-      return _validateISO8601Strict(v);
-    };
-    (fn as any).ruleName = 'isISO8601';
-    (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-      const i = ctx.addRef(fn);
-      return `if (!_refs[${i}](${varName})) ${ctx.fail('isISO8601')};`;
-    };
-    (fn as any).constraints = { format: 'date-time', strict: true };
-    return fn as unknown as EmittableRule;
+    const validateStrict = (v: unknown): boolean => typeof v === 'string' && _validateISO8601Strict(v);
+    return makeRule({
+      name: 'isISO8601',
+      requiresType: 'string',
+      constraints: { format: 'date-time', strict: true },
+      validate: validateStrict,
+      emit: (varName: string, ctx: EmitContext): string => {
+        const i = ctx.addRegex(ISO8601_RE);
+        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isISO8601')};\n` +
+          `else { var _dm=${varName}.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);` +
+          `if(_dm){var _mo=Number(_dm[2]),_da=Number(_dm[3]);` +
+          `if(_mo<1||_mo>12){${ctx.fail('isISO8601')}}` +
+          `else{var _md=new Date(Number(_dm[1]),_mo,0).getDate();` +
+          `if(_da<1||_da>_md)${ctx.fail('isISO8601')};}} }`;
+      },
+    });
   }
   // non-strict: both validate and emit use same ISO8601_RE
   return makeStringRule(
@@ -644,20 +655,28 @@ function _validateISSN(value: string, options?: IsISSNOptions): boolean {
 }
 
 export function isISSN(options?: IsISSNOptions): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return _validateISSN(value, options);
-  };
+  const requireHyphen = options?.requireHyphen !== false;
+  const validateIssn = (value: unknown): boolean =>
+    typeof value === 'string' && _validateISSN(value, options);
 
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(fn);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isISSN')};`;
-  };
-  (fn as any).ruleName = 'isISSN';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { requireHyphen: options?.requireHyphen };
+  const formatRe = requireHyphen ? /^\d{4}-\d{3}[\dX]$/ : /^\d{7}[\dX]$/;
 
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isISSN',
+    requiresType: 'string',
+    constraints: { requireHyphen: options?.requireHyphen },
+    validate: validateIssn,
+    emit: (varName: string, ctx: EmitContext): string => {
+      const ri = ctx.addRegex(formatRe);
+      const strip = requireHyphen ? varName : `${varName}.replace(/-/g,'')`;
+      return `{var _is=${strip};` +
+        `if(!_re[${ri}].test(_is)){${ctx.fail('isISSN')}}` +
+        `else{var _id=_is.replace(/-/g,''),_iss=0;` +
+        `for(var _ii=0;_ii<7;_ii++)_iss+=(8-_ii)*(_id.charCodeAt(_ii)-48);` +
+        `var _il=_id[7]==='X'?10:(_id.charCodeAt(7)-48);_iss+=_il;` +
+        `if(_iss%11!==0)${ctx.fail('isISSN')};}}`;
+    },
+  });
 }
 
 // JWT — 3-part dot-separated base64url
@@ -716,14 +735,17 @@ export interface IsFQDNOptions {
 
 export function isFQDN(options?: IsFQDNOptions): EmittableRule {
   const requireTld = options?.require_tld !== false;
+  const allowUnderscores = options?.allow_underscores ?? false;
+  const allowTrailingDot = options?.allow_trailing_dot ?? false;
 
-  const fn = (value: unknown): boolean => {
+  const partRe = allowUnderscores ? /^[a-zA-Z0-9_-]+$/ : /^[a-zA-Z0-9-]+$/;
+
+  const validateFqdn = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
     let str = value;
-    if (options?.allow_trailing_dot && str.endsWith('.')) str = str.slice(0, -1);
+    if (allowTrailingDot && str.endsWith('.')) str = str.slice(0, -1);
     if (str.length === 0) return false;
     const parts = str.split('.');
-    // Must have at least 2 parts (host + tld) when requireTld is true
     if (requireTld && parts.length < 2) return false;
     if (requireTld) {
       const tld = parts[parts.length - 1];
@@ -731,20 +753,47 @@ export function isFQDN(options?: IsFQDNOptions): EmittableRule {
     }
     return parts.every((part) => {
       if (part.length === 0 || part.length > 63) return false;
-      if (options?.allow_underscores) return /^[a-zA-Z0-9_-]+$/.test(part);
-      return /^[a-zA-Z0-9-]+$/.test(part) && !part.startsWith('-') && !part.endsWith('-');
+      if (!partRe.test(part)) return false;
+      if (!allowUnderscores && (part.startsWith('-') || part.endsWith('-'))) return false;
+      return true;
     });
   };
 
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(fn);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isFQDN')};`;
-  };
-  (fn as any).ruleName = 'isFQDN';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { require_tld: options?.require_tld, allow_underscores: options?.allow_underscores, allow_trailing_dot: options?.allow_trailing_dot };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isFQDN',
+    requiresType: 'string',
+    constraints: {
+      require_tld: options?.require_tld,
+      allow_underscores: options?.allow_underscores,
+      allow_trailing_dot: options?.allow_trailing_dot,
+    },
+    validate: validateFqdn,
+    emit: (varName: string, ctx: EmitContext): string => {
+      const ri = ctx.addRegex(partRe);
+      const tldRi = requireTld ? ctx.addRegex(/^[a-zA-Z]{2,}$/) : -1;
+      let code = `{var _fq=${varName};`;
+      if (allowTrailingDot) code += `if(_fq.endsWith('.'))_fq=_fq.slice(0,-1);`;
+      code += `if(_fq.length===0)${ctx.fail('isFQDN')};`;
+      code += `else{var _fp=_fq.split('.');`;
+      if (requireTld) {
+        code += `if(_fp.length<2)${ctx.fail('isFQDN')};`;
+        code += `else{var _tld=_fp[_fp.length-1];`;
+        code += `if(!_tld||_tld.length<2||!_re[${tldRi}].test(_tld))${ctx.fail('isFQDN')};`;
+        code += `else if(!_fp.every(function(p){`;
+      } else {
+        code += `if(!_fp.every(function(p){`;
+      }
+      code += `if(p.length===0||p.length>63)return false;`;
+      code += `if(!_re[${ri}].test(p))return false;`;
+      if (!allowUnderscores) code += `if(p[0]==='-'||p[p.length-1]==='-')return false;`;
+      code += `return true;}))${ctx.fail('isFQDN')};`;
+      // close: requireTld adds else{ for tld block
+      if (requireTld) code += '}'; // close tld else{
+      code += '}'; // close split else{
+      code += '}'; // close outer {
+      return code;
+    },
+  });
 }
 
 // Port — 0 to 65535
@@ -775,8 +824,14 @@ export const isEAN = makeStringRule(
   'isEAN',
   _validateEAN,
   (varName, ctx) => {
-    const i = ctx.addRef(_validateEAN);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isEAN')};`;
+    const re8 = ctx.addRegex(/^\d{8}$/);
+    const re13 = ctx.addRegex(/^\d{13}$/);
+    return `{var _ev=${varName};` +
+      `if(!_re[${re8}].test(_ev)&&!_re[${re13}].test(_ev)){${ctx.fail('isEAN')}}` +
+      `else{var _el=_ev.length,_es=0;` +
+      `for(var _ei=0;_ei<_el-1;_ei++){var _ed=_ev.charCodeAt(_ei)-48;_es+=_ed*(_el===8?(_ei%2===0?3:1):(_ei%2===0?1:3));}` +
+      `var _ec=(10-(_es%10))%10;` +
+      `if(_ec!==(_ev.charCodeAt(_el-1)-48))${ctx.fail('isEAN')};}}`;
   },
 );
 
@@ -800,19 +855,16 @@ const ISO31661A2_CODES = new Set([
   'WF','WS','YE','YT','ZA','ZM','ZW',
 ]);
 
-const _isISO31661Alpha2 = (value: unknown): boolean => {
-  if (typeof value !== 'string') return false;
-  return ISO31661A2_CODES.has(value.toUpperCase());
-};
-
-(_isISO31661Alpha2 as any).emit = (varName: string, ctx: EmitContext): string => {
-  const i = ctx.addRef(ISO31661A2_CODES);
-  return `if (!_refs[${i}].has(${varName}.toUpperCase())) ${ctx.fail('isISO31661Alpha2')};`;
-};
-(_isISO31661Alpha2 as any).ruleName = 'isISO31661Alpha2';
-(_isISO31661Alpha2 as any).requiresType = 'string';
-(_isISO31661Alpha2 as any).constraints = {};
-export const isISO31661Alpha2 = _isISO31661Alpha2 as EmittableRule;
+export const isISO31661Alpha2 = makeRule({
+  name: 'isISO31661Alpha2',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => typeof value === 'string' && ISO31661A2_CODES.has(value.toUpperCase()),
+  emit: (varName: string, ctx: EmitContext): string => {
+    const i = ctx.addRef(ISO31661A2_CODES);
+    return `if (!_refs[${i}].has(${varName}.toUpperCase())) ${ctx.fail('isISO31661Alpha2')};`;
+  },
+});
 
 // ISO 3166-1 Alpha-3
 const ISO31661A3_CODES = new Set([
@@ -834,19 +886,16 @@ const ISO31661A3_CODES = new Set([
   'WLF','WSM','YEM','ZAF','ZMB','ZWE',
 ]);
 
-const _isISO31661Alpha3 = (value: unknown): boolean => {
-  if (typeof value !== 'string') return false;
-  return ISO31661A3_CODES.has(value.toUpperCase());
-};
-
-(_isISO31661Alpha3 as any).emit = (varName: string, ctx: EmitContext): string => {
-  const i = ctx.addRef(ISO31661A3_CODES);
-  return `if (!_refs[${i}].has(${varName}.toUpperCase())) ${ctx.fail('isISO31661Alpha3')};`;
-};
-(_isISO31661Alpha3 as any).ruleName = 'isISO31661Alpha3';
-(_isISO31661Alpha3 as any).requiresType = 'string';
-(_isISO31661Alpha3 as any).constraints = {};
-export const isISO31661Alpha3 = _isISO31661Alpha3 as EmittableRule;
+export const isISO31661Alpha3 = makeRule({
+  name: 'isISO31661Alpha3',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => typeof value === 'string' && ISO31661A3_CODES.has(value.toUpperCase()),
+  emit: (varName: string, ctx: EmitContext): string => {
+    const i = ctx.addRef(ISO31661A3_CODES);
+    return `if (!_refs[${i}].has(${varName}.toUpperCase())) ${ctx.fail('isISO31661Alpha3')};`;
+  },
+});
 
 // BIC / SWIFT code
 const BIC_RE = /^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/;
@@ -893,7 +942,7 @@ export const isMongoId = makeStringRule(
 );
 
 // JSON
-const _isJSON = (value: unknown): boolean => {
+const validateJsonString = (value: unknown): boolean => {
   if (typeof value !== 'string') return false;
   try {
     JSON.parse(value);
@@ -903,16 +952,14 @@ const _isJSON = (value: unknown): boolean => {
   }
 };
 
-(_isJSON as any).emit = (varName: string, ctx: EmitContext): string => {
-  const i = ctx.addRef((s: string) => {
-    try { JSON.parse(s); return true; } catch { return false; }
-  });
-  return `if (!_refs[${i}](${varName})) ${ctx.fail('isJSON')};`;
-};
-(_isJSON as any).ruleName = 'isJSON';
-(_isJSON as any).requiresType = 'string';
-(_isJSON as any).constraints = {};
-export const isJSON = _isJSON as EmittableRule;
+export const isJSON = makeRule({
+  name: 'isJSON',
+  requiresType: 'string',
+  constraints: {},
+  validate: validateJsonString,
+  emit: (varName: string, ctx: EmitContext): string =>
+    `try { JSON.parse(${varName}); } catch(_e) { ${ctx.fail('isJSON')}; }`,
+});
 
 // Base32
 const BASE32_RE = /^[A-Z2-7]+=*$/i;
@@ -1043,23 +1090,19 @@ function _luhn(str: string): boolean {
   return sum % 10 === 0;
 }
 
-const _isCreditCard = (value: unknown): boolean => {
-  if (typeof value !== 'string') return false;
-  return _luhn(value);
-};
-
-// emit: Luhn algorithm unrolled (§4.8 C pattern)
-(_isCreditCard as any).emit = (varName: string, ctx: EmitContext): string => `{
+export const isCreditCard = makeRule({
+  name: 'isCreditCard',
+  requiresType: 'string',
+  constraints: {},
+  validate: (value) => typeof value === 'string' && _luhn(value),
+  emit: (varName: string, ctx: EmitContext): string => `{
   var _cs=${varName}.replace(/[\\s-]/g,'');
   if(_cs.length===0||!/^\\d+$/.test(_cs)){${ctx.fail('isCreditCard')}}
   else{var _sum=0,_alt=false;
   for(var _ci=_cs.length-1;_ci>=0;_ci--){var _cn=_cs.charCodeAt(_ci)-48;if(_alt){_cn*=2;if(_cn>9)_cn-=9;}_sum+=_cn;_alt=!_alt;}
   if(_sum%10!==0)${ctx.fail('isCreditCard')};}
-}`;
-(_isCreditCard as any).ruleName = 'isCreditCard';
-(_isCreditCard as any).requiresType = 'string';
-(_isCreditCard as any).constraints = {};
-export const isCreditCard = _isCreditCard as EmittableRule;
+}`,
+});
 
 // IBAN — ISO 13616 mod-97
 export interface IsIBANOptions {
@@ -1099,48 +1142,53 @@ function _validateIBAN(value: string, options?: IsIBANOptions): boolean {
 }
 
 export function isIBAN(options?: IsIBANOptions): EmittableRule {
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return _validateIBAN(value, options);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(fn);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isIBAN')};`;
-  };
-  (fn as any).ruleName = 'isIBAN';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { allowSpaces: options?.allowSpaces };
-
-  return fn as EmittableRule;
+  const allowSpaces = options?.allowSpaces ?? false;
+  const validateIban = (value: unknown): boolean =>
+    typeof value === 'string' && _validateIBAN(value, options);
+  return makeRule({
+    name: 'isIBAN',
+    requiresType: 'string',
+    constraints: { allowSpaces: options?.allowSpaces },
+    validate: validateIban,
+    emit: (varName: string, ctx: EmitContext): string => {
+      const baseRi = ctx.addRegex(/^[A-Z]{2}\d{2}[A-Z0-9]+$/);
+      const tableIdx = ctx.addRef(IBAN_COUNTRY_LENGTH);
+      let code = '{';
+      code += `var _ib=${allowSpaces ? `${varName}.replace(/\\s/g,'')` : varName}.toUpperCase();`;
+      code += `if(!_re[${baseRi}].test(_ib)){${ctx.fail('isIBAN')}}`;
+      code += `else{var _ic=_ib.slice(0,2),_il=_refs[${tableIdx}][_ic];`;
+      code += `if(_il!==undefined&&_ib.length!==_il){${ctx.fail('isIBAN')}}`;
+      code += `else{var _ir=_ib.slice(4)+_ib.slice(0,4);`;
+      code += `var _in=_ir.replace(/[A-Z]/g,function(c){return String(c.charCodeAt(0)-55);});`;
+      code += `var _im=0;for(var _ii=0;_ii<_in.length;_ii+=7){_im=parseInt(String(_im)+_in.slice(_ii,_ii+7),10)%97;}`;
+      code += `if(_im!==1)${ctx.fail('isIBAN')};}}}`;
+      return code;
+    },
+  });
 }
 
 // ByteLength — counts UTF-8 bytes via Buffer.byteLength
 export function isByteLength(min: number, max?: number): EmittableRule {
-  const fn = (value: unknown): boolean => {
+  const validateByteLength = (value: unknown): boolean => {
     if (typeof value !== 'string') return false;
     const byteLen = Buffer.byteLength(value, 'utf8');
     if (byteLen < min) return false;
     if (max !== undefined && byteLen > max) return false;
     return true;
   };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    // emit: ref-based (Buffer.byteLength is available in Bun and Node)
-    const checkFn = (s: string): boolean => {
-      const byteLen = Buffer.byteLength(s, 'utf8');
-      if (byteLen < min) return false;
-      if (max !== undefined && byteLen > max) return false;
-      return true;
-    };
-    const i = ctx.addRef(checkFn);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isByteLength')};`;
-  };
-  (fn as any).ruleName = 'isByteLength';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { min, max };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isByteLength',
+    requiresType: 'string',
+    constraints: { min, max },
+    validate: validateByteLength,
+    emit: (varName: string, ctx: EmitContext): string => {
+      let code = `{var _bl=Buffer.byteLength(${varName},'utf8');`;
+      code += `if(_bl<${min})${ctx.fail('isByteLength')};`;
+      if (max !== undefined) code += `else if(_bl>${max})${ctx.fail('isByteLength')};`;
+      code += '}';
+      return code;
+    },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1171,26 +1219,17 @@ const HASH_REGEXES: Record<string, RegExp> = {
 
 export function isHash(algorithm: string): EmittableRule {
   const re = HASH_REGEXES[algorithm];
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    if (!re) return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      // Unknown algorithm — always fail
-      return ctx.fail('isHash') + ';';
-    }
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isHash')};`;
-  };
-  (fn as any).ruleName = 'isHash';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = { algorithm };
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isHash',
+    requiresType: 'string',
+    constraints: { algorithm },
+    validate: (value) => typeof value === 'string' && !!re && re.test(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      if (!re) return ctx.fail('isHash') + ';';
+      const i = ctx.addRegex(re);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isHash')};`;
+    },
+  });
 }
 
 // isRFC3339 — RFC 3339 datetime (§4.8 B)
@@ -1237,17 +1276,18 @@ function _checkLatitude(value: unknown): boolean {
   return false;
 }
 
-const _isLatitude = (value: unknown): boolean => _checkLatitude(value);
-
-(_isLatitude as any).emit = (varName: string, ctx: EmitContext): string => {
-  const i = ctx.addRef(_checkLatitude);
-  return `if (!_refs[${i}](${varName})) ${ctx.fail('isLatitude')};`;
-};
-(_isLatitude as any).ruleName = 'isLatitude';
-(_isLatitude as any).constraints = {};
-// requiresType = undefined — handles both string|number
-
-export const isLatitude = _isLatitude as EmittableRule;
+export const isLatitude = makeRule({
+  name: 'isLatitude',
+  constraints: {},
+  validate: _checkLatitude,
+  emit: (varName: string, ctx: EmitContext): string => {
+    const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
+    return `if(typeof ${varName}==='number'){if(${varName}<-90||${varName}>90)${ctx.fail('isLatitude')};}` +
+      `else if(typeof ${varName}==='string'){var _lt=parseFloat(${varName});` +
+      `if(isNaN(_lt)||!_re[${ri}].test(${varName})||_lt<-90||_lt>90)${ctx.fail('isLatitude')};}` +
+      `else{${ctx.fail('isLatitude')};}`;
+  },
+});
 
 // isLongitude — string or number, -180 to 180 (requiresType none)
 
@@ -1264,17 +1304,18 @@ function _checkLongitude(value: unknown): boolean {
   return false;
 }
 
-const _isLongitude = (value: unknown): boolean => _checkLongitude(value);
-
-(_isLongitude as any).emit = (varName: string, ctx: EmitContext): string => {
-  const i = ctx.addRef(_checkLongitude);
-  return `if (!_refs[${i}](${varName})) ${ctx.fail('isLongitude')};`;
-};
-(_isLongitude as any).ruleName = 'isLongitude';
-(_isLongitude as any).constraints = {};
-// requiresType = undefined — handles both string|number
-
-export const isLongitude = _isLongitude as EmittableRule;
+export const isLongitude = makeRule({
+  name: 'isLongitude',
+  constraints: {},
+  validate: _checkLongitude,
+  emit: (varName: string, ctx: EmitContext): string => {
+    const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
+    return `if(typeof ${varName}==='number'){if(${varName}<-180||${varName}>180)${ctx.fail('isLongitude')};}` +
+      `else if(typeof ${varName}==='string'){var _ln=parseFloat(${varName});` +
+      `if(isNaN(_ln)||!_re[${ri}].test(${varName})||_ln<-180||_ln>180)${ctx.fail('isLongitude')};}` +
+      `else{${ctx.fail('isLongitude')};}`;
+  },
+});
 
 // isEthereumAddress — 0x + 40 hex chars (§4.8 B)
 
@@ -1389,20 +1430,21 @@ export function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRu
     return true;
   };
 
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    return validate(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    const i = ctx.addRef(validate);
-    return `if (!_refs[${i}](${varName})) ${ctx.fail('isStrongPassword')};`;
-  };
-  (fn as any).ruleName = 'isStrongPassword';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isStrongPassword',
+    requiresType: 'string',
+    constraints: {},
+    validate: (value) => typeof value === 'string' && validate(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      let code = '';
+      code += `if(${varName}.length<${minLength})${ctx.fail('isStrongPassword')};`;
+      if (minLower > 0) code += `\nelse if((${varName}.match(/[a-z]/g)||[]).length<${minLower})${ctx.fail('isStrongPassword')};`;
+      if (minUpper > 0) code += `\nelse if((${varName}.match(/[A-Z]/g)||[]).length<${minUpper})${ctx.fail('isStrongPassword')};`;
+      if (minNums > 0) code += `\nelse if((${varName}.match(/[0-9]/g)||[]).length<${minNums})${ctx.fail('isStrongPassword')};`;
+      if (minSymbols > 0) code += `\nelse if((${varName}.match(/[^a-zA-Z0-9]/g)||[]).length<${minSymbols})${ctx.fail('isStrongPassword')};`;
+      return code;
+    },
+  });
 }
 
 // isTaxId — locale-specific tax identifier (§4.8 C: factory)
@@ -1422,25 +1464,17 @@ const TAX_ID_REGEXES: Record<string, RegExp> = {
 
 export function isTaxId(locale: string): EmittableRule {
   const re = TAX_ID_REGEXES[locale];
-
-  const fn = (value: unknown): boolean => {
-    if (typeof value !== 'string') return false;
-    if (!re) return false;
-    return re.test(value);
-  };
-
-  (fn as any).emit = (varName: string, ctx: EmitContext): string => {
-    if (!re) {
-      return ctx.fail('isTaxId') + ';';
-    }
-    const i = ctx.addRegex(re);
-    return `if (!_re[${i}].test(${varName})) ${ctx.fail('isTaxId')};`;
-  };
-  (fn as any).ruleName = 'isTaxId';
-  (fn as any).requiresType = 'string';
-  (fn as any).constraints = {};
-
-  return fn as EmittableRule;
+  return makeRule({
+    name: 'isTaxId',
+    requiresType: 'string',
+    constraints: { locale },
+    validate: (value) => typeof value === 'string' && !!re && re.test(value),
+    emit: (varName: string, ctx: EmitContext): string => {
+      if (!re) return ctx.fail('isTaxId') + ';';
+      const i = ctx.addRegex(re);
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isTaxId')};`;
+    },
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

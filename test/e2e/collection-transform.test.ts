@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { Field, deserialize, serialize, configure, isBakerError } from '../../index';
 import { isString, isNumber, minLength, arrayMinSize } from '../../src/rules/index';
 import { arrayOf } from '../../src/decorators/field';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => unseal());
 afterEach(() => unseal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────

@@ -55,6 +55,21 @@ describe('async @Transform — deserialize', () => {
     const result = await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' }) as AsyncChainDto;
     expect(result.code).toBe('HELLO');
   });
+
+  it('promise-returning non-async deserialize transform throws contract error', () => {
+    class PromiseDeserializeDto {
+      @Field(isString, {
+        transform: {
+          deserialize: ({ value }) => Promise.resolve(typeof value === 'string' ? value.trim() : value),
+          serialize: ({ value }) => value,
+        },
+      })
+      name!: string;
+    }
+
+    expect(() => deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' }))
+      .toThrow('deserialize transform returned Promise');
+  });
 });
 
 describe('async @Transform — serialize', () => {
@@ -62,6 +77,21 @@ describe('async @Transform — serialize', () => {
     const dto = Object.assign(new AsyncSerializeDto(), { tag: 'world' });
     const result = await serialize(dto);
     expect(result['tag']).toBe('[world]');
+  });
+
+  it('promise-returning non-async serialize transform throws contract error', () => {
+    class PromiseSerializeDto {
+      @Field(isString, {
+        transform: {
+          deserialize: ({ value }) => value,
+          serialize: ({ value }) => Promise.resolve(`[${value}]`),
+        },
+      })
+      tag!: string;
+    }
+
+    const dto = Object.assign(new PromiseSerializeDto(), { tag: 'world' });
+    expect(() => serialize(dto)).toThrow('serialize transform returned Promise');
   });
 });
 

@@ -4,7 +4,8 @@ import { SEALED } from '../symbols';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, EmittableRule, SealedExecutors, RuleDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import { SealError, type BakerError } from '../errors';
-import { isAsyncFunction } from '../utils';
+import { emitRulePlan } from '../rule-plan';
+import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generated variable name prefixes — centralised to prevent typo-related bugs
@@ -27,6 +28,7 @@ const GEN = {
   out: '__bk$out',
   errList: '__bk$errors',
   groups: '__bk$groups',
+  group0: '__bk$group0',
   groupsSet: '__bk$groupsSet',
   key: '__bk$k',
 } as const;
@@ -35,30 +37,29 @@ const GEN = {
 // Helpers — code generation utilities
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Convert key to a valid JS identifier suffix (encode non-alphanumeric chars via charCode to prevent collisions) */
-function sanitizeKey(key: string): string {
-  return key.replace(/[^a-zA-Z0-9_]/g, (ch) => `$${ch.charCodeAt(0)}$`);
-}
 
 /** Generate nested error push code that propagates message/context fields */
 function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
-  return `var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
+  return `if(${errItemExpr}.message===undefined&&${errItemExpr}.context===undefined){${errList}.push({path:${pathExpr},code:${errItemExpr}.code});}\n` +
+    `      else{var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
     `      if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
     `      if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
-    `      ${errList}.push(${tmpVar});\n`;
+    `      ${errList}.push(${tmpVar});}\n`;
 }
 
 /** Generate nested error return code that propagates message/context fields */
-function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string): string {
-  return `var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
+function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string, validateOnly?: boolean): string {
+  const ret = (arr: string) => validateOnly ? `return ${arr};\n` : `return _err(${arr});\n`;
+  return `if(${errItemExpr}.message===undefined&&${errItemExpr}.context===undefined)${ret(`[{path:${pathExpr},code:${errItemExpr}.code}]`)}` +
+    `    var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
     `    if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
     `    if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
-    `    return _err([${tmpVar}]);\n`;
+    `    ${ret(`[${tmpVar}]`)}`;
 }
 
 /** Convert field name to a safe JS variable name (includes prefix to prevent internal variable collisions) */
-function toVarName(key: string): string {
-  return GEN.field + sanitizeKey(key);
+function toVarName(key: string, prefix?: string): string {
+  return GEN.field + (prefix || '') + sanitizeKey(key);
 }
 
 /** Determine the extraction key for deserialization (§4.3 step 3) */
@@ -94,6 +95,7 @@ export function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
+  validateOnly = false,
 ): (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]> {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
   const collectErrors = !stopAtFirstError;
@@ -106,12 +108,19 @@ export function buildDeserializeCode<T>(
 
   // ── Code generation ────────────────────────────────────────────────────────
 
+  // Helper: wrap error array return — validate mode returns raw array, deserialize mode wraps in Result.err
+  const wrapErr = validateOnly ? (inner: string) => inner : (inner: string) => `_err(${inner})`;
+
   let body = '\'use strict\';\n';
 
-  // Create instance — use Object.create (skip constructor) unless exposeDefaultValues needs class defaults
-  body += exposeDefaultValues
-    ? `var ${GEN.out} = new _Cls();\n`
-    : `var ${GEN.out} = Object.create(_Cls.prototype);\n`;
+  // Create instance — skip in validate mode (no object creation needed)
+  if (validateOnly) {
+    if (exposeDefaultValues) body += 'var __bk$defs = new _Cls();\n';
+  } else {
+    body += exposeDefaultValues
+      ? `var ${GEN.out} = new _Cls();\n`
+      : `var ${GEN.out} = Object.create(_Cls.prototype);\n`;
+  }
 
   // Error array (collectErrors mode)
   if (collectErrors) {
@@ -119,14 +128,14 @@ export function buildDeserializeCode<T>(
   }
 
   // preamble: input type guard (§4.9)
-  body += 'if (input == null || typeof input !== \'object\' || Array.isArray(input)) return _err([{path:\'\',code:\'invalidInput\'}]);\n';
+  body += `if (input == null || typeof input !== 'object' || Array.isArray(input)) return ${wrapErr('[{path:\'\',code:\'invalidInput\'}]')};\n`;
 
   // WeakSet guard (circular references) — try/finally ensures cleanup between calls
   let circularWsIdx = -1;
   if (needsCircularCheck) {
     refs.push(new WeakSet());
     circularWsIdx = refs.length - 1;
-    body += `if (_refs[${circularWsIdx}].has(input)) return _err([{path:'',code:'circular'}]);\n`;
+    body += `if (_refs[${circularWsIdx}].has(input)) return ${wrapErr("[{path:'',code:'circular'}]")};\n`;
     body += `_refs[${circularWsIdx}].add(input);\n`;
     body += `try {\n`;
   }
@@ -144,7 +153,7 @@ export function buildDeserializeCode<T>(
     if (collectErrors) {
       body += `for (var ${GEN.key} of Object.keys(input)) { if (!_refs[${allowedIdx}].has(${GEN.key})) ${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'}); }\n`;
     } else {
-      body += `for (var ${GEN.key} of Object.keys(input)) { if (!_refs[${allowedIdx}].has(${GEN.key})) return _err([{path:${GEN.key},code:'whitelistViolation'}]); }\n`;
+      body += `for (var ${GEN.key} of Object.keys(input)) { if (!_refs[${allowedIdx}].has(${GEN.key})) return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)}; }\n`;
     }
   }
 
@@ -157,7 +166,8 @@ export function buildDeserializeCode<T>(
   });
   if (hasGroupsField) {
     body += `var ${GEN.groups} = _opts && _opts.groups;\n`;
-    body += `var ${GEN.groupsSet} = ${GEN.groups} ? new Set(${GEN.groups}) : null;\n`;
+    body += `var ${GEN.group0} = ${GEN.groups} && ${GEN.groups}.length === 1 ? ${GEN.groups}[0] : null;\n`;
+    body += `var ${GEN.groupsSet} = ${GEN.groups} && ${GEN.groups}.length > 1 ? new Set(${GEN.groups}) : null;\n`;
   }
 
   // ── Per-field code generation ──────────────────────────────────────────────
@@ -172,6 +182,7 @@ export function buildDeserializeCode<T>(
       refs,
       execs,
       options,
+      validateOnly,
     });
     body += fieldCode;
   }
@@ -179,9 +190,9 @@ export function buildDeserializeCode<T>(
   // ── epilogue ──────────────────────────────────────────────────────────────
 
   if (collectErrors) {
-    body += `if (${GEN.errList}.length) return _err(${GEN.errList});\n`;
+    body += `if (${GEN.errList}.length) return ${validateOnly ? GEN.errList : `_err(${GEN.errList})`};\n`;
   }
-  body += `return ${GEN.out};\n`;
+  body += `return ${validateOnly ? 'null' : GEN.out};\n`;
 
   // Close try/finally for circular reference WeakSet cleanup
   if (needsCircularCheck) {
@@ -189,7 +200,7 @@ export function buildDeserializeCode<T>(
   }
 
   // sourceURL (§4.9)
-  body += `//# sourceURL=baker://${Class.name}/deserialize\n`;
+  body += `//# sourceURL=baker://${Class.name}/${validateOnly ? 'validate' : 'deserialize'}\n`;
 
   // ── Execute new Function ───────────────────────────────────────────────────
 
@@ -203,6 +214,20 @@ export function buildDeserializeCode<T>(
   ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
 
   return executor;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// buildValidateCode — validate-only executor (no Object.create, no assignments)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function buildValidateCode(
+  Class: Function,
+  merged: RawClassMeta,
+  options: SealOptions | undefined,
+  needsCircularCheck: boolean,
+  isAsync: boolean,
+): (input: unknown, opts?: RuntimeOptions) => BakerError[] | null | Promise<BakerError[] | null> {
+  return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, true) as any;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -279,6 +304,15 @@ interface FieldCodeContext {
   refs: unknown[];
   execs: SealedExecutors<unknown>[];
   options: SealOptions | undefined;
+  validateOnly: boolean;
+  /** Track classes being inlined to detect circular references */
+  inlineNestedClasses?: Set<Function>;
+  /** JS expression for path prefix (inline nested context) */
+  pathPrefix?: string;
+  /** Prefix for generated variable names (inline nested context) */
+  varPrefix?: string;
+  /** Input object expression — 'input' by default, custom for inline nested */
+  inputExpr?: string;
 }
 
 function generateFieldCode(
@@ -308,9 +342,10 @@ function generateFieldCode(
     return '';
   }
 
-  const varName = toVarName(fieldKey);
+  const varName = toVarName(fieldKey, ctx.varPrefix);
   const extractKey = getDeserializeExtractKey(fieldKey, meta.expose);
   const exposeGroups = getDeserializeExposeGroups(meta.expose);
+  const inputObj = ctx.inputExpr || 'input';
 
   // Create EmitContext
   const emitCtx = makeEmitCtx(fieldKey, ctx);
@@ -328,17 +363,17 @@ function generateFieldCode(
   let extractCode: string;
   if (exposeDefaultValues && !meta.flags.isOptional) {
     // Use default value if key is not in input
-    extractCode = `var ${varName} = (${JSON.stringify(extractKey)} in input) ? input[${JSON.stringify(extractKey)}] : ${GEN.out}[${JSON.stringify(fieldKey)}];\n`;
+    const defaultsSource = ctx.validateOnly ? '__bk$defs' : GEN.out;
+    extractCode = `var ${varName} = (${JSON.stringify(extractKey)} in ${inputObj}) ? ${inputObj}[${JSON.stringify(extractKey)}] : ${defaultsSource}[${JSON.stringify(fieldKey)}];\n`;
   } else {
-    extractCode = `var ${varName} = input[${JSON.stringify(extractKey)}];\n`;
+    extractCode = `var ${varName} = ${inputObj}[${JSON.stringify(extractKey)}];\n`;
   }
 
   // groups check wrap (§4.5)
   let fieldStart = '';
   let fieldEnd = '';
   if (exposeGroups && exposeGroups.length > 0) {
-    const groupsArr = JSON.stringify(exposeGroups);
-    fieldStart = `if (${GEN.groupsSet} && ${groupsArr}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n`;
+    fieldStart = `if ((${GEN.group0} !== null || ${GEN.groupsSet}) && (${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, exposeGroups)})) {\n`;
     fieldEnd = '}\n';
   }
 
@@ -349,15 +384,15 @@ function generateFieldCode(
   const useOptionalGuard = !!(meta.flags.isOptional && !meta.flags.isDefined);
   const isNullable = meta.flags.isNullable === true;
 
-  const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx);
-  const assignNull = `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
+  const validationCode = generateValidationCode(fieldKey, varName, meta, ctx, emitCtx, exposeGroups);
+  const assignNull = ctx.validateOnly ? '' : `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
 
   const guardKey = resolveGuardKey(isNullable, useOptionalGuard, meta.flags.isDefined ?? false);
   innerCode += GUARD_STRATEGIES[guardKey]({ varName, emitCtx, assignNull, validationCode });
 
   // ① @ValidateIf outer wrap
   if (validateIfIdx !== null) {
-    fieldCode += fieldStart + `if (_refs[${validateIfIdx}](input)) {\n` + innerCode + '}\n' + fieldEnd;
+    fieldCode += fieldStart + `if (_refs[${validateIfIdx}](${inputObj})) {\n` + innerCode + '}\n' + fieldEnd;
   } else {
     fieldCode += fieldStart + innerCode + fieldEnd;
   }
@@ -375,6 +410,7 @@ function generateValidationCode(
   meta: RawPropertyMeta,
   ctx: FieldCodeContext,
   emitCtx: EmitContext,
+  fieldGroups?: string[],
 ): string {
   const { collectErrors, execs } = ctx;
 
@@ -385,35 +421,57 @@ function generateValidationCode(
     td => !td.options?.serializeOnly,
   );
   if (dsTransforms.length > 0) {
-    for (const td of dsTransforms) {
+    if (dsTransforms.length === 1) {
+      const td = dsTransforms[0]!;
       const refIdx = ctx.refs.length;
       ctx.refs.push(td.fn);
-      const isAsyncTransform = ctx.isAsync && isAsyncFunction(td.fn);
-      const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:input})`;
-      code += `${varName} = ${isAsyncTransform ? 'await ' : ''}${callExpr};\n`;
+      const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
+    } else if (dsTransforms.length === 2) {
+      const td0 = dsTransforms[0]!;
+      const td1 = dsTransforms[1]!;
+      const refIdx0 = ctx.refs.length;
+      ctx.refs.push(td0.fn);
+      const refIdx1 = ctx.refs.length;
+      ctx.refs.push(td1.fn);
+      const call0 = `_refs[${refIdx0}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      const expr0 = td0.isAsync ? `await ${call0}` : call0;
+      const call1 = `_refs[${refIdx1}]({value:${expr0},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      code += `${varName} = ${td1.isAsync ? 'await ' : ''}${call1};\n`;
+    } else {
+      for (const td of dsTransforms) {
+        const refIdx = ctx.refs.length;
+        ctx.refs.push(td.fn);
+        const callExpr = `_refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+        code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
+      }
     }
   }
 
   // Collection (Map/Set) auto conversion
   if (meta.type?.collection) {
-    code += generateCollectionCode(fieldKey, varName, meta, ctx, emitCtx);
+    code += ctx.validateOnly
+      ? generateCollectionCodeValidateOnly(fieldKey, varName, meta, ctx, emitCtx)
+      : generateCollectionCode(fieldKey, varName, meta, ctx, emitCtx);
     return code;
   }
 
   // @ValidateNested + @Type (§8.1)
   if (meta.flags.validateNested && meta.type?.fn) {
-    code += generateNestedCode(fieldKey, varName, meta, ctx, emitCtx);
+    code += ctx.validateOnly
+      ? generateNestedCodeValidateOnly(fieldKey, varName, meta, ctx, emitCtx)
+      : generateNestedCode(fieldKey, varName, meta, ctx, emitCtx);
     return code;
   }
 
-  // No validation rules → direct assign
+  // No validation rules → direct assign (skip in validate mode)
   if (meta.validation.length === 0) {
-    code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    if (!ctx.validateOnly) code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     return code;
   }
 
   // Build validation with type gate
-  code += buildRulesCode(fieldKey, varName, meta.validation, collectErrors, emitCtx, ctx, meta);
+  code += buildRulesCode(fieldKey, varName, meta.validation, collectErrors, emitCtx, ctx, meta, fieldGroups);
 
   return code;
 }
@@ -457,16 +515,57 @@ function makeRuleEmitCtx(
 ): EmitContext {
   const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
   if (!extra) return baseEmitCtx;
+  const pathExpr = baseEmitCtx._pathExpr ?? JSON.stringify(fieldKey);
   return {
     ...baseEmitCtx,
     fail(code: string): string {
       if (baseEmitCtx.collectErrors) {
-        return `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}${extra}})`;
+        return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}${extra}})`;
+      } else if (ctx.validateOnly) {
+        return `return [{path:${pathExpr},code:${JSON.stringify(code)}${extra}}]`;
       } else {
-        return `return _err([{path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}${extra}}])`;
+        return `return _err([{path:${pathExpr},code:${JSON.stringify(code)}${extra}}])`;
       }
     },
   };
+}
+
+function emitRuleList(
+  fieldKey: string,
+  varName: string,
+  rules: RuleDef[],
+  emitCtx: EmitContext,
+  ctx: FieldCodeContext,
+  indent: string,
+  fieldGroups?: string[],
+  insideTypeGate?: boolean,
+): string {
+  let code = '';
+  const cacheable = rules.filter(rd => sameGroups(rd.groups, fieldGroups));
+  const lengthCount = cacheable.filter(rd => rd.rule.plan?.cacheKey === 'length').length;
+  const timeCount = cacheable.filter(rd => rd.rule.plan?.cacheKey === 'time').length;
+  const lengthVar = lengthCount > 1 ? `${GEN.arr}${sanitizeKey(fieldKey)}_len` : null;
+  const timeVar = timeCount > 1 ? `${GEN.arr}${sanitizeKey(fieldKey)}_time` : null;
+
+  if (lengthVar) code += `${indent}var ${lengthVar} = ${varName}.length;\n`;
+  if (timeVar) code += `${indent}var ${timeVar} = ${varName}.getTime();\n`;
+
+  for (const rd of rules) {
+    const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
+    const gatedCtx = insideTypeGate ? { ...ruleEmitCtx, insideTypeGate: true } : ruleEmitCtx;
+    const emitted =
+      sameGroups(rd.groups, fieldGroups) && rd.rule.plan && (lengthVar || timeVar)
+        ? emitRulePlan(varName, gatedCtx, rd.rule.ruleName, rd.rule.plan, {
+            length: rd.rule.plan.cacheKey === 'length' ? lengthVar ?? undefined : undefined,
+            time: rd.rule.plan.cacheKey === 'time' ? timeVar ?? undefined : undefined,
+          }, insideTypeGate)
+        : rd.rule.emit(varName, gatedCtx);
+    if (!emitted) continue; // empty emit (e.g., asserter fully subsumed by gate)
+    const ruleCode = sameGroups(rd.groups, fieldGroups) ? emitted : wrapGroupsGuard(rd, emitted);
+    code += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
+  }
+
+  return code;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,8 +578,16 @@ function makeRuleEmitCtx(
  */
 function wrapGroupsGuard(rd: RuleDef, code: string): string {
   if (!rd.groups || rd.groups.length === 0) return code;
-  const groupsArr = JSON.stringify(rd.groups);
-  return `if (!${GEN.groupsSet} || ${groupsArr}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n${code}\n}\n`;
+  return `if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rd.groups)}) {\n${code}\n}\n`;
+}
+
+function sameGroups(a?: string[], b?: string[]): boolean {
+  if (!a || a.length === 0) return !b || b.length === 0;
+  if (!b || a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -496,7 +603,7 @@ function generateConversionCode(
   emitCtx: EmitContext,
 ): string {
   const failCode = collectErrors
-    ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:'conversionFailed'}); ${skipVar} = true;`
+    ? `${emitCtx.fail('conversionFailed')}; ${skipVar} = true;`
     : emitCtx.fail('conversionFailed') + ';';
 
   switch (targetType) {
@@ -525,10 +632,11 @@ const PRIMITIVE_TYPE_HINTS: Record<string, string> = {
 /** Asserter rule name → gate type mapping */
 const ASSERTER_TO_GATE: Record<string, string> = {
   isString: 'string', isNumber: 'number', isBoolean: 'boolean', isDate: 'date', isInt: 'number',
+  isArray: 'array', isObject: 'object',
 };
 
 /** Asserters whose gate check fully subsumes the rule (skip emit inside gate) */
-const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean']);
+const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean', 'isDate', 'isArray', 'isObject']);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // buildRulesCode — type guard + marker pattern (§4.3, §4.10)
@@ -540,7 +648,7 @@ interface CategorizedRules {
   each: RuleDef[];
   generalRules: RuleDef[];
   /** The single typed dependency group (if any) after conflict check */
-  typedDeps: { type: 'string' | 'number' | 'boolean' | 'date'; deps: RuleDef[] } | undefined;
+  typedDeps: { type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object'; deps: RuleDef[] } | undefined;
 }
 
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts */
@@ -556,6 +664,8 @@ function categorizeRules(
   const numberDeps  = nonEach.filter(rd => rd.rule.requiresType === 'number');
   const booleanDeps = nonEach.filter(rd => rd.rule.requiresType === 'boolean');
   const dateDeps    = nonEach.filter(rd => rd.rule.requiresType === 'date');
+  const arrayDeps   = nonEach.filter(rd => rd.rule.requiresType === 'array');
+  const objectDeps  = nonEach.filter(rd => rd.rule.requiresType === 'object');
   const generalRules = nonEach.filter(rd => !rd.rule.requiresType);
 
   // Mixed gate conflict detection
@@ -564,6 +674,8 @@ function categorizeRules(
     { type: 'number' as const, deps: numberDeps },
     { type: 'boolean' as const, deps: booleanDeps },
     { type: 'date' as const, deps: dateDeps },
+    { type: 'array' as const, deps: arrayDeps },
+    { type: 'object' as const, deps: objectDeps },
   ].filter(d => d.deps.length > 0);
   if (allTyped.length > 1) {
     throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${allTyped.map(d => d.type).join(', ')}`);
@@ -672,6 +784,7 @@ function emitTypedRules(
   emitCtx: EmitContext,
   ctx: FieldCodeContext,
   config: TypeGateConfig,
+  fieldGroups?: string[],
 ): string {
   let code = '';
 
@@ -679,25 +792,24 @@ function emitTypedRules(
 
   // Helper: emit inner validation rules
   const emitInnerRules = (indent: string): string => {
-    let inner = '';
+    const rules: RuleDef[] = [];
     // typeAsserter emit — skip GATE_ONLY_ASSERTERS (isString, isBoolean) as they fully overlap with the gate
     if (typeAsserter && !GATE_ONLY_ASSERTERS.has(typeAsserter.rule.ruleName)) {
-      const taCode = wrapGroupsGuard(typeAsserter, typeAsserter.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, typeAsserter, ctx)));
-      inner += indent + taCode.replace(/\n/g, '\n' + indent) + '\n';
+      rules.push(typeAsserter);
     }
-    for (const rd of otherGeneral) {
-      const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-      inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
-    }
-    for (const rd of gateDeps) {
-      const ruleCode = wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx)));
-      inner += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
-    }
-    return inner;
+    rules.push(...otherGeneral, ...gateDeps);
+    return emitRuleList(fieldKey, varName, rules, emitCtx, ctx, indent, fieldGroups, true);
   };
 
   if (collectErrors) {
-    if (enableConversion) {
+    const canConvert = enableConversion && (
+      effectiveGateType === 'string' ||
+      effectiveGateType === 'number' ||
+      effectiveGateType === 'boolean' ||
+      effectiveGateType === 'date'
+    );
+
+    if (canConvert) {
       // Conversion mode: try convert on gate failure, skip field if conversion fails
       const skipVar = `${GEN.skip}${sanitizeKey(fieldKey)}`;
       code += `var ${skipVar} = false;\n`;
@@ -705,31 +817,46 @@ function emitTypedRules(
       code += generateConversionCode(effectiveGateType, varName, fieldKey, skipVar, true, emitCtx);
       code += `}\n`;
       code += `if (!${skipVar}) {\n`;
-      const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
-      code += `  var ${markVar} = ${GEN.errList}.length;\n`;
-      code += emitInnerRules('  ');
-      code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      if (ctx.validateOnly) {
+        code += emitInnerRules('  ');
+      } else {
+        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+        code += emitInnerRules('  ');
+        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      }
       code += `}\n`;
     } else {
       code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
       code += `else {\n`;
-      const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
-      code += `  var ${markVar} = ${GEN.errList}.length;\n`;
-      code += emitInnerRules('  ');
-      code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      if (ctx.validateOnly) {
+        code += emitInnerRules('  ');
+      } else {
+        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+        code += emitInnerRules('  ');
+        code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      }
       code += `}\n`;
     }
   } else {
-    if (enableConversion) {
+    const canConvert = enableConversion && (
+      effectiveGateType === 'string' ||
+      effectiveGateType === 'number' ||
+      effectiveGateType === 'boolean' ||
+      effectiveGateType === 'date'
+    );
+
+    if (canConvert) {
       code += `if (${gateCondition}) {\n`;
       code += generateConversionCode(effectiveGateType, varName, fieldKey, null, false, emitCtx);
       code += `}\n`;
       code += emitInnerRules('');
-      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      if (!ctx.validateOnly) code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     } else {
       code += `if (${gateCondition}) ${gateEmitCtx.fail(gateErrorCode)};\n`;
       code += emitInnerRules('');
-      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      if (!ctx.validateOnly) code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     }
   }
 
@@ -744,25 +871,24 @@ function emitGeneralRules(
   collectErrors: boolean,
   emitCtx: EmitContext,
   ctx: FieldCodeContext,
+  fieldGroups?: string[],
 ): string {
   let code = '';
 
   if (collectErrors) {
     if (generalRules.length === 0) {
-      code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+      if (!ctx.validateOnly) code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    } else if (ctx.validateOnly) {
+      code += emitRuleList(fieldKey, varName, generalRules, emitCtx, ctx, '', fieldGroups);
     } else {
       const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
       code += `var ${markVar} = ${GEN.errList}.length;\n`;
-      for (const rd of generalRules) {
-        code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-      }
+      code += emitRuleList(fieldKey, varName, generalRules, emitCtx, ctx, '', fieldGroups);
       code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
     }
   } else {
-    for (const rd of generalRules) {
-      code += wrapGroupsGuard(rd, rd.rule.emit(varName, makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx))) + '\n';
-    }
-    code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+    code += emitRuleList(fieldKey, varName, generalRules, emitCtx, ctx, '', fieldGroups);
+    if (!ctx.validateOnly) code += `${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
   }
 
   return code;
@@ -776,6 +902,7 @@ function emitEachRules(
   collectErrors: boolean,
   emitCtx: EmitContext,
   ctx: FieldCodeContext,
+  fieldGroups?: string[],
 ): string {
   let code = '';
 
@@ -788,10 +915,10 @@ function emitEachRules(
     const miVar = `${GEN.mapIdx}${sk}`;
     const mvVar = `${GEN.mapVal}${sk}`;
     const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
-    const eachGuardOpen = (rd.groups && rd.groups.length > 0)
-      ? `if (!${GEN.groupsSet} || ${JSON.stringify(rd.groups)}.some(function(g){return ${GEN.groupsSet}.has(g);})) {\n`
+    const eachGuardOpen = (rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups))
+      ? `if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rd.groups)}) {\n`
       : '';
-    const eachGuardClose = (rd.groups && rd.groups.length > 0) ? '}\n' : '';
+    const eachGuardClose = (rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups)) ? '}\n' : '';
 
     // Collection descriptors: [idxVar, elemExpr, loopHeader, counterDecl, counterInc]
     const collections = [
@@ -801,11 +928,15 @@ function emitEachRules(
     ];
 
     const emitCollectionBlock = (col: typeof collections[number]): string => {
+      const prefixVar = `__bk$ep_${sanitizeKey(col.idxVar)}`;
       const failFn = (c: string) => collectErrors
-        ? `${GEN.errList}.push({path:${pathKey}+'['+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}})`
-        : `return _err([{path:${pathKey}+'['+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
+        ? `${GEN.errList}.push({path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}})`
+        : ctx.validateOnly
+          ? `return [{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}]`
+          : `return _err([{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
       const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
       let block = '';
+      block += `  var ${prefixVar} = ${pathKey}+'[';\n`;
       block += `  ${col.counterDecl}`;
       block += `  ${col.loopHeader} {\n`;
       block += '    ' + rd.rule.emit(col.elemExpr, colEmitCtx) + '\n';
@@ -848,6 +979,7 @@ function buildRulesCode(
   emitCtx: EmitContext,
   ctx: FieldCodeContext,
   meta?: RawPropertyMeta,
+  fieldGroups?: string[],
 ): string {
   // Phase 1: Categorize rules
   const categorized = categorizeRules(fieldKey, validation);
@@ -878,7 +1010,13 @@ function buildRulesCode(
     }
 
     if (resolved.effectiveGateType === 'date') {
-      gateCondition = `!(${varName} instanceof Date)`;
+      gateCondition = `!(${varName} instanceof Date) || isNaN(${varName}.getTime())`;
+    } else if (resolved.effectiveGateType === 'array') {
+      gateCondition = `!Array.isArray(${varName})`;
+    } else if (resolved.effectiveGateType === 'object') {
+      gateCondition = `typeof ${varName} !== 'object' || ${varName} === null || Array.isArray(${varName})`;
+    } else if (resolved.effectiveGateType === 'number') {
+      gateCondition = `typeof ${varName} !== 'number' || isNaN(${varName})`;
     } else {
       gateCondition = `typeof ${varName} !== '${resolved.effectiveGateType}'`;
     }
@@ -897,13 +1035,13 @@ function buildRulesCode(
       gateDeps: resolved.gateDeps,
       typeAsserter: resolved.typeAsserter,
       enableConversion: resolved.enableConversion,
-    });
+    }, fieldGroups);
   } else {
-    code += emitGeneralRules(fieldKey, varName, categorized.generalRules, collectErrors, emitCtx, ctx);
+    code += emitGeneralRules(fieldKey, varName, categorized.generalRules, collectErrors, emitCtx, ctx, fieldGroups);
   }
 
   // Phase 4: Emit each rules
-  code += emitEachRules(fieldKey, varName, categorized.each, collectErrors, emitCtx, ctx);
+  code += emitEachRules(fieldKey, varName, categorized.each, collectErrors, emitCtx, ctx, fieldGroups);
 
   return code;
 }
@@ -939,11 +1077,8 @@ function generateCollectionCode(
     code += `if (Array.isArray(${varName})) {\n`;
 
     // array-level validation rules (e.g. arrayMinSize)
-    const nonEachRules = meta.validation.filter(rd => !rd.each);
-    for (const rd of nonEachRules) {
-      const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
-      code += `  ${rd.rule.emit(varName, ruleEmitCtx)}\n`;
-    }
+      const nonEachRules = meta.validation.filter(rd => !rd.each);
+      code += emitRuleList(fieldKey, varName, nonEachRules, emitCtx, ctx, '  ');
 
     if (execIdx >= 0) {
       // nested DTO Set
@@ -954,12 +1089,14 @@ function generateCollectionCode(
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+        code += `      ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.add(${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -1002,12 +1139,14 @@ function generateCollectionCode(
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+        code += `      ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${kVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
+        code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.set(${kVar}, ${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -1083,11 +1222,7 @@ function generateNestedCode(
 
       // Emit non-each array-level validation rules (e.g. @ArrayMinSize, @ArrayMaxSize)
       const nonEachRules = meta.validation.filter(rd => !rd.each);
-      for (const rd of nonEachRules) {
-        const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
-        const ruleEmit = rd.rule.emit(varName, ruleEmitCtx);
-        code += `  ${ruleEmit}\n`;
-      }
+      code += emitRuleList(fieldKey, varName, nonEachRules, emitCtx, ctx, '  ');
 
       code += `  var ${GEN.arr}${sk} = [];\n`;
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
@@ -1095,12 +1230,14 @@ function generateNestedCode(
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
         code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-        code += `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+        code += `      ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
         code += `      }\n`;
       } else {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-        code += `      ` + nestedErrReturn(`${JSON.stringify(fieldKey)}+'['+${iVar}+'].'+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
+        code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
       }
       code += `    } else { ${GEN.arr}${sk}.push(${GEN.result}${sk}); }\n`;
       code += `  }\n`;
@@ -1128,17 +1265,364 @@ function generateNestedResultCode(
     const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+      `    var __bk$pp${sk} = ${JSON.stringify(fieldKey + '.')};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
-      `      ` + nestedErrPush(GEN.errList, `${JSON.stringify(fieldKey + '.')}+${errItem}.path`, errItem, `__ne${sk}`) +
+      `      ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   } else {
     const errFirst = `${GEN.errors}${sk}[0]`;
     return `  if (_isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
-      `    ` + nestedErrReturn(`${JSON.stringify(fieldKey + '.')}+${errFirst}.path`, errFirst, `__ne${sk}`) +
+      `    var __bk$pp${sk} = ${JSON.stringify(fieldKey + '.')};\n` +
+      `    ` + nestedErrReturn(`__bk$pp${sk}+${errFirst}.path`, errFirst, `__ne${sk}`) +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateNestedCodeValidateOnly — validate-only nested (inline when possible)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Check if a nested DTO can be inlined (only circular references prevent inlining) */
+function canInlineDto(_merged: RawClassMeta, cls: Function, inlinedSet: Set<Function>): boolean {
+  if (inlinedSet.has(cls)) return false; // circular — only hard constraint
+  return true;
+}
+
+/**
+ * Emit inline validation code for all fields of a nested DTO.
+ * Reuses generateFieldCode with modified ctx (pathPrefix, varPrefix, inputExpr).
+ */
+function emitInlineNestedBlock(
+  nestedMerged: RawClassMeta,
+  nestedClass: Function,
+  inputExpr: string,
+  pathPrefixExpr: string,
+  varPrefix: string,
+  ctx: FieldCodeContext,
+): string {
+  const inlinedSet = ctx.inlineNestedClasses!;
+  inlinedSet.add(nestedClass);
+
+  const inlineCtx: FieldCodeContext = {
+    ...ctx,
+    pathPrefix: pathPrefixExpr,
+    varPrefix,
+    inputExpr,
+    exposeDefaultValues: false, // inline nested doesn't use exposeDefaultValues
+  };
+
+  let code = '';
+  for (const [fieldKey, meta] of Object.entries(nestedMerged)) {
+    code += generateFieldCode(fieldKey, meta, inlineCtx);
+  }
+
+  inlinedSet.delete(nestedClass);
+  return code;
+}
+
+function generateNestedCodeValidateOnly(
+  fieldKey: string,
+  varName: string,
+  meta: RawPropertyMeta,
+  ctx: FieldCodeContext,
+  emitCtx: EmitContext,
+): string {
+  const { collectErrors, execs } = ctx;
+  if (!meta.type) return '';
+  const sk = (ctx.varPrefix || '') + sanitizeKey(fieldKey);
+  let code = '';
+
+  // Initialize inline tracking set if not present
+  if (!ctx.inlineNestedClasses) ctx.inlineNestedClasses = new Set();
+
+  if (meta.type.discriminator) {
+    // Discriminator — inline each subType's validation
+    const discProp = JSON.stringify(meta.type.discriminator.property);
+    code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
+    code += `switch (${GEN.disc}${sk}) {\n`;
+    for (const sub of meta.type.discriminator.subTypes) {
+      const subSealed = (sub.value as any)[SEALED] as SealedExecutors<unknown>;
+      const subMerged = subSealed._merged;
+      const canInline = subMerged && canInlineDto(subMerged, sub.value, ctx.inlineNestedClasses);
+      code += `  case ${JSON.stringify(sub.name)}:\n`;
+      if (canInline) {
+        const ppExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey + '.')}`
+          : JSON.stringify(fieldKey + '.');
+        const vpPrefix = `${sk}_d${sanitizeKey(sub.name)}_`;
+        code += emitInlineNestedBlock(subMerged!, sub.value, varName, ppExpr, vpPrefix, ctx);
+      } else {
+        const execIdx = execs.length;
+        execs.push(subSealed);
+        const awaitKw = ctx.isAsync ? 'await ' : '';
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}, _opts);\n`;
+        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
+      }
+      code += `    break;\n`;
+    }
+    code += `  default: ${emitCtx.fail('invalidDiscriminator')};\n`;
+    code += `}\n`;
+  } else {
+    const nestedCls = meta.type.resolvedClass ?? meta.type.fn() as Function;
+    const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
+    const nestedMerged = nestedSealed._merged;
+    const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+
+    // Decide: inline or function call
+    const useInline = nestedMerged && canInlineDto(nestedMerged, nestedCls, ctx.inlineNestedClasses);
+
+    if (hasEach) {
+      const iVar = `${GEN.index}${sk}`;
+      code += `if (Array.isArray(${varName})) {\n`;
+      const nonEachRules = meta.validation.filter(rd => !rd.each);
+      code += emitRuleList(fieldKey, varName, nonEachRules, emitCtx, ctx, '  ');
+
+      code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
+
+      if (useInline) {
+        // INLINE: generate validation code directly in the loop body
+        const itemVar = `__il$${sk}_item`;
+        const ppExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        const vpPrefix = `${sk}${iVar}_`;
+
+        code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
+        // Input type guard for the item
+        // invalidInput path must include trailing '.' to match deserialize error propagation
+        // (deserialize generates pathPrefix + errItem.path where invalidInput has path='')
+        const itemInvalidPathExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
+        if (collectErrors) {
+          code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+        } else {
+          code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
+        }
+        code += `    else {\n`;
+        code += emitInlineNestedBlock(nestedMerged!, nestedCls, itemVar, ppExpr, vpPrefix, ctx);
+        code += `    }\n`;
+      } else {
+        // FALLBACK: function call to _validate
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        const awaitKw = ctx.isAsync ? 'await ' : '';
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${iVar}], _opts);\n`;
+        code += `    if (${GEN.result}${sk} !== null) {\n`;
+        const ppVar = `__bk$pp${sk}`;
+        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        if (collectErrors) {
+          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+          code += `      ` + nestedErrPush(GEN.errList, `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+          code += `      }\n`;
+        } else {
+          code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
+        }
+        code += `    }\n`;
+      }
+
+      code += `  }\n`;
+      code += `} else { ${emitCtx.fail('isArray')}; }\n`;
+    } else {
+      // Single nested object
+      code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
+
+      if (useInline) {
+        const ppExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey + '.')}`
+          : JSON.stringify(fieldKey + '.');
+        const vpPrefix = `${sk}_`;
+        code += emitInlineNestedBlock(nestedMerged!, nestedCls, varName, ppExpr, vpPrefix, ctx);
+      } else {
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        const awaitKw = ctx.isAsync ? 'await ' : '';
+        code += `  var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}, _opts);\n`;
+        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
+      }
+
+      code += `} else { ${emitCtx.fail('isObject')}; }\n`;
+    }
+  }
+  return code;
+}
+
+/** Generate validate-mode nested result handling (null check instead of _isErr) */
+function generateValidateNestedResult(
+  fieldKey: string,
+  resultVar: string,
+  collectErrors: boolean,
+): string {
+  const sk = sanitizeKey(fieldKey);
+  const ppVar = `__bk$pp${sk}`;
+  if (collectErrors) {
+    const errItem = `${resultVar}[${GEN.nestedIdx}${sk}]`;
+    return `  if (${resultVar} !== null) {\n` +
+      `    var ${ppVar} = ${JSON.stringify(fieldKey + '.')};\n` +
+      `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${resultVar}.length; ${GEN.nestedIdx}${sk}++) {\n` +
+      `      ` + nestedErrPush(GEN.errList, `${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
+      `    }\n` +
+      `  }\n`;
+  } else {
+    const errFirst = `${resultVar}[0]`;
+    return `  if (${resultVar} !== null) {\n` +
+      `    var ${ppVar} = ${JSON.stringify(fieldKey + '.')};\n` +
+      `    ` + nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`, true) +
+      `  }\n`;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// generateCollectionCodeValidateOnly — validate-only collection (no Set/Map creation)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function generateCollectionCodeValidateOnly(
+  fieldKey: string,
+  varName: string,
+  meta: RawPropertyMeta,
+  ctx: FieldCodeContext,
+  emitCtx: EmitContext,
+): string {
+  const { collectErrors, execs } = ctx;
+  const sk = (ctx.varPrefix || '') + sanitizeKey(fieldKey);
+  const collection = meta.type!.collection!;
+  const awaitKw = ctx.isAsync ? 'await ' : '';
+
+  if (!ctx.inlineNestedClasses) ctx.inlineNestedClasses = new Set();
+
+  // Resolve nested DTO for collection values
+  let nestedCls: Function | undefined;
+  let nestedSealed: SealedExecutors<unknown> | undefined;
+  let nestedMerged: RawClassMeta | undefined;
+  if (meta.type!.resolvedCollectionValue) {
+    nestedCls = meta.type!.resolvedCollectionValue;
+    nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
+    nestedMerged = nestedSealed._merged;
+  }
+  const useInline = nestedCls && nestedMerged && canInlineDto(nestedMerged, nestedCls, ctx.inlineNestedClasses);
+
+  let code = '';
+
+  if (collection === 'Set') {
+    code += `if (Array.isArray(${varName})) {\n`;
+    const nonEachRules = meta.validation.filter(rd => !rd.each);
+    code += emitRuleList(fieldKey, varName, nonEachRules, emitCtx, ctx, '  ');
+
+    if (nestedSealed) {
+      const iVar = `${GEN.index}${sk}`;
+      code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
+
+      if (useInline) {
+        const itemVar = `__il$${sk}_ci`;
+        const ppExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        const vpPrefix = `${sk}c${iVar}_`;
+        const itemInvalidPathExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
+        code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
+        if (collectErrors) {
+          code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+        } else {
+          code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
+        }
+        code += `    else {\n`;
+        code += emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix, ctx);
+        code += `    }\n`;
+      } else {
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${iVar}], _opts);\n`;
+        code += `    if (${GEN.result}${sk} !== null) {\n`;
+        const ppVar = `__bk$pp${sk}`;
+        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        if (collectErrors) {
+          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+          code += `      ` + nestedErrPush(GEN.errList, `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+          code += `      }\n`;
+        } else {
+          code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
+        }
+        code += `    }\n`;
+      }
+
+      code += `  }\n`;
+    }
+
+    // each validation — iterate input array directly
+    const eachRules = meta.validation.filter(rd => rd.each);
+    if (eachRules.length > 0) {
+      const eiVar = `${GEN.index}${sk}_e`;
+      code += `  for (var ${eiVar}=0; ${eiVar}<${varName}.length; ${eiVar}++) {\n`;
+      for (const rd of eachRules) {
+        const prefixVar = `__bk$ep_${sk}`;
+        const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
+        const failFn = (c: string) => collectErrors
+          ? `${GEN.errList}.push({path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}})`
+          : `return [{path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}}]`;
+        const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
+        if (!code.includes(`var ${prefixVar}`)) code += `  var ${prefixVar} = ${JSON.stringify(fieldKey)}+'[';\n`;
+        code += `    ${rd.rule.emit(`${varName}[${eiVar}]`, colEmitCtx)}\n`;
+      }
+      code += `  }\n`;
+    }
+
+    code += `} else { ${emitCtx.fail('isArray')}; }\n`;
+  } else {
+    // Map: validate object values
+    code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
+
+    if (nestedSealed) {
+      const kVar = `${GEN.key}${sk}`;
+      code += `  for (var ${kVar} in ${varName}) {\n`;
+      code += `    if (!Object.prototype.hasOwnProperty.call(${varName}, ${kVar})) continue;\n`;
+
+      if (useInline) {
+        const itemVar = `__il$${sk}_mi`;
+        const ppExpr = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`;
+        const vpPrefix = `${sk}m${kVar}_`;
+        const itemInvalidPathExpr = ppExpr;
+        code += `    var ${itemVar} = ${varName}[${kVar}];\n`;
+        code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
+        if (collectErrors) {
+          code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+        } else {
+          code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
+        }
+        code += `    else {\n`;
+        code += emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix, ctx);
+        code += `    }\n`;
+      } else {
+        const execIdx = execs.length;
+        execs.push(nestedSealed);
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${kVar}], _opts);\n`;
+        code += `    if (${GEN.result}${sk} !== null) {\n`;
+        const ppVar = `__bk$pp${sk}`;
+        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
+        if (collectErrors) {
+          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
+          code += `      ` + nestedErrPush(GEN.errList, `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`, `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`, `__ne${sk}`);
+          code += `      }\n`;
+        } else {
+          code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
+        }
+        code += `    }\n`;
+      }
+
+      code += `  }\n`;
+    }
+
+    code += `} else { ${emitCtx.fail('isObject')}; }\n`;
+  }
+
+  return code;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1146,7 +1630,8 @@ function generateNestedResultCode(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
-  const { collectErrors, regexes, refs, execs } = ctx;
+  const { collectErrors, regexes, refs, execs, validateOnly, pathPrefix } = ctx;
+  const pathExpr = pathPrefix ? `${pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
   return {
     addRegex(re: RegExp): number {
       regexes.push(re);
@@ -1162,11 +1647,14 @@ function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
     },
     fail(code: string): string {
       if (collectErrors) {
-        return `${GEN.errList}.push({path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}})`;
+        return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}})`;
+      } else if (validateOnly) {
+        return `return [{path:${pathExpr},code:${JSON.stringify(code)}}]`;
       } else {
-        return `return _err([{path:${JSON.stringify(fieldKey)},code:${JSON.stringify(code)}}])`;
+        return `return _err([{path:${pathExpr},code:${JSON.stringify(code)}}])`;
       }
     },
     collectErrors,
+    _pathExpr: pathExpr,
   };
 }

@@ -1,7 +1,30 @@
 import { SEALED } from '../symbols';
-import { isAsyncFunction } from '../utils';
 import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
+import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Generated variable name prefixes — centralised to prevent typo-related bugs
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GEN = {
+  out: '__bk$out',
+  fieldVal: '__bk$fv_',
+  groups: '__bk$groups',
+  group0: '__bk$group0',
+  groupsSet: '__bk$groupsSet',
+  setArr: '__bk$sa',
+  setItem: '__bk$si',
+  mapObj: '__bk$m',
+  mapEntry: '__bk$me',
+  serResult: '__bk$sr',
+  outItem: '__bk$out_item',
+  discArr: '__bk$da',
+  discIdx: '__bk$di',
+  nestedArr: '__bk$na',
+  nestedIdx: '__bk$ni',
+  nestedItem: '__bk$nitem',
+} as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -29,6 +52,48 @@ function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): strin
 }
 
 /**
+ * Build serialize-direction transform expression.
+ * Serialize direction reverses declaration order (codec stack unwrapping).
+ */
+function buildSerializeTransformExpr(
+  inputExpr: string,
+  fieldKey: string,
+  serTransforms: TransformDef[],
+  refs: unknown[],
+): string | null {
+  if (serTransforms.length === 0) return null;
+  if (serTransforms.length === 1) {
+    const td = serTransforms[0]!;
+    const refIdx = refs.length;
+    refs.push(td.fn);
+    const callExpr = `_refs[${refIdx}]({value:${inputExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
+    return td.isAsync ? `(await ${callExpr})` : callExpr;
+  }
+  if (serTransforms.length === 2) {
+    const td1 = serTransforms[1]!;
+    const td0 = serTransforms[0]!;
+    const refIdx1 = refs.length;
+    refs.push(td1.fn);
+    const refIdx0 = refs.length;
+    refs.push(td0.fn);
+    const call1 = `_refs[${refIdx1}]({value:${inputExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
+    const expr1 = td1.isAsync ? `(await ${call1})` : call1;
+    const call0 = `_refs[${refIdx0}]({value:${expr1},key:${JSON.stringify(fieldKey)},obj:instance})`;
+    return td0.isAsync ? `(await ${call0})` : call0;
+  }
+
+  const reversed = [...serTransforms].reverse();
+  let valueExpr = inputExpr;
+  for (const td of reversed) {
+    const refIdx = refs.length;
+    refs.push(td.fn);
+    const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
+    valueExpr = td.isAsync ? `(await ${callExpr})` : callExpr;
+  }
+  return valueExpr;
+}
+
+/**
  * Generate transform chain code to apply after nested/collection serialize.
  * Reads the current value from outputTarget, chains transforms, writes back.
  */
@@ -37,20 +102,9 @@ function buildPostNestedTransformCode(
   fieldKey: string,
   serTransforms: TransformDef[],
   refs: unknown[],
-  isAsync: boolean,
 ): string {
-  if (serTransforms.length === 0) return '';
-  // Serialize direction: reverse order (codec stack — unwrap in opposite order)
-  const reversed = [...serTransforms].reverse();
-  let valueExpr = outputTarget;
-  for (const td of reversed) {
-    const refIdx = refs.length;
-    refs.push(td.fn);
-    const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
-    const isAsyncTransform = isAsync && isAsyncFunction(td.fn);
-    valueExpr = isAsyncTransform ? `(await ${callExpr})` : callExpr;
-  }
-  return `\n${outputTarget} = ${valueExpr};`;
+  const transformed = buildSerializeTransformExpr(outputTarget, fieldKey, serTransforms, refs);
+  return transformed ? `\n${outputTarget} = ${transformed};` : '';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -73,7 +127,7 @@ export function buildSerializeCode<T>(
   // ── Code generation ────────────────────────────────────────────────────────
 
   let body = '\'use strict\';\n';
-  body += 'var __bk$out = {};\n';
+  body += `var ${GEN.out} = {};\n`;
 
   // Groups variable — only when fields referencing groups exist
   const hasGroupsField = Object.values(merged).some(meta => {
@@ -81,15 +135,16 @@ export function buildSerializeCode<T>(
     return groups && groups.length > 0;
   });
   if (hasGroupsField) {
-    body += 'var __bk$groups = _opts && _opts.groups;\n';
-    body += 'var __bk$groupsSet = __bk$groups ? new Set(__bk$groups) : null;\n';
+    body += `var ${GEN.groups} = _opts && _opts.groups;\n`;
+    body += `var ${GEN.group0} = ${GEN.groups} && ${GEN.groups}.length === 1 ? ${GEN.groups}[0] : null;\n`;
+    body += `var ${GEN.groupsSet} = ${GEN.groups} && ${GEN.groups}.length > 1 ? new Set(${GEN.groups}) : null;\n`;
   }
 
   for (const [fieldKey, meta] of Object.entries(merged)) {
     body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, options);
   }
 
-  body += 'return __bk$out;\n';
+  body += `return ${GEN.out};\n`;
 
   // sourceURL (§4.9)
   body += `//# sourceURL=baker://${Class.name}/serialize\n`;
@@ -138,15 +193,17 @@ function generateSerializeFieldCode(
 
   const outputKey = getSerializeOutputKey(fieldKey, meta.expose);
   const exposeGroups = getSerializeExposeGroups(meta.expose);
+  const sk = sanitizeKey(fieldKey);
+  const fieldVal = `${GEN.fieldVal}${sk}`;
 
   let fieldCode = '';
+  fieldCode += `var ${fieldVal} = instance[${JSON.stringify(fieldKey)}];\n`;
 
   // groups check wrap (§4.5)
   let fieldStart = '';
   let fieldEnd = '';
   if (exposeGroups && exposeGroups.length > 0) {
-    const groupsArr = JSON.stringify(exposeGroups);
-    fieldStart = `if (__bk$groupsSet && ${groupsArr}.some(function(g){return __bk$groupsSet.has(g);})) {\n`;
+    fieldStart = `if ((${GEN.group0} !== null || ${GEN.groupsSet}) && (${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, exposeGroups)})) {\n`;
     fieldEnd = '}\n';
   }
 
@@ -160,7 +217,7 @@ function generateSerializeFieldCode(
 
   // ③a Collection (Map/Set) serialize — Set → Array, Map → plain object
   if (meta.type?.collection) {
-    const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
+    const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
     const collection = meta.type.collection;
     let nestedCode: string;
 
@@ -170,12 +227,16 @@ function generateSerializeFieldCode(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(Array.from(instance[${JSON.stringify(fieldKey)}]).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+          nestedCode = `${outputTarget} = await Promise.all(Array.from(${fieldVal}).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
         } else {
-          nestedCode = `${outputTarget} = Array.from(instance[${JSON.stringify(fieldKey)}]).map(function(__ser_item) { return __ser_item == null ? __ser_item : _execs[${execIdx}]._serialize(__ser_item, _opts); });`;
+          nestedCode = `var ${GEN.setArr} = [];\n`;
+          nestedCode += `  for (var ${GEN.setItem} of ${fieldVal}) {\n`;
+          nestedCode += `    ${GEN.setArr}.push(${GEN.setItem} == null ? ${GEN.setItem} : _execs[${execIdx}]._serialize(${GEN.setItem}, _opts));\n`;
+          nestedCode += `  }\n`;
+          nestedCode += `  ${outputTarget} = ${GEN.setArr};`;
         }
       } else {
-        nestedCode = `${outputTarget} = Array.from(instance[${JSON.stringify(fieldKey)}]);`;
+        nestedCode = `${outputTarget} = Array.from(${fieldVal});`;
       }
     } else {
       // Map → plain object
@@ -184,23 +245,23 @@ function generateSerializeFieldCode(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = isAsync ? 'await ' : '';
-        nestedCode = `var __bk$m = {};\n`;
-        nestedCode += `  for (var __bk$me of instance[${JSON.stringify(fieldKey)}]) {\n`;
-        nestedCode += `    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : ${awaitKw}_execs[${execIdx}]._serialize(__bk$me[1], _opts);\n`;
+        nestedCode = `var ${GEN.mapObj} = {};\n`;
+        nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
+        nestedCode += `    ${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}_execs[${execIdx}]._serialize(${GEN.mapEntry}[1], _opts);\n`;
         nestedCode += `  }\n`;
-        nestedCode += `  ${outputTarget} = __bk$m;`;
+        nestedCode += `  ${outputTarget} = ${GEN.mapObj};`;
       } else {
-        nestedCode = `${outputTarget} = Object.fromEntries(instance[${JSON.stringify(fieldKey)}]);`;
+        nestedCode = `${outputTarget} = Object.fromEntries(${fieldVal});`;
       }
     }
 
     // Apply serialize transforms after collection serialize (nested → transform)
-    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs, isAsync);
+    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs);
 
     if (useOptionalGuard) {
-      innerCode = `if (instance[${JSON.stringify(fieldKey)}] !== undefined && instance[${JSON.stringify(fieldKey)}] !== null) {\n  ${nestedCode}\n} else if (instance[${JSON.stringify(fieldKey)}] === null) {\n  ${outputTarget} = null;\n}\n`;
+      innerCode = `if (${fieldVal} !== undefined && ${fieldVal} !== null) {\n  ${nestedCode}\n} else if (${fieldVal} === null) {\n  ${outputTarget} = null;\n}\n`;
     } else {
-      innerCode = `if (instance[${JSON.stringify(fieldKey)}] != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = instance[${JSON.stringify(fieldKey)}];\n}\n`;
+      innerCode = `if (${fieldVal} != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = ${fieldVal};\n}\n`;
     }
 
     fieldCode += fieldStart + innerCode + fieldEnd;
@@ -212,7 +273,7 @@ function generateSerializeFieldCode(
 
     // Determine array/each mode
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
-    const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
+    const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
 
     let nestedCode: string;
 
@@ -240,33 +301,40 @@ function generateSerializeFieldCode(
           refs.push(sub.value);
           const prefix = i === 0 ? 'if' : '} else if';
           code += `${prefix} (${itemVar} instanceof _refs[${refIdx}]) {\n`;
-          code += `  var __bk$sr = ${awaitKw}_execs[${execIdx}]._serialize(${itemVar}, _opts);\n`;
+          code += `  var ${GEN.serResult} = ${awaitKw}_execs[${execIdx}]._serialize(${itemVar}, _opts);\n`;
           if (keepDisc) {
-            code += `  __bk$sr[${JSON.stringify(property)}] = ${JSON.stringify(sub.name)};\n`;
+            code += `  ${GEN.serResult}[${JSON.stringify(property)}] = ${JSON.stringify(sub.name)};\n`;
           }
-          code += `  __bk$out_item = __bk$sr;\n`;
+          code += `  ${GEN.outItem} = ${GEN.serResult};\n`;
         }
-        code += '} else { __bk$out_item = ' + itemVar + '; }\n';
+        code += `} else { ${GEN.outItem} = ` + itemVar + '; }\n';
         return code;
       };
 
       if (hasEach) {
         const awaitKw = isAsync ? 'await ' : '';
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(instance[${JSON.stringify(fieldKey)}].map(async function(__ser_item) {\n`;
+          nestedCode = `${outputTarget} = await Promise.all(${fieldVal}.map(async function(__ser_item) {\n`;
         } else {
-          nestedCode = `${outputTarget} = instance[${JSON.stringify(fieldKey)}].map(function(__ser_item) {\n`;
+          nestedCode = `var ${GEN.discArr} = [];\n`;
+          nestedCode += `  for (var ${GEN.discIdx}=0; ${GEN.discIdx}<${fieldVal}.length; ${GEN.discIdx}++) {\n`;
+          nestedCode += `    var __ser_item = ${fieldVal}[${GEN.discIdx}];\n`;
         }
-        nestedCode += `  var __bk$out_item;\n`;
+        nestedCode += `    var ${GEN.outItem};\n`;
         nestedCode += buildInstanceofChain('__ser_item', awaitKw);
-        nestedCode += `  return __bk$out_item;\n`;
-        nestedCode += isAsync ? `}));` : `});`;
+        if (isAsync) {
+          nestedCode += `  return ${GEN.outItem};\n`;
+          nestedCode += `}));`;
+        } else {
+          nestedCode += `    ${GEN.discArr}.push(${GEN.outItem});\n`;
+          nestedCode += `  }\n`;
+          nestedCode += `  ${outputTarget} = ${GEN.discArr};`;
+        }
       } else {
         const awaitKw = isAsync ? 'await ' : '';
-        const fkStr = JSON.stringify(fieldKey);
-        nestedCode = `var __bk$out_item;\n`;
-        nestedCode += buildInstanceofChain(`instance[${fkStr}]`, awaitKw);
-        nestedCode += `${outputTarget} = __bk$out_item;`;
+        nestedCode = `var ${GEN.outItem};\n`;
+        nestedCode += buildInstanceofChain(fieldVal, awaitKw);
+        nestedCode += `${outputTarget} = ${GEN.outItem};`;
       }
     } else {
       // Existing simple nested logic
@@ -277,30 +345,35 @@ function generateSerializeFieldCode(
 
       if (hasEach) {
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(instance[${JSON.stringify(fieldKey)}].map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+          nestedCode = `${outputTarget} = await Promise.all(${fieldVal}.map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
         } else {
-          nestedCode = `${outputTarget} = instance[${JSON.stringify(fieldKey)}].map(function(__ser_item) { return __ser_item == null ? __ser_item : _execs[${execIdx}]._serialize(__ser_item, _opts); });`;
+          nestedCode = `var ${GEN.nestedArr} = [];\n`;
+          nestedCode += `  for (var ${GEN.nestedIdx}=0; ${GEN.nestedIdx}<${fieldVal}.length; ${GEN.nestedIdx}++) {\n`;
+          nestedCode += `    var ${GEN.nestedItem} = ${fieldVal}[${GEN.nestedIdx}];\n`;
+          nestedCode += `    ${GEN.nestedArr}.push(${GEN.nestedItem} == null ? ${GEN.nestedItem} : _execs[${execIdx}]._serialize(${GEN.nestedItem}, _opts));\n`;
+          nestedCode += `  }\n`;
+          nestedCode += `  ${outputTarget} = ${GEN.nestedArr};`;
         }
       } else {
         const awaitKw = isAsync ? 'await ' : '';
-        nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}]._serialize(instance[${JSON.stringify(fieldKey)}], _opts);`;
+        nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}]._serialize(${fieldVal}, _opts);`;
       }
     }
 
     // Apply serialize transforms after nested serialize (nested serialize → transform)
-    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs, isAsync);
+    nestedCode += buildPostNestedTransformCode(outputTarget, fieldKey, serTransforms, refs);
 
     if (useOptionalGuard) {
-      innerCode = `if (instance[${JSON.stringify(fieldKey)}] !== undefined && instance[${JSON.stringify(fieldKey)}] !== null) {\n  ${nestedCode}\n} else if (instance[${JSON.stringify(fieldKey)}] === null) {\n  ${outputTarget} = null;\n}\n`;
+      innerCode = `if (${fieldVal} !== undefined && ${fieldVal} !== null) {\n  ${nestedCode}\n} else if (${fieldVal} === null) {\n  ${outputTarget} = null;\n}\n`;
     } else {
-      innerCode = `if (instance[${JSON.stringify(fieldKey)}] != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = instance[${JSON.stringify(fieldKey)}];\n}\n`;
+      innerCode = `if (${fieldVal} != null) {\n  ${nestedCode}\n} else {\n  ${outputTarget} = ${fieldVal};\n}\n`;
     }
   } else {
     // Existing @Transform or direct assign handling
-    const outputExpr = buildSerializeOutputExpr(fieldKey, outputKey, meta, refs, isAsync);
+    const outputExpr = buildSerializeOutputExpr(fieldKey, outputKey, fieldVal, meta, refs, isAsync);
 
     if (useOptionalGuard) {
-      innerCode += `if (instance[${JSON.stringify(fieldKey)}] !== undefined) {\n`;
+      innerCode += `if (${fieldVal} !== undefined) {\n`;
       innerCode += '  ' + outputExpr + '\n';
       innerCode += '}\n';
     } else {
@@ -319,29 +392,21 @@ function generateSerializeFieldCode(
 function buildSerializeOutputExpr(
   fieldKey: string,
   outputKey: string,
+  fieldValueExpr: string,
   meta: RawPropertyMeta,
   refs: unknown[],
   isAsync: boolean,
 ): string {
-  const outputTarget = `__bk$out[${JSON.stringify(outputKey)}]`;
+  const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
 
   const serTransforms = meta.transform.filter(
     td => !td.options?.deserializeOnly,
   );
 
   if (serTransforms.length > 0) {
-    // Serialize direction: reverse order (codec stack — unwrap in opposite order)
-    const reversed = [...serTransforms].reverse();
-    let valueExpr = `instance[${JSON.stringify(fieldKey)}]`;
-    for (const td of reversed) {
-      const refIdx = refs.length;
-      refs.push(td.fn);
-      const callExpr = `_refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
-      const isAsyncTransform = isAsync && isAsyncFunction(td.fn);
-      valueExpr = isAsyncTransform ? `(await ${callExpr})` : callExpr;
-    }
-    return `${outputTarget} = ${valueExpr};`;
+    const transformed = buildSerializeTransformExpr(fieldValueExpr, fieldKey, serTransforms, refs)!;
+    return `${outputTarget} = ${transformed};`;
   }
 
-  return `${outputTarget} = instance[${JSON.stringify(fieldKey)}];`;
+  return `${outputTarget} = ${fieldValueExpr};`;
 }

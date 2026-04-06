@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { Field, deserialize, configure, isBakerError } from '../../index';
 import type { BakerErrors } from '../../index';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
@@ -6,6 +6,7 @@ import { collectValidation } from '../../src/collect';
 import type { BakerError } from '../../index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => unseal());
 afterEach(() => { unseal(); configure({}); });
 
 // ─────────────────────────────────────────────────────────────────────────────

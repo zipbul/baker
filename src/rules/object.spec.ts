@@ -3,8 +3,8 @@ import type { EmitContext } from '../types';
 import { isNotEmptyObject, isInstance } from './object';
 
 function makeCtx(refIndex: number = 0) {
-  const addRefMock = mock((fn: Function) => refIndex++);
-  const addRegexMock = mock((re: RegExp) => refIndex++);
+  const addRefMock = mock((_fn: Function) => refIndex++);
+  const addRegexMock = mock((_re: RegExp) => refIndex++);
   const failMock = mock((code: string) => `throw new Error('${code}')`);
   const ctx: EmitContext = {
     addRegex: addRegexMock,
@@ -52,16 +52,30 @@ describe('isNotEmptyObject', () => {
     expect(isNotEmptyObject().ruleName).toBe('isNotEmptyObject');
   });
 
-  it('should generate ref-based check code when emit() is called with nullable:true', () => {
+  it('should generate inline Object.keys().some() code when emit() is called with nullable:true', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
     const code = isNotEmptyObject({ nullable: true }).emit('_v', ctx);
-    expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[');
+    expect(addRefMock).not.toHaveBeenCalled();
+    expect(code).toContain('Object.keys');
+    expect(code).toContain('.some(');
+    expect(code).toContain('!=null');
     expect(failMock).toHaveBeenCalledWith('isNotEmptyObject');
   });
 
   it('should treat object with null-valued key as non-empty by default', () => {
     expect(isNotEmptyObject()({ a: null })).toBe(true);
+  });
+
+  it('should return true for object with non-null value when nullable:true', () => {
+    expect(isNotEmptyObject({ nullable: true })({ a: 1 })).toBe(true);
+  });
+
+  it('should return false for object with only null values when nullable:true', () => {
+    expect(isNotEmptyObject({ nullable: true })({ a: null, b: undefined })).toBe(false);
+  });
+
+  it('should return false for empty object when nullable:true', () => {
+    expect(isNotEmptyObject({ nullable: true })({})).toBe(false);
   });
 });
 

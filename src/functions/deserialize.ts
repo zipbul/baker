@@ -1,5 +1,6 @@
-import { _runSealed } from './_run-sealed';
-import type { BakerErrors } from '../errors';
+import { isErr } from '@zipbul/result';
+import { _toBakerErrors, type BakerError, type BakerErrors } from '../errors';
+import { _ensureSealed } from '../seal/seal';
 import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,7 +10,7 @@ import type { RuntimeOptions } from '../interfaces';
 /**
  * Converts input to a Class instance + validates.
  * - Auto-seals on first call (batches entire globalRegistry)
- * - Sync DTOs return directly, async DTOs return Promise
+ * - Sync DTOs return directly; async DTOs return Promise
  * - Success: T
  * - Validation failure: BakerErrors (use isBakerError() to narrow)
  * - Class without decorators: throws SealError
@@ -18,6 +19,27 @@ export function deserialize<T>(
   Class: new (...args: any[]) => T,
   input: unknown,
   options?: RuntimeOptions,
+): T | BakerErrors;
+export function deserialize<T>(
+  Class: new (...args: any[]) => T,
+  input: unknown,
+  options?: RuntimeOptions,
+): Promise<T | BakerErrors>;
+export function deserialize<T>(
+  Class: new (...args: any[]) => T,
+  input: unknown,
+  options?: RuntimeOptions,
 ): T | BakerErrors | Promise<T | BakerErrors> {
-  return _runSealed(Class, input, options, (result) => result as T);
+  const sealed = _ensureSealed(Class);
+
+  if (sealed._isAsync) {
+    return (sealed._deserialize(input, options) as Promise<any>).then((result): T | BakerErrors => {
+      if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
+      return result as T;
+    });
+  }
+
+  const result = sealed._deserialize(input, options);
+  if (isErr(result)) return _toBakerErrors(result.data as BakerError[]);
+  return result as T;
 }
