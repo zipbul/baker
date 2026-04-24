@@ -189,6 +189,8 @@ import { momentTransformer } from '@zipbul/baker/transformers';
 const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 ```
 
+> **Note on `format`**: The `format` option in `luxonTransformer` / `momentTransformer` controls the **serialize-side output only**. On deserialize, both transformers parse the input with the library's default parser (ISO-first for Luxon, lenient parser for Moment). Using a lossy format like `'YYYY-MM-DD'` makes the transformer one-way — `serialize → deserialize` will not recover the original time of day. If you need a lossless roundtrip, omit `format` (defaults to ISO 8601).
+
 ## Rules
 
 104 built-in validation rules.
