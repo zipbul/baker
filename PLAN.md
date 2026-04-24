@@ -705,3 +705,164 @@ These items are recorded so the next structural pass has a map. They are **not d
 - `seal.ts` normalization block is complex enough to warrant extraction
 
 These are tracked in `docs/architecture-debt.md` created as part of S6.
+
+---
+
+## 18. Cross-Review Addendum (2026-04-24) — Empirical Findings
+
+This section appends the results of a rigorous, multi-agent cross-review of §1–§17 performed on 2026-04-24. It **does not replace** the earlier plan; rather it records which claims were empirically confirmed, which were retracted, and which plan items must be amended. Later implementation work supersedes earlier sections where explicitly noted below.
+
+### 18.1 Methodology
+
+- Four independent review agents (source-truth, TypeScript-strict, adversarial-completeness, DX-effectiveness) reviewed §1–§17 in parallel without visibility into each other's findings.
+- Every D1–D9 symptom was re-executed against the current source.
+- Every type-level claim was re-verified by running `tsc --strict` on isolated fixtures.
+- Perf claims were re-measured with `mitata` on the same host used for §11.
+
+### 18.2 Confirmed defects (promoted — amend plan before implementation)
+
+| ID | Finding | Evidence | Required amendment |
+|---|---|---|---|
+| **P0-1** | **§6 S3 phantom narrowing does not fire on naturally-written `class UserDto {}`** — TS catch-all overload (line 282) always wins because the user-authored class type lacks `[SYNC_TAG]`/`[ASYNC_TAG]`. The §11 proof script passes only because it manually casts `as SyncDtoCtor<T>`. | Realistic fixture without manual cast fails `tsc --strict` with TS2322 (`r` includes `Promise`); §11's proto passes only via explicit `as SyncDtoCtor<T>` cast. | Either (a) add a class decorator / `sealSync(cls)` wrapper that returns the retyped constructor and document as a breaking API change, or (b) drop the "TS narrows to non-Promise" claim in §6 S3 / §11 and rely solely on `validateAsync` / `deserializeAsync` / `serializeAsync` aliases for explicit async narrowing. D6 / D9 resolution must be re-attributed. |
+| **P0-2** | **§6 S5 "no opt-in needed" contradicts the ±3% budget when measured at the proposed helper shape.** try/catch *alone* is within noise (+0.8%), but `_runSyncWithContext(cn, op, () => work())` — the exact helper in §6 S5 — measures **+21.4%** on the simple-valid path. | mitata measurement of the plan-helper shape: 45.73 ns (raw) → 55.54 ns (via plan helper) on simple-valid. | Choose one: (a) inline the wrap directly into generated code (no helper function boundary), or (b) reinstate `configure({ wrapSyncErrors: true })` opt-in that §6 S6 / §12 already describe, and correct §6 S5 accordingly. Also resolves the internal contradiction between §6 S5 and §6 S6/§12. |
+| **P0-3** | **§6 S2 silently renames 3 of 4 `SealOptions` keys without listing them as breaking changes.** Current `src/interfaces.ts`: `enableImplicitConversion` / `exposeDefaultValues` / `stopAtFirstError` / `whitelist` / `debug`. Plan proposes: `autoConvert` / `allowClassDefaults` / `stopAtFirstError` / `forbidUnknown`. Only `stopAtFirstError` retained; `debug` dropped without mention. | `src/interfaces.ts` vs PLAN §6 S2 lines 201–214. `forbidUnknown` is referenced in §1 D1 prose as though it already exists — it does not. | Either preserve the existing key names (with `@deprecated` JSDoc + runtime alias) or list all 4 renames in CHANGELOG §6 S6 with exact before/after migration diffs. §1 D1 prose must be corrected to say "unknown options are silently dropped" without pre-adopting the new name. |
+| **P0-4** | **§6 S4b step 6 introduces `new Class()` at seal time — a behaviour change with real side-effects.** Current baker never instantiates the decorated class during seal (`grep "new Class\|new cls\|new target" src/seal/*.ts src/collect.ts` returns 0). Reproduced hazards: constructors requiring args throw; constructors reading `process.env` execute on every seal; circular DTO constructors risk infinite recursion. | Direct reproduction: `new RequiresArg()` throws; 500 instantiations ≈ 1.79 ms cold; `process.env` reads observed during probe. | Replace the instance-based probe with a metadata-based approach (e.g., `reflect-metadata` `design:type` keys already emitted by `experimentalDecorators`, or static AST inspection). If no metadata-based path exists, make `strictUndecorated` opt-in **and** require the user to opt-in before the probe runs — never probe by default. |
+| **P1-1** | **§5 `code: \`SEAL_${string}\`` defeats exhaustive `switch`.** Open template-literal type never narrows to `never` in default arms, so consumers cannot write exhaustive handlers. | `tsc` reports TS2345 on `assertNever(openCode)` for `` `SEAL_${string}` ``; closed literal union passes. | Replace each `` `PREFIX_${string}` `` type with an explicit literal union of the codes already enumerated in §5 lines 120–123. |
+| **P1-2** | **§6 S1 `unique symbol` + `Symbol.for` breaks cross-copy type assignability.** Two installed copies of baker (monorepo hoist mismatch / pnpm isolated deps) declare separate `unique symbol` identities even though `Symbol.for` returns the same runtime value. Rules stamped by copy A fail type-checks against `EmittableRule` from copy B. | `tsc` reports TS2345 `Property '[RULE_TAG_B]' is missing in type 'EmittableRuleA'` when two modules declare `unique symbol = Symbol.for('baker:rule')`. | Prefer a string brand `readonly __brand: 'baker:rule'` (structural, survives duplicate installs) over `unique symbol`, or declare the symbol once in a shipped `.d.ts` and document the duplicate-install hazard explicitly. |
+| **P1-3** | **§5 `ExecutionError` as specified loses `cause.message` through `JSON.stringify`.** Plan assigns `cause` as a public class field but does not call `super(msg, { cause })` and does not define `toJSON()`. Serialized error contains `"cause":{}` — downstream log pipelines lose the underlying error. | `JSON.stringify` on the plan-shape error emits `"cause":{}`; the `super(msg,{cause})` + `toJSON()` variant emits `{name,message}`. | Amend §5: all `BakerError` subclasses pass `{ cause }` to `super(...)`, implement `toJSON()` returning `{ name, code, message, className?, fieldKey?, operation?, cause: cause instanceof Error ? { name, message } : cause }`. |
+| **P1-4** | **Framework adapters that `catch (e: TypeError)` silently miss new `UsageError` / `SealError` throws.** These classes extend `BakerError extends Error`, not `TypeError`. | `new UsageError() instanceof TypeError === false`; a simulated `catch(TypeError)` adapter propagates the error unhandled. | Add to §6 S6 CHANGELOG a concrete migration diff for NestJS `ValidationPipe` / Express middleware / tRPC input adapters that catch on `TypeError`. Recommend `catch` on `BakerError` (via `isBakerThrown`) instead. |
+| **P1-5** | **`src/functions/_run-sealed.ts` already exists** and hosts `_runSealed` (not the plan's new `_runSyncWithContext` / `_runAsyncWithContext`). §6 S5 "new helpers" phrasing is inaccurate. | File present in `src/functions/` with an existing `_runSealed` implementation. | §6 S5 file list updated to "modify `src/functions/_run-sealed.ts`"; enumerate existing callers (`deserialize.ts`, `validate.ts`, `serialize.ts`) that need migration. |
+
+### 18.3 Retracted concerns (initial review was wrong)
+
+| ID | Original concern | Empirical result | Disposition |
+|---|---|---|---|
+| R-B4 | `exactOptionalPropertyTypes` transition will cascade into many source errors | `tsc -p tsconfig.json` with `exactOptionalPropertyTypes: true` on `src/` + `test/`: **zero** EOPT-class errors (TS2375/2412/2379). Only 1 unrelated TS7022. | §8 EOPT criterion is already satisfiable without a dedicated migration task. |
+
+### 18.4 Empirically re-confirmed claims
+
+| § reference | Claim | Re-verification |
+|---|---|---|
+| §1 D1 | Seal-time / unknown keys silently dropped per-call | Direct runtime reproduction against current source — confirmed |
+| §1 D2 | `@Field(isString())` → `rd.rule.emit is not a function` | Direct reproduction — confirmed |
+| §1 D4 | `validate(x, 'notarule')` → raw `TypeError` | Direct reproduction — confirmed |
+| §1 D7-A/B/C | discriminator / Set-without-setValue / empty subTypes | All three reproduced (Set silent-pass, empty subTypes SyntaxError) |
+| §1 D8 | Undecorated fields silently excluded | Direct reproduction — confirmed |
+| §1 D9 | Async rule in sync DTO returns Promise | Direct reproduction — confirmed |
+| §11 | Zod v4 / Valibot 1.3 ship explicit sync+async parse functions | Runtime verification: both libraries expose `parse` (sync value) and `parseAsync` (returns `Promise`) |
+| §11 | try/catch has ≈0 V8 overhead on no-throw paths | mitata: raw 46.87 → try/catch 47.24 ns (+0.8% within noise). Claim holds **in isolation**; see P0-2 for the helper-shape measurement that blows the ±3% budget |
+| §17 | `deserialize-builder.ts` is 1660 LOC | `wc -l` confirms |
+| §6 S7 | `setOf` / `mapOf` signature compatible with existing `FieldOptions` | `tsc --strict` against real `src/decorators/field.ts` type: exit=0 |
+
+### 18.5 Documentation / naming corrections needed
+
+- §1 / §6 S1 prose occasionally conflates `isString` (a stamped rule constant) with `isNumber` (a factory). D2 example text should consistently use `@Field(isNumber)` (factory-error case) and `@Field(isString())` (constant-called-as-factory case).
+- §7 Day table and §15 Day table disagree on S3 placement (§7 places S3 on both Day 2 and Day 4; §15 on Day 4 only). Reconcile to §15's single-pass placement.
+- §5 enumerates `SEAL_AFTER_CONFIGURE` but no S-step defines when it fires. Either define it in §6 S4b or remove from §5.
+
+### 18.6 Amendment order
+
+1. Apply P0-1 through P0-4 before starting implementation — they change S-step scope, API shape, and breaking-change surface.
+2. Apply P1-1 through P1-5 as each S-step lands; none block the order in §15 but all must be merged into their respective PRs.
+3. Record this §18 addendum's resolution in each PR description so auditors can trace the review → amendment chain.
+
+---
+
+## 19. Second-Round Verification Addendum (2026-04-24, rigorous re-reproduction)
+
+This section **adds** to §18 without replacing it. Every item below was reproduced on this host with `tsc --strict --skipLibCheck`, `bun run`, `grep`, `wc`, or `cat` against the repository at HEAD of `dx-reform-plan`. Where §18 claims survived the re-run they are re-confirmed; where they did not, they are retracted here with evidence.
+
+### 19.1 §18 claims re-confirmed with fresh evidence
+
+| ID | Artifact | Reproduction |
+|---|---|---|
+| P0-1 | `/tmp/baker-verify/proto-s3-realistic.ts` | `bunx tsc --strict --skipLibCheck --noEmit` → `error TS2322: Type 'true' is not assignable to type 'false'` at line 26. Natural `class UserDto {}` still selects catch-all overload. |
+| P0-2 | `/tmp/baker-verify/p0-2-realistic.ts` (mitata) | raw `work()` 1.42 ns/iter → inline try/catch 2.87 ns/iter → `_runSyncWithContext` helper **7.72 ns/iter** (5.4× raw). Helper adds ~3–5 ns absolute overhead → **7–11 % of baker's 45 ns simple-valid baseline, exceeding §3's ±3 % budget**. Original §18 P0-2 "+21.4 %" figure not independently reproducible because `proto-s5-perf.ts` fails under Bun Stage-3 decorators; mechanism direction confirmed. |
+| P0-4 | `grep -rn 'new Class\|new cls\|new target\|new Ctor' src/seal/ src/collect.ts` | **0 hits** — §6 S4b step 6 would introduce instantiation as new behaviour. |
+| P1-1 | `/tmp/baker-verify/p1-1.ts` | `tsc --strict` → `error TS2345: Argument of type '\`SEAL_${string}\`' is not assignable to parameter of type 'never'` on `assertNever(c)`. Exhaustive switch impossible with open literal. |
+| P1-2 | `/tmp/baker-verify/p1-2.ts` | Two namespaces each declaring `unique symbol = Symbol.for('baker:rule')`. `tsc --strict` rejects rule stamped by Copy A when passed to Copy B consumer: `TS2345: Property '[RULE_TAG]' is missing`. Even identical `Symbol.for` key cannot equalise type identity. |
+| P1-3 | `/tmp/baker-verify/p1-3.ts` | `bun run` confirms Scheme A (plan's current shape) serialises `"cause":{}` — root error message lost through `JSON.stringify`. Scheme B (`super(msg, { cause })` + `toJSON()`) preserves `{"name":"TypeError","message":"boom"}`. |
+| P1-4 | `/tmp/baker-verify/p1-4.ts` | `new UsageError() instanceof TypeError === false`. Simulated adapter with `catch (e) { if (e instanceof TypeError) … }` leaks `UsageError` as unhandled exception. Framework bindings that catch on `TypeError` will surface new throws as 500s. |
+| P1-5 | `ls -la src/functions/_run-sealed.ts` + `grep -rn _runSealed src/` | File exists (1070 B, exports `_runSealed`), **caller count = 0**. §6 S5 "new helpers" phrasing doubly inaccurate — file is present but dead. |
+
+### 19.2 Additional defects not captured in §18
+
+| ID | Finding | Evidence | Required amendment |
+|---|---|---|---|
+| **P0-5** | `src/functions/validate.ts` declares four overloads, **two pairs share identical argument signatures** differing only by return type (lines 15–24 DTO, 27–36 ad-hoc). TS picks the first of each pair; the `Promise<…>` overloads are unreachable. Existing D6 is structurally worse than §1 described. | `/tmp/baker-verify/validate-overload.ts` compiles and `r` narrows to `true \| BakerErrors` — the second (Promise) overload never fires for *any* caller shape. | §1 D6 must note the unreachable overload; §6 S3's "collapse four overloads to two" must first delete the unreachable pair, then rebuild, not re-stamp onto a broken base. |
+| **P0-6** | `EmittableRule.ruleName` is already `readonly` in `src/types.ts:29`; §6 S1's proposed interface omits `readonly`, which is an **immutability regression**. | `grep -n 'ruleName' src/types.ts` → `readonly ruleName: string`. | §6 S1 code block updated to preserve `readonly ruleName`. Same treatment for `requiresType` / `constraints` / `isAsync` which are all `readonly` today. |
+| **P0-7** | `SEAL_AFTER_CONFIGURE` code enumerated in §5 fires nowhere in `src/`. | `grep -rn SEAL_AFTER_CONFIGURE src/` → 0 hits. | Define the throw site in §6 S4b (or where `configure()` re-entry after seal is detected) or remove from §5. §18.5 flagged the gap; §19 re-confirms and escalates to P0. |
+| **P0-8** | `isBakerError` and runtime brand `BAKER_ERROR` already exist at `src/errors.ts:32, 51` as a **return-value guard over `BakerErrors`**. §5's proposed new `isBakerThrown` guards `BakerError` (thrown). The two concepts collide semantically; users will conflate them. | `grep -n 'isBakerError\|BAKER_ERROR' src/errors.ts`. | §5 / §6 S6 must either (a) rename the existing guard to `isBakerErrorResult` with a deprecation alias, or (b) expose one unified `isBakerError(value): value is BakerError \| BakerErrors`. |
+
+### 19.3 §18 claims retracted (empirically refuted)
+
+| ID | §18 claim | Ground truth | Source |
+|---|---|---|---|
+| R-P0-3-direction | §18 P0-3 frames the plan as **renaming** `enableImplicitConversion` → `autoConvert` etc., breaking callers. | **The public API (`BakerConfig` in `src/configure.ts:9–22`) already uses the new names** (`autoConvert`, `allowClassDefaults`, `forbidUnknown`, `stopAtFirstError`, `debug`) and internally translates to the legacy `SealOptions` shape (`enableImplicitConversion` etc.) via the block at `src/configure.ts:28–42`. The legacy names are the **internal** surface, not the public one. | `cat src/configure.ts` (lines 9–42). |
+| R-package-json-1 | (implied in §18-adjacent adversarial review) `package.json` lacks `"sideEffects"`. | **`"sideEffects": false` is already set at `package.json:39`.** | `grep sideEffects package.json`. |
+| R-package-json-2 | (implied) `package.json` lacks `"engines"`. | **`"engines": { "bun": ">=1.0.0" }` is already set at `package.json:35–37`.** | `grep engines package.json`. |
+| R-test-count | "Full test suite 2045+ passing" is unverifiable. | `find test -name '*.test.ts'` → **1073** `it/test` cases; including `src/**/*.spec.ts` → **1989** cases. "2045+" is plausibly a post-reform target, not a phantom number — but §8 should say so explicitly. | `find … \| grep -cE '^\s*(it\|test)\('`. |
+| R-debug-silent-drop | Removing the `debug` key silently degrades JSON-config / `as any` callers. | `BakerConfig` declares `debug?: boolean` and `configure()` explicitly threads it into `SealOptions.debug`. Removing it from `BakerConfig` produces a **TS compile error** — not silent. | `src/configure.ts:9–22, 28–42`. |
+
+### 19.4 Corrected framing for P0-3
+
+P0-3 is not "a rename that breaks callers". The actual defect is **duplicate, drifting definitions**:
+
+- Public surface: `BakerConfig` in `src/configure.ts:9–22` — modern names (`autoConvert`, `forbidUnknown`, …).
+- Internal surface: `SealOptions` in `src/interfaces.ts:5–32` — legacy names (`enableImplicitConversion`, `whitelist`, …) that the code generator actually reads.
+- `configure()` translates between the two at `src/configure.ts:34–41`.
+
+The correct §6 S2 outcome is **unification**: delete `SealOptions`, rename internal readers to the `BakerConfig` keys, remove the translation block. That is *not* a public breaking change (users already use the new names); it *is* an internal refactor with codegen impact.
+
+### 19.5 Remaining unverified claims
+
+These were quoted in §18 or the synthesis summary but not fully reproduced at this host. Treat as pending until re-run:
+
+- Exact "+21.4 %" perf figure on the *real* `deserialize` hot path (Bun's native Stage-3 decorators prevented the `proto-s5-perf.ts` harness from running; the mechanism is confirmed via the `work()` analogue in §19.1 P0-2). Owner must re-run against compiled baker output before accepting or rejecting §6 S5's wrap policy.
+- Tree-shake regression for `src/rules/*` under `"sideEffects": false` — the flag is set, but per-rule side-effect-freeness was not independently audited.
+- Duplicate-install hazard at **runtime** (rule stamped by baker@2.1 consumed by baker@2.2 with different contract). P1-2 confirms the *type* side; the runtime-contract-skew side is a plausible but unverified hazard.
+
+### 19.6 Authoritative amendment list (supersedes §18.6 ordering)
+
+**Must amend PLAN body before implementation (BLOCKING):**
+
+1. §6 S3 — drop the "narrows to non-Promise" claim for naturally-authored classes, or add a public `sealSync(Cls)` wrapper function (note: legacy `experimentalDecorators` cannot retype via a class decorator; only a post-hoc wrapper works under that setting).
+2. §6 S5 ↔ §6 S6 ↔ §12 — pick one story. Recommendation: inline the try/catch into codegen (no helper boundary) and delete the `wrapSyncErrors` opt-in references from §6 S6 / §12.
+3. §6 S2 — rewrite as **`SealOptions` → `BakerConfig` unification**, not a rename. Update CHANGELOG framing accordingly. Decide and document `debug`'s fate (keep, deprecate, or drop).
+4. §6 S4b step 6 — replace `new Class()` probe with static class-field inspection or make `strictUndecorated` opt-in only. Reconcile with `package.json:4` "Zero reflect-metadata" claim.
+5. §5 — replace `` `SEAL_${string}` `` / `` `USAGE_${string}` `` with closed literal unions derived from the enumerated code lists at lines 120–123.
+6. §5 — every `BakerError` subclass passes `{ cause }` to `super(...)`, implements `toJSON()`, and calls `Error.captureStackTrace(this, ThisCtor)` to preserve throw-site frames.
+7. §6 S1 — switch `RULE_TAG` from `unique symbol` to a string-brand property (`readonly __brand: 'baker:rule' \| 'baker:rule-factory'`). Survives duplicate installs and `declare module` augmentation.
+8. §5 — define `SEAL_AFTER_CONFIGURE` firing condition or remove the code.
+9. §7 ↔ §15 — reconcile S3 day placement to a single pass (follow §15).
+10. §6 S5 file list — mark `src/functions/_run-sealed.ts` as **existing dead code to adopt**, not new.
+11. §5 — resolve `isBakerError` naming collision with the existing return-value guard.
+
+**Must amend §18 prose (correctness):**
+
+12. §18.2 P0-3 — reframe as `SealOptions`/`BakerConfig` unification (see §19.4).
+13. §18 — append §19 as a continuation with the items above.
+
+**P1 amendments bundled into each S-PR:**
+
+14. §6 S7 `setOf`/`mapOf` — return a branded `FieldOptions & { readonly __element: T }` so IDE hover shows `Set<T>`, and eliminate the internal `Set as any` cast.
+15. §6 S7 `strictUndecorated` — default **off**, not warn-on.
+16. §5 `SealError` — mandate message prefix `[className.fieldKey] ` so messages carry the location without callers walking the fields.
+17. §14 S8 — content outline for `SECURITY.md` (supported versions, disclosure channel, 90-day window), SemVer commitment, deprecation grace window.
+18. §6 S6 — CI gate script that asserts every registered code in §5 has an entry in `docs/errors.md`.
+19. §6 S6 CHANGELOG — concrete migration diff for framework adapters that catch on `TypeError` (→ `isBakerError` on the unified guard).
+20. §8 — reword test-count criterion to reference a concrete target (current baseline 1989 `it/test` cases across `.test.ts` + `.spec.ts`; post-reform target stated explicitly).
+
+### 19.7 Evidence file index (committable to `test/dx-regression/` per §8)
+
+```
+/tmp/baker-verify/proto-s3-realistic.ts   # P0-1 (tsc TS2322)
+/tmp/baker-verify/p0-2-realistic.ts       # P0-2 (mitata)
+/tmp/baker-verify/p1-1.ts                 # P1-1 (tsc TS2345)
+/tmp/baker-verify/p1-2.ts                 # P1-2 (tsc TS2345)
+/tmp/baker-verify/p1-3.ts                 # P1-3 (bun run JSON.stringify)
+/tmp/baker-verify/p1-4.ts                 # P1-4 (bun run instanceof)
+/tmp/baker-verify/validate-overload.ts    # P0-5 (unreachable overload)
+```
+
+Each script is self-contained and runs under the repo's current `bun` + `tsc` toolchain. Per §8, they migrate into `test/dx-regression/` as the reform lands.
