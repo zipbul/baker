@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { ARRAY_VALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize } from '../index';
+import { Field, deserialize, isBakerError } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 
 class BakerItem {
@@ -95,31 +95,39 @@ const arkList = type({ items: arkItem.array().atLeastLength(1) });
 // Benchmarks
 // ─────────────────────────────────────────────────────────────────────────────
 
-let sink: unknown;
+let sinkNum = 0;
 
 group('array 1000 items — valid input', () => {
   bench('baker', () => {
-    sink = deserialize(BakerList, ARRAY_VALID);
+    const r = deserialize(BakerList, ARRAY_VALID);
+    sinkNum += isBakerError(r) ? r.errors.length : (r as { items: unknown[] }).items.length;
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvList, ARRAY_VALID);
-    sink = validateSync(inst);
+    sinkNum += validateSync(inst).length;
   });
   bench('zod', () => {
-    sink = zodList.parse(ARRAY_VALID);
+    const r = zodList.safeParse(ARRAY_VALID);
+    sinkNum += r.success ? (r.data as { items: unknown[] }).items.length : r.error.issues.length;
   });
   bench('valibot', () => {
-    sink = v.parse(vList, ARRAY_VALID);
+    const r = v.safeParse(vList, ARRAY_VALID);
+    sinkNum += r.success ? (r.output as { items: unknown[] }).items.length : r.issues.length;
   });
   bench('ajv', () => {
-    sink = ajvList(ARRAY_VALID);
+    const ok = ajvList(ARRAY_VALID);
+    sinkNum += ok ? 1 : (ajvList.errors?.length ?? 0);
   });
   bench('typebox', () => {
-    sink = tbCheck.Check(ARRAY_VALID);
+    const ok = tbCheck.Check(ARRAY_VALID);
+    if (ok) sinkNum += 1;
+    else for (const _ of tbCheck.Errors(ARRAY_VALID)) sinkNum += 1;
   });
   bench('arktype', () => {
-    sink = arkList(ARRAY_VALID);
+    const r = arkList(ARRAY_VALID);
+    sinkNum += r instanceof type.errors ? r.length : (r as { items: unknown[] }).items.length;
   });
 });
 
 await run();
+if (sinkNum === -1) console.log('unreachable', sinkNum);

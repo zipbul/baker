@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { ERROR_ALL_FAIL } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, configure } from '../index';
+import { Field, deserialize, configure, isBakerError } from '../index';
 import { isNumber, min } from '../src/rules/index';
 
 configure({ stopAtFirstError: false });
@@ -105,31 +105,39 @@ const arkErrors = type({
 // Benchmarks
 // ─────────────────────────────────────────────────────────────────────────────
 
-let sink: unknown;
+let sinkNum = 0;
 
 group('error collection — 10 fields all invalid', () => {
   bench('baker', () => {
-    sink = deserialize(BakerErrors, ERROR_ALL_FAIL);
+    const r = deserialize(BakerErrors, ERROR_ALL_FAIL);
+    sinkNum += isBakerError(r) ? (r as unknown as { errors: unknown[] }).errors.length : 1;
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvErrors, ERROR_ALL_FAIL);
-    sink = validateSync(inst);
+    sinkNum += validateSync(inst).length;
   });
   bench('zod', () => {
-    sink = zodErrors.safeParse(ERROR_ALL_FAIL);
+    const r = zodErrors.safeParse(ERROR_ALL_FAIL);
+    sinkNum += r.success ? 1 : r.error.issues.length;
   });
   bench('valibot', () => {
-    sink = v.safeParse(vErrors, ERROR_ALL_FAIL);
+    const r = v.safeParse(vErrors, ERROR_ALL_FAIL);
+    sinkNum += r.success ? 1 : r.issues.length;
   });
   bench('ajv', () => {
-    sink = ajvErrors(ERROR_ALL_FAIL);
+    const ok = ajvErrors(ERROR_ALL_FAIL);
+    sinkNum += ok ? 1 : (ajvErrors.errors?.length ?? 0);
   });
   bench('typebox', () => {
-    sink = [...tbCheck.Errors(ERROR_ALL_FAIL)];
+    let n = 0;
+    for (const _ of tbCheck.Errors(ERROR_ALL_FAIL)) n++;
+    sinkNum += n;
   });
   bench('arktype', () => {
-    sink = arkErrors(ERROR_ALL_FAIL);
+    const r = arkErrors(ERROR_ALL_FAIL);
+    sinkNum += r instanceof type.errors ? r.length : 1;
   });
 });
 
 await run();
+if (sinkNum === -1) console.log('unreachable', sinkNum);
