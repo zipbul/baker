@@ -866,3 +866,15 @@ These were quoted in §18 or the synthesis summary but not fully reproduced at t
 ```
 
 Each script is self-contained and runs under the repo's current `bun` + `tsc` toolchain. Per §8, they migrate into `test/dx-regression/` as the reform lands.
+
+### 19.8 Self-correction (post-commit, same day)
+
+§19.3 entry **R-test-count** is itself partially retracted. The measurement `find test -name '*.test.ts' \| xargs grep -cE '^\s*(it\|test)\('` returned 1073 / 1989, but this undercounts `describe.each(...)` / `test.each(...)` / dynamically generated suites. The authoritative runner output from `bun test` (captured by the pre-commit hook of commit `77d7c24`) reports:
+
+```
+2045 pass / 0 fail / 4128 expect() calls / 90 files
+```
+
+Therefore §8's "2045+ passing" criterion is **exact and reproducible today**, not a phantom. §19.6 item 20 ("reword test-count criterion to reference a concrete target") is downgraded from P1 to "already-correct; optionally pin the number to avoid future drift".
+
+Lesson recorded: static text grep is the wrong oracle for test counts in suites that use `each`/programmatic generation; always cite the runner's own output.
