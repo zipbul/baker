@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from '../types';
+
 import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,10 +13,10 @@ export interface IsNotEmptyObjectOptions {
 
 export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRule {
   const validate = (value: unknown): boolean => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {return false;}
     const keys = Object.keys(value as object);
     if (options?.nullable) {
-      return keys.some((k) => (value as Record<string, unknown>)[k] != null);
+      return keys.some(k => (value as Record<string, unknown>)[k] != null);
     }
     return keys.length > 0;
   };
@@ -42,7 +43,7 @@ export function isInstance(targetType: new (...args: any[]) => any): EmittableRu
   return makeRule({
     name: 'isInstance',
     constraints: { type: targetType.name },
-    validate: (value) => value instanceof targetType,
+    validate: value => value instanceof targetType,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(targetType);
       return `if (!(${varName} instanceof _refs[${i}])) ${ctx.fail('isInstance')};`;

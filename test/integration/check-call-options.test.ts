@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { Field, deserialize, serialize, validate, SealError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -63,7 +64,9 @@ describe('_checkCallOptions — only `groups` is a valid per-call option', () =>
   });
 
   it('class instance is rejected', () => {
-    class Bag { groups = ['a']; }
+    class Bag {
+      groups = ['a'];
+    }
     expect(() => deserialize(CallOptDto, { name: 'x' }, new Bag() as any)).toThrow(/plain object/);
   });
 

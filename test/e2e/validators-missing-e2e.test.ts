@@ -1,9 +1,22 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import {
-  isBase32, isBase58, isDateString, isMimeType, isCurrency, isMagnetURI,
-  isHash, isRFC3339, isMilitaryTime, isLatitude, isLongitude,
-  isEthereumAddress, isBtcAddress, isISO4217CurrencyCode, isPhoneNumber,
+  isBase32,
+  isBase58,
+  isDateString,
+  isMimeType,
+  isCurrency,
+  isMagnetURI,
+  isHash,
+  isRFC3339,
+  isMilitaryTime,
+  isLatitude,
+  isLongitude,
+  isEthereumAddress,
+  isBtcAddress,
+  isISO4217CurrencyCode,
+  isPhoneNumber,
   isStrongPassword,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -11,22 +24,54 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-class Base32Dto { @Field(isBase32()) value!: string; }
-class Base58Dto { @Field(isBase58) value!: string; }
-class DateStringDto { @Field(isDateString()) value!: string; }
-class MimeTypeDto { @Field(isMimeType) value!: string; }
-class CurrencyDto { @Field(isCurrency()) value!: string; }
-class MagnetURIDto { @Field(isMagnetURI) value!: string; }
-class HashMd5Dto { @Field(isHash('md5')) value!: string; }
-class RFC3339Dto { @Field(isRFC3339) value!: string; }
-class MilitaryTimeDto { @Field(isMilitaryTime) value!: string; }
-class LatitudeDto { @Field(isLatitude) value!: string; }
-class LongitudeDto { @Field(isLongitude) value!: string; }
-class EthereumAddressDto { @Field(isEthereumAddress) value!: string; }
-class BtcAddressDto { @Field(isBtcAddress) value!: string; }
-class ISO4217Dto { @Field(isISO4217CurrencyCode) value!: string; }
-class PhoneNumberDto { @Field(isPhoneNumber) value!: string; }
-class StrongPasswordDto { @Field(isStrongPassword()) value!: string; }
+class Base32Dto {
+  @Field(isBase32()) value!: string;
+}
+class Base58Dto {
+  @Field(isBase58) value!: string;
+}
+class DateStringDto {
+  @Field(isDateString()) value!: string;
+}
+class MimeTypeDto {
+  @Field(isMimeType) value!: string;
+}
+class CurrencyDto {
+  @Field(isCurrency()) value!: string;
+}
+class MagnetURIDto {
+  @Field(isMagnetURI) value!: string;
+}
+class HashMd5Dto {
+  @Field(isHash('md5')) value!: string;
+}
+class RFC3339Dto {
+  @Field(isRFC3339) value!: string;
+}
+class MilitaryTimeDto {
+  @Field(isMilitaryTime) value!: string;
+}
+class LatitudeDto {
+  @Field(isLatitude) value!: string;
+}
+class LongitudeDto {
+  @Field(isLongitude) value!: string;
+}
+class EthereumAddressDto {
+  @Field(isEthereumAddress) value!: string;
+}
+class BtcAddressDto {
+  @Field(isBtcAddress) value!: string;
+}
+class ISO4217Dto {
+  @Field(isISO4217CurrencyCode) value!: string;
+}
+class PhoneNumberDto {
+  @Field(isPhoneNumber) value!: string;
+}
+class StrongPasswordDto {
+  @Field(isStrongPassword()) value!: string;
+}
 
 describe('isBase32', () => {
   it('valid → passes', async () => {

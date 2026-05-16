@@ -1,8 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import {
-  ensureMeta,
-  collectValidation,
-} from './collect';
+
+import { ensureMeta, collectValidation } from './collect';
 import { globalRegistry } from './registry';
 
 const RAW = Symbol.for('baker:raw');

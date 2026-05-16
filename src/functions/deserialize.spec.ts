@@ -1,11 +1,13 @@
-import { describe, it, expect, afterEach} from 'bun:test';
 import { err } from '@zipbul/result';
-import { SEALED } from '../symbols';
+import { describe, it, expect, afterEach } from 'bun:test';
+
+import type { RuntimeOptions } from '../interfaces';
+
 import { isBakerError, SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { _resetForTesting } from '../seal/seal';
+import { SEALED } from '../symbols';
 import { deserialize } from './deserialize';
-import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -79,7 +81,7 @@ describe('deserialize', () => {
     const Dto = makeClass();
     const instance = new Dto();
     let capturedInput: unknown;
-    attachSealed(Dto, (input) => {
+    attachSealed(Dto, input => {
       capturedInput = input;
       return instance;
     });
@@ -117,7 +119,10 @@ describe('deserialize', () => {
 
   it('should attach errors array to BakerErrors when _deserialize fails', async () => {
     const Dto = makeClass();
-    const errors = [{ path: 'name', code: 'isString' }, { path: 'email', code: 'isEmail' }];
+    const errors = [
+      { path: 'name', code: 'isString' },
+      { path: 'email', code: 'isEmail' },
+    ];
     attachSealed(Dto, () => err(errors));
     const result = await deserialize(Dto, {});
     expect(isBakerError(result)).toBe(true);

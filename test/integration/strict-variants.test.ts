@@ -1,10 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import {
   Field,
-  deserializeSync, deserializeAsync,
-  validateSync,    validateAsync,
-  serializeSync,   serializeAsync,
-  SealError, seal, isBakerError,
+  deserializeSync,
+  deserializeAsync,
+  validateSync,
+  validateAsync,
+  serializeSync,
+  serializeAsync,
+  SealError,
+  seal,
+  isBakerError,
 } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -41,12 +47,12 @@ describe('deserializeSync / deserializeAsync', () => {
   });
 
   it('deserializeAsync on sync DTO returns Promise', async () => {
-    const r = await deserializeAsync<SyncDto>(SyncDto, { name: 'x' }) as SyncDto;
+    const r = (await deserializeAsync<SyncDto>(SyncDto, { name: 'x' })) as SyncDto;
     expect(r.name).toBe('x');
   });
 
   it('deserializeAsync on async DTO returns Promise', async () => {
-    const r = await deserializeAsync<AsyncDeserDto>(AsyncDeserDto, { name: 'x' }) as AsyncDeserDto;
+    const r = (await deserializeAsync<AsyncDeserDto>(AsyncDeserDto, { name: 'x' })) as AsyncDeserDto;
     expect(r.name).toBe('x');
   });
 

@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
 import { deserialize, Field, isBakerError, seal } from '../../index';
 import {
   arrayContains,
@@ -55,10 +56,7 @@ async function expectParity(testCase: RuleCase): Promise<void> {
   for (const sample of testCase.samples) {
     const runtime = !!(await testCase.rule(sample));
     const dto = await passesWithDto(testCase.rule, sample);
-    expect(
-      dto,
-      `${testCase.name} parity mismatch for ${String(sample)}`,
-    ).toBe(runtime);
+    expect(dto, `${testCase.name} parity mismatch for ${String(sample)}`).toBe(runtime);
   }
 }
 

@@ -1,4 +1,5 @@
 import type { EmittableRule, EmitContext, InternalRule } from './types';
+
 import { isAsyncFunction, isPromiseLike } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -59,8 +60,8 @@ export function createRule(
 
   (fn as any).ruleName = name;
   (fn as any).isAsync = isAsyncFn;
-  if (constraints) (fn as any).constraints = constraints;
-  if (requiresType) (fn as any).requiresType = requiresType;
+  if (constraints) {(fn as any).constraints = constraints;}
+  if (requiresType) {(fn as any).requiresType = requiresType;}
 
   return fn;
 }

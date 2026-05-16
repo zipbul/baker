@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
 import { deserialize, Field, isBakerError, seal } from '../../index';
 import {
   contains,

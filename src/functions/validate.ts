@@ -1,9 +1,10 @@
+import type { BakerError, BakerErrors } from '../errors';
+import type { RuntimeOptions } from '../interfaces';
+import type { EmittableRule } from '../types';
+
 import { _toBakerErrors, SealError } from '../errors';
 import { _ensureSealed } from '../seal/seal';
 import { _checkCallOptions } from './_check-call-options';
-import type { BakerError, BakerErrors } from '../errors';
-import type { EmittableRule } from '../types';
-import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // validate — Public API (§5.3)
@@ -23,15 +24,9 @@ export function validate<T>(
  * Ad-hoc validation — validates a single value against one or more rules.
  * Sync rules return directly; async rules return Promise.
  */
-export function validate(
-  input: unknown,
-  ...rules: EmittableRule[]
-): true | BakerErrors | Promise<true | BakerErrors>;
+export function validate(input: unknown, ...rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors>;
 
-export function validate(
-  classOrInput: unknown,
-  ...rest: unknown[]
-): true | BakerErrors | Promise<true | BakerErrors> {
+export function validate(classOrInput: unknown, ...rest: unknown[]): true | BakerErrors | Promise<true | BakerErrors> {
   // ── DTO mode: validate(Class, input, options?) ────────────────────────
   if (typeof classOrInput === 'function' && rest.length >= 1) {
     const secondArg = rest[0];
@@ -40,8 +35,8 @@ export function validate(
       const checkedOpts = _checkCallOptions(rest[1]);
       const sealed = _ensureSealed(classOrInput);
       if (sealed._isAsync) {
-        return (sealed._validate(secondArg, checkedOpts) as Promise<BakerError[] | null>).then(
-          (result): true | BakerErrors => result === null ? true : _toBakerErrors(result),
+        return (sealed._validate(secondArg, checkedOpts) as Promise<BakerError[] | null>).then((result): true | BakerErrors =>
+          result === null ? true : _toBakerErrors(result),
         );
       }
       const result = sealed._validate(secondArg, checkedOpts) as BakerError[] | null;
@@ -53,7 +48,12 @@ export function validate(
   // W5 (D4): validate each rest arg is a baker rule
   for (let i = 0; i < rest.length; i++) {
     const r = rest[i];
-    if (r == null || typeof r !== 'function' || typeof (r as any).emit !== 'function' || typeof (r as any).ruleName !== 'string') {
+    if (
+      r == null ||
+      typeof r !== 'function' ||
+      typeof (r as any).emit !== 'function' ||
+      typeof (r as any).ruleName !== 'string'
+    ) {
       throw new SealError(
         `validate(input, ...rules): argument ${i + 1} is not a baker rule (got ${r === null ? 'null' : typeof r}). Use createRule() or import a rule from @zipbul/baker/rules.`,
       );
@@ -66,11 +66,8 @@ export function validate(
 // Ad-hoc validation
 // ─────────────────────────────────────────────────────────────────────────────
 
-function _validateAdHoc(
-  input: unknown,
-  rules: EmittableRule[],
-): true | BakerErrors | Promise<true | BakerErrors> {
-  if (rules.length === 0) return true;
+function _validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors> {
+  if (rules.length === 0) {return true;}
   const hasAsync = rules.some(r => r.isAsync);
 
   if (hasAsync) {
@@ -87,10 +84,10 @@ function _validateAdHoc(
     const second = rules[1]!;
     const firstOk = first(input);
     const secondOk = second(input);
-    if (firstOk && secondOk) return true;
+    if (firstOk && secondOk) {return true;}
     const errors: BakerError[] = [];
-    if (!firstOk) errors.push({ path: '', code: first.ruleName });
-    if (!secondOk) errors.push({ path: '', code: second.ruleName });
+    if (!firstOk) {errors.push({ path: '', code: first.ruleName });}
+    if (!secondOk) {errors.push({ path: '', code: second.ruleName });}
     return _toBakerErrors(errors);
   }
 
@@ -101,11 +98,11 @@ function _validateAdHoc(
     const firstOk = first(input);
     const secondOk = second(input);
     const thirdOk = third(input);
-    if (firstOk && secondOk && thirdOk) return true;
+    if (firstOk && secondOk && thirdOk) {return true;}
     const errors: BakerError[] = [];
-    if (!firstOk) errors.push({ path: '', code: first.ruleName });
-    if (!secondOk) errors.push({ path: '', code: second.ruleName });
-    if (!thirdOk) errors.push({ path: '', code: third.ruleName });
+    if (!firstOk) {errors.push({ path: '', code: first.ruleName });}
+    if (!secondOk) {errors.push({ path: '', code: second.ruleName });}
+    if (!thirdOk) {errors.push({ path: '', code: third.ruleName });}
     return _toBakerErrors(errors);
   }
 
@@ -118,10 +115,7 @@ function _validateAdHoc(
   return errors.length ? _toBakerErrors(errors) : true;
 }
 
-async function _validateAdHocAsync(
-  input: unknown,
-  rules: EmittableRule[],
-): Promise<true | BakerErrors> {
+async function _validateAdHocAsync(input: unknown, rules: EmittableRule[]): Promise<true | BakerErrors> {
   const errors: BakerError[] = [];
   for (const rule of rules) {
     const result = await rule(input);
@@ -140,17 +134,11 @@ async function _validateAdHocAsync(
  * Sync-asserted validate. Throws `SealError` if Class has any async rule/transform
  * on the deserialize/validate side. Use when caller code assumes sync return.
  */
-export function validateSync<T>(
-  Class: new (...args: any[]) => T,
-  input: unknown,
-  options?: RuntimeOptions,
-): true | BakerErrors {
+export function validateSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
   const checkedOpts = _checkCallOptions(options);
   const sealed = _ensureSealed(Class);
   if (sealed._isAsync) {
-    throw new SealError(
-      `validateSync(${Class.name}): DTO has async rules/transforms. Use validateAsync() instead.`,
-    );
+    throw new SealError(`validateSync(${Class.name}): DTO has async rules/transforms. Use validateAsync() instead.`);
   }
   const result = sealed._validate(input, checkedOpts) as BakerError[] | null;
   return result === null ? true : _toBakerErrors(result);
@@ -167,8 +155,8 @@ export function validateAsync<T>(
   const checkedOpts = _checkCallOptions(options);
   const sealed = _ensureSealed(Class);
   if (sealed._isAsync) {
-    return (sealed._validate(input, checkedOpts) as Promise<BakerError[] | null>).then(
-      (r): true | BakerErrors => r === null ? true : _toBakerErrors(r),
+    return (sealed._validate(input, checkedOpts) as Promise<BakerError[] | null>).then((r): true | BakerErrors =>
+      r === null ? true : _toBakerErrors(r),
     );
   }
   const result = sealed._validate(input, checkedOpts) as BakerError[] | null;

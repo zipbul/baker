@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { isAsyncFunction } from '../../src/utils';
 import { SEALED } from '../../src/symbols';
+import { isAsyncFunction } from '../../src/utils';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -13,7 +14,7 @@ afterEach(() => unseal());
 class AsyncTrimDto {
   @Field(isString, {
     transform: {
-      deserialize: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+      deserialize: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
       serialize: ({ value }) => value,
     },
   })
@@ -35,8 +36,8 @@ class AsyncChainDto {
     transform: {
       deserialize: async ({ value }) => {
         let v = value;
-        if (typeof v === 'string') v = v.trim();
-        if (typeof v === 'string') v = v.toUpperCase();
+        if (typeof v === 'string') {v = v.trim();}
+        if (typeof v === 'string') {v = v.toUpperCase();}
         return v;
       },
       serialize: ({ value }) => value,
@@ -49,12 +50,12 @@ class AsyncChainDto {
 
 describe('async @Transform — deserialize', () => {
   it('async trim → result returned', async () => {
-    const result = await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' }) as AsyncTrimDto;
+    const result = (await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' })) as AsyncTrimDto;
     expect(result.name).toBe('Alice');
   });
 
   it('async chaining (trim → toUpperCase)', async () => {
-    const result = await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' }) as AsyncChainDto;
+    const result = (await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' })) as AsyncChainDto;
     expect(result.code).toBe('HELLO');
   });
 
@@ -70,8 +71,9 @@ describe('async @Transform — deserialize', () => {
     }
     seal(PromiseDeserializeDto);
 
-    expect(() => deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' }))
-      .toThrow('deserialize transform returned Promise');
+    expect(() => deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' })).toThrow(
+      'deserialize transform returned Promise',
+    );
   });
 });
 
@@ -134,7 +136,7 @@ describe('E-10: isAsyncFunction robustness', () => {
     seal(MangledDto);
 
     // If async detection works, deserialize should still return a promise
-    const result = await deserialize<MangledDto>(MangledDto, { val: 'test' }) as MangledDto;
+    const result = (await deserialize<MangledDto>(MangledDto, { val: 'test' })) as MangledDto;
     expect(result.val).toBe('test');
   });
 });
@@ -222,9 +224,9 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    const result = await deserialize<ParentDe>(ParentDe, { items: [{ v: 'a' }, { v: 'b' }] }) as ParentDe;
+    const result = (await deserialize<ParentDe>(ParentDe, { items: [{ v: 'a' }, { v: 'b' }] })) as ParentDe;
     expect(result.items).toBeInstanceOf(Set);
-    const values = [...result.items].map((x) => x.v).sort();
+    const values = [...result.items].map(x => x.v).sort();
     expect(values).toEqual(['A', 'B']);
   });
 });
@@ -247,10 +249,10 @@ describe('async serialize Set<DTO>', () => {
   }
 
   it('serializes Set<DTO> when DTO has async transform on another field', async () => {
-    const dto = await deserialize(AsyncSerSetDto, {
+    const dto = (await deserialize(AsyncSerSetDto, {
       items: [{ name: 'hello' }, { name: 'world' }],
       other: 'test',
-    }) as AsyncSerSetDto;
+    })) as AsyncSerSetDto;
     expect(dto.items).toBeInstanceOf(Set);
     const result = await serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
@@ -270,10 +272,10 @@ describe('async serialize array of nested DTOs', () => {
   }
 
   it('serializes array of nested DTOs in async context', async () => {
-    const dto = await deserialize(AsyncArrayDto, {
+    const dto = (await deserialize(AsyncArrayDto, {
       items: [{ name: 'a' }, { name: 'b' }],
       tag: 'test',
-    }) as AsyncArrayDto;
+    })) as AsyncArrayDto;
     const result = await serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
     expect((result.items as any[]).length).toBe(2);

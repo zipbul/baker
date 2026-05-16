@@ -1,8 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { validate, deserialize, isBakerError, Field, createRule, seal } from '../../index';
-import {
-  isString, isNumber, isBoolean, isEmail, min, max, minLength,
-} from '../../src/rules/index';
+import { isString, isNumber, isBoolean, isEmail, min, max, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -81,7 +80,7 @@ describe('validate ad-hoc — sync rules', () => {
 describe('validate ad-hoc — async rules', () => {
   const asyncPass = createRule({
     name: 'asyncPass',
-    validate: async (v) => typeof v === 'string',
+    validate: async v => typeof v === 'string',
   });
 
   const asyncFail = createRule({
@@ -144,7 +143,7 @@ describe('validate ad-hoc — edge cases', () => {
   });
 
   it('createRule with simple form', async () => {
-    const isEven = createRule('isEven', (v) => typeof v === 'number' && (v as number) % 2 === 0);
+    const isEven = createRule('isEven', v => typeof v === 'number' && (v as number) % 2 === 0);
     expect(await validate(4, isEven)).toBe(true);
     const result = await validate(3, isEven);
     expect(isBakerError(result)).toBe(true);
@@ -316,7 +315,8 @@ describe('validate DTO — async', () => {
   class AsyncDto {
     @Field(isString, {
       transform: { deserialize: async ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
-    }) name!: string;
+    })
+    name!: string;
   }
 
   it('async DTO valid → true', async () => {
@@ -366,7 +366,9 @@ describe('validate ad-hoc — invalid rule argument rejection', () => {
 });
 
 describe('validate ad-hoc — throwing rule', () => {
-  const throwRule = createRule('throwRule', () => { throw new Error('boom'); });
+  const throwRule = createRule('throwRule', () => {
+    throw new Error('boom');
+  });
 
   it('sync rule that throws → throws the same error', () => {
     expect(() => validate('hello', throwRule)).toThrow('boom');
@@ -375,7 +377,9 @@ describe('validate ad-hoc — throwing rule', () => {
   it('async rule that throws → rejects with the thrown error', async () => {
     const asyncThrow = createRule({
       name: 'asyncThrow',
-      validate: async () => { throw new Error('async boom'); },
+      validate: async () => {
+        throw new Error('async boom');
+      },
     });
     await expect(validate('hello', asyncThrow)).rejects.toThrow('async boom');
   });

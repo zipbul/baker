@@ -1,9 +1,9 @@
-import { _sealedClasses } from '../../../src/seal/seal';
-import { RAW, SEALED } from '../../../src/symbols';
-import { globalRegistry } from '../../../src/registry';
-import { _resetForTesting } from '../../../src/seal/seal';
-import { _resetConfigForTesting } from '../../../src/configure';
 import type { SealedExecutors } from '../../../src/types';
+
+import { _resetConfigForTesting } from '../../../src/configure';
+import { globalRegistry } from '../../../src/registry';
+import { _resetForTesting, _sealedClasses } from '../../../src/seal/seal';
+import { RAW, SEALED } from '../../../src/symbols';
 
 /**
  * Testing only: resets seal state + global configuration.
@@ -34,5 +34,7 @@ export function unseal(): void {
  *   afterEach(() => { purgePoisonClasses(); unseal(); });
  */
 export function purgePoisonClasses(): void {
-  for (const cls of [...globalRegistry]) globalRegistry.delete(cls);
+  const cls: Function[] = [];
+  for (const c of globalRegistry) cls.push(c);
+  for (const c of cls) globalRegistry.delete(c);
 }

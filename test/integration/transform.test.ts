@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, serialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -6,17 +7,29 @@ import { unseal } from './helpers/unseal';
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 class TrimmedDto {
-  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value, serialize: ({ value }) => value } })
+  @Field(isString, {
+    transform: {
+      deserialize: ({ value }) => (typeof value === 'string' ? value.trim() : value),
+      serialize: ({ value }) => value,
+    },
+  })
   name!: string;
 }
 
 class ToUpperDto {
-  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value, serialize: ({ value }) => value } })
+  @Field(isString, {
+    transform: {
+      deserialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
+      serialize: ({ value }) => value,
+    },
+  })
   code!: string;
 }
 
 class SerializeTransformDto {
-  @Field(isNumber(), { transform: { deserialize: ({ value }) => value, serialize: ({ value }) => typeof value === 'number' ? value * 100 : value } })
+  @Field(isNumber(), {
+    transform: { deserialize: ({ value }) => value, serialize: ({ value }) => (typeof value === 'number' ? value * 100 : value) },
+  })
   price!: number;
 }
 
@@ -27,12 +40,12 @@ afterEach(() => unseal());
 
 describe('transform — integration', () => {
   it('should apply transform function during deserialization', async () => {
-    const result = await deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' }) as TrimmedDto;
+    const result = (await deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' })) as TrimmedDto;
     expect(result.name).toBe('Alice');
   });
 
   it('should apply uppercase transform during deserialization', async () => {
-    const result = await deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' }) as ToUpperDto;
+    const result = (await deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' })) as ToUpperDto;
     expect(result.code).toBe('ABC');
   });
 
@@ -43,7 +56,7 @@ describe('transform — integration', () => {
   });
 
   it('should not apply serialize-only transform during deserialize', async () => {
-    const result = await deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 }) as SerializeTransformDto;
+    const result = (await deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 })) as SerializeTransformDto;
     expect(result.price).toBe(9); // transform not applied during deserialize
   });
 });

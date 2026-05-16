@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { configure, SealError } from '../../index';
 import { unseal } from './helpers/unseal';
 

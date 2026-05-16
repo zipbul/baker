@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from '../types';
+
 import { makePlannedRule, makeRule, planCompare, planLength } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -10,7 +11,7 @@ export function arrayContains(values: unknown[]): EmittableRule {
     name: 'arrayContains',
     requiresType: 'array',
     constraints: { values },
-    validate: (value) => Array.isArray(value) && values.every((v) => value.indexOf(v) !== -1),
+    validate: value => Array.isArray(value) && values.every(v => value.indexOf(v) !== -1),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
       return `if (!_refs[${i}].every(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayContains')};`;
@@ -27,7 +28,7 @@ export function arrayNotContains(values: unknown[]): EmittableRule {
     name: 'arrayNotContains',
     requiresType: 'array',
     constraints: { values },
-    validate: (value) => Array.isArray(value) && values.every((v) => !value.includes(v)),
+    validate: value => Array.isArray(value) && values.every(v => !value.includes(v)),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
       return `if (_refs[${i}].some(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayNotContains')};`;
@@ -46,7 +47,7 @@ export function arrayMinSize(min: number): EmittableRule {
     requiresType: 'array',
     constraints: { min },
     plan,
-    validate: (value) => Array.isArray(value) && value.length >= min,
+    validate: value => Array.isArray(value) && value.length >= min,
   });
 }
 
@@ -61,7 +62,7 @@ export function arrayMaxSize(max: number): EmittableRule {
     requiresType: 'array',
     constraints: { max },
     plan,
-    validate: (value) => Array.isArray(value) && value.length <= max,
+    validate: value => Array.isArray(value) && value.length <= max,
   });
 }
 
@@ -74,8 +75,8 @@ export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRu
     name: 'arrayUnique',
     requiresType: 'array',
     constraints: {},
-    validate: (value) => {
-      if (!Array.isArray(value)) return false;
+    validate: value => {
+      if (!Array.isArray(value)) {return false;}
       if (identifier) {
         const keys = value.map(identifier);
         return new Set(keys).size === keys.length;
@@ -102,5 +103,5 @@ export const arrayNotEmpty = makePlannedRule({
   requiresType: 'array',
   constraints: {},
   plan: arrayNotEmptyPlan,
-  validate: (value) => Array.isArray(value) && value.length > 0,
+  validate: value => Array.isArray(value) && value.length > 0,
 });

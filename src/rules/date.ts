@@ -1,4 +1,5 @@
 import type { EmittableRule } from '../types';
+
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,17 +10,14 @@ export function minDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: 'time',
-    failure: planOr(
-      planCompare(planTime(), '!==', planTime()),
-      planCompare(planTime(), '<', planLiteral(timestamp)),
-    ),
+    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '<', planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'minDate',
     requiresType: 'date',
     constraints: { min: date.toISOString() },
     plan,
-    validate: (value) => value instanceof Date && value.getTime() >= timestamp,
+    validate: value => value instanceof Date && value.getTime() >= timestamp,
   });
 }
 
@@ -31,16 +29,13 @@ export function maxDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: 'time',
-    failure: planOr(
-      planCompare(planTime(), '!==', planTime()),
-      planCompare(planTime(), '>', planLiteral(timestamp)),
-    ),
+    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '>', planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'maxDate',
     requiresType: 'date',
     constraints: { max: date.toISOString() },
     plan,
-    validate: (value) => value instanceof Date && value.getTime() <= timestamp,
+    validate: value => value instanceof Date && value.getTime() <= timestamp,
   });
 }

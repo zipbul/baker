@@ -1,8 +1,19 @@
 import { bench, group, run } from 'mitata';
+
 import { Field, deserialize } from '../index';
 import {
-  isNumberString, isISBN, isISIN, isISO8601, isISSN, isFQDN,
-  isEAN, isJSON, isIBAN, isByteLength, isLatitude, isLongitude,
+  isNumberString,
+  isISBN,
+  isISIN,
+  isISO8601,
+  isISSN,
+  isFQDN,
+  isEAN,
+  isJSON,
+  isIBAN,
+  isByteLength,
+  isLatitude,
+  isLongitude,
   isStrongPassword,
 } from '../src/rules/index';
 import { isNotEmptyObject } from '../src/rules/object';
@@ -71,20 +82,48 @@ deserialize(NotEmptyObjDto, { value: { a: 1 } });
 let sink: unknown;
 
 group('proof — inline emit validators (previously refs)', () => {
-  bench('isNumberString', () => { sink = deserialize(NumberStringDto, { value: '123' }); });
-  bench('isISBN(13)', () => { sink = deserialize(ISBNDto, { value: '9780306406157' }); });
-  bench('isISIN', () => { sink = deserialize(ISINDto, { value: 'US0378331005' }); });
-  bench('isISO8601(strict)', () => { sink = deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' }); });
-  bench('isISSN', () => { sink = deserialize(ISSNDto, { value: '0378-5955' }); });
-  bench('isFQDN', () => { sink = deserialize(FQDNDto, { value: 'example.com' }); });
-  bench('isEAN', () => { sink = deserialize(EANDto, { value: '73513537' }); });
-  bench('isJSON', () => { sink = deserialize(JSONDto, { value: '{"a":1}' }); });
-  bench('isIBAN', () => { sink = deserialize(IBANDto, { value: 'DE89370400440532013000' }); });
-  bench('isByteLength', () => { sink = deserialize(ByteLengthDto, { value: 'hello' }); });
-  bench('isLatitude', () => { sink = deserialize(LatitudeDto, { value: 45.5 }); });
-  bench('isLongitude', () => { sink = deserialize(LongitudeDto, { value: -122.6 }); });
-  bench('isStrongPassword', () => { sink = deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' }); });
-  bench('isNotEmptyObject(nullable)', () => { sink = deserialize(NotEmptyObjDto, { value: { a: 1 } }); });
+  bench('isNumberString', () => {
+    sink = deserialize(NumberStringDto, { value: '123' });
+  });
+  bench('isISBN(13)', () => {
+    sink = deserialize(ISBNDto, { value: '9780306406157' });
+  });
+  bench('isISIN', () => {
+    sink = deserialize(ISINDto, { value: 'US0378331005' });
+  });
+  bench('isISO8601(strict)', () => {
+    sink = deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
+  });
+  bench('isISSN', () => {
+    sink = deserialize(ISSNDto, { value: '0378-5955' });
+  });
+  bench('isFQDN', () => {
+    sink = deserialize(FQDNDto, { value: 'example.com' });
+  });
+  bench('isEAN', () => {
+    sink = deserialize(EANDto, { value: '73513537' });
+  });
+  bench('isJSON', () => {
+    sink = deserialize(JSONDto, { value: '{"a":1}' });
+  });
+  bench('isIBAN', () => {
+    sink = deserialize(IBANDto, { value: 'DE89370400440532013000' });
+  });
+  bench('isByteLength', () => {
+    sink = deserialize(ByteLengthDto, { value: 'hello' });
+  });
+  bench('isLatitude', () => {
+    sink = deserialize(LatitudeDto, { value: 45.5 });
+  });
+  bench('isLongitude', () => {
+    sink = deserialize(LongitudeDto, { value: -122.6 });
+  });
+  bench('isStrongPassword', () => {
+    sink = deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
+  });
+  bench('isNotEmptyObject(nullable)', () => {
+    sink = deserialize(NotEmptyObjDto, { value: { a: 1 } });
+  });
 });
 
 await run();

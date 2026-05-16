@@ -1,9 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, validate, Field, isBakerError, configure, seal } from '../../index';
-import {
-  isString, isNumber, isBoolean, min, max, minLength,
-  arrayMinSize,
-} from '../../src/rules/index';
+import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -15,11 +13,7 @@ afterEach(() => unseal());
  * produces identical validation results.
  */
 
-function expectSameErrors(
-  desResult: unknown,
-  valResult: unknown,
-  _label: string,
-) {
+function expectSameErrors(desResult: unknown, valResult: unknown, _label: string) {
   const desIsErr = isBakerError(desResult);
   const valIsErr = isBakerError(valResult);
   expect(valIsErr).toBe(desIsErr);
@@ -126,7 +120,12 @@ describe('validate inline parity — array of nested', () => {
 
   it('valid', () => {
     seal();
-    const input = { items: [{ name: 'A', price: 10 }, { name: 'B', price: 20 }] };
+    const input = {
+      items: [
+        { name: 'A', price: 10 },
+        { name: 'B', price: 20 },
+      ],
+    };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array valid');
   });
 
@@ -138,7 +137,12 @@ describe('validate inline parity — array of nested', () => {
 
   it('invalid items', () => {
     seal();
-    const input = { items: [{ name: '', price: -1 }, { name: 'ok', price: 'bad' }] };
+    const input = {
+      items: [
+        { name: '', price: -1 },
+        { name: 'ok', price: 'bad' },
+      ],
+    };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array invalid items');
   });
 
@@ -166,11 +170,21 @@ describe('validate inline parity — array of nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — deep nesting (5 levels)', () => {
-  class L4 { @Field(isString) v!: string; }
-  class L3 { @Field({ type: () => L4 }) c!: L4; }
-  class L2 { @Field({ type: () => L3 }) c!: L3; }
-  class L1 { @Field({ type: () => L2 }) c!: L2; }
-  class Root { @Field({ type: () => L1 }) c!: L1; }
+  class L4 {
+    @Field(isString) v!: string;
+  }
+  class L3 {
+    @Field({ type: () => L4 }) c!: L4;
+  }
+  class L2 {
+    @Field({ type: () => L3 }) c!: L3;
+  }
+  class L1 {
+    @Field({ type: () => L2 }) c!: L2;
+  }
+  class Root {
+    @Field({ type: () => L1 }) c!: L1;
+  }
 
   it('valid', () => {
     seal();
@@ -202,17 +216,39 @@ describe('validate inline parity — deep nesting (5 levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — very deep nesting (11 levels)', () => {
-  class L10 { @Field(isString) v!: string; }
-  class L9 { @Field({ type: () => L10 }) c!: L10; }
-  class L8 { @Field({ type: () => L9 }) c!: L9; }
-  class L7 { @Field({ type: () => L8 }) c!: L8; }
-  class L6 { @Field({ type: () => L7 }) c!: L7; }
-  class L5 { @Field({ type: () => L6 }) c!: L6; }
-  class L4 { @Field({ type: () => L5 }) c!: L5; }
-  class L3 { @Field({ type: () => L4 }) c!: L4; }
-  class L2 { @Field({ type: () => L3 }) c!: L3; }
-  class L1 { @Field({ type: () => L2 }) c!: L2; }
-  class Root { @Field({ type: () => L1 }) c!: L1; }
+  class L10 {
+    @Field(isString) v!: string;
+  }
+  class L9 {
+    @Field({ type: () => L10 }) c!: L10;
+  }
+  class L8 {
+    @Field({ type: () => L9 }) c!: L9;
+  }
+  class L7 {
+    @Field({ type: () => L8 }) c!: L8;
+  }
+  class L6 {
+    @Field({ type: () => L7 }) c!: L7;
+  }
+  class L5 {
+    @Field({ type: () => L6 }) c!: L6;
+  }
+  class L4 {
+    @Field({ type: () => L5 }) c!: L5;
+  }
+  class L3 {
+    @Field({ type: () => L4 }) c!: L4;
+  }
+  class L2 {
+    @Field({ type: () => L3 }) c!: L3;
+  }
+  class L1 {
+    @Field({ type: () => L2 }) c!: L2;
+  }
+  class Root {
+    @Field({ type: () => L1 }) c!: L1;
+  }
 
   it('valid 11-level', () => {
     seal();
@@ -340,7 +376,8 @@ describe('validate inline parity — mixed DTO', () => {
   it('valid', () => {
     seal();
     const input = {
-      title: 'HQ', priority: 50,
+      title: 'HQ',
+      priority: 50,
       position: { lat: 37.7, lng: -122.4 },
       labels: [{ text: 'main' }, { text: 'office' }],
     };
@@ -350,7 +387,8 @@ describe('validate inline parity — mixed DTO', () => {
   it('multiple errors across levels', () => {
     seal();
     const input = {
-      title: '', priority: 200,
+      title: '',
+      priority: 200,
       position: { lat: 'bad', lng: null },
       labels: [{ text: 42 }, {}],
     };
@@ -363,8 +401,12 @@ describe('validate inline parity — mixed DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — stopAtFirstError', () => {
-  class Inner { @Field(isString) v!: string; }
-  class Root { @Field({ type: () => [Inner] }) items!: Inner[]; }
+  class Inner {
+    @Field(isString) v!: string;
+  }
+  class Root {
+    @Field({ type: () => [Inner] }) items!: Inner[];
+  }
 
   it('stopAtFirstError returns single error', () => {
     configure({ stopAtFirstError: true });
@@ -389,7 +431,9 @@ describe('validate inline parity — stopAtFirstError', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — invalidInput', () => {
-  class Dto { @Field(isString) x!: string; }
+  class Dto {
+    @Field(isString) x!: string;
+  }
 
   it('null input', () => {
     seal();
@@ -418,8 +462,12 @@ describe('validate inline parity — invalidInput', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator', () => {
-  class Dog { @Field(isString) breed!: string; }
-  class Cat { @Field(isString) color!: string; }
+  class Dog {
+    @Field(isString) breed!: string;
+  }
+  class Cat {
+    @Field(isString) color!: string;
+  }
   class Owner {
     @Field(isString) name!: string;
     @Field({
@@ -471,7 +519,9 @@ describe('validate inline parity — discriminator', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — transform + nested', () => {
-  class Inner { @Field(isNumber()) val!: number; }
+  class Inner {
+    @Field(isNumber()) val!: number;
+  }
   class Outer {
     @Field(isString, {
       transform: {
@@ -501,7 +551,9 @@ describe('validate inline parity — transform + nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — @Field name mapping', () => {
-  class Inner { @Field(isString) v!: string; }
+  class Inner {
+    @Field(isString) v!: string;
+  }
   class Outer {
     @Field(isString, { name: 'user_name' }) userName!: string;
     @Field({ type: () => Inner, name: 'nested_obj' }) nested!: Inner;
@@ -525,7 +577,9 @@ describe('validate inline parity — @Field name mapping', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — groups', () => {
-  class Inner { @Field(isString) v!: string; }
+  class Inner {
+    @Field(isString) v!: string;
+  }
   class Outer {
     @Field(isString) name!: string;
     @Field(isString, { groups: ['admin'] }) secret!: string;
@@ -564,7 +618,9 @@ describe('validate inline parity — groups', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — autoConvert', () => {
-  class Inner { @Field(isNumber()) val!: number; }
+  class Inner {
+    @Field(isNumber()) val!: number;
+  }
   class Outer {
     @Field(isNumber()) age!: number;
     @Field({ type: () => Inner }) nested!: Inner;
@@ -648,8 +704,12 @@ describe('validate inline parity — circular array of self', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator array', () => {
-  class Dog { @Field(isString) breed!: string; }
-  class Cat { @Field(isString) color!: string; }
+  class Dog {
+    @Field(isString) breed!: string;
+  }
+  class Cat {
+    @Field(isString) color!: string;
+  }
   class Shelter {
     @Field({
       type: () => [Object],
@@ -666,7 +726,12 @@ describe('validate inline parity — discriminator array', () => {
 
   it('valid array', () => {
     seal();
-    const input = { animals: [{ kind: 'dog', breed: 'lab' }, { kind: 'cat', color: 'white' }] };
+    const input = {
+      animals: [
+        { kind: 'dog', breed: 'lab' },
+        { kind: 'cat', color: 'white' },
+      ],
+    };
     expectSameErrors(deserialize(Shelter, input), validate(Shelter, input), 'disc array valid');
   });
 

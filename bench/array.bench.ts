@@ -2,11 +2,11 @@
 // Benchmark: Array of 1000 objects — valid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import { ARRAY_VALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
+import { ARRAY_VALID } from './data';
 
 class BakerItem {
   @Field(isString) name!: string;
@@ -20,8 +20,8 @@ await deserialize(BakerList, ARRAY_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
 import 'reflect-metadata';
-import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 
 class CvItem {
   @IsString() name!: string;
@@ -35,20 +35,29 @@ class CvList {
 import { z } from 'zod';
 
 const zodList = z.object({
-  items: z.array(z.object({
-    name: z.string(),
-    value: z.number().min(0),
-  })).min(1),
+  items: z
+    .array(
+      z.object({
+        name: z.string(),
+        value: z.number().min(0),
+      }),
+    )
+    .min(1),
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
 import * as v from 'valibot';
 
 const vList = v.object({
-  items: v.pipe(v.array(v.object({
-    name: v.string(),
-    value: v.pipe(v.number(), v.minValue(0)),
-  })), v.minLength(1)),
+  items: v.pipe(
+    v.array(
+      v.object({
+        name: v.string(),
+        value: v.pipe(v.number(), v.minValue(0)),
+      }),
+    ),
+    v.minLength(1),
+  ),
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
@@ -79,10 +88,13 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbList = T.Object({
-  items: T.Array(T.Object({
-    name: T.String(),
-    value: T.Number({ minimum: 0 }),
-  }), { minItems: 1 }),
+  items: T.Array(
+    T.Object({
+      name: T.String(),
+      value: T.Number({ minimum: 0 }),
+    }),
+    { minItems: 1 },
+  ),
 });
 const tbCheck = TypeCompiler.Compile(tbList);
 
@@ -121,8 +133,8 @@ group('array 1000 items — valid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(ARRAY_VALID);
-    if (ok) sinkNum += 1;
-    else for (const _ of tbCheck.Errors(ARRAY_VALID)) sinkNum += 1;
+    if (ok) {sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(ARRAY_VALID)) sinkNum += 1;}
   });
   bench('arktype', () => {
     const r = arkList(ARRAY_VALID);
@@ -131,4 +143,4 @@ group('array 1000 items — valid input', () => {
 });
 
 await run();
-if (sinkNum === -1) console.log('unreachable', sinkNum);
+if (sinkNum === -1) {console.log('unreachable', sinkNum);}

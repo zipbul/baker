@@ -11,8 +11,8 @@ export async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<
 
   return {
     deserialize: ({ value }) => {
-      if (typeof value === 'string') return DateTime.fromISO(value, { zone });
-      if (value instanceof Date) return DateTime.fromJSDate(value, { zone });
+      if (typeof value === 'string') {return DateTime.fromISO(value, { zone });}
+      if (value instanceof Date) {return DateTime.fromJSDate(value, { zone });}
       return value;
     },
     serialize: ({ value }) => {

@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import { createRule } from './create-rule';
 
 function makeCtx(refIndex: number = 0) {
@@ -115,21 +116,21 @@ describe('createRule', () => {
 
   it('should set isAsync=true when validate is an async function', () => {
     // Arrange / Act
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     // Assert
     expect(rule.isAsync).toBe(true);
   });
 
   it('should set isAsync when validate is a sync function', () => {
     // Arrange / Act
-    const rule = createRule({ name: 'syncRule', validate: (_v) => true });
+    const rule = createRule({ name: 'syncRule', validate: _v => true });
     // Assert
     expect(rule.isAsync).toBe(false);
   });
 
   it('should include await in emitted code when validate is async', () => {
     // Arrange
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     const { ctx } = makeCtx(0);
     // Act
     const code = rule.emit('_val', ctx as any);
@@ -139,7 +140,7 @@ describe('createRule', () => {
 
   it('should include await in emitted code when validate is sync', () => {
     // Arrange
-    const rule = createRule({ name: 'syncRule', validate: (_v) => true });
+    const rule = createRule({ name: 'syncRule', validate: _v => true });
     const { ctx } = makeCtx(0);
     // Act
     const code = rule.emit('_val', ctx as any);
@@ -149,7 +150,7 @@ describe('createRule', () => {
 
   it('should return a Promise<boolean> when calling the async rule function', async () => {
     // Arrange
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     // Act
     const result = rule('hello');
     // Assert

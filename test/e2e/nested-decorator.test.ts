@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -61,10 +62,10 @@ class PetOwnerDto {
 
 describe('@Nested deserialization', () => {
   it('simple nested DTO', async () => {
-    const result = await deserialize(UserDto, {
+    const result = (await deserialize(UserDto, {
       name: 'Alice',
       address: { city: 'Seoul', street: '강남대로' },
-    }) as UserDto;
+    })) as UserDto;
     expect(result.name).toBe('Alice');
     expect(result.address).toBeInstanceOf(AddressDto);
     expect(result.address.city).toBe('Seoul');
@@ -75,9 +76,9 @@ describe('@Nested deserialization', () => {
   });
 
   it('array nested (each: true)', async () => {
-    const result = await deserialize(ListDto, {
+    const result = (await deserialize(ListDto, {
       items: [{ label: 'a' }, { label: 'b' }],
-    }) as ListDto;
+    })) as ListDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]!).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.label).toBe('a');
@@ -88,15 +89,15 @@ describe('@Nested deserialization', () => {
   });
 
   it('discriminator deserialization', async () => {
-    const dog = await deserialize(PetOwnerDto, {
+    const dog = (await deserialize(PetOwnerDto, {
       pet: { type: 'dog', breed: 'Shiba' },
-    }) as PetOwnerDto;
+    })) as PetOwnerDto;
     expect(dog.pet).toBeInstanceOf(DogDto);
     expect((dog.pet as DogDto).breed).toBe('Shiba');
 
-    const cat = await deserialize(PetOwnerDto, {
+    const cat = (await deserialize(PetOwnerDto, {
       pet: { type: 'cat', indoor: true },
-    }) as PetOwnerDto;
+    })) as PetOwnerDto;
     expect(cat.pet).toBeInstanceOf(CatDto);
     expect((cat.pet as CatDto).indoor).toBe(true);
   });
@@ -141,7 +142,7 @@ describe('@Nested edge cases', () => {
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
     }
     seal(OptNested);
-    const r = await deserialize(OptNested, { name: 'Alice' }) as OptNested;
+    const r = (await deserialize(OptNested, { name: 'Alice' })) as OptNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeUndefined();
   });
@@ -152,7 +153,7 @@ describe('@Nested edge cases', () => {
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;
     }
     seal(NullNested);
-    const r = await deserialize(NullNested, { name: 'Alice', address: null }) as NullNested;
+    const r = (await deserialize(NullNested, { name: 'Alice', address: null })) as NullNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeNull();
   });

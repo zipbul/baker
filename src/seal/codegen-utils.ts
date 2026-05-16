@@ -4,7 +4,7 @@
 
 /** Convert key to a valid JS identifier suffix (encode non-alphanumeric chars via charCode to prevent collisions) */
 export function sanitizeKey(key: string): string {
-  return key.replace(/[^a-zA-Z0-9_]/g, (ch) => `$${ch.charCodeAt(0)}$`);
+  return key.replace(/[^a-zA-Z0-9_]/g, ch => `$${ch.charCodeAt(0)}$`);
 }
 
 /**

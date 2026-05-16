@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isULID, isCUID2 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -14,14 +15,16 @@ async function pass<T>(cls: new (...a: any[]) => T, input: unknown): Promise<T> 
 /** Helper: verify rejection + return error code */
 async function failCode(cls: new (...args: any[]) => any, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) throw new Error('expected validation failure');
+  if (!isBakerError(result)) {throw new Error('expected validation failure');}
   return result.errors[0]!.code;
 }
 
 // ─── isULID ─────────────────────────────────────────────────────────────────
 
 describe('isULID', () => {
-  class Dto { @Field(isULID()) v!: string; }
+  class Dto {
+    @Field(isULID()) v!: string;
+  }
 
   it('valid ULID passes', async () => {
     expect((await pass(Dto, { v: '01ARZ3NDEKTSV4RRFFQ69G5FAV' })).v).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
@@ -47,7 +50,9 @@ describe('isULID', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    class UlidDto { @Field(isULID()) id!: string; }
+    class UlidDto {
+      @Field(isULID()) id!: string;
+    }
     seal(UlidDto);
     const ok = await pass(UlidDto, { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV' });
     expect(ok.id).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
@@ -60,7 +65,9 @@ describe('isULID', () => {
 // ─── isCUID2 ────────────────────────────────────────────────────────────────
 
 describe('isCUID2', () => {
-  class Dto { @Field(isCUID2()) v!: string; }
+  class Dto {
+    @Field(isCUID2()) v!: string;
+  }
 
   it('valid CUID2 passes', async () => {
     expect((await pass(Dto, { v: 'clh3am6660002q2bfx5y9z0rn' })).v).toBe('clh3am6660002q2bfx5y9z0rn');
@@ -83,7 +90,9 @@ describe('isCUID2', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    class Cuid2Dto { @Field(isCUID2()) id!: string; }
+    class Cuid2Dto {
+      @Field(isCUID2()) id!: string;
+    }
     seal(Cuid2Dto);
     const ok = await pass(Cuid2Dto, { id: 'clh3am6660002q2bfx5y9z0rn' });
     expect(ok.id).toBe('clh3am6660002q2bfx5y9z0rn');

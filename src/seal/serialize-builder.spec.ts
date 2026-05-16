@@ -1,9 +1,11 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { buildSerializeCode } from './serialize-builder';
+
+import type { RuntimeOptions } from '../interfaces';
+import type { RawClassMeta, SealedExecutors } from '../types';
+
 import { isString } from '../rules/typechecker';
 import { SEALED } from '../symbols';
-import type { RawClassMeta, SealedExecutors } from '../types';
-import type { RuntimeOptions } from '../interfaces';
+import { buildSerializeCode } from './serialize-builder';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -14,7 +16,9 @@ describe('buildSerializeCode', () => {
 
   it('should assign simple field value to output object', () => {
     // Arrange
-    class SimpleDto { name = 'Alice'; }
+    class SimpleDto {
+      name = 'Alice';
+    }
     const merged: RawClassMeta = {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
@@ -28,7 +32,9 @@ describe('buildSerializeCode', () => {
 
   it('should omit field from output when @IsOptional field is undefined', () => {
     // Arrange
-    class OptDto { age?: number; }
+    class OptDto {
+      age?: number;
+    }
     const merged: RawClassMeta = {
       age: {
         validation: [],
@@ -37,7 +43,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
-       
       },
     };
     const exec = buildSerializeCode(OptDto, merged, undefined, false);
@@ -50,7 +55,9 @@ describe('buildSerializeCode', () => {
 
   it('should map field to @Expose name when serializeOnly name is set', () => {
     // Arrange
-    class ExposedDto { displayName = 'Bob'; }
+    class ExposedDto {
+      displayName = 'Bob';
+    }
     const merged: RawClassMeta = {
       displayName: {
         validation: [],
@@ -59,7 +66,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(ExposedDto, merged, undefined, false);
@@ -73,7 +79,9 @@ describe('buildSerializeCode', () => {
 
   it('should skip field when @Exclude(serializeOnly) is set', () => {
     // Arrange
-    class ExclDto { secret = 'hidden'; }
+    class ExclDto {
+      secret = 'hidden';
+    }
     const merged: RawClassMeta = {
       secret: {
         validation: [],
@@ -82,7 +90,6 @@ describe('buildSerializeCode', () => {
         exclude: { serializeOnly: true },
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(ExclDto, merged, undefined, false);
@@ -95,7 +102,9 @@ describe('buildSerializeCode', () => {
 
   it('should include admin-guarded field when groups includes admin', () => {
     // Arrange
-    class GroupDto { adminField = 'adminVal'; }
+    class GroupDto {
+      adminField = 'adminVal';
+    }
     const merged: RawClassMeta = {
       adminField: {
         validation: [],
@@ -104,7 +113,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(GroupDto, merged, undefined, false);
@@ -118,7 +126,9 @@ describe('buildSerializeCode', () => {
 
   it('should exclude admin-guarded field when no groups provided', () => {
     // Arrange
-    class GroupDto2 { adminField = 'adminVal'; }
+    class GroupDto2 {
+      adminField = 'adminVal';
+    }
     const merged: RawClassMeta = {
       adminField: {
         validation: [],
@@ -127,7 +137,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(GroupDto2, merged, undefined, false);
@@ -140,7 +149,9 @@ describe('buildSerializeCode', () => {
 
   it('should call @Transform function and use its result', () => {
     // Arrange
-    class TransDto { name = 'alice'; }
+    class TransDto {
+      name = 'alice';
+    }
     const transformFn = mock(({ value }: any) => (value as string).toUpperCase());
     const merged: RawClassMeta = {
       name: {
@@ -150,7 +161,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(TransDto, merged, undefined, false);
@@ -163,21 +173,19 @@ describe('buildSerializeCode', () => {
 
   it('should apply all @Transform functions in order when multiple transforms are set (H5)', () => {
     // Arrange — two serialize transforms: uppercase then prepend prefix
-    class MultiTransDto { name = 'alice'; }
+    class MultiTransDto {
+      name = 'alice';
+    }
     const upperFn = mock(({ value }: any) => (value as string).toUpperCase());
     const prefixFn = mock(({ value }: any) => 'PREFIX_' + (value as string));
     const merged: RawClassMeta = {
       name: {
         validation: [],
-        transform: [
-          { fn: upperFn },
-          { fn: prefixFn },
-        ],
+        transform: [{ fn: upperFn }, { fn: prefixFn }],
         expose: [],
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(MultiTransDto, merged, undefined, false);
@@ -190,7 +198,9 @@ describe('buildSerializeCode', () => {
 
   it('should apply all three @Transform functions in reverse order for serialize (codec stack)', () => {
     // Arrange — three serialize transforms (serialize applies in reverse: t3 → t2 → t1)
-    class TriTransDto { tag = 'hello'; }
+    class TriTransDto {
+      tag = 'hello';
+    }
     const t1 = mock(({ value }: any) => (value as string).toUpperCase());
     const t2 = mock(({ value }: any) => (value as string) + '!');
     const t3 = mock(({ value }: any) => '[' + (value as string) + ']');
@@ -202,7 +212,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-
       },
     };
     const exec = buildSerializeCode(TriTransDto, merged, undefined, false);
@@ -226,7 +235,9 @@ describe('buildSerializeCode', () => {
 
   it('should include field in output when it has validation only (no @Expose needed)', () => {
     // Arrange
-    class ValidationOnlyDto { score = 42; }
+    class ValidationOnlyDto {
+      score = 42;
+    }
     const merged: RawClassMeta = {
       score: {
         validation: [{ rule: isString }],
@@ -235,7 +246,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(ValidationOnlyDto, merged, undefined, false);
@@ -250,7 +260,9 @@ describe('buildSerializeCode', () => {
 
   it('should combine @Expose serializeOnly name with @IsOptional wrap', () => {
     // Arrange
-    class ComboDto { alias?: string; }
+    class ComboDto {
+      alias?: string;
+    }
     const merged: RawClassMeta = {
       alias: {
         validation: [],
@@ -259,7 +271,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: { isOptional: true },
-       
       },
     };
     const exec = buildSerializeCode(ComboDto, merged, undefined, false);
@@ -287,7 +298,9 @@ describe('buildSerializeCode', () => {
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
-    class UserDto { address = new AddressDto(); }
+    class UserDto {
+      address = new AddressDto();
+    }
     const merged: RawClassMeta = {
       address: {
         validation: [],
@@ -296,7 +309,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AddressDto as any },
         flags: { validateNested: true },
-       
       },
     };
     const exec = buildSerializeCode(UserDto, merged, undefined, false);
@@ -320,7 +332,9 @@ describe('buildSerializeCode', () => {
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
-    class OrderDto { items: ItemDto[] = [new ItemDto(), new ItemDto()]; }
+    class OrderDto {
+      items: ItemDto[] = [new ItemDto(), new ItemDto()];
+    }
     const merged: RawClassMeta = {
       items: {
         validation: [{ rule: isString, each: true }],
@@ -329,7 +343,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => ItemDto as any },
         flags: { validateNested: true },
-       
       },
     };
     const exec = buildSerializeCode(OrderDto, merged, undefined, false);
@@ -352,7 +365,9 @@ describe('buildSerializeCode', () => {
       _isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
-    class MemberDto { profile?: ProfileDto; }
+    class MemberDto {
+      profile?: ProfileDto;
+    }
     const merged: RawClassMeta = {
       profile: {
         validation: [],
@@ -361,7 +376,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => ProfileDto as any },
         flags: { validateNested: true, isOptional: true },
-       
       },
     };
     const exec = buildSerializeCode(MemberDto, merged, undefined, false);
@@ -373,7 +387,9 @@ describe('buildSerializeCode', () => {
   });
 
   it('should skip field when all @Expose entries are deserializeOnly', () => {
-    class UserDto { name?: string; }
+    class UserDto {
+      name?: string;
+    }
     const merged: RawClassMeta = {
       name: {
         validation: [],
@@ -382,7 +398,6 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: null,
         flags: {},
-       
       },
     };
     const exec = buildSerializeCode(UserDto, merged, undefined, false);
@@ -407,7 +422,9 @@ describe('buildSerializeCode', () => {
       _isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
 
-    class AsyncOrderDto { items: AsyncItemDto[] = [new AsyncItemDto(), new AsyncItemDto()]; }
+    class AsyncOrderDto {
+      items: AsyncItemDto[] = [new AsyncItemDto(), new AsyncItemDto()];
+    }
     const merged: RawClassMeta = {
       items: {
         validation: [{ rule: isString, each: true }],
@@ -416,13 +433,12 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AsyncItemDto as any },
         flags: { validateNested: true },
-       
       },
     };
     const exec = buildSerializeCode(AsyncOrderDto, merged, undefined, true);
     const instance = new AsyncOrderDto();
     // Act
-    const result = await exec(instance) as Record<string, unknown>;
+    const result = (await exec(instance)) as Record<string, unknown>;
     // Assert — async serialize called for each item via Promise.all
     expect(mockItemSerialize).toHaveBeenCalledTimes(2);
     expect(Array.isArray(result.items)).toBe(true);
@@ -440,7 +456,9 @@ describe('buildSerializeCode', () => {
       _isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
 
-    class EmptyOrderDto { items: AsyncItemDto2[] = []; }
+    class EmptyOrderDto {
+      items: AsyncItemDto2[] = [];
+    }
     const merged: RawClassMeta = {
       items: {
         validation: [{ rule: isString, each: true }],
@@ -449,13 +467,12 @@ describe('buildSerializeCode', () => {
         exclude: null,
         type: { fn: () => AsyncItemDto2 as any },
         flags: { validateNested: true },
-
       },
     };
     const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true);
     const instance = new EmptyOrderDto();
     // Act
-    const result = await exec(instance) as Record<string, unknown>;
+    const result = (await exec(instance)) as Record<string, unknown>;
     // Assert — empty array → empty result
     expect(mockItemSerialize2).not.toHaveBeenCalled();
     expect(result.items).toEqual([]);
@@ -480,7 +497,9 @@ describe('buildSerializeCode', () => {
       return { ...(value as Record<string, unknown>), formatted: `${(value as any).city} ${(value as any).zip}` };
     });
 
-    class UserDto { address = new AddressDto(); }
+    class UserDto {
+      address = new AddressDto();
+    }
     const merged: RawClassMeta = {
       address: {
         validation: [],
@@ -520,7 +539,9 @@ describe('buildSerializeCode', () => {
       return { ...(value as Record<string, unknown>), bioUpper: ((value as any).bio as string).toUpperCase() };
     });
 
-    class MemberDto { profile?: ProfileDto; }
+    class MemberDto {
+      profile?: ProfileDto;
+    }
     const merged: RawClassMeta = {
       profile: {
         validation: [],
@@ -559,7 +580,9 @@ describe('buildSerializeCode', () => {
       return [...(value as number[])].sort((a, b) => a - b);
     });
 
-    class TagsDto { tags = new Set([3, 1, 2]); }
+    class TagsDto {
+      tags = new Set([3, 1, 2]);
+    }
     const merged: RawClassMeta = {
       tags: {
         validation: [],
@@ -578,5 +601,4 @@ describe('buildSerializeCode', () => {
     expect(transformFn).toHaveBeenCalled();
     expect(result.tags).toEqual([1, 2, 3]);
   });
-
 });

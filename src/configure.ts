@@ -1,6 +1,7 @@
 import type { SealOptions } from './interfaces';
+
 import { SealError } from './errors';
-import { _isSealed } from './seal/seal';
+import { _isSealed } from './seal/seal-state';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BakerConfig — Global configuration (call before seal())
@@ -20,7 +21,11 @@ export interface BakerConfig {
 }
 
 const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
-  'autoConvert', 'allowClassDefaults', 'stopAtFirstError', 'forbidUnknown', 'debug',
+  'autoConvert',
+  'allowClassDefaults',
+  'stopAtFirstError',
+  'forbidUnknown',
+  'debug',
 ]);
 
 let _globalOptions: SealOptions = {};
@@ -42,10 +47,7 @@ export function configure(config: BakerConfig): void {
   }
   for (const key of Object.keys(config)) {
     if (!BAKER_CONFIG_KEYS.has(key as keyof BakerConfig)) {
-      throw new SealError(
-        `[baker] configure(): unknown key '${key}'. ` +
-        `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`,
-      );
+      throw new SealError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
     }
   }
   _globalOptions = {

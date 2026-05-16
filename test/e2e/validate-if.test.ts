@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -31,27 +32,28 @@ describe('@Field({ when }) — conditional validation', () => {
   });
 
   it('condition true + valid value → passes', async () => {
-    const result = await deserialize(ConditionalDto, {
-      type: 'business', companyName: 'Acme',
-    }) as ConditionalDto;
+    const result = (await deserialize(ConditionalDto, {
+      type: 'business',
+      companyName: 'Acme',
+    })) as ConditionalDto;
     expect(result.companyName).toBe('Acme');
   });
 
   it('condition false → validation skipped', async () => {
-    const result = await deserialize(ConditionalDto, {
+    const result = (await deserialize(ConditionalDto, {
       type: 'personal',
-    }) as ConditionalDto;
+    })) as ConditionalDto;
     expect(result.type).toBe('personal');
     expect(result.companyName).toBeUndefined();
   });
 
   it('condition false → value present but skipped (not assigned)', async () => {
-    const result = await deserialize(ConditionalDto, {
-      type: 'personal', companyName: 123 as any,
-    }) as ConditionalDto;
+    const result = (await deserialize(ConditionalDto, {
+      type: 'personal',
+      companyName: 123 as any,
+    })) as ConditionalDto;
     expect(result.type).toBe('personal');
   });
-
 
   it('numeric condition + Min validation', async () => {
     // role >= 2 → Min(100) applied → budget 50 rejected
@@ -59,9 +61,10 @@ describe('@Field({ when }) — conditional validation', () => {
   });
 
   it('numeric condition false → Min skipped', async () => {
-    const result = await deserialize(ConditionalWithMinDto, {
-      role: 1, budget: 5,
-    }) as ConditionalWithMinDto;
+    const result = (await deserialize(ConditionalWithMinDto, {
+      role: 1,
+      budget: 5,
+    })) as ConditionalWithMinDto;
     expect(result.role).toBe(1);
   });
 });

@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, Field, isBakerError, seal} from '../../index';
+
+import { deserialize, Field, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
-beforeEach(() => { unseal(); seal(); });
+beforeEach(() => {
+  unseal();
+  seal();
+});
 beforeEach(() => seal());
 afterEach(() => unseal());
 
@@ -106,7 +110,7 @@ class IsNumberAndMinDto {
 
 describe('deserialize — integration', () => {
   it('should deserialize plain object → DTO instance with valid input', async () => {
-    const result = await deserialize(SimpleDto, { name: 'Alice', age: 30 }) as SimpleDto;
+    const result = (await deserialize(SimpleDto, { name: 'Alice', age: 30 })) as SimpleDto;
     expect(result).toBeInstanceOf(SimpleDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(30);
@@ -121,18 +125,18 @@ describe('deserialize — integration', () => {
   });
 
   it('should accept optional field when absent', async () => {
-    const result = await deserialize(OptionalFieldDto, { required: 'hello' }) as OptionalFieldDto;
+    const result = (await deserialize(OptionalFieldDto, { required: 'hello' })) as OptionalFieldDto;
     expect(result.required).toBe('hello');
     expect(result.optional).toBeUndefined();
   });
 
   it('should accept optional field when present with valid value', async () => {
-    const result = await deserialize(OptionalFieldDto, { required: 'hi', optional: 'world' }) as OptionalFieldDto;
+    const result = (await deserialize(OptionalFieldDto, { required: 'hi', optional: 'world' })) as OptionalFieldDto;
     expect(result.optional).toBe('world');
   });
 
   it('should deserialize boolean field', async () => {
-    const result = await deserialize(BooleanDto, { active: true }) as BooleanDto;
+    const result = (await deserialize(BooleanDto, { active: true })) as BooleanDto;
     expect(result.active).toBe(true);
   });
 
@@ -147,7 +151,7 @@ describe('deserialize — integration', () => {
   });
 
   it('should accept valid ISIN that passes both regex and Luhn checksum', async () => {
-    const result = await deserialize(IsinDto, { isin: 'US0378331005' }) as IsinDto;
+    const result = (await deserialize(IsinDto, { isin: 'US0378331005' })) as IsinDto;
     expect(result.isin).toBe('US0378331005');
   });
 
@@ -156,26 +160,26 @@ describe('deserialize — integration', () => {
   });
 
   it('should accept valid ISSN that passes both regex and mod-11 checksum', async () => {
-    const result = await deserialize(IssnDto, { issn: '0378-5955' }) as IssnDto;
+    const result = (await deserialize(IssnDto, { issn: '0378-5955' })) as IssnDto;
     expect(result.issn).toBe('0378-5955');
   });
 
   // ── H1: Internal variable name collision fields (var _out, var _errors, var _groups) ──
 
   it('should deserialize DTO when field name collides with internal variable "out"', async () => {
-    const result = await deserialize(CollisionOutDto, { out: 'value' }) as CollisionOutDto;
+    const result = (await deserialize(CollisionOutDto, { out: 'value' })) as CollisionOutDto;
     expect(result).toBeInstanceOf(CollisionOutDto);
     expect(result.out).toBe('value');
   });
 
   it('should deserialize DTO when field name collides with internal variable "errors"', async () => {
-    const result = await deserialize(CollisionErrorsDto, { errors: 'none' }) as CollisionErrorsDto;
+    const result = (await deserialize(CollisionErrorsDto, { errors: 'none' })) as CollisionErrorsDto;
     expect(result).toBeInstanceOf(CollisionErrorsDto);
     expect(result.errors).toBe('none');
   });
 
   it('should deserialize DTO when field name collides with internal variable "groups"', async () => {
-    const result = await deserialize(CollisionGroupsDto, { groups: 'g1' }) as CollisionGroupsDto;
+    const result = (await deserialize(CollisionGroupsDto, { groups: 'g1' })) as CollisionGroupsDto;
     expect(result).toBeInstanceOf(CollisionGroupsDto);
     expect(result.groups).toBe('g1');
   });
@@ -187,12 +191,12 @@ describe('deserialize — integration', () => {
   });
 
   it('should pass when @Field(isString) field receives empty string', async () => {
-    const result = await deserialize(IsDefinedStringDto, { value: '' }) as IsDefinedStringDto;
+    const result = (await deserialize(IsDefinedStringDto, { value: '' })) as IsDefinedStringDto;
     expect(result.value).toBe('');
   });
 
   it('should pass when @Field(isNumber()) field receives 0', async () => {
-    const result = await deserialize(IsDefinedNumberDto, { value: 0 }) as IsDefinedNumberDto;
+    const result = (await deserialize(IsDefinedNumberDto, { value: 0 })) as IsDefinedNumberDto;
     expect(result.value).toBe(0);
   });
 
@@ -207,12 +211,12 @@ describe('deserialize — integration', () => {
   });
 
   it('should pass when @Field(isNumber({ allowNaN: true })) field receives NaN', async () => {
-    const result = await deserialize(IsNumberAllowNaNDto, { value: NaN }) as IsNumberAllowNaNDto;
+    const result = (await deserialize(IsNumberAllowNaNDto, { value: NaN })) as IsNumberAllowNaNDto;
     expect(result.value).toBeNaN();
   });
 
   it('should pass when @Field(isNumber({ allowInfinity: true })) field receives Infinity', async () => {
-    const result = await deserialize(IsNumberAllowInfinityDto, { value: Infinity }) as IsNumberAllowInfinityDto;
+    const result = (await deserialize(IsNumberAllowInfinityDto, { value: Infinity })) as IsNumberAllowInfinityDto;
     expect(result.value).toBe(Infinity);
   });
 
@@ -242,7 +246,10 @@ class AdminOnlyDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('deserialize — public sync/async path', () => {
-  afterEach(() => { unseal(); seal(); });
+  afterEach(() => {
+    unseal();
+    seal();
+  });
 
   it('deserialize is a regular function', () => {
     expect(deserialize.constructor.name).toBe('Function');
@@ -274,7 +281,10 @@ class ContextIntegrationDto {
 }
 
 describe('deserialize — @Field message integration', () => {
-  afterEach(() => { unseal(); seal(); });
+  afterEach(() => {
+    unseal();
+    seal();
+  });
 
   it('should include field-level message in BakerError.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
@@ -286,13 +296,16 @@ describe('deserialize — @Field message integration', () => {
   });
 
   it('should return normally regardless of message on validation success', async () => {
-    const result = await deserialize(MessageIntegrationDto, { name: 'Alice' }) as MessageIntegrationDto;
+    const result = (await deserialize(MessageIntegrationDto, { name: 'Alice' })) as MessageIntegrationDto;
     expect(result.name).toBe('Alice');
   });
 });
 
 describe('deserialize — @Field context integration', () => {
-  afterEach(() => { unseal(); seal(); });
+  afterEach(() => {
+    unseal();
+    seal();
+  });
 
   it('should include value in BakerError.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
@@ -305,27 +318,28 @@ describe('deserialize — @Field context integration', () => {
 });
 
 describe('M4 — validation groups runtime filtering', () => {
-  afterEach(() => { unseal(); seal(); });
+  afterEach(() => {
+    unseal();
+    seal();
+  });
 
   it('no groups provided → group-gated fields excluded (visibility control)', async () => {
-    const result = await deserialize(AdminOnlyDto, { secret: 123, id: 1 }) as AdminOnlyDto;
+    const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 })) as AdminOnlyDto;
     expect((result as any).secret).toBeUndefined();
   });
 
   it('groups match → field included + rules executed', async () => {
-    expect(isBakerError(
-      await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }),
-    )).toBe(true);
+    expect(isBakerError(await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }))).toBe(true);
   });
 
   it('groups mismatch → field excluded', async () => {
-    const result = await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['viewer'] }) as AdminOnlyDto;
+    const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['viewer'] })) as AdminOnlyDto;
     expect((result as any).secret).toBeUndefined();
   });
 
   it('fields without groups are always executed', async () => {
-    expect(isBakerError(
-      await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' as any }, { groups: ['viewer'] }),
-    )).toBe(true);
+    expect(
+      isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' as any }, { groups: ['viewer'] })),
+    ).toBe(true);
   });
 });

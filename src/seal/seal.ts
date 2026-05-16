@@ -1,15 +1,16 @@
-import { RAW, SEALED } from '../symbols';
-import { globalRegistry } from '../registry';
-import { SealError } from '../errors';
-import { _getGlobalOptions } from '../configure';
-import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
-import { buildSerializeCode } from './serialize-builder';
-import { analyzeCircular } from './circular-analyzer';
-import { validateExposeStacks } from './expose-validator';
-import { validateMeta } from './validate-meta';
-import { isAsyncFunction } from '../utils';
-import type { RawClassMeta, SealedExecutors } from '../types';
 import type { SealOptions } from '../interfaces';
+import type { RawClassMeta, SealedExecutors } from '../types';
+
+import { _getGlobalOptions } from '../configure';
+import { SealError } from '../errors';
+import { globalRegistry } from '../registry';
+import { RAW, SEALED } from '../symbols';
+import { isAsyncFunction } from '../utils';
+import { analyzeCircular } from './circular-analyzer';
+import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
+import { validateExposeStacks } from './expose-validator';
+import { buildSerializeCode } from './serialize-builder';
+import { validateMeta } from './validate-meta';
 
 const BANNED_FIELD_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
 const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
@@ -18,9 +19,15 @@ const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
 function _circularPlaceholder(className: string): SealedExecutors<unknown> {
   const msg = `Circular dependency during seal: ${className} is still being sealed`;
   return {
-    _deserialize() { throw new SealError(msg); },
-    _serialize() { throw new SealError(msg); },
-    _validate() { throw new SealError(msg); },
+    _deserialize() {
+      throw new SealError(msg);
+    },
+    _serialize() {
+      throw new SealError(msg);
+    },
+    _validate() {
+      throw new SealError(msg);
+    },
     _isAsync: false,
     _isSerializeAsync: false,
   };
@@ -34,19 +41,20 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
   const v = visited ?? new Set<Function>();
   for (const meta of Object.values(merged)) {
     // 1. createRule may return Promise<boolean> even without `async` syntax.
-    if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) return true;
+    if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {return true;}
     // 2. @Transform async
-    const transforms = direction === 'deserialize'
-      ? meta.transform.filter(td => !td.options?.serializeOnly)
-      : meta.transform.filter(td => !td.options?.deserializeOnly);
-    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) return true;
+    const transforms =
+      direction === 'deserialize'
+        ? meta.transform.filter(td => !td.options?.serializeOnly)
+        : meta.transform.filter(td => !td.options?.deserializeOnly);
+    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) {return true;}
     // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
     if (meta.type?.resolvedClass) {
       const nestedClass = meta.type.resolvedClass;
       if (!v.has(nestedClass)) {
         v.add(nestedClass);
         const nestedMerged = mergeInheritance(nestedClass);
-        if (analyzeAsync(nestedMerged, direction, v)) return true;
+        if (analyzeAsync(nestedMerged, direction, v)) {return true;}
       }
     }
     // discriminator subTypes
@@ -55,7 +63,7 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
         if (!v.has(sub.value)) {
           v.add(sub.value);
           const subMerged = mergeInheritance(sub.value);
-          if (analyzeAsync(subMerged, direction, v)) return true;
+          if (analyzeAsync(subMerged, direction, v)) {return true;}
         }
       }
     }
@@ -65,32 +73,17 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
       if (!v.has(valueClass)) {
         v.add(valueClass);
         const valueMerged = mergeInheritance(valueClass);
-        if (analyzeAsync(valueMerged, direction, v)) return true;
+        if (analyzeAsync(valueMerged, direction, v)) {return true;}
       }
     }
   }
   return false;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Seal state flag
-// ─────────────────────────────────────────────────────────────────────────────
-
-let _sealed = false;
-
-/** @internal — used by configure() to reject post-seal calls */
-export function _isSealed(): boolean { return _sealed; }
-
-/** List of sealed classes — used by unseal to remove SEALED */
-export const _sealedClasses = new Set<Function>();
-
-/**
- * @internal testing only — called by unseal() in testing.ts
- */
-export function _resetForTesting(): void {
-  _sealed = false;
-  _sealedClasses.clear();
-}
+// Seal state lives in ./seal-state so `configure.ts` can read it without importing this file
+// (which would form a cycle: seal → configure → seal). Re-export the test helpers used by `unseal()`.
+export { _sealedClasses, _resetForTesting } from './seal-state';
+import { _sealedClasses, _isSealed, _markSealed } from './seal-state';
 
 /**
  * @internal — used by serialize/deserialize. Returns the sealed executor.
@@ -102,7 +95,7 @@ export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
     const name = Class.name || '<anonymous class>';
     throw new SealError(
       `${name} is not sealed. Call seal() at app startup before deserialize/validate/serialize. ` +
-      `(If ${name} has no @Field decorators, decorate at least one property.)`,
+        `(If ${name} has no @Field decorators, decorate at least one property.)`,
     );
   }
   return sealed;
@@ -112,7 +105,7 @@ export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
  * Seal every class in the decorator registry, then clear the registry.
  */
 function sealAllRegistered(): void {
-  if (_sealed) return;
+  if (_isSealed()) {return;}
   const options = _getGlobalOptions();
 
   try {
@@ -134,7 +127,7 @@ function sealAllRegistered(): void {
     Object.freeze((Class as any)[RAW]);
   }
   globalRegistry.clear();
-  _sealed = true;
+  _markSealed();
 }
 
 /**
@@ -144,18 +137,16 @@ function sealAllRegistered(): void {
  * seal(Class) call can re-attempt cleanly.
  */
 function sealOneClass(Class: Function): void {
-  if (Object.hasOwn(Class as object, SEALED)) return;
+  if (Object.hasOwn(Class as object, SEALED)) {return;}
   if (!Object.hasOwn(Class as object, RAW)) {
     throw new SealError(
       `${Class.name}: cannot seal a class that has no @Field decorators. ` +
-      `seal(${Class.name}) is a no-op unless ${Class.name} has at least one @Field.`,
+        `seal(${Class.name}) is a no-op unless ${Class.name} has at least one @Field.`,
     );
   }
 
   const before = new Set(_sealedClasses);
-  const beforeSealed = new Set<Function>(
-    [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED)),
-  );
+  const beforeSealed = new Set<Function>([...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED)));
   const options = _getGlobalOptions();
   try {
     sealOne(Class, options);
@@ -177,9 +168,7 @@ function sealOneClass(Class: Function): void {
   globalRegistry.delete(Class);
 
   // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
-  const newlySealed = [...globalRegistry].filter(
-    C => Object.hasOwn(C as object, SEALED) && !before.has(C),
-  );
+  const newlySealed = [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED) && !before.has(C));
   for (const C of newlySealed) {
     _sealedClasses.add(C);
     Object.freeze((C as any)[RAW]);
@@ -209,7 +198,7 @@ export function seal(...classes: Function[]): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function sealOne(Class: Function, options?: SealOptions): void {
-  if (Object.hasOwn(Class as object, SEALED)) return; // already sealed (prevent recursion during circular references)
+  if (Object.hasOwn(Class as object, SEALED)) {return;} // already sealed (prevent recursion during circular references)
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = _circularPlaceholder(Class.name);
@@ -228,12 +217,12 @@ function sealOne(Class: Function, options?: SealOptions): void {
   // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
   //     Prevent original RAW mutation: copy type/flags before mutating (C-16 root fix)
   for (const [key, meta] of Object.entries(merged)) {
-    if (!meta.type?.fn) continue;
+    if (!meta.type?.fn) {continue;}
     const typeResult = meta.type.fn();
 
     // Detect Map/Set collection
     if (typeResult === Map || typeResult === Set) {
-      const collection = typeResult === Map ? 'Map' as const : 'Set' as const;
+      const collection = typeResult === Map ? ('Map' as const) : ('Set' as const);
       const typeCopy = { ...meta.type, collection, isArray: false };
       // collectionValue thunk → cache resolvedCollectionValue
       if (meta.type.collectionValue) {
@@ -241,9 +230,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
         try {
           valCls = meta.type.collectionValue();
         } catch (e) {
-          throw new SealError(
-            `${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`,
-          );
+          throw new SealError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`);
         }
         if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
           typeCopy.resolvedCollectionValue = valCls as new (...args: any[]) => any;
@@ -265,8 +252,8 @@ function sealOne(Class: Function, options?: SealOptions): void {
       // Automatically set validateNested flags for DTO classes
       if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
         meta.flags = { ...meta.flags };
-        if (!meta.flags.validateNested) meta.flags.validateNested = true;
-        if (isArray && !meta.flags.validateNestedEach) meta.flags.validateNestedEach = true;
+        if (!meta.flags.validateNested) {meta.flags.validateNested = true;}
+        if (isArray && !meta.flags.validateNestedEach) {meta.flags.validateNestedEach = true;}
       }
     }
     merged[key] = { ...meta, type: typeCopy };
@@ -340,7 +327,7 @@ export function mergeInheritance(Class: Function): RawClassMeta {
   const chain: Function[] = [];
   let current: Function | null = Class;
   while (current && current !== Object) {
-    if (Object.hasOwn(current as object, RAW)) chain.push(current);
+    if (Object.hasOwn(current as object, RAW)) {chain.push(current);}
     const proto = Object.getPrototypeOf(current);
     current = proto === current ? null : proto;
   }
@@ -396,13 +383,13 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         // flags: child takes priority, only supplement missing flags from parent
         const mf = m.flags;
         const pf = p.flags;
-        if (pf.isOptional !== undefined && mf.isOptional === undefined) mf.isOptional = pf.isOptional;
-        if (pf.isDefined !== undefined && mf.isDefined === undefined) mf.isDefined = pf.isDefined;
-        if (pf.validateIf !== undefined && mf.validateIf === undefined) mf.validateIf = pf.validateIf;
-        if (pf.isNullable !== undefined && mf.isNullable === undefined) mf.isNullable = pf.isNullable;
-        if (pf.validateNested !== undefined && mf.validateNested === undefined) mf.validateNested = pf.validateNested;
-        if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) mf.validateNestedEach = pf.validateNestedEach;
-
+        if (pf.isOptional !== undefined && mf.isOptional === undefined) {mf.isOptional = pf.isOptional;}
+        if (pf.isDefined !== undefined && mf.isDefined === undefined) {mf.isDefined = pf.isDefined;}
+        if (pf.validateIf !== undefined && mf.validateIf === undefined) {mf.validateIf = pf.validateIf;}
+        if (pf.isNullable !== undefined && mf.isNullable === undefined) {mf.isNullable = pf.isNullable;}
+        if (pf.validateNested !== undefined && mf.validateNested === undefined) {mf.validateNested = pf.validateNested;}
+        if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined)
+          {mf.validateNestedEach = pf.validateNestedEach;}
       }
     }
   }

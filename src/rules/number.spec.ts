@@ -1,12 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  min,
-  max,
-  isPositive,
-  isNegative,
-  isDivisibleBy,
-} from './number';
+
+import { min, max, isPositive, isNegative, isDivisibleBy } from './number';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);

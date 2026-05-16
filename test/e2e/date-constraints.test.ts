@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isDate, minDate, maxDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -26,15 +27,15 @@ class DateOnlyMinDto {
 describe('@MinDate/@MaxDate', () => {
   it('within range → passes', async () => {
     const d = new Date('2023-06-15T00:00:00.000Z');
-    const result = await deserialize(DateRangeDto, { eventDate: d }) as DateRangeDto;
+    const result = (await deserialize(DateRangeDto, { eventDate: d })) as DateRangeDto;
     expect(result.eventDate).toEqual(d);
   });
 
   it('boundary values are included (inclusive)', async () => {
-    const rMin = await deserialize(DateRangeDto, { eventDate: MIN }) as DateRangeDto;
+    const rMin = (await deserialize(DateRangeDto, { eventDate: MIN })) as DateRangeDto;
     expect(rMin.eventDate).toEqual(MIN);
 
-    const rMax = await deserialize(DateRangeDto, { eventDate: MAX }) as DateRangeDto;
+    const rMax = (await deserialize(DateRangeDto, { eventDate: MAX })) as DateRangeDto;
     expect(rMax.eventDate).toEqual(MAX);
   });
 
@@ -56,8 +57,7 @@ describe('@MinDate/@MaxDate', () => {
 
   it('MinDate only', async () => {
     const future = new Date('2099-01-01T00:00:00.000Z');
-    const result = await deserialize(DateOnlyMinDto, { start: future }) as DateOnlyMinDto;
+    const result = (await deserialize(DateOnlyMinDto, { start: future })) as DateOnlyMinDto;
     expect(result.start).toEqual(future);
   });
-
 });

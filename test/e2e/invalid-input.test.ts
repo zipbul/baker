@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -59,7 +60,7 @@ describe('invalidInput error code', () => {
   });
 
   it('valid object → passes', async () => {
-    const result = await deserialize(SimpleDto, { name: 'Alice' }) as SimpleDto;
+    const result = (await deserialize(SimpleDto, { name: 'Alice' })) as SimpleDto;
     expect(result.name).toBe('Alice');
   });
 });

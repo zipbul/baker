@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -27,16 +28,18 @@ class GrandChildDto extends ChildDto {
 
 describe('inheritance — deserialize', () => {
   it('child → includes parent fields', async () => {
-    const result = await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 }) as ChildDto;
+    const result = (await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 })) as ChildDto;
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
   });
 
   it('grandchild → includes all ancestor fields', async () => {
-    const result = await deserialize<GrandChildDto>(GrandChildDto, {
-      name: 'Bob', age: 30, active: true,
-    }) as GrandChildDto;
+    const result = (await deserialize<GrandChildDto>(GrandChildDto, {
+      name: 'Bob',
+      age: 30,
+      active: true,
+    })) as GrandChildDto;
     expect(result).toBeInstanceOf(GrandChildDto);
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
@@ -63,4 +66,3 @@ describe('inheritance — serialize', () => {
     expect(result).toEqual({ name: 'Dave', age: 35, active: false });
   });
 });
-

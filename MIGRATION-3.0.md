@@ -70,11 +70,11 @@ Serializing a `Map` with non-string keys throws `TypeError`. Previously the key 
 
 Six new entry points enforce the call-direction asymmetry at the type level:
 
-| Integrated | Strict sync | Strict async |
-|---|---|---|
+| Integrated    | Strict sync       | Strict async       |
+| ------------- | ----------------- | ------------------ |
 | `deserialize` | `deserializeSync` | `deserializeAsync` |
-| `serialize` | `serializeSync` | `serializeAsync` |
-| `validate` | `validateSync` | `validateAsync` |
+| `serialize`   | `serializeSync`   | `serializeAsync`   |
+| `validate`    | `validateSync`    | `validateAsync`    |
 
 `*Sync` throws `SealError` if the DTO is async on that direction (e.g. async transform on deserialize side for `deserializeSync`). `*Async` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`). The integrated `deserialize` / `serialize` / `validate` remain available for ergonomic use.
 

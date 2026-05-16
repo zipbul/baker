@@ -1,10 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, configure, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => {
+  unseal();
+  configure({});
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,7 +29,7 @@ describe('exposeDefaultValues', () => {
   it('true → uses class default values for missing fields', async () => {
     configure({ allowClassDefaults: true });
     seal();
-    const result = await deserialize<DefaultsDto>(DefaultsDto, {}) as DefaultsDto;
+    const result = (await deserialize<DefaultsDto>(DefaultsDto, {})) as DefaultsDto;
     expect(result.name).toBe('anonymous');
     expect(result.score).toBe(100);
   });
@@ -33,9 +37,10 @@ describe('exposeDefaultValues', () => {
   it('true → ignores default when input value is present', async () => {
     configure({ allowClassDefaults: true });
     seal();
-    const result = await deserialize<DefaultsDto>(DefaultsDto, {
-      name: 'Alice', score: 50,
-    }) as DefaultsDto;
+    const result = (await deserialize<DefaultsDto>(DefaultsDto, {
+      name: 'Alice',
+      score: 50,
+    })) as DefaultsDto;
     expect(result.name).toBe('Alice');
     expect(result.score).toBe(50);
   });
@@ -50,9 +55,10 @@ describe('exposeDefaultValues', () => {
   it('true + optional → optional fields also use default values', async () => {
     configure({ allowClassDefaults: true });
     seal();
-    const result = await deserialize<DefaultsDto>(DefaultsDto, {
-      name: 'Bob', score: 80,
-    }) as DefaultsDto;
+    const result = (await deserialize<DefaultsDto>(DefaultsDto, {
+      name: 'Bob',
+      score: 80,
+    })) as DefaultsDto;
     // optional so undefined/null would skip, default value may be retained
     // but allowClassDefaults applies only to non-optional fields
     expect(result.name).toBe('Bob');

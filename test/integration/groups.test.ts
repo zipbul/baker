@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, serialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -28,20 +29,28 @@ afterEach(() => unseal());
 
 describe('groups — integration', () => {
   it('should deserialize group-gated field when group is provided', async () => {
-    const result = await deserialize<AdminDto>(AdminDto, { name: 'Alice', internalCode: 'XYZ' }, { groups: ['admin'] }) as AdminDto;
+    const result = (await deserialize<AdminDto>(
+      AdminDto,
+      { name: 'Alice', internalCode: 'XYZ' },
+      { groups: ['admin'] },
+    )) as AdminDto;
     expect(result.name).toBe('Alice');
     expect(result.internalCode).toBe('XYZ');
   });
 
   it('should skip group-gated field when group is NOT provided', async () => {
-    const result = await deserialize<AdminDto>(AdminDto, { name: 'Alice', internalCode: 'XYZ' }) as AdminDto;
+    const result = (await deserialize<AdminDto>(AdminDto, { name: 'Alice', internalCode: 'XYZ' })) as AdminDto;
     expect(result.name).toBe('Alice');
     // internalCode is group-gated — not processed without group
     expect(result.internalCode).toBeUndefined();
   });
 
   it('should skip group-gated field when wrong group provided', async () => {
-    const result = await deserialize<AdminDto>(AdminDto, { name: 'Bob', internalCode: 'ABC' }, { groups: ['user'] }) as AdminDto;
+    const result = (await deserialize<AdminDto>(
+      AdminDto,
+      { name: 'Bob', internalCode: 'ABC' },
+      { groups: ['user'] },
+    )) as AdminDto;
     expect(result.internalCode).toBeUndefined();
   });
 

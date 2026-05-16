@@ -1,13 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  arrayContains,
-  arrayNotContains,
-  arrayMinSize,
-  arrayMaxSize,
-  arrayUnique,
-  arrayNotEmpty,
-} from './array';
+
+import { arrayContains, arrayNotContains, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty } from './array';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: Function) => refIndex++);

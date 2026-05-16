@@ -5,11 +5,11 @@ import { bench, group, run } from 'mitata';
 
 const input = { name: 'Alice', email: 'alice@example.com', age: 30, active: true, tag: 'ok' };
 
+import { Field, deserialize, seal } from '../index';
+import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 // ── Baker ────────────────────────────────────────────────────────────────────
 // Baker's seal is one-time per class. To measure cold start, we use unseal helper.
 import { unseal } from '../test/integration/helpers/unseal';
-import { Field, deserialize, seal } from '../index';
-import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 
 class BakerCold {
   @Field(isString, minLength(2)) name!: string;
@@ -24,22 +24,17 @@ await deserialize(BakerCold, input);
 
 // ── class-validator ──────────────────────────────────────────────────────────
 import 'reflect-metadata';
-
-// ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
-
-// ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
-
-// ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
-
 // ── TypeBox ──────────────────────────────────────────────────────────────────
 import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
-
+// ── AJV ──────────────────────────────────────────────────────────────────────
+import Ajv from 'ajv';
 // ── ArkType ──────────────────────────────────────────────────────────────────
 import { type } from 'arktype';
+// ── Valibot ──────────────────────────────────────────────────────────────────
+import * as v from 'valibot';
+// ── Zod ──────────────────────────────────────────────────────────────────────
+import { z } from 'zod';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmarks — cold compile + first validate.

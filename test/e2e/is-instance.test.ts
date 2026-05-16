@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isInstance } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -14,7 +15,7 @@ class InstanceDto {
   @Field(isInstance(MyDate), {
     transform: {
       deserialize: ({ value }) => {
-        if (typeof value === 'string') return new MyDate(value);
+        if (typeof value === 'string') {return new MyDate(value);}
         return value;
       },
       serialize: ({ value }) => value,
@@ -27,7 +28,7 @@ class InstanceDto {
 
 describe('@IsInstance', () => {
   it('correct instance passes', async () => {
-    const r = await deserialize(InstanceDto, { date: '2024-01-01' }) as InstanceDto;
+    const r = (await deserialize(InstanceDto, { date: '2024-01-01' })) as InstanceDto;
     expect(r.date).toBeInstanceOf(MyDate);
   });
 

@@ -2,44 +2,49 @@
   "name": "@zipbul/baker",
   "version": "2.2.0",
   "description": "Fastest decorator-based DTO validation for TypeScript. AOT code generation, 42ns per validation, 163x faster than class-validator. Zero reflect-metadata.",
+  "keywords": [
+    "aot",
+    "bun",
+    "class-transformer",
+    "class-validator",
+    "class-validator-alternative",
+    "code-generation",
+    "decorator",
+    "deserialize",
+    "dto",
+    "fast-validation",
+    "runtime-validation",
+    "schema-validation",
+    "serialize",
+    "transform",
+    "transformer",
+    "type-safe",
+    "typescript",
+    "validation",
+    "validator",
+    "zod-alternative"
+  ],
+  "homepage": "https://github.com/zipbul/baker#readme",
+  "bugs": "https://github.com/zipbul/baker/issues",
   "license": "MIT",
   "author": "Junhyung Park (https://github.com/parkrevil)",
   "repository": {
     "type": "git",
     "url": "https://github.com/zipbul/baker.git"
   },
-  "bugs": "https://github.com/zipbul/baker/issues",
-  "homepage": "https://github.com/zipbul/baker#readme",
-  "keywords": [
-    "validation",
-    "validator",
-    "transform",
-    "transformer",
-    "decorator",
-    "dto",
-    "typescript",
-    "runtime-validation",
-    "type-safe",
-    "class-validator",
-    "class-transformer",
-    "class-validator-alternative",
-    "zod-alternative",
-    "serialize",
-    "deserialize",
-    "code-generation",
-    "aot",
-    "bun",
-    "fast-validation",
-    "schema-validation"
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "README.md",
+    "CHANGELOG.md",
+    "MIGRATION-3.0.md",
+    "LICENSE"
   ],
-  "engines": {
-    "bun": ">=1.0.0"
-  },
   "type": "module",
   "sideEffects": false,
   "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -62,43 +67,28 @@
       "import": "./dist/src/transformers/index.js"
     }
   },
-  "files": [
-    "dist/**/*.js",
-    "dist/**/*.d.ts",
-    "README.md",
-    "CHANGELOG.md",
-    "MIGRATION-3.0.md",
-    "LICENSE"
-  ],
   "publishConfig": {
     "access": "public",
     "provenance": true
   },
-  "peerDependencies": {
-    "luxon": ">=3.0.0",
-    "moment": ">=2.0.0"
-  },
-  "peerDependenciesMeta": {
-    "luxon": {
-      "optional": true
-    },
-    "moment": {
-      "optional": true
-    }
-  },
-  "dependencies": {
-    "@zipbul/result": "1.0.0"
-  },
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json && bun scripts/add-js-extensions.ts",
-    "typecheck": "tsc --noEmit",
+    "changeset": "changeset",
+    "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "knip": "knip",
+    "lint": "oxlint",
+    "prepare": "husky",
+    "release": "changeset publish",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:memory": "bun run scripts/check-memory.ts",
-    "changeset": "changeset",
-    "version-packages": "changeset version",
-    "release": "changeset publish",
-    "prepare": "husky"
+    "typecheck": "tsc --noEmit",
+    "version-packages": "changeset version"
+  },
+  "dependencies": {
+    "@zipbul/result": "1.0.0"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",
@@ -121,5 +111,20 @@
     "reflect-metadata": "^0.2.2",
     "valibot": "^1.3.1",
     "zod": "^4.3.6"
+  },
+  "peerDependencies": {
+    "luxon": ">=3.0.0",
+    "moment": ">=2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "luxon": {
+      "optional": true
+    },
+    "moment": {
+      "optional": true
+    }
+  },
+  "engines": {
+    "bun": ">=1.0.0"
   }
 }

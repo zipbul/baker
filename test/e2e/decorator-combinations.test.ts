@@ -1,8 +1,17 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import {
-  isString, isNumber, isBoolean, isEnum, isArray,
-  min, max, minLength, maxLength, matches,
+  isString,
+  isNumber,
+  isBoolean,
+  isEnum,
+  isArray,
+  min,
+  max,
+  minLength,
+  maxLength,
+  matches,
   arrayMinSize,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -12,7 +21,7 @@ afterEach(() => unseal());
 
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) throw new Error('expected error');
+  if (!isBakerError(result)) {throw new Error('expected error');}
   return result.errors;
 }
 
@@ -25,7 +34,7 @@ describe('@IsString + @MinLength + @MaxLength + @Matches stack', () => {
   }
 
   it('all conditions pass', async () => {
-    const r = await deserialize(UsernameDto, { username: 'john_doe123' }) as UsernameDto;
+    const r = (await deserialize(UsernameDto, { username: 'john_doe123' })) as UsernameDto;
     expect(r.username).toBe('john_doe123');
   });
 
@@ -65,18 +74,21 @@ describe('@IsOptional + @Min + @Transform combination', () => {
   class ScoreDto {
     @Field(isNumber(), min(0), {
       optional: true,
-      transform: { deserialize: ({ value }) => typeof value === 'string' ? parseInt(value, 10) : value, serialize: ({ value }) => value },
+      transform: {
+        deserialize: ({ value }) => (typeof value === 'string' ? parseInt(value, 10) : value),
+        serialize: ({ value }) => value,
+      },
     })
     score?: number;
   }
 
   it('undefined → passes (Optional)', async () => {
-    const r = await deserialize(ScoreDto, {}) as ScoreDto;
+    const r = (await deserialize(ScoreDto, {})) as ScoreDto;
     expect(r.score).toBeUndefined();
   });
 
   it('string "42" → Transform → number 42 + Min(0) passes', async () => {
-    const r = await deserialize(ScoreDto, { score: '42' }) as ScoreDto;
+    const r = (await deserialize(ScoreDto, { score: '42' })) as ScoreDto;
     expect(r.score).toBe(42);
   });
 
@@ -95,12 +107,12 @@ describe('@IsDefined + @IsNullable combination', () => {
   }
 
   it('valid string passes', async () => {
-    const r = await deserialize(RequiredNullableDto, { value: 'hello' }) as RequiredNullableDto;
+    const r = (await deserialize(RequiredNullableDto, { value: 'hello' })) as RequiredNullableDto;
     expect(r.value).toBe('hello');
   });
 
   it('null passes (@IsNullable)', async () => {
-    const r = await deserialize(RequiredNullableDto, { value: null }) as RequiredNullableDto;
+    const r = (await deserialize(RequiredNullableDto, { value: null })) as RequiredNullableDto;
     expect(r.value).toBeNull();
   });
 
@@ -113,17 +125,23 @@ describe('@IsDefined + @IsNullable combination', () => {
 // ─── 4. @Transform + @IsEnum ───────────────────────────────────────────────
 
 describe('@Transform + @IsEnum combination', () => {
-  enum Status { Active = 'active', Inactive = 'inactive' }
+  enum Status {
+    Active = 'active',
+    Inactive = 'inactive',
+  }
 
   class StatusDto {
     @Field(isEnum(Status), {
-      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toLowerCase() : value, serialize: ({ value }) => value },
+      transform: {
+        deserialize: ({ value }) => (typeof value === 'string' ? value.toLowerCase() : value),
+        serialize: ({ value }) => value,
+      },
     })
     status!: Status;
   }
 
   it('"ACTIVE" → lowercase Transform → "active" → enum passes', async () => {
-    const r = await deserialize(StatusDto, { status: 'ACTIVE' }) as StatusDto;
+    const r = (await deserialize(StatusDto, { status: 'ACTIVE' })) as StatusDto;
     expect(r.status as string).toBe('active');
   });
 
@@ -146,7 +164,7 @@ describe('@ValidateIf + @IsNumber combination', () => {
   }
 
   it('hasDiscount=true + valid discount passes', async () => {
-    const r = await deserialize(ConditionalDto, { hasDiscount: true, discountPercent: 15 }) as ConditionalDto;
+    const r = (await deserialize(ConditionalDto, { hasDiscount: true, discountPercent: 15 })) as ConditionalDto;
     expect(r.discountPercent).toBe(15);
   });
 
@@ -156,13 +174,13 @@ describe('@ValidateIf + @IsNumber combination', () => {
   });
 
   it('hasDiscount=false + invalid discount skipped', async () => {
-    const r = await deserialize(ConditionalDto, { hasDiscount: false, discountPercent: 'bad' }) as ConditionalDto;
+    const r = (await deserialize(ConditionalDto, { hasDiscount: false, discountPercent: 'bad' })) as ConditionalDto;
     // discountPercent validation skipped
     expect(r.hasDiscount).toBe(false);
   });
 
   it('hasDiscount=false + discount missing skipped', async () => {
-    const r = await deserialize(ConditionalDto, { hasDiscount: false }) as ConditionalDto;
+    const r = (await deserialize(ConditionalDto, { hasDiscount: false })) as ConditionalDto;
     expect(r.hasDiscount).toBe(false);
   });
 });
@@ -184,7 +202,7 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () 
   }
 
   it('deserialize excludes secret', async () => {
-    const r = await deserialize(MixedDto, { name: 'test', secret: 'hidden' }) as MixedDto;
+    const r = (await deserialize(MixedDto, { name: 'test', secret: 'hidden' })) as MixedDto;
     expect(r.name).toBe('test');
     // Exclude deserializeOnly → secret ignored during deserialize
     expect(r.secret).toBeUndefined();
@@ -209,15 +227,15 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
   }
 
   it('tags missing → Optional passes', async () => {
-    const r = await deserialize(ArticleDto, { title: 'Hello' }) as ArticleDto;
+    const r = (await deserialize(ArticleDto, { title: 'Hello' })) as ArticleDto;
     expect(r.tags).toBeUndefined();
   });
 
   it('valid tags array passes', async () => {
-    const r = await deserialize(ArticleDto, {
+    const r = (await deserialize(ArticleDto, {
       title: 'Hello',
       tags: [{ label: 'news' }, { label: 'tech' }],
-    }) as ArticleDto;
+    })) as ArticleDto;
     expect(r.tags).toHaveLength(2);
     expect(r.tags![0]!.label).toBe('news');
   });
@@ -242,18 +260,21 @@ describe('@Expose + @Transform + @IsString + @MinLength deep stack', () => {
   class DeepStackDto {
     @Field(isString, minLength(2), {
       name: 'raw_input',
-      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value, serialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value },
+      transform: {
+        deserialize: ({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+        serialize: ({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+      },
     })
     processedInput!: string;
   }
 
   it('raw_input → trim+lowercase → MinLength passes', async () => {
-    const r = await deserialize(DeepStackDto, { raw_input: '  HELLO  ' }) as DeepStackDto;
+    const r = (await deserialize(DeepStackDto, { raw_input: '  HELLO  ' })) as DeepStackDto;
     expect(r.processedInput).toBe('hello');
   });
 
   it('serialize uses Expose name', async () => {
-    const r = await deserialize(DeepStackDto, { raw_input: 'TEST' }) as DeepStackDto;
+    const r = (await deserialize(DeepStackDto, { raw_input: 'TEST' })) as DeepStackDto;
     const plain = await serialize(r);
     expect(plain).toHaveProperty('raw_input');
   });
@@ -272,18 +293,21 @@ describe('@ValidateIf + @Transform interaction', () => {
 
     @Field(isString, {
       when: (obj: any) => obj.enabled === true,
-      transform: { deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value, serialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value },
+      transform: {
+        deserialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
+        serialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
+      },
     })
     data!: string;
   }
 
   it('enabled=true → Transform executed + validated', async () => {
-    const r = await deserialize(CondTransformDto, { enabled: true, data: 'hello' }) as CondTransformDto;
+    const r = (await deserialize(CondTransformDto, { enabled: true, data: 'hello' })) as CondTransformDto;
     expect(r.data).toBe('HELLO');
   });
 
   it('enabled=false → validation skipped (Transform may apply but validation does not)', async () => {
-    const r = await deserialize(CondTransformDto, { enabled: false, data: 123 }) as CondTransformDto;
+    const r = (await deserialize(CondTransformDto, { enabled: false, data: 123 })) as CondTransformDto;
     // ValidateIf false → validation skipped so it passes
     expect(r.enabled).toBe(false);
   });
@@ -318,7 +342,7 @@ describe('E-21: 4-level inheritance + mid-level override', () => {
   });
 
   it('GrandGrandChild passes with valid value', async () => {
-    const r = await deserialize(GrandGrandChild, { name: 'alice' }) as GrandGrandChild;
+    const r = (await deserialize(GrandGrandChild, { name: 'alice' })) as GrandGrandChild;
     expect(r.name).toBe('alice');
   });
 

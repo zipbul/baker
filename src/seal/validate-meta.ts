@@ -1,6 +1,7 @@
-import { RAW } from '../symbols';
-import { SealError } from '../errors';
 import type { RawClassMeta } from '../types';
+
+import { SealError } from '../errors';
+import { RAW } from '../symbols';
 
 /**
  * @internal — seal-time invariant checks invoked from sealOne after merge + type normalization,
@@ -21,22 +22,16 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
     if (meta.type?.discriminator) {
       const disc = meta.type.discriminator;
       if (typeof disc.property !== 'string' || disc.property.length === 0) {
-        throw new SealError(
-          `${className}.${key}: discriminator.property must be a non-empty string.`,
-        );
+        throw new SealError(`${className}.${key}: discriminator.property must be a non-empty string.`);
       }
       if (!Array.isArray(disc.subTypes) || disc.subTypes.length === 0) {
-        throw new SealError(
-          `${className}.${key}: discriminator.subTypes must be a non-empty array of { value, name } entries.`,
-        );
+        throw new SealError(`${className}.${key}: discriminator.subTypes must be a non-empty array of { value, name } entries.`);
       }
       const seenNames = new Set<string>();
       for (let i = 0; i < disc.subTypes.length; i++) {
         const sub = disc.subTypes[i]!;
         if (typeof sub.name !== 'string' || sub.name.length === 0) {
-          throw new SealError(
-            `${className}.${key}: discriminator.subTypes[${i}].name must be a non-empty string.`,
-          );
+          throw new SealError(`${className}.${key}: discriminator.subTypes[${i}].name must be a non-empty string.`);
         }
         if (typeof sub.value !== 'function') {
           throw new SealError(
@@ -63,9 +58,7 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
       if (meta.type.resolvedCollectionValue) {
         const target = meta.type.resolvedCollectionValue;
         if (!Object.hasOwn(target as object, RAW)) {
-          throw new SealError(
-            `${className}.${key}: setValue target (${target.name}) has no @Field decorators.`,
-          );
+          throw new SealError(`${className}.${key}: setValue target (${target.name}) has no @Field decorators.`);
         }
       }
     }
@@ -73,9 +66,7 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
       if (meta.type.resolvedCollectionValue) {
         const target = meta.type.resolvedCollectionValue;
         if (!Object.hasOwn(target as object, RAW)) {
-          throw new SealError(
-            `${className}.${key}: mapValue target (${target.name}) has no @Field decorators.`,
-          );
+          throw new SealError(`${className}.${key}: mapValue target (${target.name}) has no @Field decorators.`);
         }
       }
     }

@@ -1,12 +1,19 @@
-import { SealError } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
+
+import { SealError } from '../errors';
 
 const CALL_OPTION_KEYS = new Set<string>(['groups']);
 const SEAL_TIME_KEYS = new Set<string>([
   // BakerConfig (public, configure-time)
-  'autoConvert', 'allowClassDefaults', 'stopAtFirstError', 'forbidUnknown', 'debug',
+  'autoConvert',
+  'allowClassDefaults',
+  'stopAtFirstError',
+  'forbidUnknown',
+  'debug',
   // SealOptions (internal, legacy aliases — same set covered by public names)
-  'enableImplicitConversion', 'exposeDefaultValues', 'whitelist',
+  'enableImplicitConversion',
+  'exposeDefaultValues',
+  'whitelist',
 ]);
 
 /**
@@ -16,11 +23,9 @@ const SEAL_TIME_KEYS = new Set<string>([
  *   - any other key → "unknown call option"
  */
 export function _checkCallOptions(opts: unknown): RuntimeOptions | undefined {
-  if (opts === undefined || opts === null) return undefined;
+  if (opts === undefined || opts === null) {return undefined;}
   if (typeof opts !== 'object' || Array.isArray(opts)) {
-    throw new SealError(
-      `Call options must be a plain object. Received: ${Array.isArray(opts) ? 'array' : typeof opts}.`,
-    );
+    throw new SealError(`Call options must be a plain object. Received: ${Array.isArray(opts) ? 'array' : typeof opts}.`);
   }
   // Strict same-realm plain-object check.
   // Accept: `{}` (proto === Object.prototype) and `Object.create(null)` (proto === null).
@@ -30,22 +35,20 @@ export function _checkCallOptions(opts: unknown): RuntimeOptions | undefined {
   const proto = Object.getPrototypeOf(opts);
   if (proto !== null && proto !== Object.prototype) {
     const ctorName = (opts as { constructor?: { name?: string } }).constructor?.name ?? 'unknown';
-    throw new SealError(
-      `Call options must be a plain object literal. Received instance of ${ctorName}.`,
-    );
+    throw new SealError(`Call options must be a plain object literal. Received instance of ${ctorName}.`);
   }
   for (const key of Object.keys(opts)) {
-    if (CALL_OPTION_KEYS.has(key)) continue;
+    if (CALL_OPTION_KEYS.has(key)) {continue;}
     if (SEAL_TIME_KEYS.has(key)) {
       throw new SealError(
         `Option '${key}' is a seal-time setting and cannot be passed per-call. ` +
-        `Move it to configure({ ${key}: ... }) at app startup. ` +
-        `Per-call options: ${[...CALL_OPTION_KEYS].join(', ')}.`,
+          `Move it to configure({ ${key}: ... }) at app startup. ` +
+          `Per-call options: ${[...CALL_OPTION_KEYS].join(', ')}.`,
       );
     }
     throw new SealError(
       `Unknown per-call option '${key}'. Valid per-call options: ${[...CALL_OPTION_KEYS].join(', ')}. ` +
-      `Seal-time options go to configure({...}).`,
+        `Seal-time options go to configure({...}).`,
     );
   }
   return opts as RuntimeOptions;

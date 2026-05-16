@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
-import { unseal, purgePoisonClasses } from './helpers/unseal';
 import { SEALED, RAW } from '../../src/symbols';
+import { unseal, purgePoisonClasses } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ class AsyncTransformDeserializeDto {
 
 const asyncRule = createRule({
   name: 'asyncCustom',
-  validate: async (v) => typeof v === 'string',
+  validate: async v => typeof v === 'string',
 });
 
 class AsyncRuleDto {
@@ -204,11 +205,11 @@ describe('E-25: concurrent deserialize on pre-sealed classes', () => {
   }
 
   it('3 DTO classes deserialized concurrently via Promise.all → all succeed', async () => {
-    const [a, b, c] = await Promise.all([
+    const [a, b, c] = (await Promise.all([
       deserialize<ConcurrentA>(ConcurrentA, { a: 'hello' }),
       deserialize<ConcurrentB>(ConcurrentB, { b: 42 }),
       deserialize<ConcurrentC>(ConcurrentC, { c: 'world', d: 99 }),
-    ]) as [ConcurrentA, ConcurrentB, ConcurrentC];
+    ])) as [ConcurrentA, ConcurrentB, ConcurrentC];
     expect(a).toBeInstanceOf(ConcurrentA);
     expect(a.a).toBe('hello');
     expect(b).toBeInstanceOf(ConcurrentB);
@@ -252,7 +253,7 @@ describe('configure() — post-seal misuse', () => {
 
 describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
   it('should apply new forbidUnknown config after unseal + reconfigure', async () => {
-    const r1 = await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' }) as any;
+    const r1 = (await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' })) as any;
     expect(r1.name).toBe('Alice');
 
     unseal();
@@ -278,7 +279,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     configure({});
     seal();
 
-    const result = await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' }) as any;
+    const result = (await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' })) as any;
     expect(result.name).toBe('Bob');
   });
 });
@@ -288,11 +289,19 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('seal() — transactional failure cleanup', () => {
-  afterEach(() => { purgePoisonClasses(); unseal(); });
+  afterEach(() => {
+    purgePoisonClasses();
+    unseal();
+  });
 
   it('nested setValue thunk thrown during analyzeCircular wraps in SealError', () => {
     class NestedBad {
-      @Field({ type: () => Set as any, setValue: () => { throw new Error('nested-boom'); } })
+      @Field({
+        type: () => Set as any,
+        setValue: () => {
+          throw new Error('nested-boom');
+        },
+      })
       items!: Set<unknown>;
     }
     class ParentRef {
@@ -319,7 +328,11 @@ describe('seal() — transactional failure cleanup', () => {
 
   it('seal(Class) with throwing @Type thunk leaves no SEALED placeholder', () => {
     class BadType {
-      @Field({ type: () => { throw new Error('boom'); } })
+      @Field({
+        type: () => {
+          throw new Error('boom');
+        },
+      })
       v!: unknown;
     }
     expect(() => seal(BadType)).toThrow('boom');
@@ -328,7 +341,12 @@ describe('seal() — transactional failure cleanup', () => {
 
   it('seal(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
     class BadColl {
-      @Field({ type: () => Set as any, setValue: () => { throw new Error('coll-boom'); } })
+      @Field({
+        type: () => Set as any,
+        setValue: () => {
+          throw new Error('coll-boom');
+        },
+      })
       items!: Set<unknown>;
     }
     expect(() => seal(BadColl)).toThrow(/collectionValue function threw: coll-boom/);
@@ -340,7 +358,11 @@ describe('seal() — transactional failure cleanup', () => {
       @Field(isEmail(), min(5)) v!: unknown;
     }
     let caught: unknown;
-    try { seal(ConflictReq); } catch (e) { caught = e; }
+    try {
+      seal(ConflictReq);
+    } catch (e) {
+      caught = e;
+    }
     expect(caught).toBeInstanceOf(SealError);
     expect((ConflictReq as any)[SEALED]).toBeUndefined();
   });

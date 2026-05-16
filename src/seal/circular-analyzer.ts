@@ -1,6 +1,7 @@
-import { RAW } from '../symbols';
-import { SealError } from '../errors';
 import type { RawClassMeta } from '../types'; // used in walk() cast
+
+import { SealError } from '../errors';
+import { RAW } from '../symbols';
 
 /**
  * Static analysis for circular references (§4.6)
@@ -10,14 +11,12 @@ import type { RawClassMeta } from '../types'; // used in walk() cast
  * Flat DTO without cycles → false (zero WeakSet overhead)
  * DTO with cycles → true (WeakSet automatically inserted)
  */
-export function analyzeCircular(
-  Class: Function,
-): boolean {
+export function analyzeCircular(Class: Function): boolean {
   // @Type reference graph DFS — detect back-edges via visited set
   const visited = new Set<Function>();
 
   function walk(cls: Function): boolean {
-    if (visited.has(cls)) return true; // back-edge → cycle detected
+    if (visited.has(cls)) {return true;} // back-edge → cycle detected
 
     visited.add(cls);
 
@@ -33,12 +32,12 @@ export function analyzeCircular(
             throw new SealError(`${cls.name}: type function threw: ${(e as Error).message}`);
           }
           const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
-          if (walk(nested as Function)) return true;
+          if (walk(nested as Function)) {return true;}
         }
         // discriminator subTypes
         if (meta.type?.discriminator) {
           for (const sub of meta.type.discriminator.subTypes) {
-            if (walk(sub.value)) return true;
+            if (walk(sub.value)) {return true;}
           }
         }
         // W1 (F-1): collectionValue thunk (Set/Map nested DTO) — invoke and walk
@@ -49,7 +48,7 @@ export function analyzeCircular(
           } catch (e) {
             throw new SealError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`);
           }
-          if (typeof resolved === 'function' && walk(resolved as Function)) return true;
+          if (typeof resolved === 'function' && walk(resolved as Function)) {return true;}
         }
       }
     }

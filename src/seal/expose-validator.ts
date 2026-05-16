@@ -1,5 +1,6 @@
-import { SealError } from '../errors';
 import type { RawClassMeta, ExposeDef } from '../types';
+
+import { SealError } from '../errors';
 
 /**
  * Static validation of @Expose stacks (§4.1, §3.3)
@@ -59,7 +60,7 @@ function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: st
  * - one empty + one non-empty → no overlap (different filter scopes)
  */
 function _groupsOverlap(a: string[], b: string[]): boolean {
-  if (a.length === 0 && b.length === 0) return true;
-  if (a.length === 0 || b.length === 0) return false;
+  if (a.length === 0 && b.length === 0) {return true;}
+  if (a.length === 0 || b.length === 0) {return false;}
   return a.some(g => b.includes(g));
 }

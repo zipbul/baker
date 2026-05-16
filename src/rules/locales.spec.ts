@@ -1,11 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  isMobilePhone,
-  isPostalCode,
-  isIdentityCard,
-  isPassportNumber,
-} from './locales';
+
+import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);

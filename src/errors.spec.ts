@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'bun:test';
+
+import type { BakerError } from './errors';
+
 import { isBakerError, BAKER_ERROR, SealError, _toBakerErrors } from './errors';
-import type { BakerError} from './errors';
 
 describe('isBakerError', () => {
   it('should return true for object with BAKER_ERROR symbol', () => {
@@ -47,7 +49,9 @@ describe('isBakerError', () => {
   });
 
   it('should return false for class instance without BAKER_ERROR', () => {
-    class Foo { errors = []; }
+    class Foo {
+      errors = [];
+    }
     expect(isBakerError(new Foo())).toBe(false);
   });
 

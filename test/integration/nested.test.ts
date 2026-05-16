@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, serialize, Field, isBakerError, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -24,15 +25,18 @@ class UserWithAddressDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => unseal());
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => {
+  unseal();
+  configure({});
+});
 
 describe('nested — integration', () => {
   it('should deserialize nested DTO with valid input', async () => {
     seal();
-    const result = await deserialize<UserWithAddressDto>(UserWithAddressDto, {
+    const result = (await deserialize<UserWithAddressDto>(UserWithAddressDto, {
       name: 'Alice',
       address: { street: '123 Main St', city: 'Springfield' },
-    }) as UserWithAddressDto;
+    })) as UserWithAddressDto;
     expect(result).toBeInstanceOf(UserWithAddressDto);
     expect(result.address).toBeInstanceOf(AddressDto);
     expect(result.address.street).toBe('123 Main St');
@@ -82,9 +86,9 @@ describe('nested — integration', () => {
     }
     configure({ stopAtFirstError: true });
     seal();
-    const result = await deserialize<OrderDto>(OrderDto, {
+    const result = (await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
-    }) as OrderDto;
+    })) as OrderDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.name).toBe('A');
@@ -141,7 +145,7 @@ describe('nested — integration', () => {
     }
     configure({ stopAtFirstError: true });
     seal();
-    const result = await deserialize<OrderDto>(OrderDto, { items: [] }) as OrderDto;
+    const result = (await deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
 
@@ -172,9 +176,9 @@ describe('nested — integration', () => {
       content!: TextContent | ImageContent;
     }
     seal(NotificationDto);
-    const result = await deserialize<NotificationDto>(NotificationDto, {
+    const result = (await deserialize<NotificationDto>(NotificationDto, {
       content: { type: 'text', body: 'hello' },
-    }) as NotificationDto;
+    })) as NotificationDto;
     expect(result.content).toBeInstanceOf(TextContent);
     expect((result.content as TextContent).body).toBe('hello');
     expect((result.content as any).type).toBe('text');
@@ -191,17 +195,15 @@ describe('nested — integration', () => {
         type: () => TextContent2,
         discriminator: {
           property: 'type',
-          subTypes: [
-            { value: TextContent2, name: 'text' },
-          ],
+          subTypes: [{ value: TextContent2, name: 'text' }],
         },
       })
       content!: TextContent2;
     }
     seal(NotificationDto2);
-    const result = await deserialize<NotificationDto2>(NotificationDto2, {
+    const result = (await deserialize<NotificationDto2>(NotificationDto2, {
       content: { type: 'text', body: 'world' },
-    }) as NotificationDto2;
+    })) as NotificationDto2;
     expect(result.content).toBeInstanceOf(TextContent2);
     expect((result.content as any).type).toBeUndefined();
   });
@@ -217,9 +219,7 @@ describe('nested — integration', () => {
         type: () => TextContent3,
         discriminator: {
           property: 'type',
-          subTypes: [
-            { value: TextContent3, name: 'text' },
-          ],
+          subTypes: [{ value: TextContent3, name: 'text' }],
         },
         keepDiscriminatorProperty: true,
       })

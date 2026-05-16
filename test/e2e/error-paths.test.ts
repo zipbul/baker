@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, arrayOf, deserialize, isBakerError, seal } from '../../index';
-import { isString, isNumber, isInt, min, arrayMinSize} from '../../src/rules/index';
+import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -9,7 +10,7 @@ afterEach(() => unseal());
 /** Helper: extracts errors array from BakerErrors */
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) throw new Error('expected validation failure');
+  if (!isBakerError(result)) {throw new Error('expected validation failure');}
   return [...result.errors];
 }
 
@@ -73,9 +74,15 @@ describe('nested object error paths', () => {
 // ─── deep nesting (3 levels) ────────────────────────────────────────────────
 
 describe('deep nesting error paths (3 levels)', () => {
-  class Zip { @Field(isString) code!: string; }
-  class City { @Field({ type: () => Zip }) zip!: Zip; }
-  class Company { @Field({ type: () => City }) city!: City; }
+  class Zip {
+    @Field(isString) code!: string;
+  }
+  class City {
+    @Field({ type: () => Zip }) zip!: Zip;
+  }
+  class Company {
+    @Field({ type: () => City }) city!: City;
+  }
 
   it('path = "city.zip.code"', async () => {
     const errors = await getErrors(Company, { city: { zip: { code: 999 } } });
@@ -170,7 +177,9 @@ describe('multiple errors per field (collectErrors mode)', () => {
 // ─── error paths — BakerErrors ──────────────────────────────────────────────
 
 describe('BakerErrors from deserialize', () => {
-  class UserProfile { @Field(isString) name!: string; }
+  class UserProfile {
+    @Field(isString) name!: string;
+  }
 
   it('errors array accessible via isBakerError', async () => {
     const result = await deserialize(UserProfile, { name: 123 });

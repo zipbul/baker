@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { validate, isBakerError, Field, configure, seal } from '../../index';
 import { isString, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -43,10 +44,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
     seal();
     const input = {
       value: 'root',
-      children: [
-        { value: 'a', children: [{ value: 'a1' }] },
-        { value: 'b' },
-      ],
+      children: [{ value: 'a', children: [{ value: 'a1' }] }, { value: 'b' }],
     };
     expect(await validate(SetNode, input)).toBe(true);
   });
@@ -75,10 +73,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       children: [
         {
           value: 'a',
-          children: [
-            { value: 'ok' },
-            { value: '', children: [{ value: 'deep' }] },
-          ],
+          children: [{ value: 'ok' }, { value: '', children: [{ value: 'deep' }] }],
         },
       ],
     };
@@ -95,9 +90,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
     seal();
     const input = {
       value: 'root',
-      children: [
-        { value: 'a', children: ['not-an-object' as unknown as SetNode] },
-      ],
+      children: [{ value: 'a', children: ['not-an-object' as unknown as SetNode] }],
     };
     const result = await validate(SetNode, input);
     expect(isBakerError(result)).toBe(true);
@@ -195,9 +188,7 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
     seal();
     const input = {
       value: 'root',
-      children: [
-        { value: 'a', children: [{ value: '' }, { value: '' }] },
-      ],
+      children: [{ value: 'a', children: [{ value: '' }, { value: '' }] }],
     };
     const result = await validate(SetNode, input);
     expect(isBakerError(result)).toBe(true);

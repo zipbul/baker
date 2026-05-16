@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import { minDate, maxDate } from './date';
 
 function makeCtx(refIndex: number = 0) {

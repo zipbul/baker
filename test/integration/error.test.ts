@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, configure, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -30,7 +31,10 @@ class MultiFieldErrorDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => unseal());
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => {
+  unseal();
+  configure({});
+});
 
 describe('error — integration', () => {
   it('should return BakerErrors on invalid input', async () => {

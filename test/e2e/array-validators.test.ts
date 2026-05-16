@@ -1,6 +1,16 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
-import { isArray, isString, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains, arrayNotContains } from '../../src/rules/index';
+import {
+  isArray,
+  isString,
+  arrayMinSize,
+  arrayMaxSize,
+  arrayUnique,
+  arrayNotEmpty,
+  arrayContains,
+  arrayNotContains,
+} from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -31,7 +41,7 @@ class NotContainsDto {
 
 describe('@ArrayMinSize', () => {
   it('size at or above minimum passes', async () => {
-    const r = await deserialize(MinSizeDto, { items: [1, 2, 3] }) as MinSizeDto;
+    const r = (await deserialize(MinSizeDto, { items: [1, 2, 3] })) as MinSizeDto;
     expect(r.items).toHaveLength(3);
   });
   it('size below minimum rejected', async () => {
@@ -44,7 +54,7 @@ describe('@ArrayMinSize', () => {
 
 describe('@ArrayMaxSize', () => {
   it('size at or below maximum passes', async () => {
-    const r = await deserialize(MaxSizeDto, { items: [1, 2] }) as MaxSizeDto;
+    const r = (await deserialize(MaxSizeDto, { items: [1, 2] })) as MaxSizeDto;
     expect(r.items).toHaveLength(2);
   });
   it('size above maximum rejected', async () => {
@@ -57,7 +67,7 @@ describe('@ArrayMaxSize', () => {
 
 describe('@ArrayUnique', () => {
   it('unique elements pass', async () => {
-    const r = await deserialize(UniqueDto, { items: [1, 2, 3] }) as UniqueDto;
+    const r = (await deserialize(UniqueDto, { items: [1, 2, 3] })) as UniqueDto;
     expect(r.items).toEqual([1, 2, 3]);
   });
   it('duplicate elements rejected', async () => {
@@ -70,7 +80,7 @@ describe('@ArrayUnique', () => {
 
 describe('@ArrayNotEmpty', () => {
   it('non-empty array passes', async () => {
-    const r = await deserialize(NotEmptyDto, { items: [1] }) as NotEmptyDto;
+    const r = (await deserialize(NotEmptyDto, { items: [1] })) as NotEmptyDto;
     expect(r.items).toHaveLength(1);
   });
   it('empty array rejected', async () => {
@@ -83,14 +93,14 @@ describe('@ArrayNotEmpty', () => {
 
 describe('@ArrayContains', () => {
   it('contains required elements passes', async () => {
-    const r = await deserialize(ContainsDto, { items: ['a', 'b', 'c'] }) as ContainsDto;
+    const r = (await deserialize(ContainsDto, { items: ['a', 'b', 'c'] })) as ContainsDto;
     expect(r.items).toEqual(['a', 'b', 'c']);
   });
   it('missing required elements rejected', async () => {
     expect(isBakerError(await deserialize(ContainsDto, { items: ['a', 'c'] }))).toBe(true);
   });
   it('exactly the required elements passes', async () => {
-    const r = await deserialize(ContainsDto, { items: ['a', 'b'] }) as ContainsDto;
+    const r = (await deserialize(ContainsDto, { items: ['a', 'b'] })) as ContainsDto;
     expect(r.items).toEqual(['a', 'b']);
   });
   it('non-array value rejected even when string search would match', async () => {
@@ -100,7 +110,7 @@ describe('@ArrayContains', () => {
 
 describe('@ArrayNotContains', () => {
   it('array without forbidden values passes', async () => {
-    const r = await deserialize(NotContainsDto, { items: ['a', 'b'] }) as NotContainsDto;
+    const r = (await deserialize(NotContainsDto, { items: ['a', 'b'] })) as NotContainsDto;
     expect(r.items).toEqual(['a', 'b']);
   });
   it('non-array value rejected even when string search would not match', async () => {
@@ -123,7 +133,7 @@ describe('Set collection + array-level rules', () => {
   }
 
   it('Set with arrayMinSize — valid', async () => {
-    const result = await deserialize(SetWithMinDto, { items: [{ name: 'a' }, { name: 'b' }] }) as SetWithMinDto;
+    const result = (await deserialize(SetWithMinDto, { items: [{ name: 'a' }, { name: 'b' }] })) as SetWithMinDto;
     expect(result.items).toBeInstanceOf(Set);
     expect(result.items.size).toBe(2);
   });

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, configure, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -39,7 +40,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
   it('only declared fields → passes', async () => {
     configure({ forbidUnknown: true });
     seal();
-    const result = await deserialize(ProfileDto, { name: 'Bob', age: 30 }) as ProfileDto;
+    const result = (await deserialize(ProfileDto, { name: 'Bob', age: 30 })) as ProfileDto;
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
   });
@@ -47,7 +48,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
   it('@Field({ name }) extractKey allowed', async () => {
     configure({ forbidUnknown: true });
     seal();
-    const result = await deserialize(ExposedDto, { user_name: 'Carol' }) as ExposedDto;
+    const result = (await deserialize(ExposedDto, { user_name: 'Carol' })) as ExposedDto;
     expect(result.name).toBe('Carol');
   });
 

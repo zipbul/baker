@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isNumber, isInt, isPositive, isNegative, isDivisibleBy } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -8,10 +9,18 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class PositiveDto { @Field(isPositive) val!: number; }
-class NegativeDto { @Field(isNegative) val!: number; }
-class DivisibleDto { @Field(isDivisibleBy(3)) val!: number; }
-class IntDto { @Field(isInt) val!: number; }
+class PositiveDto {
+  @Field(isPositive) val!: number;
+}
+class NegativeDto {
+  @Field(isNegative) val!: number;
+}
+class DivisibleDto {
+  @Field(isDivisibleBy(3)) val!: number;
+}
+class IntDto {
+  @Field(isInt) val!: number;
+}
 
 class NumberOptsDto {
   @Field(isNumber({ allowNaN: true }))
@@ -28,7 +37,7 @@ class NumberOptsDto {
 
 describe('isPositive', () => {
   it('positive number passes', async () => {
-    const r = await deserialize(PositiveDto, { val: 1 }) as PositiveDto;
+    const r = (await deserialize(PositiveDto, { val: 1 })) as PositiveDto;
     expect(r.val).toBe(1);
   });
   it('0 rejected (exclusive)', async () => {
@@ -41,7 +50,7 @@ describe('isPositive', () => {
 
 describe('isNegative', () => {
   it('negative number passes', async () => {
-    const r = await deserialize(NegativeDto, { val: -1 }) as NegativeDto;
+    const r = (await deserialize(NegativeDto, { val: -1 })) as NegativeDto;
     expect(r.val).toBe(-1);
   });
   it('0 rejected (exclusive)', async () => {
@@ -54,11 +63,11 @@ describe('isNegative', () => {
 
 describe('isDivisibleBy', () => {
   it('divisible value passes', async () => {
-    const r = await deserialize(DivisibleDto, { val: 9 }) as DivisibleDto;
+    const r = (await deserialize(DivisibleDto, { val: 9 })) as DivisibleDto;
     expect(r.val).toBe(9);
   });
   it('0 also passes (0 % 3 === 0)', async () => {
-    const r = await deserialize(DivisibleDto, { val: 0 }) as DivisibleDto;
+    const r = (await deserialize(DivisibleDto, { val: 0 })) as DivisibleDto;
     expect(r.val).toBe(0);
   });
   it('non-divisible value rejected', async () => {
@@ -68,30 +77,34 @@ describe('isDivisibleBy', () => {
 
 describe('isInt', () => {
   it('integer passes', async () => {
-    const r = await deserialize(IntDto, { val: 42 }) as IntDto;
+    const r = (await deserialize(IntDto, { val: 42 })) as IntDto;
     expect(r.val).toBe(42);
   });
   it('decimal rejected', async () => {
     expect(isBakerError(await deserialize(IntDto, { val: 3.14 }))).toBe(true);
   });
   it('negative integer passes', async () => {
-    const r = await deserialize(IntDto, { val: -10 }) as IntDto;
+    const r = (await deserialize(IntDto, { val: -10 })) as IntDto;
     expect(r.val).toBe(-10);
   });
 });
 
 describe('isNumber options', () => {
   it('allowNaN: true → NaN passes', async () => {
-    const r = await deserialize(NumberOptsDto, {
-      nanOk: NaN, infOk: Infinity, precise: 1.23,
-    }) as NumberOptsDto;
+    const r = (await deserialize(NumberOptsDto, {
+      nanOk: NaN,
+      infOk: Infinity,
+      precise: 1.23,
+    })) as NumberOptsDto;
     expect(r.nanOk).toBeNaN();
   });
 
   it('allowInfinity: true → Infinity passes', async () => {
-    const r = await deserialize(NumberOptsDto, {
-      nanOk: NaN, infOk: Infinity, precise: 1.23,
-    }) as NumberOptsDto;
+    const r = (await deserialize(NumberOptsDto, {
+      nanOk: NaN,
+      infOk: Infinity,
+      precise: 1.23,
+    })) as NumberOptsDto;
     expect(r.infOk).toBe(Infinity);
   });
 
@@ -100,9 +113,11 @@ describe('isNumber options', () => {
   });
 
   it('within maxDecimalPlaces passes', async () => {
-    const r = await deserialize(NumberOptsDto, {
-      nanOk: NaN, infOk: Infinity, precise: 1.23,
-    }) as NumberOptsDto;
+    const r = (await deserialize(NumberOptsDto, {
+      nanOk: NaN,
+      infOk: Infinity,
+      precise: 1.23,
+    })) as NumberOptsDto;
     expect(r.precise).toBe(1.23);
   });
 });

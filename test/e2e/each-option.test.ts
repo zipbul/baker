@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, arrayOf, deserialize, configure, isBakerError, seal } from '../../index';
 import { isArray, isString, isNumber, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -28,7 +29,7 @@ class MinLenArrayDto {
 describe('each:true — type validation', () => {
   it('all elements string → passes', async () => {
     seal();
-    const r = await deserialize<StringArrayDto>(StringArrayDto, { tags: ['a', 'b', 'c'] }) as StringArrayDto;
+    const r = (await deserialize<StringArrayDto>(StringArrayDto, { tags: ['a', 'b', 'c'] })) as StringArrayDto;
     expect(r.tags).toEqual(['a', 'b', 'c']);
   });
 
@@ -39,7 +40,7 @@ describe('each:true — type validation', () => {
 
   it('empty array → passes (each is per-element, no elements to validate)', async () => {
     seal();
-    const r = await deserialize<StringArrayDto>(StringArrayDto, { tags: [] }) as StringArrayDto;
+    const r = (await deserialize<StringArrayDto>(StringArrayDto, { tags: [] })) as StringArrayDto;
     expect(r.tags).toEqual([]);
   });
 });
@@ -47,7 +48,7 @@ describe('each:true — type validation', () => {
 describe('each:true — constraint validation', () => {
   it('all elements pass Min', async () => {
     seal();
-    const r = await deserialize<NumberArrayDto>(NumberArrayDto, { scores: [0, 5, 10] }) as NumberArrayDto;
+    const r = (await deserialize<NumberArrayDto>(NumberArrayDto, { scores: [0, 5, 10] })) as NumberArrayDto;
     expect(r.scores).toEqual([0, 5, 10]);
   });
 
@@ -73,7 +74,7 @@ describe('each:true — error paths', () => {
 describe('each:true — array + element combined', () => {
   it('ArrayMinSize + each MinLength passes', async () => {
     seal();
-    const r = await deserialize<MinLenArrayDto>(MinLenArrayDto, { names: ['ab', 'cd'] }) as MinLenArrayDto;
+    const r = (await deserialize<MinLenArrayDto>(MinLenArrayDto, { names: ['ab', 'cd'] })) as MinLenArrayDto;
     expect(r.names).toEqual(['ab', 'cd']);
   });
 
@@ -120,7 +121,12 @@ describe('each:true — Map with stopAtFirstError', () => {
       items!: Map<string, string>;
     }
     seal(MapDto);
-    const result = await deserialize(MapDto, { items: new Map([['a', 99 as any], ['b', 'ok']]) });
+    const result = await deserialize(MapDto, {
+      items: new Map([
+        ['a', 99 as any],
+        ['b', 'ok'],
+      ]),
+    });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
       const err = result.errors.find(err => err.path.startsWith('items'));
@@ -155,7 +161,12 @@ describe('each:true — Map with collectErrors', () => {
       items!: Map<string, string>;
     }
     seal(MapCollectDto);
-    const result = await deserialize(MapCollectDto, { items: new Map([['a', 42 as any], ['b', 99 as any]]) });
+    const result = await deserialize(MapCollectDto, {
+      items: new Map([
+        ['a', 42 as any],
+        ['b', 99 as any],
+      ]),
+    });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
       const itemErrors = result.errors.filter(err => err.path.startsWith('items['));

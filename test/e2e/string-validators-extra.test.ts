@@ -1,8 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, seal } from '../../index';
 import {
-  isString, notContains, isLowercase, isUppercase, isBooleanString, isJSON,
-  arrayNotContains, isArray,
+  isString,
+  notContains,
+  isLowercase,
+  isUppercase,
+  isBooleanString,
+  isJSON,
+  arrayNotContains,
+  isArray,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -10,18 +17,30 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-class NotContainsDto { @Field(isString, notContains('bad')) val!: string; }
-class LowercaseDto { @Field(isLowercase) val!: string; }
-class UppercaseDto { @Field(isUppercase) val!: string; }
-class BoolStringDto { @Field(isBooleanString) val!: string; }
-class JsonDto { @Field(isJSON) val!: string; }
-class ArrNotContainsDto { @Field(isArray, arrayNotContains([99])) items!: number[]; }
+class NotContainsDto {
+  @Field(isString, notContains('bad')) val!: string;
+}
+class LowercaseDto {
+  @Field(isLowercase) val!: string;
+}
+class UppercaseDto {
+  @Field(isUppercase) val!: string;
+}
+class BoolStringDto {
+  @Field(isBooleanString) val!: string;
+}
+class JsonDto {
+  @Field(isJSON) val!: string;
+}
+class ArrNotContainsDto {
+  @Field(isArray, arrayNotContains([99])) items!: number[];
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('notContains', () => {
   it('string without substring passes', async () => {
-    const r = await deserialize(NotContainsDto, { val: 'good text' }) as NotContainsDto;
+    const r = (await deserialize(NotContainsDto, { val: 'good text' })) as NotContainsDto;
     expect(r.val).toBe('good text');
   });
   it('string containing substring rejected', async () => {
@@ -31,14 +50,14 @@ describe('notContains', () => {
 
 describe('isLowercase / isUppercase', () => {
   it('lowercase passes', async () => {
-    const r = await deserialize(LowercaseDto, { val: 'hello' }) as LowercaseDto;
+    const r = (await deserialize(LowercaseDto, { val: 'hello' })) as LowercaseDto;
     expect(r.val).toBe('hello');
   });
   it('contains uppercase rejected', async () => {
     expect(isBakerError(await deserialize(LowercaseDto, { val: 'Hello' }))).toBe(true);
   });
   it('uppercase passes', async () => {
-    const r = await deserialize(UppercaseDto, { val: 'HELLO' }) as UppercaseDto;
+    const r = (await deserialize(UppercaseDto, { val: 'HELLO' })) as UppercaseDto;
     expect(r.val).toBe('HELLO');
   });
   it('contains lowercase rejected', async () => {
@@ -48,11 +67,11 @@ describe('isLowercase / isUppercase', () => {
 
 describe('isBooleanString', () => {
   it('"true" passes', async () => {
-    const r = await deserialize(BoolStringDto, { val: 'true' }) as BoolStringDto;
+    const r = (await deserialize(BoolStringDto, { val: 'true' })) as BoolStringDto;
     expect(r.val).toBe('true');
   });
   it('"false" passes', async () => {
-    const r = await deserialize(BoolStringDto, { val: 'false' }) as BoolStringDto;
+    const r = (await deserialize(BoolStringDto, { val: 'false' })) as BoolStringDto;
     expect(r.val).toBe('false');
   });
   it('other string rejected', async () => {
@@ -62,7 +81,7 @@ describe('isBooleanString', () => {
 
 describe('isJSON', () => {
   it('valid JSON passes', async () => {
-    const r = await deserialize(JsonDto, { val: '{"a":1}' }) as JsonDto;
+    const r = (await deserialize(JsonDto, { val: '{"a":1}' })) as JsonDto;
     expect(r.val).toBe('{"a":1}');
   });
   it('invalid JSON rejected', async () => {
@@ -72,7 +91,7 @@ describe('isJSON', () => {
 
 describe('arrayNotContains', () => {
   it('without forbidden elements passes', async () => {
-    const r = await deserialize(ArrNotContainsDto, { items: [1, 2, 3] }) as ArrNotContainsDto;
+    const r = (await deserialize(ArrNotContainsDto, { items: [1, 2, 3] })) as ArrNotContainsDto;
     expect(r.items).toEqual([1, 2, 3]);
   });
   it('containing forbidden elements rejected', async () => {

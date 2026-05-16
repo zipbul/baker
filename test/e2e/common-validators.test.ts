@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty, isEnum } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -8,21 +9,39 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class EqualsDto { @Field(equals('yes')) answer!: string; }
-class NotEqualsDto { @Field(notEquals('no')) answer!: string; }
-class IsInDto { @Field(isIn(['a', 'b', 'c'])) choice!: string; }
-class IsNotInDto { @Field(isNotIn([1, 2, 3])) val!: number; }
-class IsEmptyDto { @Field(isEmpty) field!: unknown; }
-class IsNotEmptyDto { @Field(isNotEmpty) field!: unknown; }
+class EqualsDto {
+  @Field(equals('yes')) answer!: string;
+}
+class NotEqualsDto {
+  @Field(notEquals('no')) answer!: string;
+}
+class IsInDto {
+  @Field(isIn(['a', 'b', 'c'])) choice!: string;
+}
+class IsNotInDto {
+  @Field(isNotIn([1, 2, 3])) val!: number;
+}
+class IsEmptyDto {
+  @Field(isEmpty) field!: unknown;
+}
+class IsNotEmptyDto {
+  @Field(isNotEmpty) field!: unknown;
+}
 
-enum Color { Red = 'red', Green = 'green', Blue = 'blue' }
-class EnumDto { @Field(isEnum(Color)) color!: Color; }
+enum Color {
+  Red = 'red',
+  Green = 'green',
+  Blue = 'blue',
+}
+class EnumDto {
+  @Field(isEnum(Color)) color!: Color;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('@Equals', () => {
   it('match passes', async () => {
-    const r = await deserialize(EqualsDto, { answer: 'yes' }) as EqualsDto;
+    const r = (await deserialize(EqualsDto, { answer: 'yes' })) as EqualsDto;
     expect(r.answer).toBe('yes');
   });
   it('mismatch rejected', async () => {
@@ -32,7 +51,7 @@ describe('@Equals', () => {
 
 describe('@NotEquals', () => {
   it('mismatch passes', async () => {
-    const r = await deserialize(NotEqualsDto, { answer: 'yes' }) as NotEqualsDto;
+    const r = (await deserialize(NotEqualsDto, { answer: 'yes' })) as NotEqualsDto;
     expect(r.answer).toBe('yes');
   });
   it('match rejected', async () => {
@@ -42,7 +61,7 @@ describe('@NotEquals', () => {
 
 describe('@IsIn', () => {
   it('value in list passes', async () => {
-    const r = await deserialize(IsInDto, { choice: 'b' }) as IsInDto;
+    const r = (await deserialize(IsInDto, { choice: 'b' })) as IsInDto;
     expect(r.choice).toBe('b');
   });
   it('value not in list rejected', async () => {
@@ -52,7 +71,7 @@ describe('@IsIn', () => {
 
 describe('@IsNotIn', () => {
   it('value not in list passes', async () => {
-    const r = await deserialize(IsNotInDto, { val: 5 }) as IsNotInDto;
+    const r = (await deserialize(IsNotInDto, { val: 5 })) as IsNotInDto;
     expect(r.val).toBe(5);
   });
   it('value in list rejected', async () => {
@@ -62,7 +81,7 @@ describe('@IsNotIn', () => {
 
 describe('@IsEmpty', () => {
   it('empty string passes', async () => {
-    const r = await deserialize(IsEmptyDto, { field: '' }) as IsEmptyDto;
+    const r = (await deserialize(IsEmptyDto, { field: '' })) as IsEmptyDto;
     expect(r.field).toBe('');
   });
   it('non-empty value rejected', async () => {
@@ -72,7 +91,7 @@ describe('@IsEmpty', () => {
 
 describe('@IsNotEmpty', () => {
   it('non-empty value passes', async () => {
-    const r = await deserialize(IsNotEmptyDto, { field: 'hello' }) as IsNotEmptyDto;
+    const r = (await deserialize(IsNotEmptyDto, { field: 'hello' })) as IsNotEmptyDto;
     expect(r.field).toBe('hello');
   });
   it('empty string rejected', async () => {
@@ -82,11 +101,11 @@ describe('@IsNotEmpty', () => {
 
 describe('@IsEnum', () => {
   it('enum value passes', async () => {
-    const r = await deserialize(EnumDto, { color: 'red' }) as EnumDto;
+    const r = (await deserialize(EnumDto, { color: 'red' })) as EnumDto;
     expect(r.color).toBe(Color.Red);
   });
   it('another enum value passes', async () => {
-    const r = await deserialize(EnumDto, { color: 'blue' }) as EnumDto;
+    const r = (await deserialize(EnumDto, { color: 'blue' })) as EnumDto;
     expect(r.color).toBe(Color.Blue);
   });
   it('non-enum value rejected', async () => {

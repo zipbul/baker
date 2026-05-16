@@ -1,14 +1,16 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "ignore": [
-    "**/node_modules/**",
-    "**/dist/**",
-    "**/build/**",
-    "**/target/**",
-    "**/rust-packages/**",
-    "benchmarks/**",
-    ".husky/**",
-    ".lintstagedrc.json"
+  "entry": [
+    "index.ts!",
+    "src/decorators/index.ts!",
+    "src/rules/index.ts!",
+    "src/symbols.ts!",
+    "src/transformers/index.ts!",
+    "bench/*.bench.ts",
+    "scripts/*.ts"
   ],
-  "ignoreDependencies": ["@commitlint/cli", "mitata"]
+  "project": ["src/**/*.ts", "bench/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
+  "ignoreBinaries": ["tsc"],
+  "ignoreDependencies": ["@commitlint/types", "@types/moment", "luxon", "moment"],
+  "ignoreExportsUsedInFile": true
 }

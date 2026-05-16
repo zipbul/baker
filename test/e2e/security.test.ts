@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { deserialize, configure, isBakerError,
-  Field, seal } from '../../index';
+
+import { deserialize, configure, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -49,11 +49,13 @@ describe('prototype pollution defense (forbidUnknown)', () => {
 // ─── extra keys ignored without forbidUnknown ──────────────────────────────
 
 describe('extra keys ignored without forbidUnknown', () => {
-  class Dto { @Field(isString) name!: string; }
+  class Dto {
+    @Field(isString) name!: string;
+  }
 
   it('undeclared keys not included in result', async () => {
     seal();
-    const r = await deserialize<any>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} }) as any;
+    const r = (await deserialize<any>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} })) as any;
     expect(r.name).toBe('ok');
     expect(r.extra).toBeUndefined();
   });
@@ -66,18 +68,28 @@ describe('deeply nested objects stack safety', () => {
     @Field(isString) value!: string;
   }
 
-  class Level5 { @Field({ type: () => Leaf }) leaf!: Leaf; }
-  class Level4 { @Field({ type: () => Level5 }) child!: Level5; }
-  class Level3 { @Field({ type: () => Level4 }) child!: Level4; }
-  class Level2 { @Field({ type: () => Level3 }) child!: Level3; }
-  class Level1 { @Field({ type: () => Level2 }) child!: Level2; }
+  class Level5 {
+    @Field({ type: () => Leaf }) leaf!: Leaf;
+  }
+  class Level4 {
+    @Field({ type: () => Level5 }) child!: Level5;
+  }
+  class Level3 {
+    @Field({ type: () => Level4 }) child!: Level4;
+  }
+  class Level2 {
+    @Field({ type: () => Level3 }) child!: Level3;
+  }
+  class Level1 {
+    @Field({ type: () => Level2 }) child!: Level2;
+  }
 
   it('5 levels of nesting processed correctly', async () => {
     seal();
     const input = {
       child: { child: { child: { child: { leaf: { value: 'deep' } } } } },
     };
-    const r = await deserialize<Level1>(Level1, input) as Level1;
+    const r = (await deserialize<Level1>(Level1, input)) as Level1;
     expect(r.child.child.child.child.leaf.value).toBe('deep');
   });
 
@@ -110,7 +122,7 @@ describe('large array input handling', () => {
   it('1000 item array processed correctly', async () => {
     seal();
     const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
-    const r = await deserialize<ListDto>(ListDto, { items }) as ListDto;
+    const r = (await deserialize<ListDto>(ListDto, { items })) as ListDto;
     expect(r.items).toHaveLength(1000);
     expect(r.items[999]!.id).toBe(999);
   });
@@ -144,7 +156,7 @@ describe('E-26: frozen / null-prototype input', () => {
   it('Object.freeze() input → deserialize works', async () => {
     seal();
     const input = Object.freeze({ name: 'test', age: 25 });
-    const r = await deserialize<FrozenDto>(FrozenDto, input) as FrozenDto;
+    const r = (await deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
     expect(r.name).toBe('test');
     expect(r.age).toBe(25);
     expect(r).toBeInstanceOf(FrozenDto);
@@ -155,7 +167,7 @@ describe('E-26: frozen / null-prototype input', () => {
     const input = Object.create(null);
     Object.defineProperty(input, 'name', { value: 'test', enumerable: true });
     Object.defineProperty(input, 'age', { value: 25, enumerable: true });
-    const r = await deserialize<FrozenDto>(FrozenDto, input) as FrozenDto;
+    const r = (await deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
     expect(r.name).toBe('test');
     expect(r.age).toBe(25);
     expect(r).toBeInstanceOf(FrozenDto);
@@ -170,24 +182,26 @@ describe('E-26: frozen / null-prototype input', () => {
 });
 
 describe('special string value handling', () => {
-  class Dto { @Field(isString) v!: string; }
+  class Dto {
+    @Field(isString) v!: string;
+  }
 
   it('very long string (10K) passes', async () => {
     seal();
     const longStr = 'x'.repeat(10_000);
-    const r = await deserialize<any>(Dto, { v: longStr }) as any;
+    const r = (await deserialize<any>(Dto, { v: longStr })) as any;
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
     seal();
-    const r = await deserialize<any>(Dto, { v: '🎉🎊🎈' }) as any;
+    const r = (await deserialize<any>(Dto, { v: '🎉🎊🎈' })) as any;
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
     seal();
-    const r = await deserialize<any>(Dto, { v: 'hello\x00world' }) as any;
+    const r = (await deserialize<any>(Dto, { v: 'hello\x00world' })) as any;
     expect(r.v).toBe('hello\x00world');
   });
 });

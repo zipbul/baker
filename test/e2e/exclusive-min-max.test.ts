@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -27,16 +28,16 @@ describe('@Min/@Max exclusive', () => {
   });
 
   it('exclusive — just inside boundary passes', async () => {
-    const r1 = await deserialize(ExclusiveDto, { score: 0.001 }) as ExclusiveDto;
+    const r1 = (await deserialize(ExclusiveDto, { score: 0.001 })) as ExclusiveDto;
     expect(r1.score).toBe(0.001);
-    const r2 = await deserialize(ExclusiveDto, { score: 99.999 }) as ExclusiveDto;
+    const r2 = (await deserialize(ExclusiveDto, { score: 99.999 })) as ExclusiveDto;
     expect(r2.score).toBe(99.999);
   });
 
   it('inclusive — boundary values included', async () => {
-    const r1 = await deserialize(InclusiveDto, { value: 0 }) as InclusiveDto;
+    const r1 = (await deserialize(InclusiveDto, { value: 0 })) as InclusiveDto;
     expect(r1.value).toBe(0);
-    const r2 = await deserialize(InclusiveDto, { value: 100 }) as InclusiveDto;
+    const r2 = (await deserialize(InclusiveDto, { value: 100 })) as InclusiveDto;
     expect(r2.value).toBe(100);
   });
 
@@ -45,4 +46,3 @@ describe('@Min/@Max exclusive', () => {
     expect(isBakerError(await deserialize(InclusiveDto, { value: 101 }))).toBe(true);
   });
 });
-

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -35,29 +36,29 @@ describe('@IsDefined (implicit in new API)', () => {
   });
 
   it('valid value → passes', async () => {
-    const result = await deserialize<DefinedDto>(DefinedDto, { name: 'Alice' }) as DefinedDto;
+    const result = (await deserialize<DefinedDto>(DefinedDto, { name: 'Alice' })) as DefinedDto;
     expect(result.name).toBe('Alice');
   });
 
   it('empty string → passes isDefined, proceeds to isString validation', async () => {
-    const result = await deserialize<DefinedDto>(DefinedDto, { name: '' }) as DefinedDto;
+    const result = (await deserialize<DefinedDto>(DefinedDto, { name: '' })) as DefinedDto;
     expect(result.name).toBe('');
   });
 });
 
 describe('optional', () => {
   it('undefined → skip', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, {}) as OptionalDto;
+    const result = (await deserialize<OptionalDto>(OptionalDto, {})) as OptionalDto;
     expect(result.nickname).toBeUndefined();
   });
 
   it('null → skip', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: null }) as OptionalDto;
+    const result = (await deserialize<OptionalDto>(OptionalDto, { nickname: null })) as OptionalDto;
     expect(result.nickname).toBeUndefined();
   });
 
   it('valid value → validation passes', async () => {
-    const result = await deserialize<OptionalDto>(OptionalDto, { nickname: 'Bob' }) as OptionalDto;
+    const result = (await deserialize<OptionalDto>(OptionalDto, { nickname: 'Bob' })) as OptionalDto;
     expect(result.nickname).toBe('Bob');
   });
 });

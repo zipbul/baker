@@ -48,7 +48,7 @@ export function makePlannedRule(options: {
     validate: options.validate,
     emit: (varName, ctx) => emitRulePlan(varName, ctx, options.name, options.plan),
   };
-  if (options.constraints !== undefined) inner.constraints = options.constraints;
+  if (options.constraints !== undefined) {inner.constraints = options.constraints;}
   return makeRule(inner);
 }
 
@@ -64,10 +64,10 @@ export function makeRule(options: {
   const fn = ((value: unknown) => options.validate(value)) as InternalRule;
   (fn as any).emit = options.emit;
   (fn as any).ruleName = options.name;
-  if (options.requiresType !== undefined) (fn as any).requiresType = options.requiresType;
+  if (options.requiresType !== undefined) {(fn as any).requiresType = options.requiresType;}
   (fn as any).constraints = options.constraints ?? {};
-  if (options.isAsync) (fn as any).isAsync = true;
-  if (options.plan) (fn as any).plan = options.plan;
+  if (options.isAsync) {(fn as any).isAsync = true;}
+  if (options.plan) {(fn as any).plan = options.plan;}
   return fn;
 }
 
@@ -85,20 +85,20 @@ export function emitRulePlan(
 
 /** Strip `x !== x` / `getTime() !== getTime()` self-comparison guards — redundant inside type gate */
 function stripSelfComparison(check: RulePlanCheck): RulePlanCheck {
-  if (check.kind === 'compare') return check;
+  if (check.kind === 'compare') {return check;}
   const filtered = check.checks.filter(c => !isSelfComparison(c));
-  if (filtered.length === 0) return check; // safety: don't strip everything
-  if (filtered.length === 1) return filtered[0]!;
+  if (filtered.length === 0) {return check;} // safety: don't strip everything
+  if (filtered.length === 1) {return filtered[0]!;}
   return { kind: check.kind, checks: filtered };
 }
 
 function isSelfComparison(check: RulePlanCheck): boolean {
-  if (check.kind !== 'compare' || check.op !== '!==') return false;
+  if (check.kind !== 'compare' || check.op !== '!==') {return false;}
   return exprEqual(check.left, check.right);
 }
 
 function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
-  if (a.kind !== b.kind) return false;
+  if (a.kind !== b.kind) {return false;}
   switch (a.kind) {
     case 'value':
       return true;
@@ -111,11 +111,7 @@ function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
   }
 }
 
-function emitPlanCheck(
-  check: RulePlanCheck,
-  varName: string,
-  cache?: RulePlanCache,
-): string {
+function emitPlanCheck(check: RulePlanCheck, varName: string, cache?: RulePlanCache): string {
   if (check.kind === 'compare') {
     return `${emitPlanExpr(check.left, varName, cache)} ${check.op} ${emitPlanExpr(check.right, varName, cache)}`;
   }
@@ -123,11 +119,7 @@ function emitPlanCheck(
   return `(${check.checks.map(part => emitPlanCheck(part, varName, cache)).join(joiner)})`;
 }
 
-function emitPlanExpr(
-  expr: RulePlanExpr,
-  varName: string,
-  cache?: RulePlanCache,
-): string {
+function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache): string {
   switch (expr.kind) {
     case 'value':
       return varName;

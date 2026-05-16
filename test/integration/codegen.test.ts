@@ -1,9 +1,10 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { isErr } from '@zipbul/result';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, seal } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 import { SEALED } from '../../src/symbols';
+import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -24,7 +25,12 @@ class CodegenOptionalDto {
 }
 
 class CodegenTransformDto {
-  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value, serialize: ({ value }) => value } })
+  @Field(isString, {
+    transform: {
+      deserialize: ({ value }) => (typeof value === 'string' ? value.trim() : value),
+      serialize: ({ value }) => value,
+    },
+  })
   text!: string;
 }
 
@@ -71,17 +77,17 @@ describe('codegen — integration', () => {
   });
 
   it('optional field should not cause error when absent', async () => {
-    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' }) as CodegenOptionalDto;
+    const result = (await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('optional field deserialized value should have required field', async () => {
-    const result = await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' }) as CodegenOptionalDto;
+    const result = (await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('transform should be applied in generated deserialize code', async () => {
-    const result = await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' }) as CodegenTransformDto;
+    const result = (await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' })) as CodegenTransformDto;
     expect(result.text).toBe('trimmed');
   });
 });

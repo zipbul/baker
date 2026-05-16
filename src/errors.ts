@@ -49,8 +49,12 @@ export interface BakerErrors {
  * }
  */
 export function isBakerError(value: unknown): value is BakerErrors {
-  return value != null && typeof value === 'object' && !Array.isArray(value)
-    && (value as { [BAKER_ERROR]?: unknown })[BAKER_ERROR] === true;
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    !Array.isArray(value) &&
+    (value as { [BAKER_ERROR]?: unknown })[BAKER_ERROR] === true
+  );
 }
 
 /** @internal — create BakerErrors object */

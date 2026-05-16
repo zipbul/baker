@@ -1,11 +1,4 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Ctor — class constructor type used throughout the seal pipeline
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Any class constructor. Carries the `[RAW]` and `[SEALED]` symbol slots after seal. */
-export type Ctor = new (...args: never[]) => unknown;
-
-// ─────────────────────────────────────────────────────────────────────────────
 // EmitContext — Code generation context (§4.7)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -182,9 +175,10 @@ export interface RawClassMeta {
 // SealedExecutors — Dual executor stored in Class[SEALED] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { RuntimeOptions } from './interfaces';
-import type { BakerError } from './errors';
 import type { Result, ResultAsync } from '@zipbul/result';
+
+import type { BakerError } from './errors';
+import type { RuntimeOptions } from './interfaces';
 
 export interface SealedExecutors<T> {
   /** Internal executor — Result pattern. deserialize() wraps and converts to throw */

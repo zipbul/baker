@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -27,33 +28,45 @@ class DirectionDto {
 describe('@Expose/@Exclude direction — deserialize', () => {
   it('deserializeOnly @Expose name used for extraction', async () => {
     seal();
-    const result = await deserialize<DirectionDto>(DirectionDto, {
-      user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    }) as DirectionDto;
+    const result = (await deserialize<DirectionDto>(DirectionDto, {
+      user_name: 'Alice',
+      password: 'pw123',
+      token: 'tok',
+      internal: 'x',
+    })) as DirectionDto;
     expect(result.name).toBe('Alice');
   });
 
   it('serializeOnly @Exclude → included in deserialize', async () => {
     seal();
-    const result = await deserialize<DirectionDto>(DirectionDto, {
-      user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    }) as DirectionDto;
+    const result = (await deserialize<DirectionDto>(DirectionDto, {
+      user_name: 'Alice',
+      password: 'pw123',
+      token: 'tok',
+      internal: 'x',
+    })) as DirectionDto;
     expect(result.password).toBe('pw123');
   });
 
   it('deserializeOnly @Exclude → excluded from deserialize', async () => {
     seal();
-    const result = await deserialize<DirectionDto>(DirectionDto, {
-      user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    }) as DirectionDto;
+    const result = (await deserialize<DirectionDto>(DirectionDto, {
+      user_name: 'Alice',
+      password: 'pw123',
+      token: 'tok',
+      internal: 'x',
+    })) as DirectionDto;
     expect(result.token).toBeUndefined();
   });
 
   it('bidirectional @Exclude → excluded from deserialize', async () => {
     seal();
-    const result = await deserialize<DirectionDto>(DirectionDto, {
-      user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    }) as DirectionDto;
+    const result = (await deserialize<DirectionDto>(DirectionDto, {
+      user_name: 'Alice',
+      password: 'pw123',
+      token: 'tok',
+      internal: 'x',
+    })) as DirectionDto;
     expect(result.internal).toBeUndefined();
   });
 });
@@ -62,7 +75,10 @@ describe('@Expose/@Exclude direction — serialize', () => {
   it('serializeOnly @Expose name used for output', async () => {
     seal();
     const dto = Object.assign(new DirectionDto(), {
-      name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
+      name: 'Bob',
+      password: 'pw',
+      token: 'tok',
+      internal: 'x',
     });
     const result = await serialize(dto);
     expect(result['userName']).toBe('Bob');
@@ -72,7 +88,10 @@ describe('@Expose/@Exclude direction — serialize', () => {
   it('serializeOnly @Exclude → excluded from serialize', async () => {
     seal();
     const dto = Object.assign(new DirectionDto(), {
-      name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
+      name: 'Bob',
+      password: 'pw',
+      token: 'tok',
+      internal: 'x',
     });
     const result = await serialize(dto);
     expect(result['password']).toBeUndefined();
@@ -81,7 +100,10 @@ describe('@Expose/@Exclude direction — serialize', () => {
   it('bidirectional @Exclude → excluded from serialize', async () => {
     seal();
     const dto = Object.assign(new DirectionDto(), {
-      name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
+      name: 'Bob',
+      password: 'pw',
+      token: 'tok',
+      internal: 'x',
     });
     const result = await serialize(dto);
     expect(result['internal']).toBeUndefined();
@@ -97,9 +119,12 @@ describe('@Expose/@Exclude direction — debug mode', () => {
     unseal();
     configure({ debug: true });
     seal();
-    const result = await deserialize<DirectionDto>(DirectionDto, {
-      user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
-    }) as DirectionDto;
+    const result = (await deserialize<DirectionDto>(DirectionDto, {
+      user_name: 'Alice',
+      password: 'pw123',
+      token: 'tok',
+      internal: 'x',
+    })) as DirectionDto;
     // deserializeOnly exclude → token excluded
     expect(result.token).toBeUndefined();
     // bidirectional exclude → internal excluded
@@ -113,7 +138,10 @@ describe('@Expose/@Exclude direction — debug mode', () => {
     configure({ debug: true });
     seal();
     const dto = Object.assign(new DirectionDto(), {
-      name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
+      name: 'Bob',
+      password: 'pw',
+      token: 'tok',
+      internal: 'x',
     });
     const result = await serialize(dto);
     // serializeOnly exclude → password excluded
@@ -138,9 +166,10 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
     unseal();
     configure({ debug: true });
     seal();
-    const result = await deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
-      name: 'Alice', secret: 'hidden',
-    }) as SerializeOnlyExposeDto;
+    const result = (await deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
+      name: 'Alice',
+      secret: 'hidden',
+    })) as SerializeOnlyExposeDto;
     expect(result.name).toBe('Alice');
   });
 

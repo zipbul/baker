@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -20,10 +21,10 @@ class TreeNode {
 
 describe('circular reference detection', () => {
   it('normal tree structure → passes', async () => {
-    const result = await deserialize<TreeNode>(TreeNode, {
+    const result = (await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'leaf' },
-    }) as TreeNode;
+    })) as TreeNode;
     expect(result.value).toBe('root');
     expect(result.child).toBeInstanceOf(TreeNode);
     expect(result.child!.value).toBe('leaf');
@@ -42,10 +43,10 @@ describe('circular reference detection', () => {
   });
 
   it('auto mode (default) → auto-detects circular structure DTO', async () => {
-    const result = await deserialize<TreeNode>(TreeNode, {
+    const result = (await deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'child', child: { value: 'grandchild' } },
-    }) as TreeNode;
+    })) as TreeNode;
     expect(result.child!.child!.value).toBe('grandchild');
   });
 });

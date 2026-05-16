@@ -13,11 +13,11 @@ export const SIMPLE_VALID = {
 
 /** Scenario 1: simple flat object — all fields invalid */
 export const SIMPLE_INVALID = {
-  name: 'A',          // minLength(2) fail
+  name: 'A', // minLength(2) fail
   email: 'not-email', // isEmail fail
-  age: -5,            // min(0) fail
-  active: 'nope',     // isBoolean fail
-  tag: 123,           // isString fail
+  age: -5, // min(0) fail
+  active: 'nope', // isBoolean fail
+  tag: 123, // isString fail
 };
 
 /** Scenario 2: nested 3 levels — valid */
@@ -60,6 +60,14 @@ export const ARRAY_VALID = {
 
 /** Scenario 4: error collection — 10 fields, all invalid */
 export const ERROR_ALL_FAIL = {
-  f0: '', f1: '', f2: '', f3: '', f4: '',
-  f5: '', f6: '', f7: '', f8: '', f9: '',
+  f0: '',
+  f1: '',
+  f2: '',
+  f3: '',
+  f4: '',
+  f5: '',
+  f6: '',
+  f7: '',
+  f8: '',
+  f9: '',
 };

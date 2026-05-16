@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -6,7 +7,10 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
+async function tryDeserialize(
+  cls: new (...args: any[]) => any,
+  input: unknown,
+): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
   const result = await deserialize(cls, input);
   if (isBakerError(result)) {
     return { ok: false, codes: result.errors.map(x => x.code) };
@@ -33,7 +37,9 @@ async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown):
 // ─── A: @Field(isString) (no Optional, no Nullable) ──────────────────────
 
 describe('A: isString only', () => {
-  class Dto { @Field(isString) v!: string; }
+  class Dto {
+    @Field(isString) v!: string;
+  }
 
   it('undefined → rejected (default guard)', async () => {
     const r = await tryDeserialize(Dto, {});
@@ -48,13 +54,13 @@ describe('A: isString only', () => {
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('hello');
+    if (r.ok) {expect(r.value.v).toBe('hello');}
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('isString');
+    if (!r.ok) {expect(r.codes).toContain('isString');}
   });
 });
 
@@ -69,7 +75,7 @@ describe('B: optional + isString', () => {
   it('undefined → passes (Optional)', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBeUndefined();
+    if (r.ok) {expect(r.value.v).toBeUndefined();}
   });
 
   it('null → passes (Optional skips null/undefined)', async () => {
@@ -80,13 +86,13 @@ describe('B: optional + isString', () => {
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('hello');
+    if (r.ok) {expect(r.value.v).toBe('hello');}
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('isString');
+    if (!r.ok) {expect(r.codes).toContain('isString');}
   });
 });
 
@@ -106,19 +112,19 @@ describe('C: nullable + isString', () => {
   it('null → passes (Nullable)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBeNull();
+    if (r.ok) {expect(r.value.v).toBeNull();}
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('hello');
+    if (r.ok) {expect(r.value.v).toBe('hello');}
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('isString');
+    if (!r.ok) {expect(r.codes).toContain('isString');}
   });
 });
 
@@ -133,25 +139,25 @@ describe('D: optional + nullable + isString', () => {
   it('undefined → passes', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBeUndefined();
+    if (r.ok) {expect(r.value.v).toBeUndefined();}
   });
 
   it('null → passes', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBeNull();
+    if (r.ok) {expect(r.value.v).toBeNull();}
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('hello');
+    if (r.ok) {expect(r.value.v).toBe('hello');}
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('isString');
+    if (!r.ok) {expect(r.codes).toContain('isString');}
   });
 });
 
@@ -171,56 +177,64 @@ describe('E: nullable + isString (required by default)', () => {
   it('null → passes (nullable allows null)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBeNull();
+    if (r.ok) {expect(r.value.v).toBeNull();}
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('hello');
+    if (r.ok) {expect(r.value.v).toBe('hello');}
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('isString');
+    if (!r.ok) {expect(r.codes).toContain('isString');}
   });
 });
 
 // ─── G: empty string ("") handling ────────────────────────────────────────
 
 describe('empty string ("") handling', () => {
-  class StrDto { @Field(isString) v!: string; }
-  class MinLenDto { @Field(isString, minLength(1)) v!: string; }
+  class StrDto {
+    @Field(isString) v!: string;
+  }
+  class MinLenDto {
+    @Field(isString, minLength(1)) v!: string;
+  }
 
   it('isString allows empty string', async () => {
     const r = await tryDeserialize(StrDto, { v: '' });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe('');
+    if (r.ok) {expect(r.value.v).toBe('');}
   });
 
   it('minLength(1) rejects empty string', async () => {
     const r = await tryDeserialize(MinLenDto, { v: '' });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.codes).toContain('minLength');
+    if (!r.ok) {expect(r.codes).toContain('minLength');}
   });
 });
 
 // ─── H: false, 0 and other falsy value handling ──────────────────────────
 
 describe('falsy value handling', () => {
-  class NumDto { @Field(isNumber()) v!: number; }
-  class BoolDto { @Field(isBoolean) v!: boolean; }
+  class NumDto {
+    @Field(isNumber()) v!: number;
+  }
+  class BoolDto {
+    @Field(isBoolean) v!: boolean;
+  }
 
   it('0 passes isNumber', async () => {
     const r = await tryDeserialize(NumDto, { v: 0 });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe(0);
+    if (r.ok) {expect(r.value.v).toBe(0);}
   });
 
   it('false passes isBoolean', async () => {
     const r = await tryDeserialize(BoolDto, { v: false });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.v).toBe(false);
+    if (r.ok) {expect(r.value.v).toBe(false);}
   });
 });

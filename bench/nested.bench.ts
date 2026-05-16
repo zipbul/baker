@@ -2,11 +2,11 @@
 // Benchmark: Nested object (3 levels) — valid + invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
+import { NESTED_VALID, NESTED_INVALID } from './data';
 
 class BakerAddress {
   @Field(isString, minLength(1)) street!: string;
@@ -28,8 +28,8 @@ await deserialize(BakerOrder, NESTED_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
 import 'reflect-metadata';
-import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 
 class CvAddress {
   @IsString() @MinLength(1) street!: string;
@@ -180,8 +180,8 @@ group('nested 3-level — valid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_VALID);
-    if (ok) sinkNum += 1;
-    else for (const _ of tbCheck.Errors(NESTED_VALID)) sinkNum += 1;
+    if (ok) {sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(NESTED_VALID)) sinkNum += 1;}
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_VALID);
@@ -212,8 +212,8 @@ group('nested 3-level — invalid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_INVALID);
-    if (ok) sinkNum += 1;
-    else for (const _ of tbCheck.Errors(NESTED_INVALID)) sinkNum += 1;
+    if (ok) {sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(NESTED_INVALID)) sinkNum += 1;}
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_INVALID);
@@ -222,4 +222,4 @@ group('nested 3-level — invalid input', () => {
 });
 
 await run();
-if (sinkNum === -1) console.log('unreachable', sinkNum);
+if (sinkNum === -1) {console.log('unreachable', sinkNum);}

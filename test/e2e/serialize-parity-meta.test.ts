@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
 import { deserialize, Field, serialize, seal } from '../../index';
-import {
-  isNumber,
-  isString,
-} from '../../src/rules/index';
+import { isNumber, isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -109,10 +107,10 @@ describe('serialize parity meta', () => {
     }
     seal(RoundtripDto);
 
-    const parsed = await deserialize<RoundtripDto>(RoundtripDto, {
+    const parsed = (await deserialize<RoundtripDto>(RoundtripDto, {
       full_name: '  Carol  ',
       child: { name: 'Neo' },
-    }) as RoundtripDto;
+    })) as RoundtripDto;
 
     const output = await serialize(parsed);
     expect(output).toEqual({

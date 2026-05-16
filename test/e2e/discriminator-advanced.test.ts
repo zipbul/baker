@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => { unseal(); seal(); });
+beforeEach(() => {
+  unseal();
+  seal();
+});
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,19 +76,19 @@ describe('discriminator — invalidDiscriminator', () => {
 
 describe('discriminator — keepDiscriminatorProperty', () => {
   it('keepDiscriminatorProperty: true → discriminator field retained in result', async () => {
-    const result = await deserialize(OwnerKeepDiscDto, {
+    const result = (await deserialize(OwnerKeepDiscDto, {
       pet: { kind: 'dog', breed: 'Poodle' },
-    }) as OwnerKeepDiscDto;
+    })) as OwnerKeepDiscDto;
     expect(result.pet).toBeInstanceOf(DogDto);
     expect((result.pet as DogDto).breed).toBe('Poodle');
     expect((result.pet as any).kind).toBe('dog');
   });
 
   it('keepDiscriminatorProperty not set → discriminator field absent from result', async () => {
-    const result = await deserialize(OwnerDto, {
+    const result = (await deserialize(OwnerDto, {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },
-    }) as OwnerDto;
+    })) as OwnerDto;
     expect((result.pet as any).type).toBeUndefined();
   });
 });
@@ -183,11 +187,11 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   }
 
   it('both discriminator fields deserialize correctly', async () => {
-    const r = await deserialize(OrderDto, {
+    const r = (await deserialize(OrderDto, {
       orderId: 'ORD-1',
       payment: { type: 'creditcard', cardNumber: '4111111111111111' },
       address: { kind: 'domestic', city: 'Seoul' },
-    }) as OrderDto;
+    })) as OrderDto;
     expect(r.payment).toBeInstanceOf(CreditCardPayment);
     expect((r.payment as CreditCardPayment).cardNumber).toBe('4111111111111111');
     expect(r.address).toBeInstanceOf(DomesticAddress);
@@ -195,11 +199,11 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   });
 
   it('second combination: bank + international', async () => {
-    const r = await deserialize(OrderDto, {
+    const r = (await deserialize(OrderDto, {
       orderId: 'ORD-2',
       payment: { type: 'bank', bankCode: 'SWIFT123' },
       address: { kind: 'international', country: 'US' },
-    }) as OrderDto;
+    })) as OrderDto;
     expect(r.payment).toBeInstanceOf(BankTransferPayment);
     expect(r.address).toBeInstanceOf(InternationalAddress);
   });
@@ -240,8 +244,14 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
 describe('discriminator default branch — context payload', () => {
   it('validate() on unknown discriminator value includes received + validSubTypes', async () => {
     const { validate, configure } = await import('../../index');
-    class CatV { @Field(isString) kind!: string; @Field(isString) meow!: string; }
-    class DogV { @Field(isString) kind!: string; @Field(isString) bark!: string; }
+    class CatV {
+      @Field(isString) kind!: string;
+      @Field(isString) meow!: string;
+    }
+    class DogV {
+      @Field(isString) kind!: string;
+      @Field(isString) bark!: string;
+    }
     class OwnerV {
       @Field({
         type: () => CatV,
@@ -308,7 +318,7 @@ describe('async serialize: discriminator + array (each)', () => {
     const dog = Object.assign(Object.create(DogA.prototype), { kind: 'dog', bark: 'woof' });
     const owner = Object.assign(Object.create(OwnerA.prototype), { pets: [cat, dog], tag: 'root' });
 
-    const result = await serialize(owner) as Record<string, any>;
+    const result = (await serialize(owner)) as Record<string, any>;
     expect(Array.isArray(result.pets)).toBe(true);
     expect(result.pets).toHaveLength(2);
     expect(result.tag).toBe('<root>');

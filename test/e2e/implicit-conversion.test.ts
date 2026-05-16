@@ -1,11 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { Field, configure, deserialize,
-  isBakerError, seal } from '../../index';
+
+import { Field, configure, deserialize, isBakerError, seal } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
-afterEach(() => { unseal(); configure({}); });
+afterEach(() => {
+  unseal();
+  configure({});
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -36,9 +39,11 @@ describe('enableImplicitConversion', () => {
   it('string → number', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvDto>(ConvDto, {
-      age: '25', active: true, createdAt: new Date(),
-    }) as ConvDto;
+    const result = (await deserialize<ConvDto>(ConvDto, {
+      age: '25',
+      active: true,
+      createdAt: new Date(),
+    })) as ConvDto;
     expect(result.age).toBe(25);
     expect(typeof result.age).toBe('number');
   });
@@ -46,27 +51,33 @@ describe('enableImplicitConversion', () => {
   it('string → boolean', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvDto>(ConvDto, {
-      age: 30, active: 'true', createdAt: new Date(),
-    }) as ConvDto;
+    const result = (await deserialize<ConvDto>(ConvDto, {
+      age: 30,
+      active: 'true',
+      createdAt: new Date(),
+    })) as ConvDto;
     expect(result.active).toBe(true);
   });
 
   it('"false" → false', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvDto>(ConvDto, {
-      age: 30, active: 'false', createdAt: new Date(),
-    }) as ConvDto;
+    const result = (await deserialize<ConvDto>(ConvDto, {
+      age: 30,
+      active: 'false',
+      createdAt: new Date(),
+    })) as ConvDto;
     expect(result.active).toBe(false);
   });
 
   it('string → Date', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvDto>(ConvDto, {
-      age: 30, active: true, createdAt: '2024-01-01T00:00:00.000Z',
-    }) as ConvDto;
+    const result = (await deserialize<ConvDto>(ConvDto, {
+      age: 30,
+      active: true,
+      createdAt: '2024-01-01T00:00:00.000Z',
+    })) as ConvDto;
     expect(result.createdAt).toBeInstanceOf(Date);
     expect(result.createdAt.toISOString()).toBe('2024-01-01T00:00:00.000Z');
   });
@@ -80,18 +91,18 @@ describe('enableImplicitConversion', () => {
   it('explicit @Field transform present → conversion skipped', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvWithTransformDto>(ConvWithTransformDto, {
+    const result = (await deserialize<ConvWithTransformDto>(ConvWithTransformDto, {
       score: '42',
-    }) as ConvWithTransformDto;
+    })) as ConvWithTransformDto;
     expect(result.score).toBe(42);
   });
 
   it('typed deps present (isNumber + min) → conversion works', async () => {
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<ConvWithMinDto>(ConvWithMinDto, {
+    const result = (await deserialize<ConvWithMinDto>(ConvWithMinDto, {
       count: '5',
-    }) as ConvWithMinDto;
+    })) as ConvWithMinDto;
     expect(result.count).toBe(5);
   });
 
@@ -115,7 +126,7 @@ describe('@Type hint implicit conversion', () => {
     }
     configure({ autoConvert: true });
     seal();
-    const result = await deserialize<TypeHintDto>(TypeHintDto, { value: '10' }) as TypeHintDto;
+    const result = (await deserialize<TypeHintDto>(TypeHintDto, { value: '10' })) as TypeHintDto;
     expect(result.value).toBe(10);
   });
 
@@ -146,7 +157,7 @@ describe('stopAtFirstError + autoConvert', () => {
     }
     configure({ autoConvert: true, stopAtFirstError: true });
     seal();
-    const result = await deserialize<StopConvDto>(StopConvDto, { count: '10' }) as StopConvDto;
+    const result = (await deserialize<StopConvDto>(StopConvDto, { count: '10' })) as StopConvDto;
     expect(result.count).toBe(10);
   });
 

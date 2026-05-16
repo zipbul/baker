@@ -2,11 +2,11 @@
 // Benchmark: Error collection — 10 fields, all invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import { ERROR_ALL_FAIL } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, configure, isBakerError, seal } from '../index';
 import { isNumber, min } from '../src/rules/index';
+import { ERROR_ALL_FAIL } from './data';
 
 configure({ stopAtFirstError: false });
 
@@ -28,8 +28,8 @@ await deserialize(BakerErrors, ERROR_ALL_FAIL);
 
 // ── class-validator ──────────────────────────────────────────────────────────
 import 'reflect-metadata';
-import { IsNumber, Min, validateSync } from 'class-validator';
 import { plainToInstance } from 'class-transformer';
+import { IsNumber, Min, validateSync } from 'class-validator';
 
 class CvErrors {
   @IsNumber() @Min(1) f0!: number;
@@ -48,22 +48,32 @@ class CvErrors {
 import { z } from 'zod';
 
 const zodErrors = z.object({
-  f0: z.number().min(1), f1: z.number().min(1),
-  f2: z.number().min(1), f3: z.number().min(1),
-  f4: z.number().min(1), f5: z.number().min(1),
-  f6: z.number().min(1), f7: z.number().min(1),
-  f8: z.number().min(1), f9: z.number().min(1),
+  f0: z.number().min(1),
+  f1: z.number().min(1),
+  f2: z.number().min(1),
+  f3: z.number().min(1),
+  f4: z.number().min(1),
+  f5: z.number().min(1),
+  f6: z.number().min(1),
+  f7: z.number().min(1),
+  f8: z.number().min(1),
+  f9: z.number().min(1),
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
 import * as v from 'valibot';
 
 const vErrors = v.object({
-  f0: v.pipe(v.number(), v.minValue(1)), f1: v.pipe(v.number(), v.minValue(1)),
-  f2: v.pipe(v.number(), v.minValue(1)), f3: v.pipe(v.number(), v.minValue(1)),
-  f4: v.pipe(v.number(), v.minValue(1)), f5: v.pipe(v.number(), v.minValue(1)),
-  f6: v.pipe(v.number(), v.minValue(1)), f7: v.pipe(v.number(), v.minValue(1)),
-  f8: v.pipe(v.number(), v.minValue(1)), f9: v.pipe(v.number(), v.minValue(1)),
+  f0: v.pipe(v.number(), v.minValue(1)),
+  f1: v.pipe(v.number(), v.minValue(1)),
+  f2: v.pipe(v.number(), v.minValue(1)),
+  f3: v.pipe(v.number(), v.minValue(1)),
+  f4: v.pipe(v.number(), v.minValue(1)),
+  f5: v.pipe(v.number(), v.minValue(1)),
+  f6: v.pipe(v.number(), v.minValue(1)),
+  f7: v.pipe(v.number(), v.minValue(1)),
+  f8: v.pipe(v.number(), v.minValue(1)),
+  f9: v.pipe(v.number(), v.minValue(1)),
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
@@ -83,11 +93,16 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbErrors = T.Object({
-  f0: T.Number({ minimum: 1 }), f1: T.Number({ minimum: 1 }),
-  f2: T.Number({ minimum: 1 }), f3: T.Number({ minimum: 1 }),
-  f4: T.Number({ minimum: 1 }), f5: T.Number({ minimum: 1 }),
-  f6: T.Number({ minimum: 1 }), f7: T.Number({ minimum: 1 }),
-  f8: T.Number({ minimum: 1 }), f9: T.Number({ minimum: 1 }),
+  f0: T.Number({ minimum: 1 }),
+  f1: T.Number({ minimum: 1 }),
+  f2: T.Number({ minimum: 1 }),
+  f3: T.Number({ minimum: 1 }),
+  f4: T.Number({ minimum: 1 }),
+  f5: T.Number({ minimum: 1 }),
+  f6: T.Number({ minimum: 1 }),
+  f7: T.Number({ minimum: 1 }),
+  f8: T.Number({ minimum: 1 }),
+  f9: T.Number({ minimum: 1 }),
 });
 const tbCheck = TypeCompiler.Compile(tbErrors);
 
@@ -95,11 +110,16 @@ const tbCheck = TypeCompiler.Compile(tbErrors);
 import { type } from 'arktype';
 
 const arkErrors = type({
-  f0: 'number >= 1', f1: 'number >= 1',
-  f2: 'number >= 1', f3: 'number >= 1',
-  f4: 'number >= 1', f5: 'number >= 1',
-  f6: 'number >= 1', f7: 'number >= 1',
-  f8: 'number >= 1', f9: 'number >= 1',
+  f0: 'number >= 1',
+  f1: 'number >= 1',
+  f2: 'number >= 1',
+  f3: 'number >= 1',
+  f4: 'number >= 1',
+  f5: 'number >= 1',
+  f6: 'number >= 1',
+  f7: 'number >= 1',
+  f8: 'number >= 1',
+  f9: 'number >= 1',
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,7 +151,7 @@ group('error collection — 10 fields all invalid', () => {
   });
   bench('typebox', () => {
     let n = 0;
-    for (const _ of tbCheck.Errors(ERROR_ALL_FAIL)) n++;
+    for (const _ of tbCheck.Errors(ERROR_ALL_FAIL)) {n++;}
     sinkNum += n;
   });
   bench('arktype', () => {
@@ -141,4 +161,4 @@ group('error collection — 10 fields all invalid', () => {
 });
 
 await run();
-if (sinkNum === -1) console.log('unreachable', sinkNum);
+if (sinkNum === -1) {console.log('unreachable', sinkNum);}

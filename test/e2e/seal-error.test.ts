@@ -1,14 +1,18 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, serialize, SealError, seal } from '../../index';
-import { isNumber } from '../../src/rules/index';
 import { ensureMeta } from '../../src/collect';
+import { isNumber } from '../../src/rules/index';
 import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SealError', () => {
   beforeEach(() => seal());
-  afterEach(() => { purgePoisonClasses(); unseal(); });
+  afterEach(() => {
+    purgePoisonClasses();
+    unseal();
+  });
 
   it('seal(NoFieldDto) on class without @Field → SealError', () => {
     class NoFieldDto {}

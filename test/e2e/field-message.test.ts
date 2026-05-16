@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, seal } from '../../index';
-import { isString, minLength, isNumber } from '../../src/rules/index';
 import { arrayOf } from '../../src/decorators/field';
+import { isString, minLength, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -68,8 +69,7 @@ class EmptyStringMessageDto {
 
 class ConstraintsAccessDto {
   @Field(minLength(5), {
-    message: ({ property, constraints }) =>
-      `${property} must be at least ${constraints['min']} chars`,
+    message: ({ property, constraints }) => `${property} must be at least ${constraints['min']} chars`,
   })
   name!: string;
 }
@@ -308,7 +308,11 @@ describe('@Field message + groups combination', () => {
   });
 
   it('groups mismatch → field itself excluded → no error', async () => {
-    const result = await deserialize(GroupsWithMessageDto, { secret: 42, id: 1 }, { groups: ['viewer'] }) as GroupsWithMessageDto;
+    const result = (await deserialize(
+      GroupsWithMessageDto,
+      { secret: 42, id: 1 },
+      { groups: ['viewer'] },
+    )) as GroupsWithMessageDto;
     expect((result as any).secret).toBeUndefined();
     expect(result.id).toBe(1);
   });

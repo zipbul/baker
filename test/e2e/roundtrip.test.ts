@@ -1,10 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, serialize,
-  Field, seal } from '../../index';
-import {
-  isString, isNumber, isBoolean, isEmail,
-  min, minLength, arrayMinSize,
-} from '../../src/rules/index';
+
+import { deserialize, serialize, Field, seal } from '../../index';
+import { isString, isNumber, isBoolean, isEmail, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -20,9 +17,9 @@ describe('flat DTO roundtrip', () => {
 
   it('deserialize → serialize → deserialize identical', async () => {
     const input = { name: 'Alice', age: 30, active: true };
-    const obj1 = await deserialize<FlatDto>(FlatDto, input) as FlatDto;
+    const obj1 = (await deserialize<FlatDto>(FlatDto, input)) as FlatDto;
     const plain = await serialize(obj1);
-    const obj2 = await deserialize<FlatDto>(FlatDto, plain) as FlatDto;
+    const obj2 = (await deserialize<FlatDto>(FlatDto, plain)) as FlatDto;
     expect(obj2.name).toBe(input.name);
     expect(obj2.age).toBe(input.age);
     expect(obj2.active).toBe(input.active);
@@ -44,9 +41,9 @@ describe('nested DTO roundtrip', () => {
 
   it('deserialize → serialize → deserialize identical', async () => {
     const input = { name: 'Bob', address: { city: 'Seoul', zip: '06000' } };
-    const obj1 = await deserialize<PersonDto>(PersonDto, input) as PersonDto;
+    const obj1 = (await deserialize<PersonDto>(PersonDto, input)) as PersonDto;
     const plain = await serialize(obj1);
-    const obj2 = await deserialize<PersonDto>(PersonDto, plain) as PersonDto;
+    const obj2 = (await deserialize<PersonDto>(PersonDto, plain)) as PersonDto;
     expect(obj2.name).toBe(input.name);
     expect(obj2.address.city).toBe(input.address.city);
     expect(obj2.address.zip).toBe(input.address.zip);
@@ -66,12 +63,12 @@ describe('@Field({ name }) mapping roundtrip', () => {
 
   it('snake_case input → serialize → re-deserialize', async () => {
     const input = { user_name: 'Carol', user_age: 25 };
-    const obj1 = await deserialize<MappedDto>(MappedDto, input) as MappedDto;
+    const obj1 = (await deserialize<MappedDto>(MappedDto, input)) as MappedDto;
     expect(obj1.userName).toBe('Carol');
     const plain = await serialize(obj1);
     expect(plain).toHaveProperty('user_name', 'Carol');
     expect(plain).toHaveProperty('user_age', 25);
-    const obj2 = await deserialize<MappedDto>(MappedDto, plain) as MappedDto;
+    const obj2 = (await deserialize<MappedDto>(MappedDto, plain)) as MappedDto;
     expect(obj2.userName).toBe('Carol');
     expect(obj2.userAge).toBe(25);
   });
@@ -83,7 +80,7 @@ describe('@Transform roundtrip', () => {
   class TrimDto {
     @Field(isString, {
       transform: {
-        deserialize: ({ value }) => typeof value === 'string' ? value.trim() : value,
+        deserialize: ({ value }) => (typeof value === 'string' ? value.trim() : value),
         serialize: ({ value }) => {
           let v = typeof value === 'string' ? value.trim() : value;
           v = typeof v === 'string' ? v.toUpperCase() : v;
@@ -95,13 +92,13 @@ describe('@Transform roundtrip', () => {
   }
 
   it('deserialize trim → serialize uppercase → deserialize trim', async () => {
-    const obj1 = await deserialize<TrimDto>(TrimDto, { tag: '  hello  ' }) as TrimDto;
+    const obj1 = (await deserialize<TrimDto>(TrimDto, { tag: '  hello  ' })) as TrimDto;
     expect(obj1.tag).toBe('hello'); // trimmed
 
     const plain = await serialize(obj1);
     expect(plain.tag).toBe('HELLO'); // uppercased on serialize
 
-    const obj2 = await deserialize<TrimDto>(TrimDto, plain) as TrimDto;
+    const obj2 = (await deserialize<TrimDto>(TrimDto, plain)) as TrimDto;
     expect(obj2.tag).toBe('HELLO'); // trimmed (already trimmed)
   });
 });
@@ -116,27 +113,27 @@ describe('optional + nullable roundtrip', () => {
 
   it('nickname present roundtrip', async () => {
     const input = { name: 'Dave', nickname: 'D' };
-    const obj = await deserialize<NullableDto>(NullableDto, input) as NullableDto;
+    const obj = (await deserialize<NullableDto>(NullableDto, input)) as NullableDto;
     const plain = await serialize(obj);
-    const obj2 = await deserialize<NullableDto>(NullableDto, plain) as NullableDto;
+    const obj2 = (await deserialize<NullableDto>(NullableDto, plain)) as NullableDto;
     expect(obj2.nickname).toBe('D');
   });
 
   it('nickname = null roundtrip', async () => {
     const input = { name: 'Dave', nickname: null };
-    const obj = await deserialize<NullableDto>(NullableDto, input) as NullableDto;
+    const obj = (await deserialize<NullableDto>(NullableDto, input)) as NullableDto;
     expect(obj.nickname).toBeNull();
     const plain = await serialize(obj);
-    const obj2 = await deserialize<NullableDto>(NullableDto, plain) as NullableDto;
+    const obj2 = (await deserialize<NullableDto>(NullableDto, plain)) as NullableDto;
     expect(obj2.nickname).toBeNull();
   });
 
   it('nickname missing roundtrip', async () => {
     const input = { name: 'Dave' };
-    const obj = await deserialize<NullableDto>(NullableDto, input) as NullableDto;
+    const obj = (await deserialize<NullableDto>(NullableDto, input)) as NullableDto;
     expect(obj.nickname).toBeUndefined();
     const plain = await serialize(obj);
-    const obj2 = await deserialize<NullableDto>(NullableDto, plain) as NullableDto;
+    const obj2 = (await deserialize<NullableDto>(NullableDto, plain)) as NullableDto;
     expect(obj2.nickname).toBeUndefined();
   });
 });
@@ -163,9 +160,9 @@ describe('nested array roundtrip', () => {
         { product: 'Mouse', qty: 5 },
       ],
     };
-    const obj = await deserialize<OrderDto>(OrderDto, input) as OrderDto;
+    const obj = (await deserialize<OrderDto>(OrderDto, input)) as OrderDto;
     const plain = await serialize(obj);
-    const obj2 = await deserialize<OrderDto>(OrderDto, plain) as OrderDto;
+    const obj2 = (await deserialize<OrderDto>(OrderDto, plain)) as OrderDto;
     expect(obj2.orderId).toBe('ORD-001');
     expect(obj2.items).toHaveLength(2);
     expect(obj2.items[0]!.product).toBe('Laptop');
@@ -184,7 +181,7 @@ describe('@Exclude field roundtrip', () => {
   }
 
   it('Exclude field excluded in both directions', async () => {
-    const obj = await deserialize<SecretDto>(SecretDto, { username: 'admin', password: 'secret' }) as SecretDto;
+    const obj = (await deserialize<SecretDto>(SecretDto, { username: 'admin', password: 'secret' })) as SecretDto;
     // @Exclude() default is both directions → excluded from deserialize too
     expect(obj.password).toBeUndefined();
     const plain = await serialize(obj);
@@ -221,9 +218,9 @@ describe('complex DTO full roundtrip', () => {
       contact: { email: 'test@example.com', phone: '+821012345678' },
       bio: 'Hello World',
     };
-    const obj = await deserialize<ProfileDto>(ProfileDto, input) as ProfileDto;
+    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     const plain = await serialize(obj);
-    const obj2 = await deserialize<ProfileDto>(ProfileDto, plain) as ProfileDto;
+    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
 
     expect(obj2.fullName).toBe('Test User');
     expect(obj2.age).toBe(28);
@@ -239,9 +236,9 @@ describe('complex DTO full roundtrip', () => {
       contact: { email: 'test@example.com' },
       bio: null,
     };
-    const obj = await deserialize<ProfileDto>(ProfileDto, input) as ProfileDto;
+    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     const plain = await serialize(obj);
-    const obj2 = await deserialize<ProfileDto>(ProfileDto, plain) as ProfileDto;
+    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.bio).toBeNull();
   });
 });

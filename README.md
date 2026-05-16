@@ -24,13 +24,15 @@ class UserDto {
 seal();
 
 const result = await deserialize(UserDto, {
-  name: 'Alice', age: 30, email: 'alice@test.com',
+  name: 'Alice',
+  age: 30,
+  email: 'alice@test.com',
 });
 
 if (isBakerError(result)) {
   console.log(result.errors); // [{ path: 'email', code: 'isEmail' }]
 } else {
-  console.log(result.name);   // 'Alice' — typed as UserDto
+  console.log(result.name); // 'Alice' — typed as UserDto
 }
 ```
 
@@ -38,14 +40,14 @@ if (isBakerError(result)) {
 
 Baker generates optimized JavaScript functions once on first seal, then executes them on every call.
 
-| Feature | baker | class-validator | Zod |
-|---|---|---|---|
-| Valid path (5 fields) | **fast sealed path** | slower | slower |
-| Invalid path (5 fields) | **fast sealed path** | slower | slower |
-| Approach | AOT code generation | Runtime interpretation | Schema method chain |
-| Decorators | `@Field` (unified) | 30+ individual | N/A |
-| `reflect-metadata` | Not needed | Required | N/A |
-| Sync DTO return | Direct value | Promise | Direct value |
+| Feature                 | baker                | class-validator        | Zod                 |
+| ----------------------- | -------------------- | ---------------------- | ------------------- |
+| Valid path (5 fields)   | **fast sealed path** | slower                 | slower              |
+| Invalid path (5 fields) | **fast sealed path** | slower                 | slower              |
+| Approach                | AOT code generation  | Runtime interpretation | Schema method chain |
+| Decorators              | `@Field` (unified)   | 30+ individual         | N/A                 |
+| `reflect-metadata`      | Not needed           | Required               | N/A                 |
+| Sync DTO return         | Direct value         | Promise                | Direct value        |
 
 ## Performance
 
@@ -97,10 +99,10 @@ Global configuration. Must be called **before** `seal()`. After seal, `configure
 
 ```typescript
 configure({
-  autoConvert: true,        // coerce "123" → 123
+  autoConvert: true, // coerce "123" → 123
   allowClassDefaults: true, // use class field initializers for missing keys
-  stopAtFirstError: true,   // return on first validation failure
-  forbidUnknown: true,      // reject undeclared fields
+  stopAtFirstError: true, // return on first validation failure
+  forbidUnknown: true, // reject undeclared fields
 });
 ```
 
@@ -111,7 +113,7 @@ Custom validation rule.
 ```typescript
 const isEven = createRule({
   name: 'isEven',
-  validate: (v) => typeof v === 'number' && v % 2 === 0,
+  validate: v => typeof v === 'number' && v % 2 === 0,
   requiresType: 'number',
 });
 ```
@@ -133,23 +135,23 @@ Each rule must be an emittable rule object created via `createRule()` or one of 
 
 ### Options
 
-| Option | Type | Description |
-|---|---|---|
-| `type` | `() => Dto \| [Dto]` | Nested DTO. `[Dto]` for arrays |
-| `discriminator` | `{ property, subTypes }` | Polymorphic dispatch |
-| `optional` | `boolean` | Allow undefined |
-| `nullable` | `boolean` | Allow null |
-| `name` | `string` | Bidirectional key mapping |
-| `deserializeName` | `string` | Input key mapping |
-| `serializeName` | `string` | Output key mapping |
-| `exclude` | `boolean \| 'deserializeOnly' \| 'serializeOnly'` | Field exclusion |
-| `groups` | `string[]` | Conditional visibility |
-| `when` | `(obj) => boolean` | Conditional validation |
-| `transform` | `Transformer \| Transformer[]` | Value transformer |
-| `message` | `string \| (args) => string` | Error message override |
-| `context` | `unknown` | Error context |
-| `mapValue` | `() => Dto` | Map value DTO |
-| `setValue` | `() => Dto` | Set element DTO |
+| Option            | Type                                              | Description                    |
+| ----------------- | ------------------------------------------------- | ------------------------------ |
+| `type`            | `() => Dto \| [Dto]`                              | Nested DTO. `[Dto]` for arrays |
+| `discriminator`   | `{ property, subTypes }`                          | Polymorphic dispatch           |
+| `optional`        | `boolean`                                         | Allow undefined                |
+| `nullable`        | `boolean`                                         | Allow null                     |
+| `name`            | `string`                                          | Bidirectional key mapping      |
+| `deserializeName` | `string`                                          | Input key mapping              |
+| `serializeName`   | `string`                                          | Output key mapping             |
+| `exclude`         | `boolean \| 'deserializeOnly' \| 'serializeOnly'` | Field exclusion                |
+| `groups`          | `string[]`                                        | Conditional visibility         |
+| `when`            | `(obj) => boolean`                                | Conditional validation         |
+| `transform`       | `Transformer \| Transformer[]`                    | Value transformer              |
+| `message`         | `string \| (args) => string`                      | Error message override         |
+| `context`         | `unknown`                                         | Error context                  |
+| `mapValue`        | `() => Dto`                                       | Map value DTO                  |
+| `setValue`        | `() => Dto`                                       | Set element DTO                |
 
 ## Transformers
 
@@ -159,8 +161,8 @@ Bidirectional value transformers with separate `deserialize` and `serialize` met
 import type { Transformer } from '@zipbul/baker';
 
 const centsTransformer: Transformer = {
-  deserialize: ({ value }) => typeof value === 'number' ? value * 100 : value,
-  serialize: ({ value }) => typeof value === 'number' ? value / 100 : value,
+  deserialize: ({ value }) => (typeof value === 'number' ? value * 100 : value),
+  serialize: ({ value }) => (typeof value === 'number' ? value / 100 : value),
 };
 ```
 
@@ -168,27 +170,34 @@ const centsTransformer: Transformer = {
 
 ```typescript
 import {
-  trimTransformer, toLowerCaseTransformer, toUpperCaseTransformer,
-  roundTransformer, unixSecondsTransformer, unixMillisTransformer,
-  isoStringTransformer, csvTransformer, jsonTransformer,
+  trimTransformer,
+  toLowerCaseTransformer,
+  toUpperCaseTransformer,
+  roundTransformer,
+  unixSecondsTransformer,
+  unixMillisTransformer,
+  isoStringTransformer,
+  csvTransformer,
+  jsonTransformer,
 } from '@zipbul/baker/transformers';
 ```
 
-| Transformer | deserialize | serialize |
-|---|---|---|
-| `trimTransformer` | trim string | trim string |
-| `toLowerCaseTransformer` | lowercase | lowercase |
-| `toUpperCaseTransformer` | uppercase | uppercase |
-| `roundTransformer(n?)` | round to n decimals | round to n decimals |
-| `unixSecondsTransformer` | unix seconds &rarr; Date | Date &rarr; unix seconds |
-| `unixMillisTransformer` | unix ms &rarr; Date | Date &rarr; unix ms |
-| `isoStringTransformer` | ISO string &rarr; Date | Date &rarr; ISO string |
-| `csvTransformer(sep?)` | `"a,b"` &rarr; `["a","b"]` | `["a","b"]` &rarr; `"a,b"` |
-| `jsonTransformer` | JSON string &rarr; object | object &rarr; JSON string |
+| Transformer              | deserialize                | serialize                  |
+| ------------------------ | -------------------------- | -------------------------- |
+| `trimTransformer`        | trim string                | trim string                |
+| `toLowerCaseTransformer` | lowercase                  | lowercase                  |
+| `toUpperCaseTransformer` | uppercase                  | uppercase                  |
+| `roundTransformer(n?)`   | round to n decimals        | round to n decimals        |
+| `unixSecondsTransformer` | unix seconds &rarr; Date   | Date &rarr; unix seconds   |
+| `unixMillisTransformer`  | unix ms &rarr; Date        | Date &rarr; unix ms        |
+| `isoStringTransformer`   | ISO string &rarr; Date     | Date &rarr; ISO string     |
+| `csvTransformer(sep?)`   | `"a,b"` &rarr; `["a","b"]` | `["a","b"]` &rarr; `"a,b"` |
+| `jsonTransformer`        | JSON string &rarr; object  | object &rarr; JSON string  |
 
 ### Transform Array Order
 
 Multiple transformers apply as a codec stack:
+
 - **Deserialize**: left to right — `[A, B, C]` applies A, then B, then C
 - **Serialize**: right to left — `[A, B, C]` applies C, then B, then A
 
@@ -292,7 +301,8 @@ class PetOwner {
         { value: DogDto, name: 'dog' },
       ],
     },
-  }) pet!: CatDto | DogDto;
+  })
+  pet!: CatDto | DogDto;
 }
 ```
 

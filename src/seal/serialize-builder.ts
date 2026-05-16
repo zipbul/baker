@@ -1,6 +1,7 @@
-import { SEALED } from '../symbols';
-import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
+import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
+
+import { SEALED } from '../symbols';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,20 +35,20 @@ const GEN = {
 function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['expose']): string {
   // serializeOnly @Expose with name → use that name
   const serDef = exposeStack.find(e => e.serializeOnly && e.name);
-  if (serDef) return serDef.name!;
+  if (serDef) {return serDef.name!;}
   // Non-directional @Expose with name → use for both directions
   const biDef = exposeStack.find(e => !e.deserializeOnly && !e.serializeOnly && e.name);
-  if (biDef) return biDef.name!;
+  if (biDef) {return biDef.name!;}
   return fieldKey;
 }
 
 /** Determine expose groups for serialize direction — returns undefined (no restriction) if any unconditional expose entry exists */
 function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
   const serEntries = exposeStack.filter(e => !e.deserializeOnly);
-  if (serEntries.length === 0) return undefined;
-  if (serEntries.some(e => !e.groups || e.groups.length === 0)) return undefined;
+  if (serEntries.length === 0) {return undefined;}
+  if (serEntries.some(e => !e.groups || e.groups.length === 0)) {return undefined;}
   const all = new Set<string>();
-  for (const e of serEntries) for (const g of e.groups!) all.add(g);
+  for (const e of serEntries) {for (const g of e.groups!) all.add(g);}
   return [...all];
 }
 
@@ -61,7 +62,7 @@ function buildSerializeTransformExpr(
   serTransforms: TransformDef[],
   refs: unknown[],
 ): string | null {
-  if (serTransforms.length === 0) return null;
+  if (serTransforms.length === 0) {return null;}
   if (serTransforms.length === 1) {
     const td = serTransforms[0]!;
     const refIdx = refs.length;
@@ -126,7 +127,7 @@ export function buildSerializeCode<T>(
 
   // ── Code generation ────────────────────────────────────────────────────────
 
-  let body = '\'use strict\';\n';
+  let body = "'use strict';\n";
   body += `var ${GEN.out} = {};\n`;
 
   // Groups variable — only when fields referencing groups exist
@@ -154,10 +155,10 @@ export function buildSerializeCode<T>(
   // ── Execute new Function ───────────────────────────────────────────────────
 
   const fnKeyword = isAsync ? 'async function' : 'function';
-  const executor = new Function(
-    '_refs', '_execs',
-    `return ${fnKeyword}(instance, _opts) { ` + body + ' }',
-  )(refs, execs) as (instance: T, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  const executor = new Function('_refs', '_execs', `return ${fnKeyword}(instance, _opts) { ` + body + ' }')(refs, execs) as (
+    instance: T,
+    opts?: RuntimeOptions,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
 
   return executor;
 }
@@ -280,7 +281,6 @@ function generateSerializeFieldCode(
 
   // ③b nested @Type handling (H4) — supports type + transform combination (nested serialize → transform)
   if (meta.type?.resolvedClass || meta.type?.discriminator || (meta.type?.fn && meta.flags.validateNested)) {
-
     // Determine array/each mode
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
     const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
@@ -294,8 +294,8 @@ function generateSerializeFieldCode(
 
       // Sort most-specific-first (subclasses take priority in inheritance relationships)
       const sorted = [...subTypes].sort((a, b) => {
-        if ((a.value as any).prototype instanceof b.value) return -1;
-        if ((b.value as any).prototype instanceof a.value) return 1;
+        if ((a.value as any).prototype instanceof b.value) {return -1;}
+        if ((b.value as any).prototype instanceof a.value) {return 1;}
         return 0;
       });
 
@@ -348,7 +348,7 @@ function generateSerializeFieldCode(
       }
     } else {
       // Existing simple nested logic
-      const nestedCls = meta.type!.resolvedClass ?? meta.type!.fn() as Function;
+      const nestedCls = meta.type!.resolvedClass ?? (meta.type!.fn() as Function);
       const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
       const execIdx = execs.length;
       execs.push(nestedSealed);
@@ -409,9 +409,7 @@ function buildSerializeOutputExpr(
 ): string {
   const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
 
-  const serTransforms = meta.transform.filter(
-    td => !td.options?.deserializeOnly,
-  );
+  const serTransforms = meta.transform.filter(td => !td.options?.deserializeOnly);
 
   if (serTransforms.length > 0) {
     const transformed = buildSerializeTransformExpr(fieldValueExpr, fieldKey, serTransforms, refs)!;

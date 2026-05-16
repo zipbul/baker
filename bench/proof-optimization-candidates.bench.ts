@@ -1,4 +1,5 @@
 import { bench, group, run } from 'mitata';
+
 import { Field, deserialize, serialize } from '../index';
 import { isString, minLength } from '../src/rules/index';
 

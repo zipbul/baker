@@ -1,4 +1,5 @@
 import { bench, group, run } from 'mitata';
+
 import { createRule, deserialize, Field } from '../index';
 import { isString } from '../src/rules/index';
 

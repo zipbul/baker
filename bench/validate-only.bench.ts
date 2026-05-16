@@ -2,11 +2,11 @@
 // Benchmark: validate() vs deserialize() — prove Object.create elimination
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, validate } from '../index';
 import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
+import { NESTED_VALID, NESTED_INVALID } from './data';
 
 class BkAddr {
   @Field(isString, minLength(1)) street!: string;
@@ -58,10 +58,13 @@ const tbOrder = T.Object({
 const tbCheck = TypeCompiler.Compile(tbOrder);
 
 const tbCart = T.Object({
-  items: T.Array(T.Object({
-    name: T.String({ minLength: 1 }),
-    price: T.Number({ minimum: 0 }),
-  }), { minItems: 1 }),
+  items: T.Array(
+    T.Object({
+      name: T.String({ minLength: 1 }),
+      price: T.Number({ minimum: 0 }),
+    }),
+    { minItems: 1 },
+  ),
 });
 const tbCartCheck = TypeCompiler.Compile(tbCart);
 

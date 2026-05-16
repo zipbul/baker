@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -19,9 +20,9 @@ describe('@Type auto-nested', () => {
       inner!: InnerDto;
     }
     seal(OuterDto);
-    const result = await deserialize<OuterDto>(OuterDto, {
+    const result = (await deserialize<OuterDto>(OuterDto, {
       inner: { value: 'hello' },
-    }) as OuterDto;
+    })) as OuterDto;
     expect(result).toBeInstanceOf(OuterDto);
     expect(result.inner).toBeInstanceOf(InnerDto);
     expect(result.inner.value).toBe('hello');
@@ -74,9 +75,9 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       items!: ItemDto[];
     }
     seal(OrderDto);
-    const result = await deserialize<OrderDto>(OrderDto, {
+    const result = (await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
-    }) as OrderDto;
+    })) as OrderDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.name).toBe('A');
@@ -94,10 +95,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     }
     seal(OrderDto);
     const dto = Object.assign(new OrderDto(), {
-      items: [
-        Object.assign(new ItemDto(), { name: 'X' }),
-        Object.assign(new ItemDto(), { name: 'Y' }),
-      ],
+      items: [Object.assign(new ItemDto(), { name: 'X' }), Object.assign(new ItemDto(), { name: 'Y' })],
     });
     const result = await serialize(dto);
     const items = result['items'] as any[];
@@ -152,7 +150,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       items!: ItemDto[];
     }
     seal(OrderDto);
-    const result = await deserialize<OrderDto>(OrderDto, { items: [] }) as OrderDto;
+    const result = (await deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
 });
@@ -166,7 +164,7 @@ describe('primitive @Type — no auto nested', () => {
       value!: number;
     }
     seal(PrimDto);
-    const result = await deserialize<PrimDto>(PrimDto, { value: 42 }) as PrimDto;
+    const result = (await deserialize<PrimDto>(PrimDto, { value: 42 })) as PrimDto;
     expect(result.value).toBe(42);
   });
 
@@ -176,7 +174,7 @@ describe('primitive @Type — no auto nested', () => {
       value!: string;
     }
     seal(PrimDto);
-    const result = await deserialize<PrimDto>(PrimDto, { value: 'hello' }) as PrimDto;
+    const result = (await deserialize<PrimDto>(PrimDto, { value: 'hello' })) as PrimDto;
     expect(result.value).toBe('hello');
   });
 });
@@ -194,11 +192,12 @@ describe('unseal + re-seal with @Type auto-nested', () => {
       inner!: InnerDto;
     }
     seal(OuterDto);
-    const result1 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } }) as OuterDto;
+    const result1 = (await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } })) as OuterDto;
     expect(result1.inner.value).toBe('first');
 
-    unseal(); seal();
-    const result2 = await deserialize<OuterDto>(OuterDto, { inner: { value: 'second' } }) as OuterDto;
+    unseal();
+    seal();
+    const result2 = (await deserialize<OuterDto>(OuterDto, { inner: { value: 'second' } })) as OuterDto;
     expect(result2.inner.value).toBe('second');
   });
 });

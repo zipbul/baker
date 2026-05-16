@@ -1,9 +1,11 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
-import { isString, isNumber} from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
-import { SEALED } from '../../src/symbols';
+
 import type { SealedExecutors } from '../../src/types';
+
+import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { isString, isNumber } from '../../src/rules/index';
+import { SEALED } from '../../src/symbols';
+import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
@@ -23,7 +25,7 @@ class SyncDto {
 class AsyncDto {
   @Field(isString, {
     transform: {
-      deserialize: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+      deserialize: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
       serialize: ({ value }) => value,
     },
   })
@@ -51,7 +53,7 @@ describe('dual sync/async API — deserialize', () => {
   });
 
   it('sync DTO deserialize succeeds', async () => {
-    const result = await deserialize(SyncDto, { name: 'Alice', age: 30 }) as SyncDto;
+    const result = (await deserialize(SyncDto, { name: 'Alice', age: 30 })) as SyncDto;
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(30);
   });
@@ -62,7 +64,7 @@ describe('dual sync/async API — deserialize', () => {
   });
 
   it('async DTO deserialize succeeds', async () => {
-    const result = await deserialize(AsyncDto, { name: '  trimmed  ' }) as AsyncDto;
+    const result = (await deserialize(AsyncDto, { name: '  trimmed  ' })) as AsyncDto;
     expect(result.name).toBe('trimmed');
   });
 });

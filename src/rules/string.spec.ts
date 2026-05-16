@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import {
   // Group A — length/range
   minLength,
@@ -1783,12 +1785,15 @@ describe('isHash', () => {
 
   it('should return true for valid sha384 hash', () => {
     // sha384 of empty string = 96 hex chars
-    expect(isHash('sha384')('38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b')).toBe(true);
+    expect(
+      isHash('sha384')('38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b'),
+    ).toBe(true);
   });
 
   it('should return true for a valid sha512 hash', () => {
     // sha512 of empty string = 128 hex chars (exact)
-    const sha512 = 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
+    const sha512 =
+      'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
     expect(isHash('sha512')(sha512)).toBe(true);
   });
 

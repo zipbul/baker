@@ -34,21 +34,25 @@ Each stage transition requires its gate block in the response. **No gate block �
 Gate chain: **OVERFLOW → PRUNE → RED → GREEN**. Skipping any gate is a rule violation.
 
 **After step 5 (RED confirmed):**
+
 ```
 [RED Checkpoint]
 - Test file(s): (paths)
 - Execution result: (fail count + key error messages)
 - Status: RED confirmed
 ```
+
 Without this block → implementation code is **prohibited**.
 
 **After step 7 (GREEN confirmed):**
+
 ```
 [GREEN Checkpoint]
 - Test file(s): (paths)
 - Execution result: (pass count)
 - Status: GREEN confirmed
 ```
+
 Without this block → commit proposal is **prohibited**.
 
 ### OVERFLOW/PRUNE Exemption

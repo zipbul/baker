@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { Field, seal } from '../../index';
+import { globalRegistry } from '../../src/registry';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
-import { globalRegistry } from '../../src/registry';
 
 beforeEach(() => seal());
 afterEach(() => {
-  for (const cls of [...globalRegistry]) globalRegistry.delete(cls);
+  for (const cls of [...globalRegistry]) {globalRegistry.delete(cls);}
   unseal();
 });
 
 describe('validateMeta — discriminator invariants', () => {
   it('empty property string throws SealError', () => {
-    class ChildA { @Field(isString) k!: string; }
+    class ChildA {
+      @Field(isString) k!: string;
+    }
     class BadDisc {
       @Field({ type: () => ChildA, discriminator: { property: '', subTypes: [{ value: ChildA, name: 'a' }] } })
       v!: ChildA;
@@ -29,7 +32,9 @@ describe('validateMeta — discriminator invariants', () => {
   });
 
   it('subTypes entry with empty name throws SealError', () => {
-    class C1 { @Field(isString) k!: string; }
+    class C1 {
+      @Field(isString) k!: string;
+    }
     class BadName {
       @Field({ type: () => C1, discriminator: { property: 'k', subTypes: [{ value: C1, name: '' }] } })
       v!: C1;
@@ -46,13 +51,23 @@ describe('validateMeta — discriminator invariants', () => {
   });
 
   it('duplicate subType names throw SealError', () => {
-    class D1 { @Field(isString) k!: string; }
-    class D2 { @Field(isString) k!: string; }
+    class D1 {
+      @Field(isString) k!: string;
+    }
+    class D2 {
+      @Field(isString) k!: string;
+    }
     class DupNames {
-      @Field({ type: () => D1, discriminator: { property: 'k', subTypes: [
-        { value: D1, name: 'x' },
-        { value: D2, name: 'x' },
-      ] } })
+      @Field({
+        type: () => D1,
+        discriminator: {
+          property: 'k',
+          subTypes: [
+            { value: D1, name: 'x' },
+            { value: D2, name: 'x' },
+          ],
+        },
+      })
       v!: D1 | D2;
     }
     expect(() => seal(DupNames)).toThrow(/duplicate name 'x'/);
@@ -61,9 +76,7 @@ describe('validateMeta — discriminator invariants', () => {
   it('subType value without @Field decorators throws SealError', () => {
     class NoFields {}
     class HasUndecoratedSub {
-      @Field({ type: () => NoFields as any, discriminator: { property: 'k', subTypes: [
-        { value: NoFields as any, name: 'a' },
-      ] } })
+      @Field({ type: () => NoFields as any, discriminator: { property: 'k', subTypes: [{ value: NoFields as any, name: 'a' }] } })
       v!: NoFields;
     }
     expect(() => seal(HasUndecoratedSub)).toThrow(/has no @Field decorators/);

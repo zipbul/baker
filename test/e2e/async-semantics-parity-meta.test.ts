@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
 import { createRule, deserialize, Field, isBakerError, serialize, validate, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -8,13 +9,13 @@ afterEach(() => unseal());
 
 const asyncEven = createRule({
   name: 'asyncEven',
-  validate: async (value) => typeof value === 'number' && value % 2 === 0,
+  validate: async value => typeof value === 'number' && value % 2 === 0,
   requiresType: 'number',
 });
 
 const asyncStartsWithA = createRule({
   name: 'asyncStartsWithA',
-  validate: async (value) => typeof value === 'string' && value.startsWith('a'),
+  validate: async value => typeof value === 'string' && value.startsWith('a'),
   requiresType: 'string',
 });
 
@@ -55,7 +56,7 @@ describe('async semantics parity meta', () => {
     class Dto {
       @Field(isString, {
         transform: {
-          deserialize: async ({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value,
+          deserialize: async ({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
           serialize: ({ value }) => value,
         },
       })
@@ -63,7 +64,7 @@ describe('async semantics parity meta', () => {
     }
     seal(Dto);
 
-    const result = await deserialize<Dto>(Dto, { value: '  alice  ' }) as Dto;
+    const result = (await deserialize<Dto>(Dto, { value: '  alice  ' })) as Dto;
     expect(result.value).toBe('ALICE');
   });
 

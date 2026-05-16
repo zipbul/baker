@@ -1,10 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { deserialize, serialize, validate, configure,
-  Field, isBakerError, createRule, seal } from '../../index';
-import {
-  isString, isNumber, isBoolean, isEmail,
-  min, minLength, maxLength, matches, contains,
-} from '../../src/rules/index';
+
+import { deserialize, serialize, validate, configure, Field, isBakerError, createRule, seal } from '../../index';
+import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -53,22 +50,44 @@ describe('chaos — empty object to DTO with many required fields', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deeply nested DTO (10+ levels)', () => {
-  class L10 { @Field(isString) v!: string; }
-  class L9 { @Field({ type: () => L10 }) c!: L10; }
-  class L8 { @Field({ type: () => L9 }) c!: L9; }
-  class L7 { @Field({ type: () => L8 }) c!: L8; }
-  class L6 { @Field({ type: () => L7 }) c!: L7; }
-  class L5 { @Field({ type: () => L6 }) c!: L6; }
-  class L4 { @Field({ type: () => L5 }) c!: L5; }
-  class L3 { @Field({ type: () => L4 }) c!: L4; }
-  class L2 { @Field({ type: () => L3 }) c!: L3; }
-  class L1 { @Field({ type: () => L2 }) c!: L2; }
-  class Root { @Field({ type: () => L1 }) c!: L1; }
+  class L10 {
+    @Field(isString) v!: string;
+  }
+  class L9 {
+    @Field({ type: () => L10 }) c!: L10;
+  }
+  class L8 {
+    @Field({ type: () => L9 }) c!: L9;
+  }
+  class L7 {
+    @Field({ type: () => L8 }) c!: L8;
+  }
+  class L6 {
+    @Field({ type: () => L7 }) c!: L7;
+  }
+  class L5 {
+    @Field({ type: () => L6 }) c!: L6;
+  }
+  class L4 {
+    @Field({ type: () => L5 }) c!: L5;
+  }
+  class L3 {
+    @Field({ type: () => L4 }) c!: L4;
+  }
+  class L2 {
+    @Field({ type: () => L3 }) c!: L3;
+  }
+  class L1 {
+    @Field({ type: () => L2 }) c!: L2;
+  }
+  class Root {
+    @Field({ type: () => L1 }) c!: L1;
+  }
 
   it('no stack overflow on 11-level nesting', async () => {
     seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 'deep' } } } } } } } } } } };
-    const result = await deserialize<Root>(Root, input) as Root;
+    const result = (await deserialize<Root>(Root, input)) as Root;
     expect(result.c.c.c.c.c.c.c.c.c.c.v).toBe('deep');
   });
 
@@ -96,7 +115,7 @@ describe('chaos — 1000+ fields DTO', () => {
   it('all 1000 fields validate correctly', async () => {
     seal();
     const input: Record<string, number> = {};
-    for (let i = 0; i < 1000; i++) input[`f${i}`] = i;
+    for (let i = 0; i < 1000; i++) {input[`f${i}`] = i;}
     const result = await deserialize<any>(BigDto, input);
     expect(isBakerError(result)).toBe(false);
     expect((result as any).f0).toBe(0);
@@ -106,7 +125,7 @@ describe('chaos — 1000+ fields DTO', () => {
   it('all 1000 fields report errors on invalid input', async () => {
     seal();
     const input: Record<string, string> = {};
-    for (let i = 0; i < 1000; i++) input[`f${i}`] = 'bad';
+    for (let i = 0; i < 1000; i++) {input[`f${i}`] = 'bad';}
     const result = await deserialize(BigDto, input);
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -151,7 +170,7 @@ describe('chaos — 10000 deserializations', () => {
     seal();
     const input = { name: 'test', age: 25 };
     for (let i = 0; i < 10_000; i++) {
-      const result = await deserialize<SimpleDto>(SimpleDto, input) as SimpleDto;
+      const result = (await deserialize<SimpleDto>(SimpleDto, input)) as SimpleDto;
       if (i % 1000 === 0) {
         expect(result.name).toBe('test');
         expect(result.age).toBe(25);
@@ -173,7 +192,7 @@ describe('chaos — concurrent deserialize calls', () => {
   it('100 concurrent calls all resolve correctly', async () => {
     seal();
     const promises = Array.from({ length: 100 }, (_, i) =>
-      deserialize<ConcurrentDto>(ConcurrentDto, { id: `item-${i}`, val: i })
+      deserialize<ConcurrentDto>(ConcurrentDto, { id: `item-${i}`, val: i }),
     );
     const results = await Promise.all(promises);
     for (let i = 0; i < 100; i++) {
@@ -197,7 +216,7 @@ describe('chaos — every rule type on one field', () => {
 
   it('valid value passes all rules', async () => {
     seal();
-    const result = await deserialize<KitchenSinkDto>(KitchenSinkDto, { email: 'longuser@example.com' }) as KitchenSinkDto;
+    const result = (await deserialize<KitchenSinkDto>(KitchenSinkDto, { email: 'longuser@example.com' })) as KitchenSinkDto;
     expect(result.email).toBe('longuser@example.com');
   });
 
@@ -223,13 +242,15 @@ describe('chaos — extremely long string (100KB)', () => {
   it('100KB string passes isString', async () => {
     seal();
     const longStr = 'x'.repeat(100_000);
-    const result = await deserialize<LongStringDto>(LongStringDto, { content: longStr }) as LongStringDto;
+    const result = (await deserialize<LongStringDto>(LongStringDto, { content: longStr })) as LongStringDto;
     expect(result.content).toHaveLength(100_000);
   });
 
   it('100KB string fails minLength if too short constraint not met', async () => {
     seal();
-    class D { @Field(isString, minLength(200_000)) v!: string; }
+    class D {
+      @Field(isString, minLength(200_000)) v!: string;
+    }
     seal(D);
     const result = await deserialize(D, { v: 'x'.repeat(100_000) });
     expect(isBakerError(result)).toBe(true);
@@ -250,13 +271,13 @@ describe('chaos — extremely large number', () => {
 
   it('MAX_SAFE_INTEGER passes isNumber', async () => {
     seal();
-    const result = await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER }) as NumberDto;
+    const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('MAX_SAFE_INTEGER + 1 still passes isNumber (it is a valid number)', async () => {
     seal();
-    const result = await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER + 1 }) as NumberDto;
+    const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER + 1 })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER + 1);
   });
 
@@ -284,7 +305,9 @@ describe('chaos — extremely large number', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — special values as top-level input', () => {
-  class Dto { @Field(isString) v!: string; }
+  class Dto {
+    @Field(isString) v!: string;
+  }
 
   it('null input produces error', async () => {
     seal();
@@ -397,7 +420,7 @@ describe('chaos — async transform with delay', () => {
 
   it('async transform with delay still resolves', async () => {
     seal();
-    const result = await deserialize<AsyncDelayDto>(AsyncDelayDto, { name: 'hello' }) as AsyncDelayDto;
+    const result = (await deserialize<AsyncDelayDto>(AsyncDelayDto, { name: 'hello' })) as AsyncDelayDto;
     expect(result.name).toBe('HELLO');
   });
 });
@@ -409,18 +432,14 @@ describe('chaos — async transform with delay', () => {
 describe('chaos — validate with 100 rules on single value', () => {
   it('all 100 rules checked', async () => {
     seal();
-    const rules = Array.from({ length: 100 }, (_, i) =>
-      createRule(`rule${i}`, (v) => typeof v === 'string')
-    );
+    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, v => typeof v === 'string'));
     const result = await validate('hello', ...rules);
     expect(result).toBe(true);
   });
 
   it('failing rules among 100 all reported', async () => {
     seal();
-    const rules = Array.from({ length: 100 }, (_, i) =>
-      createRule(`rule${i}`, (v) => i < 50 ? typeof v === 'string' : false)
-    );
+    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, v => (i < 50 ? typeof v === 'string' : false)));
     const result = await validate('hello', ...rules);
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -461,7 +480,7 @@ describe('chaos — deserialize then serialize roundtrip', () => {
         { city: 'Daegu', zip: '41000' },
       ],
     };
-    const obj = await deserialize<ProfileDto>(ProfileDto, input) as ProfileDto;
+    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.fullName).toBe('Alice');
     expect(obj.age).toBe(30);
     expect(obj.active).toBe(true);
@@ -472,7 +491,7 @@ describe('chaos — deserialize then serialize roundtrip', () => {
     expect(plain['age']).toBe(30);
     expect(plain['active']).toBe(true);
 
-    const obj2 = await deserialize<ProfileDto>(ProfileDto, plain) as ProfileDto;
+    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.fullName).toBe('Alice');
     expect(obj2.age).toBe(30);
     expect(obj2.address.city).toBe('Seoul');
@@ -491,11 +510,11 @@ describe('chaos — deserialize then serialize roundtrip', () => {
       bio: null,
       addresses: [],
     };
-    const obj = await deserialize<ProfileDto>(ProfileDto, input) as ProfileDto;
+    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.bio).toBeNull();
 
     const plain = await serialize(obj);
-    const obj2 = await deserialize<ProfileDto>(ProfileDto, plain) as ProfileDto;
+    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.bio).toBeNull();
   });
 
@@ -508,11 +527,11 @@ describe('chaos — deserialize then serialize roundtrip', () => {
       address: { city: 'Osaka', zip: '53000' },
       addresses: [],
     };
-    const obj = await deserialize<ProfileDto>(ProfileDto, input) as ProfileDto;
+    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.bio).toBeUndefined();
 
     const plain = await serialize(obj);
-    const obj2 = await deserialize<ProfileDto>(ProfileDto, plain) as ProfileDto;
+    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.bio).toBeUndefined();
   });
 });

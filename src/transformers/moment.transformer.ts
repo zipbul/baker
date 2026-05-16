@@ -9,11 +9,16 @@ export async function momentTransformer(opts?: MomentTransformerOptions): Promis
 
   return {
     deserialize: ({ value }) => {
-      if (typeof value === 'string' || value instanceof Date) return moment(value);
+      if (typeof value === 'string' || value instanceof Date) {return moment(value);}
       return value;
     },
     serialize: ({ value }) => {
-      if (value && typeof value === 'object' && typeof (value as any).toISOString === 'function' && typeof (value as any).format === 'function') {
+      if (
+        value &&
+        typeof value === 'object' &&
+        typeof (value as any).toISOString === 'function' &&
+        typeof (value as any).format === 'function'
+      ) {
         return opts?.format ? (value as any).format(opts.format) : (value as any).toISOString();
       }
       return value;

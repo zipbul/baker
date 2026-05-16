@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -21,7 +22,7 @@ class ObjDto {
 
 describe('isNotEmptyObject', () => {
   it('object with keys passes', async () => {
-    const r = await deserialize(EmptyObjDto, { config: { a: 1 } }) as EmptyObjDto;
+    const r = (await deserialize(EmptyObjDto, { config: { a: 1 } })) as EmptyObjDto;
     expect(r.config).toEqual({ a: 1 });
   });
 
@@ -42,7 +43,7 @@ describe('isNotEmptyObject', () => {
     // all values are null → treated as empty object
     expect(isBakerError(await deserialize(NullableObjDto, { config: { a: null, b: undefined } }))).toBe(true);
     // non-null value exists → passes
-    const r = await deserialize(NullableObjDto, { config: { a: null, b: 1 } }) as NullableObjDto;
+    const r = (await deserialize(NullableObjDto, { config: { a: null, b: 1 } })) as NullableObjDto;
     expect(r.config.b).toBe(1);
 
     expect(isBakerError(await deserialize(NullableObjDto, { config: 'x' }))).toBe(true);
@@ -51,7 +52,7 @@ describe('isNotEmptyObject', () => {
 
 describe('isObject', () => {
   it('object passes', async () => {
-    const r = await deserialize(ObjDto, { data: { key: 'val' } }) as ObjDto;
+    const r = (await deserialize(ObjDto, { data: { key: 'val' } })) as ObjDto;
     expect(r.data).toEqual({ key: 'val' });
   });
 

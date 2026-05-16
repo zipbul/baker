@@ -7,7 +7,7 @@ coveragePathIgnorePatterns = [
   "node_modules/**",
   "dist/**",
   "src/transformers/luxon.transformer.ts",
-  "src/transformers/moment.transformer.ts"
+  "src/transformers/moment.transformer.ts",
 ]
 
 [test.reporter]

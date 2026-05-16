@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { serialize, deserialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -79,7 +80,7 @@ describe('serialize pipeline — @Transform direction', () => {
   });
 
   it('serializeOnly → not applied on deserialize', async () => {
-    const result = await deserialize<SerOnlyTransformDto>(SerOnlyTransformDto, { price: 9 }) as SerOnlyTransformDto;
+    const result = (await deserialize<SerOnlyTransformDto>(SerOnlyTransformDto, { price: 9 })) as SerOnlyTransformDto;
     expect(result.price).toBe(9);
   });
 
@@ -90,7 +91,9 @@ describe('serialize pipeline — @Transform direction', () => {
   });
 
   it('deserializeOnly → applied on deserialize', async () => {
-    const result = await deserialize<DeserOnlyTransformDto>(DeserOnlyTransformDto, { tag: '  hello  ' }) as DeserOnlyTransformDto;
+    const result = (await deserialize<DeserOnlyTransformDto>(DeserOnlyTransformDto, {
+      tag: '  hello  ',
+    })) as DeserOnlyTransformDto;
     expect(result.tag).toBe('hello');
   });
 });
@@ -104,7 +107,7 @@ describe('serialize pipeline — direction @Expose', () => {
   });
 
   it('deserialize → deserializeOnly @Expose name used', async () => {
-    const result = await deserialize<DirectionExposeDto>(DirectionExposeDto, { user_name: 'Carol' }) as DirectionExposeDto;
+    const result = (await deserialize<DirectionExposeDto>(DirectionExposeDto, { user_name: 'Carol' })) as DirectionExposeDto;
     expect(result.name).toBe('Carol');
   });
 });

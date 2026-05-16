@@ -1,6 +1,7 @@
+import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
+
 import { ensureMeta } from '../collect';
 import { SealError } from '../errors';
-import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 import { isAsyncFunction, isPromiseLike } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -80,19 +81,32 @@ export interface FieldOptions {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const FIELD_OPTION_KEYS = new Set([
-  'type', 'discriminator', 'keepDiscriminatorProperty', 'rules',
-  'optional', 'nullable', 'name', 'deserializeName', 'serializeName',
-  'exclude', 'groups', 'when', 'transform',
-  'message', 'context', 'mapValue', 'setValue',
+  'type',
+  'discriminator',
+  'keepDiscriminatorProperty',
+  'rules',
+  'optional',
+  'nullable',
+  'name',
+  'deserializeName',
+  'serializeName',
+  'exclude',
+  'groups',
+  'when',
+  'transform',
+  'message',
+  'context',
+  'mapValue',
+  'setValue',
 ]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
-  if (typeof arg === 'function') return false;
-  if (typeof arg !== 'object' || arg === null) return false;
-  if (isArrayOfMarker(arg)) return false;
+  if (typeof arg === 'function') {return false;}
+  if (typeof arg !== 'object' || arg === null) {return false;}
+  if (isArrayOfMarker(arg)) {return false;}
   // Treat as FieldOptions if at least one known key exists
   const keys = Object.keys(arg);
-  if (keys.length === 0) return true; // @Field({})
+  if (keys.length === 0) {return true;} // @Field({})
   return keys.some(k => FIELD_OPTION_KEYS.has(k));
 }
 
@@ -105,8 +119,7 @@ type RuleArg = EmittableRule | ArrayOfMarker;
 /** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
 function _assertRule(value: unknown, className: string, fieldKey: string, slot?: string): void {
   const loc = slot ? `${className}.${fieldKey} ${slot}` : `${className}.${fieldKey}`;
-  const validForms =
-    ` Valid @Field forms: @Field(), @Field(rule, ...), @Field(options), @Field(rule, ..., options).`;
+  const validForms = ` Valid @Field forms: @Field(), @Field(rule, ...), @Field(options), @Field(rule, ..., options).`;
   if (typeof value === 'function') {
     const fn = value as { emit?: unknown; ruleName?: unknown; name?: string };
     if (typeof fn.emit !== 'function' || typeof fn.ruleName !== 'string') {
@@ -117,7 +130,9 @@ function _assertRule(value: unknown, className: string, fieldKey: string, slot?:
     }
     return;
   }
-  throw new SealError(`@Field on ${loc}: expected a baker rule (function with .emit and .ruleName), got ${value === null ? 'null' : typeof value}. Use createRule() or import a rule from @zipbul/baker/rules.${validForms}`);
+  throw new SealError(
+    `@Field on ${loc}: expected a baker rule (function with .emit and .ruleName), got ${value === null ? 'null' : typeof value}. Use createRule() or import a rule from @zipbul/baker/rules.${validForms}`,
+  );
 }
 
 /** Normalize 4 overload signatures into `{ rules, options }` */
@@ -137,7 +152,7 @@ function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions 
     // Form 4: @Field(isString(), { optional: true })
     const options = lastArg as FieldOptions;
     let rules: RuleArg[] = args.slice(0, -1);
-    if (options.rules) rules = [...rules, ...options.rules];
+    if (options.rules) {rules = [...rules, ...options.rules];}
     return { rules, options };
   }
   // Form 2: @Field(isString(), email())
@@ -150,16 +165,16 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
         const rd: RuleDef = { rule: innerRule, each: true };
-        if (options.groups !== undefined) rd.groups = options.groups;
-        if (options.message !== undefined) rd.message = options.message;
-        if (options.context !== undefined) rd.context = options.context;
+        if (options.groups !== undefined) {rd.groups = options.groups;}
+        if (options.message !== undefined) {rd.message = options.message;}
+        if (options.context !== undefined) {rd.context = options.context;}
         meta.validation.push(rd);
       }
     } else {
       const rd: RuleDef = { rule: rule as InternalRule };
-      if (options.groups !== undefined) rd.groups = options.groups;
-      if (options.message !== undefined) rd.message = options.message;
-      if (options.context !== undefined) rd.context = options.context;
+      if (options.groups !== undefined) {rd.groups = options.groups;}
+      if (options.message !== undefined) {rd.message = options.message;}
+      if (options.context !== undefined) {rd.context = options.context;}
       meta.validation.push(rd);
     }
   }
@@ -169,17 +184,17 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
     const ed: ExposeDef = { name: options.name };
-    if (options.groups !== undefined) ed.groups = options.groups;
+    if (options.groups !== undefined) {ed.groups = options.groups;}
     meta.expose.push(ed);
   } else if (options.deserializeName || options.serializeName) {
     if (options.deserializeName) {
       const ed: ExposeDef = { name: options.deserializeName, deserializeOnly: true };
-      if (options.groups !== undefined) ed.groups = options.groups;
+      if (options.groups !== undefined) {ed.groups = options.groups;}
       meta.expose.push(ed);
     }
     if (options.serializeName) {
       const ed: ExposeDef = { name: options.serializeName, serializeOnly: true };
-      if (options.groups !== undefined) ed.groups = options.groups;
+      if (options.groups !== undefined) {ed.groups = options.groups;}
       meta.expose.push(ed);
     }
   } else if (options.groups) {
@@ -196,10 +211,12 @@ function wrapTransform(
   fn: Transformer['deserialize'] | Transformer['serialize'],
 ): { fn: typeof fn; isAsync: boolean } {
   const isAsync = isAsyncFunction(fn);
-  const wrapped = ((params) => {
+  const wrapped = (params => {
     const result = fn(params);
     if (!isAsync && isPromiseLike(result)) {
-      throw new Error(`@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`);
+      throw new Error(
+        `@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`,
+      );
     }
     return result;
   }) as typeof fn;
@@ -208,7 +225,7 @@ function wrapTransform(
 
 /** Register Transformer — split into direction-specific TransformDefs */
 function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions): void {
-  if (!options.transform) return;
+  if (!options.transform) {return;}
   const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
   for (const t of transformers) {
     const deserialize = wrapTransform(propertyKey, 'deserialize', t.deserialize);
@@ -236,10 +253,7 @@ export function Field(...args: any[]): PropertyDecorator {
   return (target, key) => {
     const ctor = (target as any).constructor;
     if (typeof key === 'symbol') {
-      throw new SealError(
-        `@Field on ${ctor.name}: symbol property keys are not supported. ` +
-        `Use a string property name.`,
-      );
+      throw new SealError(`@Field on ${ctor.name}: symbol property keys are not supported. ` + `Use a string property name.`);
     }
     const propertyKey = key;
     const meta = ensureMeta(ctor, propertyKey);
@@ -262,17 +276,17 @@ export function Field(...args: any[]): PropertyDecorator {
     applyValidation(meta, rules, options);
 
     // ── flags ──
-    if (options.optional) meta.flags.isOptional = true;
-    if (options.nullable) meta.flags.isNullable = true;
-    if (options.when) meta.flags.validateIf = options.when;
+    if (options.optional) {meta.flags.isOptional = true;}
+    if (options.nullable) {meta.flags.isNullable = true;}
+    if (options.when) {meta.flags.validateIf = options.when;}
 
     // ── type (nested DTO + discriminator + collection) ──
     if (options.type) {
       const td: TypeDef = { fn: options.type as TypeDef['fn'] };
-      if (options.discriminator !== undefined) td.discriminator = options.discriminator;
-      if (options.keepDiscriminatorProperty !== undefined) td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;
+      if (options.discriminator !== undefined) {td.discriminator = options.discriminator;}
+      if (options.keepDiscriminatorProperty !== undefined) {td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;}
       const cv = options.mapValue ?? options.setValue;
-      if (cv !== undefined) td.collectionValue = cv;
+      if (cv !== undefined) {td.collectionValue = cv;}
       meta.type = td;
     }
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, isBakerError, createRule, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -10,7 +11,7 @@ afterEach(() => unseal());
 
 const isEven = createRule({
   name: 'isEven',
-  validate: (v) => typeof v === 'number' && v % 2 === 0,
+  validate: v => typeof v === 'number' && v % 2 === 0,
   constraints: { divisor: 2 },
   requiresType: 'number',
 });
@@ -22,7 +23,7 @@ class EvenDto {
 
 const asyncIsPositive = createRule({
   name: 'asyncPositive',
-  validate: async (v) => typeof v === 'number' && v > 0,
+  validate: async v => typeof v === 'number' && v > 0,
 });
 
 class AsyncRuleDto {
@@ -34,7 +35,7 @@ class AsyncRuleDto {
 
 describe('createRule — sync', () => {
   it('rule passes', async () => {
-    const r = await deserialize(EvenDto, { value: 4 }) as EvenDto;
+    const r = (await deserialize(EvenDto, { value: 4 })) as EvenDto;
     expect(r.value).toBe(4);
   });
 
@@ -55,7 +56,7 @@ describe('createRule — sync', () => {
 
 describe('createRule — async', () => {
   it('async rule passes', async () => {
-    const r = await deserialize(AsyncRuleDto, { score: 10 }) as AsyncRuleDto;
+    const r = (await deserialize(AsyncRuleDto, { score: 10 })) as AsyncRuleDto;
     expect(r.score).toBe(10);
   });
 

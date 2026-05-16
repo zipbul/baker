@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import { isNotEmptyObject, isInstance } from './object';
 
 function makeCtx(refIndex: number = 0) {

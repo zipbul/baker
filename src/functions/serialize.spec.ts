@@ -1,10 +1,12 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { SEALED } from '../symbols';
+
+import type { RuntimeOptions } from '../interfaces';
+
 import { SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { _resetForTesting } from '../seal/seal';
+import { SEALED } from '../symbols';
 import { serialize } from './serialize';
-import type { RuntimeOptions } from '../interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

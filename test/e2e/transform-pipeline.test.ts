@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
 import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
 import { isString, minLength, maxLength, matches } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -49,14 +50,14 @@ class TypeAwareDto {
 
 describe('@Transform — stacking', () => {
   it('multiple Transforms applied in order (trim → lower)', async () => {
-    const result = await deserialize(TrimLowerDto, { email: '  FOO@BAR.COM  ' }) as TrimLowerDto;
+    const result = (await deserialize(TrimLowerDto, { email: '  FOO@BAR.COM  ' })) as TrimLowerDto;
     expect(result.email).toBe('foo@bar.com');
   });
 });
 
 describe('@Transform — direction', () => {
   it('deserializeOnly → applied only during deserialize', async () => {
-    const result = await deserialize(DirectionTransformDto, { tag: '  hello  ' }) as DirectionTransformDto;
+    const result = (await deserialize(DirectionTransformDto, { tag: '  hello  ' })) as DirectionTransformDto;
     expect(result.tag).toBe('hello');
   });
 
@@ -67,7 +68,7 @@ describe('@Transform — direction', () => {
   });
 
   it('direction differentiated via type param', async () => {
-    const desResult = await deserialize(TypeAwareDto, { code: 'abc' }) as TypeAwareDto;
+    const desResult = (await deserialize(TypeAwareDto, { code: 'abc' })) as TypeAwareDto;
     expect(desResult.code).toBe('ABC');
 
     const dto = Object.assign(new TypeAwareDto(), { code: 'XYZ' });
@@ -102,7 +103,7 @@ describe('@Transform callback parameters', () => {
   }
 
   it('key, obj parameter access', async () => {
-    const r = await deserialize(CallbackDto, { data: 'hello', prefix: 'PRE' }) as CallbackDto;
+    const r = (await deserialize(CallbackDto, { data: 'hello', prefix: 'PRE' })) as CallbackDto;
     expect(r.data).toBe('data:PRE:hello');
   });
 });
@@ -114,7 +115,7 @@ describe('E-24: async transform failure error path', () => {
     class AsyncInvalidDto {
       @Field(isString, {
         transform: {
-          deserialize: async ({ value }) => typeof value === 'string' ? 42 : value,
+          deserialize: async ({ value }) => (typeof value === 'string' ? 42 : value),
           serialize: ({ value }) => value,
         },
       })
@@ -134,7 +135,9 @@ describe('E-24: async transform failure error path', () => {
     class AsyncThrowDto {
       @Field(isString, {
         transform: {
-          deserialize: async () => { throw new Error('transform boom'); },
+          deserialize: async () => {
+            throw new Error('transform boom');
+          },
           serialize: ({ value }) => value,
         },
       })
@@ -154,7 +157,7 @@ describe('@Transform null return behavior', () => {
     class NullTransformDto {
       @Field(isString, {
         transform: {
-          deserialize: ({ value }) => value === 'EMPTY' ? null : value,
+          deserialize: ({ value }) => (value === 'EMPTY' ? null : value),
           serialize: ({ value }) => value,
         },
       })
@@ -169,14 +172,14 @@ describe('@Transform null return behavior', () => {
     class TransformDto {
       @Field(isString, {
         transform: {
-          deserialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
-          serialize: ({ value }) => typeof value === 'string' ? value.toUpperCase() : value,
+          deserialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
+          serialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
         },
       })
       v!: string;
     }
     seal(TransformDto);
-    const r = await deserialize(TransformDto, { v: 'hello' }) as TransformDto;
+    const r = (await deserialize(TransformDto, { v: 'hello' })) as TransformDto;
     expect(r.v).toBe('HELLO');
   });
 
@@ -192,7 +195,7 @@ describe('@Transform null return behavior', () => {
       v!: string | null;
     }
     seal(NullableDto);
-    const r = await deserialize(NullableDto, { v: null }) as NullableDto;
+    const r = (await deserialize(NullableDto, { v: null })) as NullableDto;
     // null is skipped by nullable guard → Transform/validation both skipped
     expect(r.v).toBeNull();
   });
@@ -215,7 +218,7 @@ describe('field with 3+ rules and 3+ transforms (codec stack)', () => {
   }
 
   it('three rules + three transforms applied in deserialize order', async () => {
-    const r = await deserialize<TripleDto>(TripleDto, { name: '  Hello World  ' }) as TripleDto;
+    const r = (await deserialize<TripleDto>(TripleDto, { name: '  Hello World  ' })) as TripleDto;
     expect(r.name).toBe('helloworld');
   });
 

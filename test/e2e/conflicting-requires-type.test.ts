@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import { Field, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -24,7 +25,7 @@ describe('auto-nested via @Type', () => {
     }
     seal(Outer);
 
-    const result = await deserialize<Outer>(Outer, { child: { label: 'hello' } }) as Outer;
+    const result = (await deserialize<Outer>(Outer, { child: { label: 'hello' } })) as Outer;
     expect(result.child).toBeInstanceOf(Inner);
     expect(result.child.label).toBe('hello');
   });

@@ -1,7 +1,9 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { analyzeCircular } from './circular-analyzer';
-import { RAW } from '../symbols';
+
 import type { RawClassMeta } from '../types';
+
+import { RAW } from '../symbols';
+import { analyzeCircular } from './circular-analyzer';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — manual RAW meta setup
@@ -16,14 +18,11 @@ function makeTypeMeta(fn: () => Function): RawClassMeta {
       exclude: null,
       type: { fn: fn as () => new (...args: any[]) => any },
       flags: {},
-     
     },
   };
 }
 
-function makeDiscriminatorMeta(
-  subTypes: { value: Function; name: string }[],
-): RawClassMeta {
+function makeDiscriminatorMeta(subTypes: { value: Function; name: string }[]): RawClassMeta {
   return {
     field: {
       validation: [],
@@ -35,7 +34,6 @@ function makeDiscriminatorMeta(
         discriminator: { property: 'type', subTypes },
       },
       flags: {},
-     
     },
   };
 }
@@ -138,7 +136,10 @@ describe('analyzeCircular', () => {
     (CDto as any)[RAW] = makeTypeMeta(() => ADto); // C → A (creates cycle)
     (ADto as any)[RAW] = {
       field: {
-        validation: [], transform: [], expose: [], exclude: null,
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
         type: {
           fn: () => BDto, // fn path goes to B → no cycle
           discriminator: {
@@ -150,7 +151,6 @@ describe('analyzeCircular', () => {
           },
         },
         flags: {},
-       
       },
     };
 
@@ -242,7 +242,9 @@ describe('analyzeCircular', () => {
   it('should throw SealError when lazy type function throws', () => {
     // Arrange
     class LazyThrowDto {}
-    (LazyThrowDto as any)[RAW] = makeTypeMeta(() => { throw new Error('boom'); });
+    (LazyThrowDto as any)[RAW] = makeTypeMeta(() => {
+      throw new Error('boom');
+    });
     // Act / Assert
     expect(() => analyzeCircular(LazyThrowDto)).toThrow('boom');
   });
@@ -250,7 +252,9 @@ describe('analyzeCircular', () => {
   it('should include class name in SealError when lazy type throws', () => {
     // Arrange
     class NamedThrowDto {}
-    (NamedThrowDto as any)[RAW] = makeTypeMeta(() => { throw new Error('broken ref'); });
+    (NamedThrowDto as any)[RAW] = makeTypeMeta(() => {
+      throw new Error('broken ref');
+    });
     // Act / Assert
     try {
       analyzeCircular(NamedThrowDto);

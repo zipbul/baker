@@ -1,15 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  isString,
-  isNumber,
-  isBoolean,
-  isDate,
-  isEnum,
-  isInt,
-  isArray,
-  isObject,
-} from './typechecker';
+
+import { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject } from './typechecker';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
@@ -263,8 +256,14 @@ describe('isDate', () => {
 // ─── isEnum ───────────────────────────────────────────────────────────────────
 
 describe('isEnum', () => {
-  enum Direction { Up = 'UP', Down = 'DOWN' }
-  enum Status { Active = 1, Inactive = 0 }
+  enum Direction {
+    Up = 'UP',
+    Down = 'DOWN',
+  }
+  enum Status {
+    Active = 1,
+    Inactive = 0,
+  }
 
   it('should return true when value is a string enum member', () => {
     // Arrange
@@ -471,10 +470,20 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     const refs: unknown[] = [];
     const errors: { code: string }[] = [];
     const ctx: EmitContext = {
-      addRegex(re: RegExp) { regexes.push(re); return regexes.length - 1; },
-      addRef(value: unknown) { refs.push(value); return refs.length - 1; },
-      addExecutor() { return 0; },
-      fail(code: string) { return `_errors.push({code:'${code}'})`; },
+      addRegex(re: RegExp) {
+        regexes.push(re);
+        return regexes.length - 1;
+      },
+      addRef(value: unknown) {
+        refs.push(value);
+        return refs.length - 1;
+      },
+      addExecutor() {
+        return 0;
+      },
+      fail(code: string) {
+        return `_errors.push({code:'${code}'})`;
+      },
       collectErrors: true,
     };
     return { ctx, regexes, refs, errors };
@@ -483,7 +492,11 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
   /** Compile emit code into a runnable function */
   function compile(emitCode: string, _regexes: RegExp[], _refs: unknown[]) {
     const body = `'use strict'; var _errors = []; ${emitCode} return _errors;`;
-    return new Function('_v', '_re', '_refs', body).bind(null) as (v: unknown, re: RegExp[], refs: unknown[]) => { code: string }[];
+    return new Function('_v', '_re', '_refs', body).bind(null) as (
+      v: unknown,
+      re: RegExp[],
+      refs: unknown[],
+    ) => { code: string }[];
   }
 
   it('isString — accepts string, rejects number', () => {
@@ -507,7 +520,10 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
   });
 
   it('isEnum — accepts valid member, rejects invalid', () => {
-    enum Color { Red = 'red', Blue = 'blue' }
+    enum Color {
+      Red = 'red',
+      Blue = 'blue',
+    }
     const rule = isEnum(Color);
     const { ctx, regexes, refs } = makeRealCtx();
     const code = rule.emit('_v', ctx);

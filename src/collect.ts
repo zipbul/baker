@@ -1,6 +1,7 @@
-import { RAW } from './symbols';
-import { globalRegistry } from './registry';
 import type { RawPropertyMeta, RuleDef } from './types';
+
+import { globalRegistry } from './registry';
+import { RAW } from './symbols';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ensureMeta — Internal utility (§3.1)
@@ -40,4 +41,3 @@ export function collectValidation(target: object, key: string, ruleDef: RuleDef)
   const meta = ensureMeta((target as any).constructor, key);
   meta.validation.push(ruleDef);
 }
-

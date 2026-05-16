@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from '../types';
+
 import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,7 +10,7 @@ export function equals(comparison: unknown): EmittableRule {
   return makeRule({
     name: 'equals',
     constraints: { value: comparison },
-    validate: (value) => value === comparison,
+    validate: value => value === comparison,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(comparison);
       return `if (${varName} !== _refs[${i}]) ${ctx.fail('equals')};`;
@@ -25,7 +26,7 @@ export function notEquals(comparison: unknown): EmittableRule {
   return makeRule({
     name: 'notEquals',
     constraints: { value: comparison },
-    validate: (value) => value !== comparison,
+    validate: value => value !== comparison,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(comparison);
       return `if (${varName} === _refs[${i}]) ${ctx.fail('notEquals')};`;
@@ -40,7 +41,7 @@ export function notEquals(comparison: unknown): EmittableRule {
 export const isEmpty = makeRule({
   name: 'isEmpty',
   constraints: {},
-  validate: (value) => value === undefined || value === null || value === '',
+  validate: value => value === undefined || value === null || value === '',
   emit: (varName: string, ctx: EmitContext): string =>
     `if (${varName} !== undefined && ${varName} !== null && ${varName} !== '') ${ctx.fail('isEmpty')};`,
 });
@@ -52,7 +53,7 @@ export const isEmpty = makeRule({
 export const isNotEmpty = makeRule({
   name: 'isNotEmpty',
   constraints: {},
-  validate: (value) => value !== undefined && value !== null && value !== '',
+  validate: value => value !== undefined && value !== null && value !== '',
   emit: (varName: string, ctx: EmitContext): string =>
     `if (${varName} === undefined || ${varName} === null || ${varName} === '') ${ctx.fail('isNotEmpty')};`,
 });
@@ -66,7 +67,7 @@ export function isIn(array: unknown[]): EmittableRule {
   return makeRule({
     name: 'isIn',
     constraints: { values: array },
-    validate: (value) => set.has(value),
+    validate: value => set.has(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(set);
       return `if (!_refs[${i}].has(${varName})) ${ctx.fail('isIn')};`;
@@ -83,7 +84,7 @@ export function isNotIn(array: unknown[]): EmittableRule {
   return makeRule({
     name: 'isNotIn',
     constraints: { values: array },
-    validate: (value) => !set.has(value),
+    validate: value => !set.has(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(set);
       return `if (_refs[${i}].has(${varName})) ${ctx.fail('isNotIn')};`;
