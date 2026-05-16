@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { serialize, Field } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { serialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -31,6 +31,7 @@ class ExcludedDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 describe('serialize — integration', () => {

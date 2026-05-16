@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmittableRule } from '../types';
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────

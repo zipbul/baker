@@ -10,8 +10,8 @@ import {
 } from './array';
 
 function makeCtx(refIndex: number = 0) {
-  const addRefMock = mock((fn: Function) => refIndex++);
-  const addRegexMock = mock((re: RegExp) => refIndex++);
+  const addRefMock = mock((_fn: Function) => refIndex++);
+  const addRegexMock = mock((_re: RegExp) => refIndex++);
   const failMock = mock((code: string) => `throw new Error('${code}')`);
   const ctx: EmitContext = {
     addRegex: addRegexMock,

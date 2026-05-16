@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, seal } from '../../index';
 import {
   isString, isNumber, isBoolean, isInt,
   min, max, isPositive, isNegative, isDivisibleBy,
@@ -9,12 +9,8 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
-
-/** Helper: verify pass */
-async function pass<T>(cls: new (...a: any[]) => T, input: unknown): Promise<T> {
-  return deserialize<T>(cls, input) as Promise<T>;
-}
 
 /** Helper: verify rejection + return error code */
 async function failCode(cls: new (...args: any[]) => any, input: unknown): Promise<string> {
@@ -200,17 +196,20 @@ describe('@IsBoolean with similar values', () => {
 describe('E-13: -0, NaN, Infinity edge cases', () => {
   it('isNegative(-0) → false (0 is not negative)', async () => {
     class Dto { @Field(isNegative) v!: number; }
+    seal(Dto);
     expect(await failCode(Dto, { v: -0 })).toBe('isNegative');
   });
 
   it('isPositive(NaN) rejected to match runtime rule semantics', async () => {
     class Dto { @Field(isPositive) v!: number; }
+    seal(Dto);
     expect(isPositive(NaN)).toBe(false);
     expect(isBakerError(await deserialize(Dto, { v: NaN }))).toBe(true);
   });
 
   it('@Field(isNumber(), isPositive) rejects NaN via isNumber gate', async () => {
     class Dto { @Field(isNumber(), isPositive) v!: number; }
+    seal(Dto);
     expect(isBakerError(await deserialize(Dto, { v: NaN }))).toBe(true);
   });
 

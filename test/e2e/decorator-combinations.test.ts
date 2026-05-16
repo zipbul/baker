@@ -1,15 +1,13 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import {
-  Field, deserialize, serialize, isBakerError,
-} from '../../index';
-import type { BakerErrors } from '../../index';
-import {
-  isString, isNumber, isInt, isBoolean, isEnum, isArray,
+  isString, isNumber, isBoolean, isEnum, isArray,
   min, max, minLength, maxLength, matches,
   arrayMinSize,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 async function getErrors(cls: new (...args: any[]) => any, input: unknown) {

@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { deserialize, isBakerError, Field, configure } from '../../index';
-import type { BakerErrors } from '../../index';
+import { deserialize, isBakerError, Field, configure, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -35,11 +34,13 @@ afterEach(() => { unseal(); configure({}); });
 
 describe('error — integration', () => {
   it('should return BakerErrors on invalid input', async () => {
+    seal();
     const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
     expect(isBakerError(result)).toBe(true);
   });
 
   it('BakerErrors should have errors array', async () => {
+    seal();
     const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -49,6 +50,7 @@ describe('error — integration', () => {
   });
 
   it('BakerErrors.errors should include path and code', async () => {
+    seal();
     const result = await deserialize(ErrorDto, { age: 25, email: 'x@y.com' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -57,6 +59,7 @@ describe('error — integration', () => {
   });
 
   it('should collect all errors when multiple fields invalid', async () => {
+    seal();
     const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -66,6 +69,7 @@ describe('error — integration', () => {
 
   it('should respect stopAtFirstError configure option', async () => {
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {

@@ -696,7 +696,7 @@ describe('buildDeserializeCode', () => {
     } satisfies SealedExecutors<TagDto>;
 
     // A no-op rule to trigger hasEach:true path without failing validation
-    const alwaysPass = ((v: unknown) => true) as any;
+    const alwaysPass = ((_v: unknown) => true) as any;
     alwaysPass.emit = (_varName: string, _ctx: any) => '';
     alwaysPass.ruleName = 'alwaysPass';
 
@@ -794,7 +794,7 @@ describe('buildDeserializeCode', () => {
       {
         emit(varName: string, ctx: import('../types').EmitContext): string {
           // exercise addExecutor to cover L657-658
-          const idx = ctx.addExecutor(dummySealedExec);
+          ctx.addExecutor(dummySealedExec);
           // return a simple validation check (always pass for string)
           return `if (typeof ${varName} !== 'string') ${ctx.fail('customRule')};`;
         },

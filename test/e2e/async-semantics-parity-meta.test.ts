@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { createRule, deserialize, Field, isBakerError, serialize, validate } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { createRule, deserialize, Field, isBakerError, serialize, validate, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 const asyncEven = createRule({
@@ -23,6 +24,7 @@ describe('async semantics parity meta', () => {
       @Field(isNumber(), asyncEven)
       value!: number;
     }
+    seal(Dto);
 
     const samples = [2, 3, '2', null];
 
@@ -38,6 +40,7 @@ describe('async semantics parity meta', () => {
       @Field(isString, asyncStartsWithA)
       value!: string;
     }
+    seal(Dto);
 
     const samples = ['alice', 'bob', 1, null];
 
@@ -58,6 +61,7 @@ describe('async semantics parity meta', () => {
       })
       value!: string;
     }
+    seal(Dto);
 
     const result = await deserialize<Dto>(Dto, { value: '  alice  ' }) as Dto;
     expect(result.value).toBe('ALICE');
@@ -68,6 +72,7 @@ describe('async semantics parity meta', () => {
       @Field(isString)
       name!: string;
     }
+    seal(ChildDto);
 
     class ParentDto {
       @Field({ type: () => ChildDto })
@@ -81,6 +86,7 @@ describe('async semantics parity meta', () => {
       })
       label!: string;
     }
+    seal(ParentDto);
 
     const parent = Object.assign(new ParentDto(), {
       child: Object.assign(new ChildDto(), { name: 'neo' }),

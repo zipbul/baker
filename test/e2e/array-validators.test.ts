@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError } from '../../index';
-import { isArray, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains, arrayNotContains } from '../../src/rules/index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, seal } from '../../index';
+import { isArray, isString, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty, arrayContains, arrayNotContains } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,5 +105,34 @@ describe('@ArrayNotContains', () => {
   });
   it('non-array value rejected even when string search would not match', async () => {
     expect(isBakerError(await deserialize(NotContainsDto, { items: 'abc' }))).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Array-level rules on Set collection (Set + arrayMinSize)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Set collection + array-level rules', () => {
+  class SetItem {
+    @Field(isString) name!: string;
+  }
+
+  class SetWithMinDto {
+    @Field(arrayMinSize(2), { type: () => Set as any, setValue: () => SetItem })
+    items!: Set<SetItem>;
+  }
+
+  it('Set with arrayMinSize — valid', async () => {
+    const result = await deserialize(SetWithMinDto, { items: [{ name: 'a' }, { name: 'b' }] }) as SetWithMinDto;
+    expect(result.items).toBeInstanceOf(Set);
+    expect(result.items.size).toBe(2);
+  });
+
+  it('Set with arrayMinSize — too few items → error', async () => {
+    const result = await deserialize(SetWithMinDto, { items: [{ name: 'a' }] });
+    expect(isBakerError(result)).toBe(true);
+    if (isBakerError(result)) {
+      expect(result.errors.some(e => e.code === 'arrayMinSize')).toBe(true);
+    }
   });
 });

@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { isErr } from '@zipbul/result';
-import { Field, deserialize } from '../../index';
+import { Field, deserialize, seal } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 import { SEALED } from '../../src/symbols';
@@ -30,6 +30,7 @@ class CodegenTransformDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 describe('codegen — integration', () => {

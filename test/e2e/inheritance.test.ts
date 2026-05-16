@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────

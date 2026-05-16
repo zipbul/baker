@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, isBakerError } from '../index';
+import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 
 class BakerSimple {
@@ -15,8 +15,7 @@ class BakerSimple {
   @Field(isBoolean) active!: boolean;
   @Field(isString) tag!: string;
 }
-// warm seal
-await deserialize(BakerSimple, SIMPLE_VALID);
+seal();
 
 // ── class-validator ──────────────────────────────────────────────────────────
 import 'reflect-metadata';
@@ -113,8 +112,8 @@ let sinkNum = 0;
 
 group('simple object — valid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerSimple, SIMPLE_VALID);
-    if (isBakerError(r)) sinkNum += r.errors.length; else sinkNum += r.tag.length;
+    const r = deserialize(BakerSimple, SIMPLE_VALID) as BakerSimple;
+    sinkNum += r.tag.length;
   });
   bench('class-validator', () => {
     const inst = plainToInstance(CvSimple, SIMPLE_VALID);

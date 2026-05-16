@@ -111,7 +111,7 @@ describe('maxDate', () => {
     const rule = maxDate(new Date('2025-01-01'));
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    rule.emit('_v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(0);
     expect(failMock).toHaveBeenCalledWith('maxDate');

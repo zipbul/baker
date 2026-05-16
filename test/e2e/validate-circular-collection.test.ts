@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { validate, isBakerError, Field, configure } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { validate, isBakerError, Field, configure, seal } from '../../index';
 import { isString, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => {
   unseal();
   configure({});
@@ -39,6 +40,7 @@ class MapNode {
 
 describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)', () => {
   it('valid recursive set → true', async () => {
+    seal();
     const input = {
       value: 'root',
       children: [
@@ -50,6 +52,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
   });
 
   it('depth-2 nested violation → BakerErrors with nested path', async () => {
+    seal();
     const input = {
       value: 'root',
       children: [
@@ -66,6 +69,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
   });
 
   it('deeper recursion violation → path chains indices correctly', async () => {
+    seal();
     const input = {
       value: 'root',
       children: [
@@ -88,6 +92,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
   });
 
   it('nested set item not an object → invalidInput with depth path', async () => {
+    seal();
     const input = {
       value: 'root',
       children: [
@@ -106,6 +111,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
 
 describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInline=false)', () => {
   it('valid recursive map → true', async () => {
+    seal();
     const input = {
       value: 'root',
       branches: {
@@ -117,6 +123,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
   });
 
   it('depth-2 nested violation → BakerErrors with nested path', async () => {
+    seal();
     const input = {
       value: 'root',
       branches: {
@@ -133,6 +140,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
   });
 
   it('deeper recursion violation → path chains keys correctly', async () => {
+    seal();
     const input = {
       value: 'root',
       branches: {
@@ -155,6 +163,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
   });
 
   it('nested map value not an object → invalidInput with depth path', async () => {
+    seal();
     const input = {
       value: 'root',
       branches: {
@@ -181,7 +190,9 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
 
 describe('validate() — stopAtFirstError on self-recursive collections', () => {
   it('Set: depth-2 violation returns first error only', async () => {
+    unseal();
     configure({ stopAtFirstError: true });
+    seal();
     const input = {
       value: 'root',
       children: [
@@ -198,7 +209,9 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
   });
 
   it('Map: depth-2 violation returns first error only', async () => {
+    unseal();
     configure({ stopAtFirstError: true });
+    seal();
     const input = {
       value: 'root',
       branches: {

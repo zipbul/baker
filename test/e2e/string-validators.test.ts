@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, isBakerError, Field } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, isBakerError, Field, seal } from '../../index';
 import {
   isString, isEmail, isUUID, isIP, isURL, isISO8601,
   minLength, maxLength, matches, contains, length,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EmailDto { @Field(isEmail()) email!: string; }
@@ -128,6 +132,18 @@ describe('length', () => {
   });
   it('below minimum rejected', async () => {
     expect(isBakerError(await deserialize(LengthDto, { tag: 'a' }))).toBe(true);
+  });
+  // Multi-length-rule field exercises insideTypeGate=true codegen path where
+  // stripSelfComparison keeps 2+ non-self-comparison checks on length(min,max).
+  it('length(2,10) + minLength(1) on same field — codegen shares length var', async () => {
+    class MultiLenDto {
+      @Field(isString, length(2, 10), minLength(1)) v!: string;
+    }
+    unseal();
+    seal();
+    const ok = await deserialize<MultiLenDto>(MultiLenDto, { v: 'hello' }) as MultiLenDto;
+    expect(ok.v).toBe('hello');
+    expect(isBakerError(await deserialize(MultiLenDto, { v: 'x' }))).toBe(true);
   });
 });
 

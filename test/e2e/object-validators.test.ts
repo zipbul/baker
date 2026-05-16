@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, isBakerError, Field } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class EmptyObjDto {
@@ -34,6 +38,7 @@ describe('isNotEmptyObject', () => {
       @Field(isNotEmptyObject({ nullable: true }))
       config!: Record<string, unknown>;
     }
+    seal(NullableObjDto);
     // all values are null → treated as empty object
     expect(isBakerError(await deserialize(NullableObjDto, { config: { a: null, b: undefined } }))).toBe(true);
     // non-null value exists → passes

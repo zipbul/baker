@@ -1,8 +1,12 @@
-import { describe, it, expect } from 'bun:test';
-import { validate, deserialize, isBakerError, Field, createRule } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { validate, deserialize, isBakerError, Field, createRule, seal } from '../../index';
 import {
   isString, isNumber, isBoolean, isEmail, min, max, minLength,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ad-hoc validation — single value + rules
@@ -326,9 +330,9 @@ describe('validate DTO — async', () => {
 });
 
 describe('validate DTO — SealError', () => {
-  it('class without @Field → throws SealError', () => {
+  it('seal(EmptyDto) on class without @Field → throws SealError', () => {
     class EmptyDto {}
-    expect(() => validate(EmptyDto, {})).toThrow();
+    expect(() => seal(EmptyDto)).toThrow();
   });
 });
 
@@ -343,6 +347,21 @@ describe('validate ad-hoc — no rules', () => {
 
   it('no rules with null → true', async () => {
     expect(await validate(null)).toBe(true);
+  });
+});
+
+describe('validate ad-hoc — invalid rule argument rejection', () => {
+  it('non-function rule throws SealError', () => {
+    expect(() => validate('hello', 42 as any)).toThrow(/argument 1 is not a baker rule/);
+  });
+
+  it('null rule throws SealError', () => {
+    expect(() => validate('hello', null as any)).toThrow(/got null/);
+  });
+
+  it('function without emit/ruleName throws SealError', () => {
+    const fakeRule = (() => true) as any;
+    expect(() => validate('hello', fakeRule)).toThrow(/is not a baker rule/);
   });
 });
 

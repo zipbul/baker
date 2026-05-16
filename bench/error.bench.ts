@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { ERROR_ALL_FAIL } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, configure, isBakerError } from '../index';
+import { Field, deserialize, configure, isBakerError, seal } from '../index';
 import { isNumber, min } from '../src/rules/index';
 
 configure({ stopAtFirstError: false });
@@ -23,6 +23,7 @@ class BakerErrors {
   @Field(isNumber(), min(1)) f9!: number;
 }
 // warm seal
+seal();
 await deserialize(BakerErrors, ERROR_ALL_FAIL);
 
 // ── class-validator ──────────────────────────────────────────────────────────

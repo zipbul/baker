@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { deserialize, Field, isBakerError, seal } from '../../index';
 import {
   arrayMinSize,
   contains,
@@ -10,6 +10,7 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 function makeRng(seed: number): () => number {
@@ -49,6 +50,7 @@ async function dtoPasses(rule: any, value: unknown): Promise<boolean> {
     @Field(rule)
     value!: unknown;
   }
+  seal(Dto);
   return !isBakerError(await deserialize(Dto, { value }));
 }
 

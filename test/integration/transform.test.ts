@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { deserialize, serialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -22,6 +22,7 @@ class SerializeTransformDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 describe('transform — integration', () => {

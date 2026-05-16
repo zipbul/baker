@@ -2,10 +2,6 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import {
   ensureMeta,
   collectValidation,
-  collectTransform,
-  collectExpose,
-  collectExclude,
-  collectType,
 } from './collect';
 import { globalRegistry } from './registry';
 
@@ -99,51 +95,6 @@ describe('collect', () => {
     // Assert
     const meta = ensureMeta(TestClass, 'prop');
     expect(meta.validation).toContain(ruleDef);
-  });
-
-  it('should append transformDef to meta.transform when calling collectTransform', () => {
-    // Arrange
-    const TestClass = tracked(class TestClass {});
-    const transformDef = { fn: () => 'x' };
-    // Act
-    collectTransform({ constructor: TestClass } as any, 'prop', transformDef as any);
-    // Assert
-    const meta = ensureMeta(TestClass, 'prop');
-    expect(meta.transform).toContain(transformDef);
-  });
-
-  it('should append exposeDef to meta.expose when calling collectExpose', () => {
-    // Arrange
-    const TestClass = tracked(class TestClass {});
-    const exposeDef = { name: 'myProp' };
-    // Act
-    collectExpose({ constructor: TestClass } as any, 'prop', exposeDef);
-    // Assert
-    const meta = ensureMeta(TestClass, 'prop');
-    expect(meta.expose).toContain(exposeDef);
-  });
-
-  it('should set meta.exclude when calling collectExclude', () => {
-    // Arrange
-    const TestClass = tracked(class TestClass {});
-    const excludeDef = { deserializeOnly: true };
-    // Act
-    collectExclude({ constructor: TestClass } as any, 'prop', excludeDef);
-    // Assert
-    const meta = ensureMeta(TestClass, 'prop');
-    expect(meta.exclude).toBe(excludeDef);
-  });
-
-  it('should set meta.type when calling collectType', () => {
-    // Arrange
-    const TestClass = tracked(class TestClass {});
-    const NestedClass = tracked(class NestedClass {});
-    const typeDef = { fn: () => NestedClass };
-    // Act
-    collectType({ constructor: TestClass } as any, 'prop', typeDef as any);
-    // Assert
-    const meta = ensureMeta(TestClass, 'prop');
-    expect(meta.type).toBe(typeDef);
   });
 
   it('should return the same meta object reference when calling ensureMeta twice with the same arguments', () => {

@@ -7,11 +7,8 @@ import type { SealedExecutors } from '../../../src/types';
 
 /**
  * Testing only: resets seal state + global configuration.
- * - Restores RAW from _merged cache + re-registers in globalRegistry
- * - Removes Class[SEALED] from all classes
- * - Resets _sealed flag to false
- * - Resets configure() global options
- * - Do NOT use in production
+ * Post W13 auto-seal removal — tests must call `seal()` explicitly after `unseal()`
+ * and after any `configure(...)` change.
  */
 export function unseal(): void {
   for (const Class of _sealedClasses) {
@@ -24,4 +21,18 @@ export function unseal(): void {
   }
   _resetForTesting();
   _resetConfigForTesting();
+}
+
+/**
+ * Testing only: removes every class currently in `globalRegistry`.
+ * Use in `afterEach` of test files that exercise seal failure paths
+ * (e.g. conflicting requiresType, throwing @Type thunk) — failed seal
+ * leaves the class in `globalRegistry` with no `SEALED`, so the next
+ * test's `beforeEach(seal())` would re-attempt and fail again.
+ *
+ * Pair with `unseal()`:
+ *   afterEach(() => { purgePoisonClasses(); unseal(); });
+ */
+export function purgePoisonClasses(): void {
+  for (const cls of [...globalRegistry]) globalRegistry.delete(cls);
 }

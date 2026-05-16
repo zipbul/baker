@@ -405,7 +405,9 @@ export const isHexColor = makeStringRule(
 // RgbColor
 const RGB_RE = /^rgb\(\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*\)$/;
 const RGBA_RE = /^rgba\(\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\s*,\s*(0|0?\.\d+|1(\.0+)?)\s*\)$/;
-const RGB_PERCENT_RE = /^rgba?\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/;
+// Percent forms: rgb(...) must NOT have alpha; rgba(...) MUST have alpha.
+const RGB_PERCENT_NOALPHA_RE = /^rgb\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*\)$/;
+const RGBA_PERCENT_RE = /^rgba\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(0|0?\.\d+|1(?:\.0+)?)\s*\)$/;
 
 export function isRgbColor(includePercentValues: boolean = false): EmittableRule {
   return makeRule({
@@ -414,13 +416,19 @@ export function isRgbColor(includePercentValues: boolean = false): EmittableRule
     constraints: { includePercentValues },
     validate: (value) => {
       if (typeof value !== 'string') return false;
-      if (includePercentValues) return RGB_PERCENT_RE.test(value);
+      if (includePercentValues) {
+        return RGB_PERCENT_NOALPHA_RE.test(value) || RGBA_PERCENT_RE.test(value)
+          || RGB_RE.test(value) || RGBA_RE.test(value);
+      }
       return RGB_RE.test(value) || RGBA_RE.test(value);
     },
     emit: (varName: string, ctx: EmitContext): string => {
       if (includePercentValues) {
-        const i = ctx.addRegex(RGB_PERCENT_RE);
-        return `if (!_re[${i}].test(${varName})) ${ctx.fail('isRgbColor')};`;
+        const ip1 = ctx.addRegex(RGB_PERCENT_NOALPHA_RE);
+        const ip2 = ctx.addRegex(RGBA_PERCENT_RE);
+        const ip3 = ctx.addRegex(RGB_RE);
+        const ip4 = ctx.addRegex(RGBA_RE);
+        return `if (!_re[${ip1}].test(${varName}) && !_re[${ip2}].test(${varName}) && !_re[${ip3}].test(${varName}) && !_re[${ip4}].test(${varName})) ${ctx.fail('isRgbColor')};`;
       }
       const i1 = ctx.addRegex(RGB_RE);
       const i2 = ctx.addRegex(RGBA_RE);
@@ -577,17 +585,23 @@ export interface IsISO8601Options {
   strict?: boolean;
 }
 
-// Strict ISO8601: requires month/day to be valid values
+// Strict ISO8601: requires month/day AND hour/minute/second to be valid values
 function _validateISO8601Strict(v: string): boolean {
   if (!ISO8601_RE.test(v)) return false;
-  // Extract date components if present
   const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) return true; // year-only or year-month partial — still ok per regex
   const month = Number(m[2]);
   const day = Number(m[3]);
   if (month < 1 || month > 12) return false;
   const maxDay = new Date(Number(m[1]), month, 0).getDate();
-  return day >= 1 && day <= maxDay;
+  if (day < 1 || day > maxDay) return false;
+  // Time component check: hour 0-23, minute 0-59, second 0-60 (leap second).
+  const tm = v.match(/T(\d{2}):(\d{2}):(\d{2})/);
+  if (!tm) return true;
+  const hh = Number(tm[1]);
+  const mm = Number(tm[2]);
+  const ss = Number(tm[3]);
+  return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59 && ss >= 0 && ss <= 60;
 }
 
 export function isISO8601(options?: IsISO8601Options): EmittableRule {
@@ -605,7 +619,10 @@ export function isISO8601(options?: IsISO8601Options): EmittableRule {
           `if(_dm){var _mo=Number(_dm[2]),_da=Number(_dm[3]);` +
           `if(_mo<1||_mo>12){${ctx.fail('isISO8601')}}` +
           `else{var _md=new Date(Number(_dm[1]),_mo,0).getDate();` +
-          `if(_da<1||_da>_md)${ctx.fail('isISO8601')};}} }`;
+          `if(_da<1||_da>_md){${ctx.fail('isISO8601')}}}}` +
+          `var _tm=${varName}.match(/T(\\d{2}):(\\d{2}):(\\d{2})/);` +
+          `if(_tm){var _hh=Number(_tm[1]),_mm=Number(_tm[2]),_ss=Number(_tm[3]);` +
+          `if(_hh<0||_hh>23||_mm<0||_mm>59||_ss<0||_ss>60)${ctx.fail('isISO8601')};} }`;
       },
     });
   }
@@ -1015,16 +1032,27 @@ export function isBase64(options?: IsBase64Options): EmittableRule {
   );
 }
 
-// DateString — ISO 8601 date only (YYYY-MM-DD)
+// DateString — ISO 8601 date only (YYYY-MM-DD) with calendar validity (day must exist in month/year).
 const DATE_STRING_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
+
+function _isCalendarValidDate(v: string): boolean {
+  if (!DATE_STRING_RE.test(v)) return false;
+  const y = Number(v.slice(0, 4));
+  const m = Number(v.slice(5, 7));
+  const d = Number(v.slice(8, 10));
+  const maxDay = new Date(y, m, 0).getDate();
+  return d >= 1 && d <= maxDay;
+}
 
 export function isDateString(): EmittableRule {
   return makeStringRule(
     'isDateString',
-    (v) => DATE_STRING_RE.test(v),
+    _isCalendarValidDate,
     (varName, ctx) => {
       const i = ctx.addRegex(DATE_STRING_RE);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isDateString')};`;
+      return `if (!_re[${i}].test(${varName})) ${ctx.fail('isDateString')};\n` +
+        `else { var _y=Number(${varName}.slice(0,4)),_m=Number(${varName}.slice(5,7)),_d=Number(${varName}.slice(8,10));` +
+        `var _md=new Date(_y,_m,0).getDate(); if(_d<1||_d>_md)${ctx.fail('isDateString')}; }`;
     },
   );
 }
@@ -1041,7 +1069,7 @@ export const isMimeType = makeStringRule(
 );
 
 // Currency
-const CURRENCY_RE = /^[-+]?(?:[,.\d]+)(?:[.,]\d{2})?$|^\$?-?(?:\d+|\d{1,3}(?:,\d{3})*)(?:\.\d{1,2})?$/;
+const CURRENCY_RE = /^[-+]?\$?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/;
 
 export function isCurrency(): EmittableRule {
   return makeStringRule(
@@ -1058,7 +1086,7 @@ export function isCurrency(): EmittableRule {
 }
 
 // Magnet URI
-const MAGNET_URI_RE = /^magnet:\?xt=urn:[a-z0-9]+:[a-z0-9]{32,40}/i;
+const MAGNET_URI_RE = /^magnet:\?xt=urn:[a-z0-9]+:[a-z0-9]{32,40}(?:&[a-z][a-z0-9.]*=[^&\s]*)*$/i;
 export const isMagnetURI = makeStringRule(
   'isMagnetURI',
   (v) => MAGNET_URI_RE.test(v),
@@ -1500,7 +1528,8 @@ export function isULID(): EmittableRule {
 // CUID2
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CUID2_RE = /^[a-z][0-9a-z]{23,}$/;
+// CUID2 spec: length 24-32, lowercase alphanum, starts with a-z.
+const CUID2_RE = /^[a-z][0-9a-z]{23,31}$/;
 
 export function isCUID2(): EmittableRule {
   return makeStringRule(

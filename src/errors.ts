@@ -49,7 +49,8 @@ export interface BakerErrors {
  * }
  */
 export function isBakerError(value: unknown): value is BakerErrors {
-  return value != null && typeof value === 'object' && BAKER_ERROR in (value as object);
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    && (value as { [BAKER_ERROR]?: unknown })[BAKER_ERROR] === true;
 }
 
 /** @internal — create BakerErrors object */
@@ -63,9 +64,11 @@ export function _toBakerErrors(errors: BakerError[]): BakerErrors {
 
 /**
  * Seal-related error:
- * - When seal() is called more than once
  * - When deserialize()/serialize()/validate() is called on an unsealed class
- * - When configure() is called after auto-seal
+ * - When configure() is called after seal()
+ * - When seal-time metadata invariants fail (discriminator, Map keys, etc.)
+ * - When per-call options contain unsupported keys
+ * - When @Field receives a non-rule value
  */
 export class SealError extends Error {
   constructor(message: string) {

@@ -944,7 +944,8 @@ describe('isRgbColor', () => {
   it('should generate percent-regex check code when emit() is called with includePercentValues=true', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
     const code = isRgbColor(true).emit('_v', ctx);
-    expect(addRegexMock).toHaveBeenCalledTimes(1);
+    // Percent mode registers 4 regex slots: rgb-percent, rgba-percent, rgb-int, rgba-int.
+    expect(addRegexMock).toHaveBeenCalledTimes(4);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isRgbColor');
   });

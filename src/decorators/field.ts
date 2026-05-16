@@ -1,5 +1,6 @@
 import { ensureMeta } from '../collect';
-import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, TypeDef, Transformer } from '../types';
+import { SealError } from '../errors';
+import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 import { isAsyncFunction, isPromiseLike } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,6 +102,24 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 
 type RuleArg = EmittableRule | ArrayOfMarker;
 
+/** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
+function _assertRule(value: unknown, className: string, fieldKey: string, slot?: string): void {
+  const loc = slot ? `${className}.${fieldKey} ${slot}` : `${className}.${fieldKey}`;
+  const validForms =
+    ` Valid @Field forms: @Field(), @Field(rule, ...), @Field(options), @Field(rule, ..., options).`;
+  if (typeof value === 'function') {
+    const fn = value as { emit?: unknown; ruleName?: unknown; name?: string };
+    if (typeof fn.emit !== 'function' || typeof fn.ruleName !== 'string') {
+      const hint = fn.name
+        ? ` Did you forget to call '${fn.name}()'? Factories must be invoked (e.g., '${fn.name}()'). Rule constants are passed directly (e.g., 'isString' without parentheses).`
+        : ` Use createRule() or import a rule from @zipbul/baker/rules.`;
+      throw new SealError(`@Field on ${loc}: argument is not a baker rule.${hint}${validForms}`);
+    }
+    return;
+  }
+  throw new SealError(`@Field on ${loc}: expected a baker rule (function with .emit and .ruleName), got ${value === null ? 'null' : typeof value}. Use createRule() or import a rule from @zipbul/baker/rules.${validForms}`);
+}
+
 /** Normalize 4 overload signatures into `{ rules, options }` */
 function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions } {
   if (args.length === 0) {
@@ -130,13 +149,15 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
   for (const rule of rules) {
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
-        const rd: RuleDef = { rule: innerRule, each: true, groups: options.groups };
+        const rd: RuleDef = { rule: innerRule, each: true };
+        if (options.groups !== undefined) rd.groups = options.groups;
         if (options.message !== undefined) rd.message = options.message;
         if (options.context !== undefined) rd.context = options.context;
         meta.validation.push(rd);
       }
     } else {
-      const rd: RuleDef = { rule: rule as InternalRule, groups: options.groups };
+      const rd: RuleDef = { rule: rule as InternalRule };
+      if (options.groups !== undefined) rd.groups = options.groups;
       if (options.message !== undefined) rd.message = options.message;
       if (options.context !== undefined) rd.context = options.context;
       meta.validation.push(rd);
@@ -147,13 +168,19 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
 /** Handle expose 5-branch logic */
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
-    meta.expose.push({ name: options.name, groups: options.groups });
+    const ed: ExposeDef = { name: options.name };
+    if (options.groups !== undefined) ed.groups = options.groups;
+    meta.expose.push(ed);
   } else if (options.deserializeName || options.serializeName) {
     if (options.deserializeName) {
-      meta.expose.push({ name: options.deserializeName, deserializeOnly: true, groups: options.groups });
+      const ed: ExposeDef = { name: options.deserializeName, deserializeOnly: true };
+      if (options.groups !== undefined) ed.groups = options.groups;
+      meta.expose.push(ed);
     }
     if (options.serializeName) {
-      meta.expose.push({ name: options.serializeName, serializeOnly: true, groups: options.groups });
+      const ed: ExposeDef = { name: options.serializeName, serializeOnly: true };
+      if (options.groups !== undefined) ed.groups = options.groups;
+      meta.expose.push(ed);
     }
   } else if (options.groups) {
     meta.expose.push({ groups: options.groups });
@@ -208,10 +235,29 @@ export function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): Propert
 export function Field(...args: any[]): PropertyDecorator {
   return (target, key) => {
     const ctor = (target as any).constructor;
-    const propertyKey = key as string;
+    if (typeof key === 'symbol') {
+      throw new SealError(
+        `@Field on ${ctor.name}: symbol property keys are not supported. ` +
+        `Use a string property name.`,
+      );
+    }
+    const propertyKey = key;
     const meta = ensureMeta(ctor, propertyKey);
 
     const { rules, options } = parseFieldArgs(args);
+
+    // W5: validate each rule shape — `.emit` function + `.ruleName` string required.
+    // Catches D2/D4: `@Field(isString())` (boolean), `@Field(isNumber)` (factory unstamped), `@Field(() => true)`.
+    for (let i = 0; i < rules.length; i++) {
+      const r = rules[i];
+      if (isArrayOfMarker(r)) {
+        for (let j = 0; j < r.rules.length; j++) {
+          _assertRule(r.rules[j], ctor.name, propertyKey, `arrayOf[${j}]`);
+        }
+      } else {
+        _assertRule(r, ctor.name, propertyKey);
+      }
+    }
 
     applyValidation(meta, rules, options);
 
@@ -222,12 +268,12 @@ export function Field(...args: any[]): PropertyDecorator {
 
     // ── type (nested DTO + discriminator + collection) ──
     if (options.type) {
-      meta.type = {
-        fn: options.type as TypeDef['fn'],
-        discriminator: options.discriminator,
-        keepDiscriminatorProperty: options.keepDiscriminatorProperty,
-        collectionValue: options.mapValue ?? options.setValue,
-      };
+      const td: TypeDef = { fn: options.type as TypeDef['fn'] };
+      if (options.discriminator !== undefined) td.discriminator = options.discriminator;
+      if (options.keepDiscriminatorProperty !== undefined) td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;
+      const cv = options.mapValue ?? options.setValue;
+      if (cv !== undefined) td.collectionValue = cv;
+      meta.type = td;
     }
 
     applyExpose(meta, options);

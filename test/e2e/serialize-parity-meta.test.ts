@@ -1,11 +1,12 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, serialize } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { deserialize, Field, serialize, seal } from '../../index';
 import {
   isNumber,
   isString,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 class ChildDto {
@@ -106,6 +107,7 @@ describe('serialize parity meta', () => {
       @Field({ type: () => ChildDto, optional: true })
       child?: ChildDto;
     }
+    seal(RoundtripDto);
 
     const parsed = await deserialize<RoundtripDto>(RoundtripDto, {
       full_name: '  Carol  ',

@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import {
   trimTransformer,
   toLowerCaseTransformer,
@@ -14,6 +14,7 @@ import {
 import { isString, isNumber, isDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─── 1. trimTransformer ─────────────────────────────────────────────────────

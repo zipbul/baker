@@ -58,3 +58,6 @@ group('proof — sync overhead hotspots', () => {
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

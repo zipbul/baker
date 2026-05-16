@@ -188,7 +188,7 @@ const PASSPORT_REGEXES: Record<string, RegExp> = {
   EE:  /^([A-Z]\d{7}|[A-Z]{2}\d{7})$/i,
   ES:  /^[A-Z0-9]{2}([A-Z0-9]?)\d{6}$/i,
   FI:  /^[A-Z]{2}\d{7}$/i,
-  FR:  /[A-Z0-9]{9}/i,
+  FR:  /^[A-Z0-9]{9}$/i,
   GB:  /^\d{9}$/,
   GR:  /^[A-Z]{2}\d{7}$/i,
   HR:  /^\d{9}$/,

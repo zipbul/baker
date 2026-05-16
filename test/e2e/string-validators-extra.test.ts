@@ -1,9 +1,13 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, isBakerError, Field } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, isBakerError, Field, seal } from '../../index';
 import {
   isString, notContains, isLowercase, isUppercase, isBooleanString, isJSON,
   arrayNotContains, isArray,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class NotContainsDto { @Field(isString, notContains('bad')) val!: string; }

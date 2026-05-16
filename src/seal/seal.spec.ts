@@ -1,10 +1,9 @@
-import { describe, it, expect, afterEach, beforeEach, spyOn } from 'bun:test';
-import { _autoSeal, _sealOnDemand, _resetForTesting, __testing__ } from './seal';
+import { describe, it, expect, afterEach, spyOn } from 'bun:test';
+import { seal, _resetForTesting, __testing__ } from './seal';
 import { SealError } from '../errors';
 import { RAW, SEALED } from '../symbols';
 import { globalRegistry } from '../registry';
 import { isString } from '../rules/typechecker';
-import { isNumber } from '../rules/typechecker';
 import { min, max } from '../rules/number';
 import type { RawClassMeta, RuleDef } from '../types';
 
@@ -59,13 +58,13 @@ afterEach(() => {
 // Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('_autoSeal', () => {
+describe('seal', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
   it('should succeed on empty registry', () => {
     // Arrange — no classes registered (freeClasses empty)
     // Act / Assert
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
   });
 
   it('should set the SEALED symbol on the class after sealing', () => {
@@ -73,7 +72,7 @@ describe('_autoSeal', () => {
     class UserDto {}
     registerClass(UserDto, makeStringField('name'));
     // Act
-    _autoSeal();
+    seal();
     // Assert
     const sealed = (UserDto as any)[SEALED];
     expect(sealed).toBeDefined();
@@ -85,13 +84,13 @@ describe('_autoSeal', () => {
     // Arrange
     class TestDto {}
     registerClass(TestDto, makeStringField('x'));
-    _autoSeal();
+    seal();
     expect((TestDto as any)[SEALED]).toBeDefined();
     // After reset, new classes should be batch-sealable again
     delete (TestDto as any)[SEALED];
     globalRegistry.add(TestDto);
     _resetForTesting();
-    _autoSeal();
+    seal();
     expect((TestDto as any)[SEALED]).toBeDefined();
   });
 
@@ -99,7 +98,7 @@ describe('_autoSeal', () => {
     // Arrange
     class PersonDto {}
     registerClass(PersonDto, makeStringField('name'));
-    _autoSeal();
+    seal();
     // Act
     const sealed = (PersonDto as any)[SEALED];
     const result = await sealed._deserialize({ name: 'Alice' });
@@ -113,7 +112,7 @@ describe('_autoSeal', () => {
     // Arrange
     class PersonDto2 {}
     registerClass(PersonDto2, makeStringField('name'));
-    _autoSeal();
+    seal();
     // Act
     const sealed = (PersonDto2 as any)[SEALED];
     const result = await sealed._deserialize({ name: 42 });
@@ -141,7 +140,7 @@ describe('_autoSeal', () => {
         },
     });
     // Act
-    _autoSeal();
+    seal();
     // Assert — nested DTO also sealed
     expect((AddressDto as any)[SEALED]).toBeDefined();
   });
@@ -156,7 +155,7 @@ describe('_autoSeal', () => {
       _deserialize: () => 'pre-sealed',
       _serialize: () => ({}),
     };
-    _autoSeal();
+    seal();
     // Assert — SEALED was not replaced (pre-sealed value preserved)
     const sealed = (DtoA as any)[SEALED];
     expect(sealed._deserialize()).toBe('pre-sealed');
@@ -167,24 +166,24 @@ describe('_autoSeal', () => {
   it('should be idempotent — second call is a no-op', () => {
     class Dto1 {}
     registerClass(Dto1, makeStringField('a'));
-    _autoSeal();
+    seal();
     expect((Dto1 as any)[SEALED]).toBeDefined();
     // Second call should not throw
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
   });
 
-  // ── _sealOnDemand ──────────────────────────────────────────────────────────
+  // ── seal ──────────────────────────────────────────────────────────
 
   it('should seal individual class on demand after batch seal', () => {
-    _autoSeal(); // batch seal with empty registry
+    seal(); // batch seal with empty registry
     // Register a new class after batch seal
     class LateDto {}
     registerClass(LateDto, makeStringField('name'));
-    // _autoSeal won't seal it (already sealed=true)
-    _autoSeal();
+    // seal won't seal it (already sealed=true)
+    seal();
     expect((LateDto as any)[SEALED]).toBeUndefined();
-    // _sealOnDemand seals it individually
-    _sealOnDemand(LateDto);
+    // seal seals it individually
+    seal(LateDto);
     expect((LateDto as any)[SEALED]).toBeDefined();
   });
 
@@ -204,24 +203,24 @@ describe('_autoSeal', () => {
         },
     });
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
   // ── State Transition ───────────────────────────────────────────────────────
 
-  it('should allow _autoSeal() after _resetForTesting() (state transition)', () => {
+  it('should allow seal() after _resetForTesting() (state transition)', () => {
     // Arrange
-    _autoSeal();
+    seal();
     _resetForTesting();
     // Act / Assert
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
   });
 
   it('should allow re-sealing after SEALED symbols are cleared and _resetForTesting called', () => {
     // Arrange
     class DtoB {}
     registerClass(DtoB, makeStringField('val'));
-    _autoSeal();
+    seal();
     // Simulate unseal — restore RAW from _merged, re-register
     const sealed = (DtoB as any)[SEALED];
     if (sealed?._merged) (DtoB as any)[RAW] = sealed._merged;
@@ -230,7 +229,7 @@ describe('_autoSeal', () => {
     freeClasses.push(DtoB);
     _resetForTesting();
     // Act
-    _autoSeal();
+    seal();
     // Assert
     expect((DtoB as any)[SEALED]).toBeDefined();
   });
@@ -254,7 +253,7 @@ describe('_autoSeal', () => {
     globalRegistry.add(TreeDto);
     freeClasses.push(TreeDto);
     // Act / Assert — should not throw or infinite loop
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
   });
 
   // ── Edge ───────────────────────────────────────────────────────────────────
@@ -264,7 +263,7 @@ describe('_autoSeal', () => {
     class EmptyDto {}
     registerClass(EmptyDto, makeEmptyMeta());
     // Act / Assert
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
     expect((EmptyDto as any)[SEALED]).toBeDefined();
   });
 
@@ -273,7 +272,7 @@ describe('_autoSeal', () => {
     class NotRegisteredDto {}
     (NotRegisteredDto as any)[RAW] = makeStringField('x');
     // (not added to freeClasses or globalRegistry)
-    _autoSeal();
+    seal();
     // Assert
     expect((NotRegisteredDto as any)[SEALED]).toBeUndefined();
   });
@@ -284,7 +283,7 @@ describe('_autoSeal', () => {
     // Arrange
     class IdempDto {}
     registerClass(IdempDto, makeStringField('name'));
-    _autoSeal();
+    seal();
     const first = (IdempDto as any)[SEALED];
     const firstResult = await first._deserialize({ name: 'Bob' });
 
@@ -295,7 +294,7 @@ describe('_autoSeal', () => {
     globalRegistry.add(IdempDto);
     freeClasses.push(IdempDto);
     _resetForTesting();
-    _autoSeal();
+    seal();
     const second = (IdempDto as any)[SEALED];
     const secondResult = await second._deserialize({ name: 'Bob' });
     // Assert — both produce instances with same values
@@ -335,7 +334,7 @@ describe('_autoSeal', () => {
     registerClass(AnimalContainerDto, raw);
 
     // Act
-    _autoSeal();
+    seal();
 
     // Assert — both subtype classes must be sealed by the recursive call
     expect((DogDto as any)[SEALED]).toBeDefined();
@@ -363,18 +362,18 @@ describe('_autoSeal', () => {
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
-    _autoSeal();
+    seal();
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
     expect((AutoNestedDto as any)[SEALED]).toBeDefined();
     warnSpy.mockRestore();
   });
 
-  // ── Cleanup of placeholders when _autoSeal fails ──────────────────────────
+  // ── Cleanup of placeholders when seal fails ──────────────────────────
 
-  it('should clean up recursively-sealed nested DTOs in _sealOnDemand', () => {
+  it('should clean up recursively-sealed nested DTOs in seal', () => {
     // Arrange — batch seal first (empty), then register parent+nested after
-    _autoSeal(); // sets _sealed=true
+    seal(); // sets _sealed=true
 
     class NestedLate {}
     (NestedLate as any)[RAW] = makeStringField('val');
@@ -395,8 +394,8 @@ describe('_autoSeal', () => {
     globalRegistry.add(ParentLate);
     freeClasses.push(ParentLate);
 
-    // Act — _sealOnDemand should seal ParentLate AND recursively seal NestedLate
-    _sealOnDemand(ParentLate);
+    // Act — seal should seal ParentLate AND recursively seal NestedLate
+    seal(ParentLate);
 
     // Assert — both sealed, RAW frozen, removed from registry
     expect((ParentLate as any)[SEALED]).toBeDefined();
@@ -421,10 +420,10 @@ describe('_autoSeal', () => {
         },
     });
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
-  it('should clean up stale placeholders when _autoSeal fails', () => {
+  it('should clean up stale placeholders when seal fails', () => {
     // Arrange — nested DTO has banned field name 'constructor' → SealError
     class BrokenNested {}
     (BrokenNested as any)[RAW] = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
@@ -442,7 +441,7 @@ describe('_autoSeal', () => {
         },
     });
     // Act — seal fails
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
     // Assert — stale placeholder cleaned up
     expect((ParentDto as any)[SEALED]).toBeUndefined();
   });
@@ -467,7 +466,7 @@ describe('_autoSeal', () => {
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
-    _autoSeal();
+    seal();
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
     expect((AutoNestedTransformDto as any)[SEALED]).toBeDefined();
@@ -492,7 +491,7 @@ describe('_autoSeal', () => {
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
-    _autoSeal();
+    seal();
     // Assert — no warn because there IS a deserialize-direction transform
     expect(warnSpy).not.toHaveBeenCalled();
     warnSpy.mockRestore();
@@ -765,7 +764,7 @@ describe('sealOne — banned field names (C5)', () => {
     class BannedProtoDto {}
     registerClass(BannedProtoDto, makeRawWithBannedKey('__proto__'));
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
   it('should throw SealError when a field is named constructor', () => {
@@ -774,7 +773,7 @@ describe('sealOne — banned field names (C5)', () => {
     const raw = { constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
     registerClass(BannedConstructorDto, raw);
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
   it('should throw SealError when a field is named prototype', () => {
@@ -783,7 +782,7 @@ describe('sealOne — banned field names (C5)', () => {
     const raw = { prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {}} } as unknown as RawClassMeta;
     registerClass(BannedPrototypeDto, raw);
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
   it('should throw SealError even when banned field coexists with valid fields', () => {
@@ -800,7 +799,7 @@ describe('sealOne — banned field names (C5)', () => {
     });
     registerClass(MixedBannedDto, raw);
     // Act / Assert
-    expect(() => _autoSeal()).toThrow(SealError);
+    expect(() => seal()).toThrow(SealError);
   });
 
   it('should not throw SealError for __PROTO__ (uppercase — not a banned name)', () => {
@@ -808,7 +807,7 @@ describe('sealOne — banned field names (C5)', () => {
     class UpperCaseDto {}
     registerClass(UpperCaseDto, makeRawWithBannedKey('__PROTO__'));
     // Act / Assert
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
   });
 });
 
@@ -871,7 +870,7 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act
-    _autoSeal();
+    seal();
 
     // Assert — sealed executor should be async due to SubA's async transform
     const sealed = (ParentDisc as any)[SEALED];
@@ -929,7 +928,7 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act / Assert — should not throw or infinite loop
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
     expect((CircParent as any)[SEALED]).toBeDefined();
   });
 
@@ -984,7 +983,7 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act / Assert — should not throw or infinite loop (visited Set shared across recursion)
-    expect(() => _autoSeal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
     expect((DiscA as any)[SEALED]).toBeDefined();
     expect((DiscB as any)[SEALED]).toBeDefined();
     expect((DiscC as any)[SEALED]).toBeDefined();

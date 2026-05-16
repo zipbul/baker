@@ -1,10 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { Field, deserialize, configure, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+import { Field, deserialize, configure, isBakerError, seal } from '../../index';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
 import { collectValidation } from '../../src/collect';
-import type { BakerError } from '../../index';
-import { unseal } from '../integration/helpers/unseal';
+import { unseal} from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
 afterEach(() => { unseal(); configure({}); });
@@ -29,7 +27,7 @@ class MessageDto {
 // Attach isString rule with custom message via collectValidation
 collectValidation(MessageDto.prototype, 'name', {
   rule: isString,
-  message: 'name은 문자열이어야 합니다',
+  message: 'name must be a string',
 });
 
 class MessageFnDto {
@@ -38,7 +36,7 @@ class MessageFnDto {
 }
 collectValidation(MessageFnDto.prototype, 'score', {
   rule: isNumber(),
-  message: ({ property, value }) => `${property}(${value})은 숫자가 아닙니다`,
+  message: ({ property, value }) => `${property}(${value}) is not a number`,
 });
 
 class ContextDto {
@@ -60,6 +58,7 @@ class ClassNameDto {
 describe('error handling — stopAtFirstError', () => {
   it('stopAtFirstError: true → only 1 error', async () => {
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -68,6 +67,7 @@ describe('error handling — stopAtFirstError', () => {
   });
 
   it('stopAtFirstError: false (default) → collects all errors', async () => {
+    seal();
     const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -78,15 +78,17 @@ describe('error handling — stopAtFirstError', () => {
 
 describe('error handling — custom message', () => {
   it('string message', async () => {
+    seal();
     const result = await deserialize(MessageDto, { name: 123 });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
       const err = result.errors.find(e => e.path === 'name');
-      expect(err!.message).toBe('name은 문자열이어야 합니다');
+      expect(err!.message).toBe('name must be a string');
     }
   });
 
   it('function message', async () => {
+    seal();
     const result = await deserialize(MessageFnDto, { score: 'abc' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -99,6 +101,7 @@ describe('error handling — custom message', () => {
 
 describe('error handling — context', () => {
   it('includes context object', async () => {
+    seal();
     const result = await deserialize(ContextDto, { email: 'not-email' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -110,6 +113,7 @@ describe('error handling — context', () => {
 
 describe('error handling — className', () => {
   it('validation fails for ClassNameDto', async () => {
+    seal();
     const result = await deserialize(ClassNameDto, { field: 42 });
     expect(isBakerError(result)).toBe(true);
   });

@@ -1,9 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import {
-  Field, configure, deserialize,
-  isBakerError,
-} from '../../index';
-import type { BakerErrors } from '../../index';
+import { Field, configure, deserialize,
+  isBakerError, seal } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -38,6 +35,7 @@ class ConvWithMinDto {
 describe('enableImplicitConversion', () => {
   it('string → number', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvDto>(ConvDto, {
       age: '25', active: true, createdAt: new Date(),
     }) as ConvDto;
@@ -47,6 +45,7 @@ describe('enableImplicitConversion', () => {
 
   it('string → boolean', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvDto>(ConvDto, {
       age: 30, active: 'true', createdAt: new Date(),
     }) as ConvDto;
@@ -55,6 +54,7 @@ describe('enableImplicitConversion', () => {
 
   it('"false" → false', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvDto>(ConvDto, {
       age: 30, active: 'false', createdAt: new Date(),
     }) as ConvDto;
@@ -63,6 +63,7 @@ describe('enableImplicitConversion', () => {
 
   it('string → Date', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvDto>(ConvDto, {
       age: 30, active: true, createdAt: '2024-01-01T00:00:00.000Z',
     }) as ConvDto;
@@ -72,11 +73,13 @@ describe('enableImplicitConversion', () => {
 
   it('unconvertible value → conversionFailed', async () => {
     configure({ autoConvert: true });
+    seal();
     expect(isBakerError(await deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
   });
 
   it('explicit @Field transform present → conversion skipped', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvWithTransformDto>(ConvWithTransformDto, {
       score: '42',
     }) as ConvWithTransformDto;
@@ -85,6 +88,7 @@ describe('enableImplicitConversion', () => {
 
   it('typed deps present (isNumber + min) → conversion works', async () => {
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<ConvWithMinDto>(ConvWithMinDto, {
       count: '5',
     }) as ConvWithMinDto;
@@ -93,6 +97,7 @@ describe('enableImplicitConversion', () => {
 
   it('autoConvert: false → type error without conversion', async () => {
     configure({ autoConvert: false });
+    seal();
     expect(isBakerError(await deserialize(ConvDto, { age: '25', active: true, createdAt: new Date() }))).toBe(true);
   });
 });
@@ -109,6 +114,7 @@ describe('@Type hint implicit conversion', () => {
       value!: number;
     }
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize<TypeHintDto>(TypeHintDto, { value: '10' }) as TypeHintDto;
     expect(result.value).toBe(10);
   });
@@ -119,6 +125,7 @@ describe('@Type hint implicit conversion', () => {
       value!: number;
     }
     configure({ autoConvert: true });
+    seal();
     const result = await deserialize(TypeHintFailDto, { value: 'abc' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -138,6 +145,7 @@ describe('stopAtFirstError + autoConvert', () => {
       count!: number;
     }
     configure({ autoConvert: true, stopAtFirstError: true });
+    seal();
     const result = await deserialize<StopConvDto>(StopConvDto, { count: '10' }) as StopConvDto;
     expect(result.count).toBe(10);
   });
@@ -151,6 +159,7 @@ describe('stopAtFirstError + autoConvert', () => {
       second!: boolean;
     }
     configure({ autoConvert: true, stopAtFirstError: true });
+    seal();
     const result = await deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {

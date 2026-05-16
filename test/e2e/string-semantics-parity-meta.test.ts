@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { deserialize, Field, isBakerError, seal } from '../../index';
 import {
   contains,
   isAlpha,
@@ -30,6 +30,7 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 type StringRuleCase = {
@@ -44,6 +45,7 @@ async function dtoPasses(rule: any, value: unknown): Promise<boolean> {
     value!: unknown;
   }
 
+  seal(Dto);
   const result = await deserialize(Dto, { value });
   return !isBakerError(result);
 }

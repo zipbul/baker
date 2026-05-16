@@ -1,5 +1,6 @@
-import { _toBakerErrors } from '../errors';
+import { _toBakerErrors, SealError } from '../errors';
 import { _ensureSealed } from '../seal/seal';
+import { _checkCallOptions } from './_check-call-options';
 import type { BakerError, BakerErrors } from '../errors';
 import type { EmittableRule } from '../types';
 import type { RuntimeOptions } from '../interfaces';
@@ -16,12 +17,7 @@ export function validate<T>(
   Class: new (...args: any[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): true | BakerErrors;
-export function validate<T>(
-  Class: new (...args: any[]) => T,
-  input: unknown,
-  options?: RuntimeOptions,
-): Promise<true | BakerErrors>;
+): true | BakerErrors | Promise<true | BakerErrors>;
 
 /**
  * Ad-hoc validation — validates a single value against one or more rules.
@@ -30,11 +26,7 @@ export function validate<T>(
 export function validate(
   input: unknown,
   ...rules: EmittableRule[]
-): true | BakerErrors;
-export function validate(
-  input: unknown,
-  ...rules: EmittableRule[]
-): Promise<true | BakerErrors>;
+): true | BakerErrors | Promise<true | BakerErrors>;
 
 export function validate(
   classOrInput: unknown,
@@ -45,19 +37,28 @@ export function validate(
     const secondArg = rest[0];
     const isRule = secondArg != null && typeof secondArg === 'function' && 'emit' in secondArg && 'ruleName' in secondArg;
     if (!isRule) {
+      const checkedOpts = _checkCallOptions(rest[1]);
       const sealed = _ensureSealed(classOrInput);
-      const options = rest[1] as RuntimeOptions | undefined;
       if (sealed._isAsync) {
-        return (sealed._validate(secondArg, options) as Promise<BakerError[] | null>).then(
+        return (sealed._validate(secondArg, checkedOpts) as Promise<BakerError[] | null>).then(
           (result): true | BakerErrors => result === null ? true : _toBakerErrors(result),
         );
       }
-      const result = sealed._validate(secondArg, options) as BakerError[] | null;
+      const result = sealed._validate(secondArg, checkedOpts) as BakerError[] | null;
       return result === null ? true : _toBakerErrors(result);
     }
   }
 
   // ── Ad-hoc mode: validate(input, ...rules) ───────────────────────────
+  // W5 (D4): validate each rest arg is a baker rule
+  for (let i = 0; i < rest.length; i++) {
+    const r = rest[i];
+    if (r == null || typeof r !== 'function' || typeof (r as any).emit !== 'function' || typeof (r as any).ruleName !== 'string') {
+      throw new SealError(
+        `validate(input, ...rules): argument ${i + 1} is not a baker rule (got ${r === null ? 'null' : typeof r}). Use createRule() or import a rule from @zipbul/baker/rules.`,
+      );
+    }
+  }
   return _validateAdHoc(classOrInput, rest as EmittableRule[]);
 }
 
@@ -129,4 +130,47 @@ async function _validateAdHocAsync(
     }
   }
   return errors.length ? _toBakerErrors(errors) : true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// W14: strict sync/async variants — explicit intent at call site
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Sync-asserted validate. Throws `SealError` if Class has any async rule/transform
+ * on the deserialize/validate side. Use when caller code assumes sync return.
+ */
+export function validateSync<T>(
+  Class: new (...args: any[]) => T,
+  input: unknown,
+  options?: RuntimeOptions,
+): true | BakerErrors {
+  const checkedOpts = _checkCallOptions(options);
+  const sealed = _ensureSealed(Class);
+  if (sealed._isAsync) {
+    throw new SealError(
+      `validateSync(${Class.name}): DTO has async rules/transforms. Use validateAsync() instead.`,
+    );
+  }
+  const result = sealed._validate(input, checkedOpts) as BakerError[] | null;
+  return result === null ? true : _toBakerErrors(result);
+}
+
+/**
+ * Async-asserted validate. Always returns Promise (sync DTOs are wrapped via Promise.resolve).
+ */
+export function validateAsync<T>(
+  Class: new (...args: any[]) => T,
+  input: unknown,
+  options?: RuntimeOptions,
+): Promise<true | BakerErrors> {
+  const checkedOpts = _checkCallOptions(options);
+  const sealed = _ensureSealed(Class);
+  if (sealed._isAsync) {
+    return (sealed._validate(input, checkedOpts) as Promise<BakerError[] | null>).then(
+      (r): true | BakerErrors => r === null ? true : _toBakerErrors(r),
+    );
+  }
+  const result = sealed._validate(input, checkedOpts) as BakerError[] | null;
+  return Promise.resolve(result === null ? true : _toBakerErrors(result));
 }

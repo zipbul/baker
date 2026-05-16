@@ -1,6 +1,10 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, serialize, isBakerError, Field } from '../../index';
-import { isString } from '../../src/rules/index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
+import { isString, minLength, maxLength, matches } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class TrimLowerDto {
@@ -116,6 +120,7 @@ describe('E-24: async transform failure error path', () => {
       })
       name!: string;
     }
+    seal(AsyncInvalidDto);
     const result = await deserialize(AsyncInvalidDto, { name: 'hello' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -135,6 +140,7 @@ describe('E-24: async transform failure error path', () => {
       })
       value!: string;
     }
+    seal(AsyncThrowDto);
     await expect(deserialize(AsyncThrowDto, { value: 'test' })).rejects.toThrow('transform boom');
   });
 });
@@ -154,6 +160,7 @@ describe('@Transform null return behavior', () => {
       })
       v!: string;
     }
+    seal(NullTransformDto);
     // original 'EMPTY' is a string → guard passes → Transform → null → isString fails
     expect(isBakerError(await deserialize(NullTransformDto, { v: 'EMPTY' }))).toBe(true);
   });
@@ -168,6 +175,7 @@ describe('@Transform null return behavior', () => {
       })
       v!: string;
     }
+    seal(TransformDto);
     const r = await deserialize(TransformDto, { v: 'hello' }) as TransformDto;
     expect(r.v).toBe('HELLO');
   });
@@ -177,14 +185,42 @@ describe('@Transform null return behavior', () => {
       @Field(isString, {
         nullable: true,
         transform: {
-          deserialize: ({ value }) => 'transformed',
-          serialize: ({ value }) => 'transformed',
+          deserialize: () => 'transformed',
+          serialize: () => 'transformed',
         },
       })
       v!: string | null;
     }
+    seal(NullableDto);
     const r = await deserialize(NullableDto, { v: null }) as NullableDto;
     // null is skipped by nullable guard → Transform/validation both skipped
     expect(r.v).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Field with 3+ rules + 3-step chained transform array
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('field with 3+ rules and 3+ transforms (codec stack)', () => {
+  class TripleDto {
+    @Field(isString, minLength(2), maxLength(20), matches(/^[a-z]+$/), {
+      transform: [
+        { deserialize: ({ value }) => String(value).trim(), serialize: ({ value }) => value },
+        { deserialize: ({ value }) => String(value).toLowerCase(), serialize: ({ value }) => value },
+        { deserialize: ({ value }) => String(value).replace(/\s+/g, ''), serialize: ({ value }) => value },
+      ],
+    })
+    name!: string;
+  }
+
+  it('three rules + three transforms applied in deserialize order', async () => {
+    const r = await deserialize<TripleDto>(TripleDto, { name: '  Hello World  ' }) as TripleDto;
+    expect(r.name).toBe('helloworld');
+  });
+
+  it('failing rule still surfaces error after transforms', async () => {
+    const r = await deserialize(TripleDto, { name: '  H1  ' });
+    expect(isBakerError(r)).toBe(true);
   });
 });

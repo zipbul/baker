@@ -141,13 +141,15 @@ export function buildSerializeCode<T>(
   }
 
   for (const [fieldKey, meta] of Object.entries(merged)) {
-    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, options);
+    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, options, Class.name);
   }
 
   body += `return ${GEN.out};\n`;
 
   // sourceURL (§4.9)
-  body += `//# sourceURL=baker://${Class.name}/serialize\n`;
+  // Sanitize class name so it cannot inject newlines / */ that would break out of the comment.
+  const _safeClsName = String(Class.name).replace(/[^\w$.-]/g, '_');
+  body += `//# sourceURL=baker://${_safeClsName}/serialize\n`;
 
   // ── Execute new Function ───────────────────────────────────────────────────
 
@@ -171,6 +173,7 @@ function generateSerializeFieldCode(
   execs: SealedExecutors<unknown>[],
   isAsync: boolean,
   options?: SealOptions,
+  className: string = '',
 ): string {
   // ⓪ Exclude serializeOnly / bidirectional → skip
   if (meta.exclude) {
@@ -239,7 +242,8 @@ function generateSerializeFieldCode(
         nestedCode = `${outputTarget} = Array.from(${fieldVal});`;
       }
     } else {
-      // Map → plain object
+      // Map → plain object (W8: keys must be strings — throw otherwise)
+      const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new TypeError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
       if (meta.type.resolvedCollectionValue) {
         const nestedSealed = (meta.type.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
         const execIdx = execs.length;
@@ -247,11 +251,17 @@ function generateSerializeFieldCode(
         const awaitKw = isAsync ? 'await ' : '';
         nestedCode = `var ${GEN.mapObj} = {};\n`;
         nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
-        nestedCode += `    ${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}_execs[${execIdx}]._serialize(${GEN.mapEntry}[1], _opts);\n`;
+        nestedCode += `    ${keyCheck}`;
+        nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}_execs[${execIdx}]._serialize(${GEN.mapEntry}[1], _opts);\n`;
         nestedCode += `  }\n`;
         nestedCode += `  ${outputTarget} = ${GEN.mapObj};`;
       } else {
-        nestedCode = `${outputTarget} = Object.fromEntries(${fieldVal});`;
+        nestedCode = `var ${GEN.mapObj} = {};\n`;
+        nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
+        nestedCode += `    ${keyCheck}`;
+        nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1];\n`;
+        nestedCode += `  }\n`;
+        nestedCode += `  ${outputTarget} = ${GEN.mapObj};`;
       }
     }
 
@@ -395,7 +405,7 @@ function buildSerializeOutputExpr(
   fieldValueExpr: string,
   meta: RawPropertyMeta,
   refs: unknown[],
-  isAsync: boolean,
+  _isAsync: boolean,
 ): string {
   const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
 

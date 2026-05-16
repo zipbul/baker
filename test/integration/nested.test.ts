@@ -1,6 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { deserialize, serialize, Field, isBakerError, configure } from '../../index';
-import type { BakerErrors } from '../../index';
+import { deserialize, serialize, Field, isBakerError, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -29,6 +28,7 @@ afterEach(() => { unseal(); configure({}); });
 
 describe('nested — integration', () => {
   it('should deserialize nested DTO with valid input', async () => {
+    seal();
     const result = await deserialize<UserWithAddressDto>(UserWithAddressDto, {
       name: 'Alice',
       address: { street: '123 Main St', city: 'Springfield' },
@@ -40,6 +40,7 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerErrors for invalid nested field', async () => {
+    seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Bob',
       address: { street: 123, city: 'Shelbyville' },
@@ -48,6 +49,7 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerErrors when nested object has missing required field', async () => {
+    seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Carol',
       address: { city: 'Capital City' },
@@ -56,6 +58,7 @@ describe('nested — integration', () => {
   });
 
   it('should serialize instance with nested DTO', async () => {
+    seal();
     const dto = Object.assign(new UserWithAddressDto(), {
       name: 'Dave',
       address: Object.assign(new AddressDto(), { street: '456 Elm St', city: 'Shelbyville' }),
@@ -72,11 +75,13 @@ describe('nested — integration', () => {
     class ItemDto {
       @Field(isString) name!: string;
     }
+    seal(ItemDto);
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
     }) as OrderDto;
@@ -89,11 +94,13 @@ describe('nested — integration', () => {
     class ItemDto {
       @Field(isString) name!: string;
     }
+    seal(ItemDto);
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize(OrderDto, {
       items: [{ name: 123 }, { name: 456 }],
     });
@@ -109,11 +116,13 @@ describe('nested — integration', () => {
     class ItemDto {
       @Field(isString) name!: string;
     }
+    seal(ItemDto);
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize(OrderDto, { items: 'not an array' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -125,11 +134,13 @@ describe('nested — integration', () => {
     class ItemDto {
       @Field(isString) name!: string;
     }
+    seal(ItemDto);
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
     configure({ stopAtFirstError: true });
+    seal();
     const result = await deserialize<OrderDto>(OrderDto, { items: [] }) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
@@ -137,12 +148,15 @@ describe('nested — integration', () => {
   // ─── PB-3: keepDiscriminatorProperty ──────────────────────────────────────
 
   it('should keep discriminator property in output when keepDiscriminatorProperty is true', async () => {
+    seal();
     class TextContent {
       @Field(isString) body!: string;
     }
+    seal(TextContent);
     class ImageContent {
       @Field(isString) url!: string;
     }
+    seal(ImageContent);
     class NotificationDto {
       @Field({
         type: () => TextContent,
@@ -157,6 +171,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent | ImageContent;
     }
+    seal(NotificationDto);
     const result = await deserialize<NotificationDto>(NotificationDto, {
       content: { type: 'text', body: 'hello' },
     }) as NotificationDto;
@@ -166,9 +181,11 @@ describe('nested — integration', () => {
   });
 
   it('should NOT keep discriminator property when keepDiscriminatorProperty is false/undefined', async () => {
+    seal();
     class TextContent2 {
       @Field(isString) body!: string;
     }
+    seal(TextContent2);
     class NotificationDto2 {
       @Field({
         type: () => TextContent2,
@@ -181,6 +198,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent2;
     }
+    seal(NotificationDto2);
     const result = await deserialize<NotificationDto2>(NotificationDto2, {
       content: { type: 'text', body: 'world' },
     }) as NotificationDto2;
@@ -189,9 +207,11 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerErrors with invalidDiscriminator for unknown discriminator value', async () => {
+    seal();
     class TextContent3 {
       @Field(isString) body!: string;
     }
+    seal(TextContent3);
     class NotificationDto3 {
       @Field({
         type: () => TextContent3,
@@ -205,6 +225,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent3;
     }
+    seal(NotificationDto3);
     const result = await deserialize(NotificationDto3, {
       content: { type: 'unknown', body: 'x' },
     });
@@ -217,10 +238,12 @@ describe('nested — integration', () => {
   // ─── PB-4: serialize null nested ────────────────────────────────────────────
 
   it('should handle null nested field in serialize without crashing', async () => {
+    seal();
     class ParentDto {
       @Field({ type: () => AddressDto })
       address!: AddressDto | null;
     }
+    seal(ParentDto);
     const dto = new ParentDto();
     dto.address = null;
     const result = await serialize(dto);

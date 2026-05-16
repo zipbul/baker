@@ -32,8 +32,6 @@ export const planCompare = (
   right: typeof right === 'number' ? planLiteral(right) : right,
 });
 
-export const planAnd = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: 'and', checks });
-
 export const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: 'or', checks });
 
 export function makePlannedRule(options: {
@@ -43,14 +41,15 @@ export function makePlannedRule(options: {
   plan: RulePlan;
   validate: (value: unknown) => boolean;
 }): InternalRule {
-  return makeRule({
+  const inner: Parameters<typeof makeRule>[0] = {
     name: options.name,
     requiresType: options.requiresType,
-    constraints: options.constraints,
     plan: options.plan,
     validate: options.validate,
     emit: (varName, ctx) => emitRulePlan(varName, ctx, options.name, options.plan),
-  });
+  };
+  if (options.constraints !== undefined) inner.constraints = options.constraints;
+  return makeRule(inner);
 }
 
 export function makeRule(options: {
@@ -100,11 +99,16 @@ function isSelfComparison(check: RulePlanCheck): boolean {
 
 function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
   if (a.kind !== b.kind) return false;
-  if (a.kind === 'value') return true;
-  if (a.kind === 'literal') return a.value === (b as typeof a).value;
-  if (a.kind === 'member') return exprEqual(a.object, (b as typeof a).object);
-  if (a.kind === 'call0') return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
-  return false;
+  switch (a.kind) {
+    case 'value':
+      return true;
+    case 'literal':
+      return a.value === (b as typeof a).value;
+    case 'member':
+      return exprEqual(a.object, (b as typeof a).object);
+    case 'call0':
+      return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
+  }
 }
 
 function emitPlanCheck(

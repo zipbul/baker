@@ -126,3 +126,6 @@ group('nested 3-level — invalid', () => {
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

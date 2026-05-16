@@ -41,6 +41,16 @@ export function analyzeCircular(
             if (walk(sub.value)) return true;
           }
         }
+        // W1 (F-1): collectionValue thunk (Set/Map nested DTO) — invoke and walk
+        if (meta.type?.collectionValue) {
+          let resolved: unknown;
+          try {
+            resolved = meta.type.collectionValue();
+          } catch (e) {
+            throw new SealError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`);
+          }
+          if (typeof resolved === 'function' && walk(resolved as Function)) return true;
+        }
       }
     }
 

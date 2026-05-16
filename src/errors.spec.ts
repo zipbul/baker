@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { isBakerError, BAKER_ERROR, SealError, _toBakerErrors } from './errors';
-import type { BakerError, BakerErrors } from './errors';
+import type { BakerError} from './errors';
 
 describe('isBakerError', () => {
   it('should return true for object with BAKER_ERROR symbol', () => {

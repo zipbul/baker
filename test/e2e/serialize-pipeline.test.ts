@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { serialize, deserialize, Field } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { serialize, deserialize, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 

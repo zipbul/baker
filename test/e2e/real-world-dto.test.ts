@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'bun:test';
-import {
-  deserialize, serialize, isBakerError,
-  Field,
-} from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, serialize, isBakerError,
+  Field, seal } from '../../index';
 import {
   isString, isNumber, isBoolean, isEmail, isEnum,
   min, max, minLength, maxLength, arrayMinSize,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role { Admin = 'admin', User = 'user', Guest = 'guest' }

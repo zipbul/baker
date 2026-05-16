@@ -1,5 +1,5 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { deserialize, Field, isBakerError, seal } from '../../index';
 import {
   arrayContains,
   arrayMaxSize,
@@ -31,6 +31,7 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 type RuleCase = {
@@ -45,6 +46,7 @@ async function passesWithDto(rule: any, value: unknown): Promise<boolean> {
     value!: unknown;
   }
 
+  seal(Dto);
   const result = await deserialize(Dto, { value });
   return !isBakerError(result);
 }

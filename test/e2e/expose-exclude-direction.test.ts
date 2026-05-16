@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { Field, deserialize, serialize, configure } from '../../index';
+import { Field, deserialize, serialize, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -26,6 +26,7 @@ class DirectionDto {
 
 describe('@Expose/@Exclude direction — deserialize', () => {
   it('deserializeOnly @Expose name used for extraction', async () => {
+    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     }) as DirectionDto;
@@ -33,6 +34,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('serializeOnly @Exclude → included in deserialize', async () => {
+    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     }) as DirectionDto;
@@ -40,6 +42,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('deserializeOnly @Exclude → excluded from deserialize', async () => {
+    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     }) as DirectionDto;
@@ -47,6 +50,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('bidirectional @Exclude → excluded from deserialize', async () => {
+    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     }) as DirectionDto;
@@ -56,6 +60,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
 
 describe('@Expose/@Exclude direction — serialize', () => {
   it('serializeOnly @Expose name used for output', async () => {
+    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -65,6 +70,7 @@ describe('@Expose/@Exclude direction — serialize', () => {
   });
 
   it('serializeOnly @Exclude → excluded from serialize', async () => {
+    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -73,6 +79,7 @@ describe('@Expose/@Exclude direction — serialize', () => {
   });
 
   it('bidirectional @Exclude → excluded from serialize', async () => {
+    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -89,6 +96,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
   it('deserialize with debug: true still excludes fields correctly', async () => {
     unseal();
     configure({ debug: true });
+    seal();
     const result = await deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice', password: 'pw123', token: 'tok', internal: 'x',
     }) as DirectionDto;
@@ -103,6 +111,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
   it('serialize with debug: true still excludes fields correctly', async () => {
     unseal();
     configure({ debug: true });
+    seal();
     const dto = Object.assign(new DirectionDto(), {
       name: 'Bob', password: 'pw', token: 'tok', internal: 'x',
     });
@@ -128,6 +137,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
   it('field with only serializeOnly @Expose is excluded from deserialize with debug', async () => {
     unseal();
     configure({ debug: true });
+    seal();
     const result = await deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
       name: 'Alice', secret: 'hidden',
     }) as SerializeOnlyExposeDto;
@@ -144,6 +154,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
     }
     unseal();
     configure({ debug: true });
+    seal();
     const dto = Object.assign(new DeserializeOnlyExposeDto(), { name: 'Alice', secret: 'hidden' });
     const result = await serialize(dto);
     expect(result['name']).toBe('Alice');

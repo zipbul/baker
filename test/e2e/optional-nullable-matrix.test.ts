@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, isBakerError, Field } from '../../index';
-import type { BakerErrors } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 
 async function tryDeserialize(cls: new (...args: any[]) => any, input: unknown): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
   const result = await deserialize(cls, input);

@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
+beforeEach(() => { unseal(); seal(); });
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -231,5 +230,87 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
       expect(err).toBeDefined();
       expect(err!.path).toContain('address');
     }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discriminator default branch — context: { received, validSubTypes }
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('discriminator default branch — context payload', () => {
+  it('validate() on unknown discriminator value includes received + validSubTypes', async () => {
+    const { validate, configure } = await import('../../index');
+    class CatV { @Field(isString) kind!: string; @Field(isString) meow!: string; }
+    class DogV { @Field(isString) kind!: string; @Field(isString) bark!: string; }
+    class OwnerV {
+      @Field({
+        type: () => CatV,
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: CatV, name: 'cat' },
+            { value: DogV, name: 'dog' },
+          ],
+        },
+      })
+      pet!: CatV | DogV;
+    }
+    unseal();
+    configure({ stopAtFirstError: true });
+    seal();
+    const r = await validate(OwnerV, { pet: { kind: 'bird' } });
+    expect(isBakerError(r)).toBe(true);
+    if (isBakerError(r)) {
+      const err = r.errors.find((e: any) => e.code === 'invalidDiscriminator');
+      expect((err as any).context).toMatchObject({ received: 'bird', validSubTypes: ['cat', 'dog'] });
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// async serialize: discriminator array (each)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('async serialize: discriminator + array (each)', () => {
+  it('serializes an array of polymorphic DTOs in async DTO context', async () => {
+    class CatA {
+      @Field(isString) kind!: string;
+      @Field(isString) meow!: string;
+    }
+    class DogA {
+      @Field(isString) kind!: string;
+      @Field(isString) bark!: string;
+    }
+
+    class OwnerA {
+      @Field({
+        type: () => [CatA],
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: CatA, name: 'cat' },
+            { value: DogA, name: 'dog' },
+          ],
+        },
+        keepDiscriminatorProperty: true,
+      })
+      pets!: (CatA | DogA)[];
+
+      @Field(isString, {
+        transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => `<${value}>` },
+      })
+      tag!: string;
+    }
+
+    unseal();
+    seal();
+    const cat = Object.assign(Object.create(CatA.prototype), { kind: 'cat', meow: 'nya' });
+    const dog = Object.assign(Object.create(DogA.prototype), { kind: 'dog', bark: 'woof' });
+    const owner = Object.assign(Object.create(OwnerA.prototype), { pets: [cat, dog], tag: 'root' });
+
+    const result = await serialize(owner) as Record<string, any>;
+    expect(Array.isArray(result.pets)).toBe(true);
+    expect(result.pets).toHaveLength(2);
+    expect(result.tag).toBe('<root>');
   });
 });

@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError, createRule } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, createRule, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -77,6 +78,7 @@ describe('createRule — async', () => {
       @Field(promiseFalseRule)
       value!: string;
     }
+    seal(PromiseRuleDto);
 
     expect(() => deserialize(PromiseRuleDto, { value: 'x' })).toThrow('sync rule returned Promise');
   });

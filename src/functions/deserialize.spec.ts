@@ -1,8 +1,7 @@
-import { describe, it, expect, afterEach, mock } from 'bun:test';
+import { describe, it, expect, afterEach} from 'bun:test';
 import { err } from '@zipbul/result';
 import { SEALED } from '../symbols';
 import { isBakerError, SealError } from '../errors';
-import type { BakerErrors } from '../errors';
 import { globalRegistry } from '../registry';
 import { _resetForTesting } from '../seal/seal';
 import { deserialize } from './deserialize';

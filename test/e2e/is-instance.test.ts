@@ -1,8 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isInstance } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ describe('@IsInstance', () => {
       @Field(isInstance(MyDate))
       date!: MyDate;
     }
+    seal(WrongDto);
 
     // A string is not a MyDate instance (raw string passed without Transform)
     expect(isBakerError(await deserialize(WrongDto, { date: '2024-01-01' }))).toBe(true);

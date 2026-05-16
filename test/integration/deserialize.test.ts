@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, Field, configure, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+import { deserialize, Field, isBakerError, seal} from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
-beforeEach(() => unseal());
+beforeEach(() => { unseal(); seal(); });
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -61,11 +61,6 @@ class CollisionGroupsDto {
 
 class IsDefinedStringDto {
   @Field(isString)
-  value!: string;
-}
-
-class IsDefinedOptionalDto {
-  @Field(isString, { optional: true })
   value!: string;
 }
 
@@ -247,7 +242,7 @@ class AdminOnlyDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('deserialize — public sync/async path', () => {
-  afterEach(() => unseal());
+  afterEach(() => { unseal(); seal(); });
 
   it('deserialize is a regular function', () => {
     expect(deserialize.constructor.name).toBe('Function');
@@ -279,7 +274,7 @@ class ContextIntegrationDto {
 }
 
 describe('deserialize — @Field message integration', () => {
-  afterEach(() => unseal());
+  afterEach(() => { unseal(); seal(); });
 
   it('should include field-level message in BakerError.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
@@ -297,7 +292,7 @@ describe('deserialize — @Field message integration', () => {
 });
 
 describe('deserialize — @Field context integration', () => {
-  afterEach(() => unseal());
+  afterEach(() => { unseal(); seal(); });
 
   it('should include value in BakerError.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
@@ -310,7 +305,7 @@ describe('deserialize — @Field context integration', () => {
 });
 
 describe('M4 — validation groups runtime filtering', () => {
-  afterEach(() => unseal());
+  afterEach(() => { unseal(); seal(); });
 
   it('no groups provided → group-gated fields excluded (visibility control)', async () => {
     const result = await deserialize(AdminOnlyDto, { secret: 123, id: 1 }) as AdminOnlyDto;

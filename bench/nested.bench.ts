@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, isBakerError } from '../index';
+import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 
 class BakerAddress {
@@ -23,6 +23,7 @@ class BakerOrder {
   @Field({ type: () => BakerCustomer }) customer!: BakerCustomer;
   @Field(isNumber(), min(0)) priority!: number;
 }
+seal();
 await deserialize(BakerOrder, NESTED_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────

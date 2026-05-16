@@ -1,4 +1,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
+// Ctor — class constructor type used throughout the seal pipeline
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Any class constructor. Carries the `[RAW]` and `[SEALED]` symbol slots after seal. */
+export type Ctor = new (...args: never[]) => unknown;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // EmitContext — Code generation context (§4.7)
 // ─────────────────────────────────────────────────────────────────────────────
 

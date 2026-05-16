@@ -1,7 +1,10 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, serialize, Field, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AddressDto {
@@ -137,6 +140,7 @@ describe('@Nested edge cases', () => {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
     }
+    seal(OptNested);
     const r = await deserialize(OptNested, { name: 'Alice' }) as OptNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeUndefined();
@@ -147,6 +151,7 @@ describe('@Nested edge cases', () => {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;
     }
+    seal(NullNested);
     const r = await deserialize(NullNested, { name: 'Alice', address: null }) as NullNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeNull();

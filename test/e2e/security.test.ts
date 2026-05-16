@@ -1,9 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import {
-  deserialize, configure, isBakerError,
-  Field,
-} from '../../index';
-import type { BakerErrors } from '../../index';
+import { deserialize, configure, isBakerError,
+  Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -19,6 +16,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
 
   it('__proto__ key → pollution prevented', async () => {
     configure({ forbidUnknown: true });
+    seal();
     const result = await deserialize<any>(SafeDto, { name: 'ok', __proto__: { admin: true } });
     if (isBakerError(result)) {
       expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
@@ -29,6 +27,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
 
   it('constructor key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
+    seal();
     const result = await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -38,6 +37,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
 
   it('toString key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
+    seal();
     const result = await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
@@ -52,6 +52,7 @@ describe('extra keys ignored without forbidUnknown', () => {
   class Dto { @Field(isString) name!: string; }
 
   it('undeclared keys not included in result', async () => {
+    seal();
     const r = await deserialize<any>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} }) as any;
     expect(r.name).toBe('ok');
     expect(r.extra).toBeUndefined();
@@ -72,6 +73,7 @@ describe('deeply nested objects stack safety', () => {
   class Level1 { @Field({ type: () => Level2 }) child!: Level2; }
 
   it('5 levels of nesting processed correctly', async () => {
+    seal();
     const input = {
       child: { child: { child: { child: { leaf: { value: 'deep' } } } } },
     };
@@ -80,6 +82,7 @@ describe('deeply nested objects stack safety', () => {
   });
 
   it('5 levels of nesting validation failure → correct path', async () => {
+    seal();
     const input = {
       child: { child: { child: { child: { leaf: { value: 123 } } } } },
     };
@@ -105,6 +108,7 @@ describe('large array input handling', () => {
   }
 
   it('1000 item array processed correctly', async () => {
+    seal();
     const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
     const r = await deserialize<ListDto>(ListDto, { items }) as ListDto;
     expect(r.items).toHaveLength(1000);
@@ -112,6 +116,7 @@ describe('large array input handling', () => {
   });
 
   it('some invalid among 1000 → only those indices have errors', async () => {
+    seal();
     const items: any[] = Array.from({ length: 100 }, (_, i) => ({ id: i }));
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
@@ -137,6 +142,7 @@ describe('E-26: frozen / null-prototype input', () => {
   }
 
   it('Object.freeze() input → deserialize works', async () => {
+    seal();
     const input = Object.freeze({ name: 'test', age: 25 });
     const r = await deserialize<FrozenDto>(FrozenDto, input) as FrozenDto;
     expect(r.name).toBe('test');
@@ -145,6 +151,7 @@ describe('E-26: frozen / null-prototype input', () => {
   });
 
   it('Object.create(null) input → deserialize works', async () => {
+    seal();
     const input = Object.create(null);
     Object.defineProperty(input, 'name', { value: 'test', enumerable: true });
     Object.defineProperty(input, 'age', { value: 25, enumerable: true });
@@ -155,6 +162,7 @@ describe('E-26: frozen / null-prototype input', () => {
   });
 
   it('frozen input with invalid value → BakerErrors returned', async () => {
+    seal();
     const input = Object.freeze({ name: 123, age: 25 });
     const result = await deserialize(FrozenDto, input);
     expect(isBakerError(result)).toBe(true);
@@ -165,17 +173,20 @@ describe('special string value handling', () => {
   class Dto { @Field(isString) v!: string; }
 
   it('very long string (10K) passes', async () => {
+    seal();
     const longStr = 'x'.repeat(10_000);
     const r = await deserialize<any>(Dto, { v: longStr }) as any;
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
+    seal();
     const r = await deserialize<any>(Dto, { v: '🎉🎊🎈' }) as any;
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
+    seal();
     const r = await deserialize<any>(Dto, { v: 'hello\x00world' }) as any;
     expect(r.v).toBe('hello\x00world');
   });

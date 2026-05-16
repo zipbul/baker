@@ -6,6 +6,7 @@ import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
 import { buildSerializeCode } from './serialize-builder';
 import { analyzeCircular } from './circular-analyzer';
 import { validateExposeStacks } from './expose-validator';
+import { validateMeta } from './validate-meta';
 import { isAsyncFunction } from '../utils';
 import type { RawClassMeta, SealedExecutors } from '../types';
 import type { SealOptions } from '../interfaces';
@@ -58,6 +59,15 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
         }
       }
     }
+    // Set/Map nested DTO (collectionValue) — propagate async from value DTO to parent
+    if (meta.type?.resolvedCollectionValue) {
+      const valueClass = meta.type.resolvedCollectionValue;
+      if (!v.has(valueClass)) {
+        v.add(valueClass);
+        const valueMerged = mergeInheritance(valueClass);
+        if (analyzeAsync(valueMerged, direction, v)) return true;
+      }
+    }
   }
   return false;
 }
@@ -74,17 +84,35 @@ export function _isSealed(): boolean { return _sealed; }
 /** List of sealed classes — used by unseal to remove SEALED */
 export const _sealedClasses = new Set<Function>();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// _autoSeal — batch-seal the entire globalRegistry on first deserialize/serialize call
-// ─────────────────────────────────────────────────────────────────────────────
+/**
+ * @internal testing only — called by unseal() in testing.ts
+ */
+export function _resetForTesting(): void {
+  _sealed = false;
+  _sealedClasses.clear();
+}
 
 /**
- * @internal — called from deserialize/serialize.
- * No-op if already sealed.
+ * @internal — used by serialize/deserialize. Returns the sealed executor.
+ * Throws if the class was never sealed. Users must call `seal()` at app startup.
  */
-export function _autoSeal(): void {
-  if (_sealed) return;
+export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
+  const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
+  if (!sealed) {
+    const name = Class.name || '<anonymous class>';
+    throw new SealError(
+      `${name} is not sealed. Call seal() at app startup before deserialize/validate/serialize. ` +
+      `(If ${name} has no @Field decorators, decorate at least one property.)`,
+    );
+  }
+  return sealed;
+}
 
+/**
+ * Seal every class in the decorator registry, then clear the registry.
+ */
+function sealAllRegistered(): void {
+  if (_sealed) return;
   const options = _getGlobalOptions();
 
   try {
@@ -106,28 +134,49 @@ export function _autoSeal(): void {
     Object.freeze((Class as any)[RAW]);
   }
   globalRegistry.clear();
-
   _sealed = true;
 }
 
 /**
- * @internal — on-demand seal for classes registered after auto-seal via dynamic import.
- * Only operates when Class[RAW] exists and Class[SEALED] does not.
+ * Seal a single late-registered class (e.g. dynamic import after the main `seal()`).
+ * Class[RAW] must exist; Class[SEALED] must not.
+ * Transactional: on failure, any placeholder installed by sealOne is removed so a future
+ * seal(Class) call can re-attempt cleanly.
  */
-export function _sealOnDemand(Class: Function): void {
+function sealOneClass(Class: Function): void {
   if (Object.hasOwn(Class as object, SEALED)) return;
-  if (!Object.hasOwn(Class as object, RAW)) return;
+  if (!Object.hasOwn(Class as object, RAW)) {
+    throw new SealError(
+      `${Class.name}: cannot seal a class that has no @Field decorators. ` +
+      `seal(${Class.name}) is a no-op unless ${Class.name} has at least one @Field.`,
+    );
+  }
 
   const before = new Set(_sealedClasses);
+  const beforeSealed = new Set<Function>(
+    [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED)),
+  );
   const options = _getGlobalOptions();
-  sealOne(Class, options);
+  try {
+    sealOne(Class, options);
+  } catch (e) {
+    // Remove placeholder SEALED markers left on this class and any nested class touched during the failed seal
+    if (Object.hasOwn(Class as object, SEALED) && !beforeSealed.has(Class)) {
+      delete (Class as any)[SEALED];
+    }
+    for (const C of globalRegistry) {
+      if (Object.hasOwn(C as object, SEALED) && !beforeSealed.has(C)) {
+        delete (C as any)[SEALED];
+      }
+    }
+    throw e;
+  }
 
-  // Also clean up nested DTOs recursively sealed by sealOne
   _sealedClasses.add(Class);
   Object.freeze((Class as any)[RAW]);
   globalRegistry.delete(Class);
 
-  // Clean up additional classes sealed recursively (freeze RAW + remove from registry) — delete after snapshot
+  // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
   const newlySealed = [...globalRegistry].filter(
     C => Object.hasOwn(C as object, SEALED) && !before.has(C),
   );
@@ -139,30 +188,20 @@ export function _sealOnDemand(Class: Function): void {
 }
 
 /**
- * @internal testing only — called by unseal() in testing.ts
+ * Public — explicit seal at app startup. With no args, seals every class currently in the
+ * decorator registry. With args, seals each given class (and its nested DTOs) on demand.
+ * Idempotent: already-sealed classes are skipped.
+ *
+ * Baker requires this call before any deserialize/serialize/validate. There is no implicit seal.
  */
-export function _resetForTesting(): void {
-  _sealed = false;
-  _sealedClasses.clear();
-}
-
-/**
- * @internal — used by serialize/deserialize. Ensures and returns a sealed executor.
- */
-export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
-  let sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
-  if (!sealed) {
-    _autoSeal();
-    sealed = (Class as any)[SEALED];
+export function seal(...classes: Function[]): void {
+  if (classes.length === 0) {
+    sealAllRegistered();
+    return;
   }
-  if (!sealed) {
-    _sealOnDemand(Class);
-    sealed = (Class as any)[SEALED];
+  for (const Class of classes) {
+    sealOneClass(Class);
   }
-  if (!sealed) {
-    throw new SealError(`${Class.name} has no @Field decorators`);
-  }
-  return sealed;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -198,9 +237,16 @@ function sealOne(Class: Function, options?: SealOptions): void {
       const typeCopy = { ...meta.type, collection, isArray: false };
       // collectionValue thunk → cache resolvedCollectionValue
       if (meta.type.collectionValue) {
-        const valCls = meta.type.collectionValue();
-        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls)) {
-          typeCopy.resolvedCollectionValue = valCls;
+        let valCls: unknown;
+        try {
+          valCls = meta.type.collectionValue();
+        } catch (e) {
+          throw new SealError(
+            `${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`,
+          );
+        }
+        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
+          typeCopy.resolvedCollectionValue = valCls as new (...args: any[]) => any;
         }
       }
       merged[key] = { ...meta, type: typeCopy };
@@ -228,6 +274,9 @@ function sealOne(Class: Function, options?: SealOptions): void {
 
   // 2. Static validation of @Expose stacks (throws SealError on failure)
   validateExposeStacks(merged, Class.name);
+
+  // 2b. W2: seal-time invariant checks (D7 discriminator/Set·Map + D9 async-in-sync)
+  validateMeta(Class, merged);
 
   // 3. Static analysis for circular references
   const needsCircularCheck = analyzeCircular(Class);
@@ -317,9 +366,9 @@ export function mergeInheritance(Class: Function): RawClassMeta {
         const m = merged[key];
         const p = meta;
 
-        // validation: union merge (remove duplicate rules)
+        // validation: union merge by ruleName — child overrides parent for the same rule name (N-6)
         for (const rd of p.validation) {
-          if (!m.validation.some(d => d.rule === rd.rule)) {
+          if (!m.validation.some(d => d.rule.ruleName === rd.rule.ruleName)) {
             m.validation.push(rd);
           }
         }

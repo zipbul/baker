@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, isBakerError, Field } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, isBakerError, Field, seal } from '../../index';
 import {
   isAscii, isAlpha, isAlphanumeric, isNumberString, isDecimal,
   isFullWidth, isHalfWidth, isVariableWidth, isMultibyte, isSurrogatePair,
@@ -14,6 +14,10 @@ import {
   isISO4217CurrencyCode, isPhoneNumber, isStrongPassword, isTaxId,
   isFirebasePushId, isEAN, isMagnetURI, isDateString, isCurrency,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isAscii', () => {
@@ -38,6 +42,22 @@ describe('isNumberString', () => {
   class D { @Field(isNumberString()) v!: string; }
   it('passes', async () => { expect((await deserialize(D, { v: '123.45' }) as D).v).toBe('123.45'); });
   it('rejected', async () => { expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true); });
+});
+
+describe('isNumberString({ no_symbols: true })', () => {
+  class NumStrictDto { @Field(isNumberString({ no_symbols: true })) v!: string; }
+  it('pure digits passes', async () => {
+    expect((await deserialize<NumStrictDto>(NumStrictDto, { v: '12345' }) as NumStrictDto).v).toBe('12345');
+  });
+  it('digits with decimal point rejected', async () => {
+    expect(isBakerError(await deserialize(NumStrictDto, { v: '1.5' }))).toBe(true);
+  });
+  it('empty string rejected', async () => {
+    expect(isBakerError(await deserialize(NumStrictDto, { v: '' }))).toBe(true);
+  });
+  it('digits with sign rejected', async () => {
+    expect(isBakerError(await deserialize(NumStrictDto, { v: '-1' }))).toBe(true);
+  });
 });
 
 describe('isDecimal', () => {
@@ -153,6 +173,17 @@ describe('isFQDN', () => {
   class D { @Field(isFQDN()) v!: string; }
   it('passes', async () => { expect((await deserialize(D, { v: 'example.com' }) as D).v).toBe('example.com'); });
   it('rejected', async () => { expect(isBakerError(await deserialize(D, { v: 'not_a_domain' }))).toBe(true); });
+});
+
+describe('isFQDN({ require_tld: false })', () => {
+  class HostDto { @Field(isFQDN({ require_tld: false })) host!: string; }
+  it('single-label hostname passes', async () => {
+    const r = await deserialize<HostDto>(HostDto, { host: 'localhost' }) as HostDto;
+    expect(r.host).toBe('localhost');
+  });
+  it('empty string rejected', async () => {
+    expect(isBakerError(await deserialize(HostDto, { host: '' }))).toBe(true);
+  });
 });
 
 describe('isPort', () => {

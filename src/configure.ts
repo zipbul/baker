@@ -3,7 +3,7 @@ import { SealError } from './errors';
 import { _isSealed } from './seal/seal';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerConfig — Global configuration (call before auto-seal)
+// BakerConfig — Global configuration (call before seal())
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface BakerConfig {
@@ -19,17 +19,34 @@ export interface BakerConfig {
   debug?: boolean;
 }
 
+const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
+  'autoConvert', 'allowClassDefaults', 'stopAtFirstError', 'forbidUnknown', 'debug',
+]);
+
 let _globalOptions: SealOptions = {};
 
 /**
- * Baker global configuration. Call before the first auto-seal.
+ * Baker global configuration. Call before `seal()`.
  * If not called, defaults are applied.
  */
 export function configure(config: BakerConfig): void {
   if (_isSealed()) {
     throw new SealError(
-      '[baker] configure() called after auto-seal. Already-sealed classes are not affected. Call configure() before the first deserialize/serialize/validate.',
+      '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
     );
+  }
+  if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+    throw new SealError(
+      `[baker] configure() requires a plain object. Received: ${config === null ? 'null' : Array.isArray(config) ? 'array' : typeof config}.`,
+    );
+  }
+  for (const key of Object.keys(config)) {
+    if (!BAKER_CONFIG_KEYS.has(key as keyof BakerConfig)) {
+      throw new SealError(
+        `[baker] configure(): unknown key '${key}'. ` +
+        `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`,
+      );
+    }
   }
   _globalOptions = {
     enableImplicitConversion: config.autoConvert ?? false,
@@ -40,7 +57,7 @@ export function configure(config: BakerConfig): void {
   };
 }
 
-/** @internal — used by seal */
+/** @internal — used by seal. Returns a frozen snapshot so internal mutations are visible only via configure(). */
 export function _getGlobalOptions(): SealOptions {
   return _globalOptions;
 }

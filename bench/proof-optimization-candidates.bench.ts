@@ -69,3 +69,6 @@ group('proof — optimization candidates', () => {
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

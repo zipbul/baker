@@ -1,7 +1,7 @@
 import { err as _resultErr, isErr as _resultIsErr } from '@zipbul/result';
 import type { Result, ResultAsync } from '@zipbul/result';
 import { SEALED } from '../symbols';
-import type { RawClassMeta, RawPropertyMeta, EmitContext, EmittableRule, SealedExecutors, RuleDef } from '../types';
+import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef } from '../types';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import { SealError, type BakerError } from '../errors';
 import { emitRulePlan } from '../rule-plan';
@@ -130,13 +130,16 @@ export function buildDeserializeCode<T>(
   // preamble: input type guard (§4.9)
   body += `if (input == null || typeof input !== 'object' || Array.isArray(input)) return ${wrapErr('[{path:\'\',code:\'invalidInput\'}]')};\n`;
 
-  // WeakSet guard (circular references) — try/finally ensures cleanup between calls
-  let circularWsIdx = -1;
+  // WeakSet guard (circular references) — N-3 fix: WeakSet lives per-call, threaded through
+  // `_opts` via a Symbol-keyed slot so nested DTOs in the same call share it. Symbol keys are
+  // invisible to `Object.keys`/_checkCallOptions, so this doesn't pollute the user's opts shape.
+  // The previous shared-ref WeakSet caused concurrent async deserialize() to false-positive.
   if (needsCircularCheck) {
-    refs.push(new WeakSet());
-    circularWsIdx = refs.length - 1;
-    body += `if (_refs[${circularWsIdx}].has(input)) return ${wrapErr("[{path:'',code:'circular'}]")};\n`;
-    body += `_refs[${circularWsIdx}].add(input);\n`;
+    body += `var __SEEN_KEY = Symbol.for('baker:circular-seen');\n`;
+    body += `_opts = (_opts && _opts[__SEEN_KEY]) ? _opts : Object.assign({}, _opts || {}, { [__SEEN_KEY]: new WeakSet() });\n`;
+    body += `var __seen = _opts[__SEEN_KEY];\n`;
+    body += `if (__seen.has(input)) return ${wrapErr("[{path:'',code:'circular'}]")};\n`;
+    body += `__seen.add(input);\n`;
     body += `try {\n`;
   }
 
@@ -196,11 +199,13 @@ export function buildDeserializeCode<T>(
 
   // Close try/finally for circular reference WeakSet cleanup
   if (needsCircularCheck) {
-    body += `} finally { _refs[${circularWsIdx}].delete(input); }\n`;
+    body += `} finally { __seen.delete(input); }\n`;
   }
 
   // sourceURL (§4.9)
-  body += `//# sourceURL=baker://${Class.name}/${validateOnly ? 'validate' : 'deserialize'}\n`;
+  // Sanitize class name so it cannot inject newlines / */ that would break out of the comment.
+  const _safeClsName = String(Class.name).replace(/[^\w$.-]/g, '_');
+  body += `//# sourceURL=baker://${_safeClsName}/${validateOnly ? 'validate' : 'deserialize'}\n`;
 
   // ── Execute new Function ───────────────────────────────────────────────────
 
@@ -320,7 +325,7 @@ function generateFieldCode(
   meta: RawPropertyMeta,
   ctx: FieldCodeContext,
 ): string {
-  const { collectErrors, exposeDefaultValues } = ctx;
+  const { exposeDefaultValues } = ctx;
 
   // ⓪ Exclude deserializeOnly / bidirectional → skip
   if (meta.exclude) {
@@ -359,14 +364,15 @@ function generateFieldCode(
     ctx.refs.push(meta.flags.validateIf);
   }
 
-  // ③ Extract + exposeDefaultValues
+  // ③ Extract + exposeDefaultValues — W7 (N-4): use Object.hasOwn to block prototype-inherited values
   let extractCode: string;
+  const extractKeyJson = JSON.stringify(extractKey);
   if (exposeDefaultValues && !meta.flags.isOptional) {
-    // Use default value if key is not in input
+    // Use default value if key is not an own property of input (prototype-only keys count as missing)
     const defaultsSource = ctx.validateOnly ? '__bk$defs' : GEN.out;
-    extractCode = `var ${varName} = (${JSON.stringify(extractKey)} in ${inputObj}) ? ${inputObj}[${JSON.stringify(extractKey)}] : ${defaultsSource}[${JSON.stringify(fieldKey)}];\n`;
+    extractCode = `var ${varName} = Object.hasOwn(${inputObj}, ${extractKeyJson}) ? ${inputObj}[${extractKeyJson}] : ${defaultsSource}[${JSON.stringify(fieldKey)}];\n`;
   } else {
-    extractCode = `var ${varName} = ${inputObj}[${JSON.stringify(extractKey)}];\n`;
+    extractCode = `var ${varName} = Object.hasOwn(${inputObj}, ${extractKeyJson}) ? ${inputObj}[${extractKeyJson}] : undefined;\n`;
   }
 
   // groups check wrap (§4.5)
@@ -412,7 +418,7 @@ function generateValidationCode(
   emitCtx: EmitContext,
   fieldGroups?: string[],
 ): string {
-  const { collectErrors, execs } = ctx;
+  const { collectErrors } = ctx;
 
   let code = '';
 
@@ -553,13 +559,15 @@ function emitRuleList(
   for (const rd of rules) {
     const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
     const gatedCtx = insideTypeGate ? { ...ruleEmitCtx, insideTypeGate: true } : ruleEmitCtx;
-    const emitted =
-      sameGroups(rd.groups, fieldGroups) && rd.rule.plan && (lengthVar || timeVar)
-        ? emitRulePlan(varName, gatedCtx, rd.rule.ruleName, rd.rule.plan, {
-            length: rd.rule.plan.cacheKey === 'length' ? lengthVar ?? undefined : undefined,
-            time: rd.rule.plan.cacheKey === 'time' ? timeVar ?? undefined : undefined,
-          }, insideTypeGate)
-        : rd.rule.emit(varName, gatedCtx);
+    let emitted: string;
+    if (sameGroups(rd.groups, fieldGroups) && rd.rule.plan && (lengthVar || timeVar)) {
+      const cache: { length?: string; time?: string } = {};
+      if (rd.rule.plan.cacheKey === 'length' && lengthVar) cache.length = lengthVar;
+      if (rd.rule.plan.cacheKey === 'time' && timeVar) cache.time = timeVar;
+      emitted = emitRulePlan(varName, gatedCtx, rd.rule.ruleName, rd.rule.plan, cache, insideTypeGate);
+    } else {
+      emitted = rd.rule.emit(varName, gatedCtx);
+    }
     if (!emitted) continue; // empty emit (e.g., asserter fully subsumed by gate)
     const ruleCode = sameGroups(rd.groups, fieldGroups) ? emitted : wrapGroupsGuard(rd, emitted);
     code += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
@@ -907,7 +915,11 @@ function emitEachRules(
   let code = '';
 
   for (const rd of eachRules) {
-    const pathKey = JSON.stringify(fieldKey);
+    // pathKey must honor ctx.pathPrefix so inlined nested DTOs report full path.
+    // Without this, validate(Parent, ...) returned `tags[1]` while deserialize returned `nested.tags[1]`.
+    const pathKey = ctx.pathPrefix
+      ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}`
+      : JSON.stringify(fieldKey);
     const sk = sanitizeKey(fieldKey);
     const iVar = `${GEN.index}${sk}`;
     const siVar = `${GEN.setIdx}${sk}`;
@@ -1199,7 +1211,16 @@ function generateNestedCode(
       code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
       code += `    break;\n`;
     }
-    code += `  default: ${emitCtx.fail('invalidDiscriminator')};\n`;
+    const _validSubTypeNamesJson = JSON.stringify(meta.type.discriminator.subTypes.map(s => s.name));
+    const _discPathExpr = emitCtx._pathExpr ?? JSON.stringify(fieldKey);
+    const _discValueExpr = `${GEN.disc}${sk}`;
+    if (collectErrors) {
+      code += `  default: ${GEN.errList}.push({path:${_discPathExpr},code:'invalidDiscriminator',context:{received:${_discValueExpr},validSubTypes:${_validSubTypeNamesJson}}});\n`;
+    } else if (ctx.validateOnly) {
+      code += `  default: return [{path:${_discPathExpr},code:'invalidDiscriminator',context:{received:${_discValueExpr},validSubTypes:${_validSubTypeNamesJson}}}];\n`;
+    } else {
+      code += `  default: return _err([{path:${_discPathExpr},code:'invalidDiscriminator',context:{received:${_discValueExpr},validSubTypes:${_validSubTypeNamesJson}}}]);\n`;
+    }
     code += `}\n`;
     // keepDiscriminatorProperty: preserve discriminator property in result object (PB-3)
     if (meta.type.keepDiscriminatorProperty) {
@@ -1362,7 +1383,14 @@ function generateNestedCodeValidateOnly(
       }
       code += `    break;\n`;
     }
-    code += `  default: ${emitCtx.fail('invalidDiscriminator')};\n`;
+    const _validSubTypeNamesJsonV = JSON.stringify(meta.type.discriminator.subTypes.map(s => s.name));
+    const _discPathExprV = emitCtx._pathExpr ?? JSON.stringify(fieldKey);
+    const _discValueExprV = `${GEN.disc}${sk}`;
+    if (collectErrors) {
+      code += `  default: ${GEN.errList}.push({path:${_discPathExprV},code:'invalidDiscriminator',context:{received:${_discValueExprV},validSubTypes:${_validSubTypeNamesJsonV}}});\n`;
+    } else {
+      code += `  default: return [{path:${_discPathExprV},code:'invalidDiscriminator',context:{received:${_discValueExprV},validSubTypes:${_validSubTypeNamesJsonV}}}];\n`;
+    }
     code += `}\n`;
   } else {
     const nestedCls = meta.type.resolvedClass ?? meta.type.fn() as Function;

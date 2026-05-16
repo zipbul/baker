@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, Field, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -22,6 +22,7 @@ class GrandChildDto extends ChildDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 describe('inheritance — integration', () => {

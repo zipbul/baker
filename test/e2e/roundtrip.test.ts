@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'bun:test';
-import {
-  deserialize, serialize,
-  Field,
-} from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { deserialize, serialize,
+  Field, seal } from '../../index';
 import {
   isString, isNumber, isBoolean, isEmail,
   min, minLength, arrayMinSize,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─── 1. simple flat DTO roundtrip ────────────────────────────────────────────
 
 describe('flat DTO roundtrip', () => {

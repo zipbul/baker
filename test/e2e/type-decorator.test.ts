@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { deserialize, serialize, isBakerError, Field } from '../../index';
+import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
+beforeEach(() => { unseal(); seal(); });
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -34,10 +35,12 @@ describe('@Type / @Field({ type })', () => {
     class Cat {
       @Field(isString) name!: string;
     }
+    seal(Cat);
     class Dog {
       @Field(isString) name!: string;
       @Field(isNumber()) age!: number;
     }
+    seal(Dog);
 
     class PetDto {
       @Field({
@@ -50,6 +53,7 @@ describe('@Type / @Field({ type })', () => {
       })
       pet!: Cat | Dog;
     }
+    seal(PetDto);
 
     const catResult = await deserialize(PetDto, { pet: { type: 'cat', name: 'Whiskers' } }) as PetDto;
     expect(catResult.pet).toBeInstanceOf(Cat);

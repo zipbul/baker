@@ -1,42 +1,41 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { deserialize, serialize, SealError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, serialize, SealError, seal } from '../../index';
+import { isNumber } from '../../src/rules/index';
 import { ensureMeta } from '../../src/collect';
-import { globalRegistry } from '../../src/registry';
-import { unseal } from '../integration/helpers/unseal';
+import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('SealError', () => {
-  // After each test, remove poison classes from registry + reset seal state
-  afterEach(() => {
-    // Remove poison classes (banned fields etc.) from registry
-    for (const cls of [...globalRegistry]) {
-      globalRegistry.delete(cls);
-    }
-    unseal();
-  });
+  beforeEach(() => seal());
+  afterEach(() => { purgePoisonClasses(); unseal(); });
 
-  it('deserialize on class without @Field → SealError', () => {
+  it('seal(NoFieldDto) on class without @Field → SealError', () => {
     class NoFieldDto {}
-    expect(() => deserialize(NoFieldDto, { name: 'Alice' })).toThrow(SealError);
+    expect(() => seal(NoFieldDto)).toThrow(SealError);
   });
 
-  it('serialize on class without @Field → SealError', () => {
+  it('deserialize on class never sealed (no @Field) → SealError', () => {
     class NoFieldDto2 {}
-    const dto = new NoFieldDto2();
+    expect(() => deserialize(NoFieldDto2, { name: 'Alice' })).toThrow(SealError);
+  });
+
+  it('serialize on class never sealed (no @Field) → SealError', () => {
+    class NoFieldDto3 {}
+    const dto = new NoFieldDto3();
     expect(() => serialize(dto)).toThrow(SealError);
   });
 
-  it('banned field name "__proto__" throws SealError during auto-seal', () => {
+  it('banned field name "__proto__" throws SealError at seal', () => {
     class ProtoDto {}
     ensureMeta(ProtoDto, '__proto__');
-    expect(() => deserialize(ProtoDto, { '__proto__': 'evil' })).toThrow(SealError);
+    expect(() => seal(ProtoDto)).toThrow(SealError);
   });
 
-  it('banned field name "constructor" throws SealError during auto-seal', () => {
+  it('banned field name "constructor" throws SealError at seal', () => {
     class CtorDto {}
     ensureMeta(CtorDto, 'constructor');
-    expect(() => deserialize(CtorDto, { constructor: 'evil' })).toThrow(SealError);
+    expect(() => seal(CtorDto)).toThrow(SealError);
   });
 
   it('serialize null → SealError', () => {
@@ -49,5 +48,38 @@ describe('SealError', () => {
 
   it('serialize undefined → SealError', () => {
     expect(() => serialize(undefined as any)).toThrow(SealError);
+  });
+
+  it('serialize Object.create(null) → SealError (no constructor)', () => {
+    const obj = Object.create(null);
+    obj.name = 'Alice';
+    expect(() => serialize(obj)).toThrow(SealError);
+  });
+
+  it('@Field with rule factory not invoked → SealError with factory hint', () => {
+    expect(() => {
+      class BadFactoryDto {
+        @Field(isNumber as any) v!: number;
+      }
+      seal(BadFactoryDto);
+    }).toThrow(/is not a baker rule.*Did you forget to call/);
+  });
+
+  it('@Field with non-function (number) → SealError', () => {
+    expect(() => {
+      class BadArgDto {
+        @Field(42 as any) v!: number;
+      }
+      seal(BadArgDto);
+    }).toThrow(/expected a baker rule.*got number/);
+  });
+
+  it('@Field(null) → SealError', () => {
+    expect(() => {
+      class NullArgDto {
+        @Field(null as any) v!: number;
+      }
+      seal(NullArgDto);
+    }).toThrow(/got null/);
   });
 });

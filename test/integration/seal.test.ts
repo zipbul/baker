@@ -1,10 +1,8 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError } from '../../index';
-import type { BakerErrors } from '../../index';
-import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
+import { isString, isNumber, isEmail, min } from '../../src/rules/index';
+import { unseal, purgePoisonClasses } from './helpers/unseal';
 import { SEALED, RAW } from '../../src/symbols';
-import { collectValidation } from '../../src/collect';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -18,44 +16,58 @@ class SealTestDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
-describe('auto-seal — integration', () => {
-  it('should auto-seal registered DTOs on first deserialize', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+describe('seal() — explicit seal at startup', () => {
+  it('seal() attaches SEALED executors', () => {
     const sealed = (SealTestDto as any)[SEALED];
     expect(sealed).toBeDefined();
     expect(typeof sealed._deserialize).toBe('function');
     expect(typeof sealed._serialize).toBe('function');
   });
 
-  it('should auto-seal registered DTOs on first serialize', async () => {
+  it('deserialize works after explicit seal()', async () => {
+    const r = await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+    expect(isBakerError(r)).toBe(false);
+  });
+
+  it('serialize works after explicit seal()', async () => {
     const dto = Object.assign(new SealTestDto(), { name: 'Bob', age: 30 });
-    await serialize(dto);
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(sealed).toBeDefined();
-    expect(typeof sealed._deserialize).toBe('function');
-    expect(typeof sealed._serialize).toBe('function');
+    const r = await serialize(dto);
+    expect(r).toEqual({ name: 'Bob', age: 30 });
   });
 
-  it('should allow re-seal after unseal()', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
-    unseal();
-    const result = await deserialize(SealTestDto, { name: 'Bob', age: 30 });
-    expect(isBakerError(result)).toBe(false);
+  it('seal() is idempotent — calling again is a no-op', () => {
+    expect(() => seal()).not.toThrow();
+    expect(() => seal()).not.toThrow();
+    expect((SealTestDto as any)[SEALED]).toBeDefined();
   });
 
-  it('should attach executors after auto-seal', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
-    const sealed = (SealTestDto as any)[SEALED];
-    expect(sealed).toHaveProperty('_deserialize');
-    expect(sealed).toHaveProperty('_serialize');
-  });
-
-  it('should remove executors after unseal', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+  it('unseal() removes SEALED executors', () => {
+    expect((SealTestDto as any)[SEALED]).toBeDefined();
     unseal();
     expect((SealTestDto as any)[SEALED]).toBeUndefined();
+  });
+
+  it('seal() after unseal() re-seals', () => {
+    unseal();
+    expect((SealTestDto as any)[SEALED]).toBeUndefined();
+    seal();
+    expect((SealTestDto as any)[SEALED]).toBeDefined();
+  });
+});
+
+describe('seal() — error when not sealed', () => {
+  it('deserialize throws SealError when class is not sealed', () => {
+    unseal();
+    expect(() => deserialize(SealTestDto, { name: 'x', age: 1 })).toThrow(SealError);
+  });
+
+  it('serialize throws SealError when class is not sealed', () => {
+    unseal();
+    const dto = Object.assign(new SealTestDto(), { name: 'x', age: 1 });
+    expect(() => serialize(dto)).toThrow(SealError);
   });
 });
 
@@ -98,69 +110,54 @@ class AsyncTransformSerializeDto {
   price!: number;
 }
 
-class NestedSyncDto {
-  @Field(isString)
-  label!: string;
-}
-
 class ParentWithAsyncNestedDto {
   @Field({ type: () => AsyncTransformDeserializeDto })
   child!: AsyncTransformDeserializeDto;
 }
 
 describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
-  it('sync DTO → _isAsync === false', async () => {
-    await deserialize(SyncDto, { name: 'test' });
+  it('sync DTO → _isAsync === false', () => {
     const sealed = (SyncDto as any)[SEALED];
     expect(sealed._isAsync).toBe(false);
   });
 
-  it('async @Transform (deserialize) → _isAsync === true', async () => {
-    await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
+  it('async @Transform (deserialize) → _isAsync === true', () => {
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('async createRule → _isAsync === true', async () => {
-    await deserialize(AsyncRuleDto, { name: 'test' });
+  it('async createRule → _isAsync === true', () => {
     const sealed = (AsyncRuleDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('nested async DTO → parent _isAsync === true', async () => {
-    await deserialize(ParentWithAsyncNestedDto, { child: { name: '  nested  ' } });
+  it('nested async DTO → parent _isAsync === true', () => {
     const sealed = (ParentWithAsyncNestedDto as any)[SEALED];
     expect(sealed._isAsync).toBe(true);
   });
 
-  it('async @Transform (serializeOnly) → _isSerializeAsync === true', async () => {
-    const dto = Object.assign(new AsyncTransformSerializeDto(), { price: 9 });
-    await serialize(dto);
+  it('async @Transform (serializeOnly) → _isSerializeAsync === true', () => {
     const sealed = (AsyncTransformSerializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(true);
   });
 
-  it('sync DTO → _isSerializeAsync === false', async () => {
-    await deserialize(SyncDto, { name: 'test' });
+  it('sync DTO → _isSerializeAsync === false', () => {
     const sealed = (SyncDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
   });
 
-  it('deserialize-only async transform keeps _isSerializeAsync false', async () => {
-    await deserialize(AsyncTransformDeserializeDto, { name: '  test  ' });
+  it('deserialize-only async transform keeps _isSerializeAsync false', () => {
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
     expect(sealed._isSerializeAsync).toBe(false);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _ensureSealed → _sealOnDemand path (late-registered class after auto-seal)
+// seal(Class) — on-demand seal for late-registered classes
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('_ensureSealed — _sealOnDemand fallback', () => {
-  it('should seal a late-registered class via _sealOnDemand when serialize is called after auto-seal', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
-
+describe('seal(Class) — on-demand', () => {
+  it('seal(LateDto) seals a late-registered class', async () => {
     class LateDto {}
     (LateDto as any)[RAW] = {
       value: {
@@ -174,20 +171,20 @@ describe('_ensureSealed — _sealOnDemand fallback', () => {
       },
     };
 
+    seal(LateDto);
+    expect((LateDto as any)[SEALED]).toBeDefined();
+
     const instance = Object.assign(new LateDto(), { value: 'hello' });
     const result = await serialize(instance);
     expect(result).toEqual({ value: 'hello' });
-    expect((LateDto as any)[SEALED]).toBeDefined();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// B-10: configure() rejects post-seal misuse
+// E-25: concurrent seal via Promise.all
 // ─────────────────────────────────────────────────────────────────────────────
 
-// ─── E-25: concurrent seal via Promise.all ──────────────────────────────────
-
-describe('E-25: concurrent seal via Promise.all', () => {
+describe('E-25: concurrent deserialize on pre-sealed classes', () => {
   class ConcurrentA {
     @Field(isString)
     a!: string;
@@ -221,34 +218,30 @@ describe('E-25: concurrent seal via Promise.all', () => {
     expect(c.d).toBe(99);
   });
 
-  it('concurrent seal: all classes are sealed after Promise.all', async () => {
-    await Promise.all([
-      deserialize(ConcurrentA, { a: 'x' }),
-      deserialize(ConcurrentB, { b: 1 }),
-      deserialize(ConcurrentC, { c: 'y', d: 2 }),
-    ]);
+  it('all classes are sealed via beforeEach seal()', () => {
     expect((ConcurrentA as any)[SEALED]).toBeDefined();
     expect((ConcurrentB as any)[SEALED]).toBeDefined();
     expect((ConcurrentC as any)[SEALED]).toBeDefined();
   });
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// configure() rejects post-seal misuse
+// ─────────────────────────────────────────────────────────────────────────────
+
 describe('configure() — post-seal misuse', () => {
   it('should not throw when called before seal', () => {
+    unseal();
     expect(() => configure({})).not.toThrow();
   });
 
-  it('should throw SealError when called after auto-seal', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
-
+  it('should throw SealError when called after seal', () => {
     expect(() => configure({ autoConvert: true })).toThrow(SealError);
-    expect(() => configure({ autoConvert: true })).toThrow('called after auto-seal');
+    expect(() => configure({ autoConvert: true })).toThrow('called after seal()');
   });
 
-  it('should allow configure() again after unseal', async () => {
-    await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+  it('should allow configure() again after unseal', () => {
     unseal();
-
     expect(() => configure({})).not.toThrow();
   });
 });
@@ -264,6 +257,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
 
     unseal();
     configure({ forbidUnknown: true });
+    seal();
 
     const result = await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
     expect(isBakerError(result)).toBe(true);
@@ -274,14 +268,80 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
   });
 
   it('should remove forbidUnknown effect after unseal + reconfigure without it', async () => {
+    unseal();
     configure({ forbidUnknown: true });
+    seal();
     const result1 = await deserialize(SealTestDto, { name: 'Alice', age: 25, extra: 'bad' });
     expect(isBakerError(result1)).toBe(true);
 
     unseal();
     configure({});
+    seal();
 
     const result = await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' }) as any;
     expect(result.name).toBe('Bob');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// seal failure paths — transactional cleanup
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('seal() — transactional failure cleanup', () => {
+  afterEach(() => { purgePoisonClasses(); unseal(); });
+
+  it('nested setValue thunk thrown during analyzeCircular wraps in SealError', () => {
+    class NestedBad {
+      @Field({ type: () => Set as any, setValue: () => { throw new Error('nested-boom'); } })
+      items!: Set<unknown>;
+    }
+    class ParentRef {
+      @Field({ type: () => NestedBad })
+      child!: NestedBad;
+    }
+    expect(() => seal(ParentRef)).toThrow(/nested-boom/);
+  });
+
+  it('failed nested seal cleans up both parent and nested placeholders', () => {
+    // Nested has conflicting requiresType — fails inside buildDeserializeCode
+    // AFTER placeholder is installed. Parent's recursive sealOne(Nested) propagates
+    // the throw; cleanup loop must delete BOTH placeholders.
+    class NestedConflict {
+      @Field(isEmail(), min(5)) v!: unknown;
+    }
+    class ParentWrap {
+      @Field({ type: () => NestedConflict }) child!: NestedConflict;
+    }
+    expect(() => seal(ParentWrap)).toThrow(/conflicting requiresType/);
+    expect((ParentWrap as any)[SEALED]).toBeUndefined();
+    expect((NestedConflict as any)[SEALED]).toBeUndefined();
+  });
+
+  it('seal(Class) with throwing @Type thunk leaves no SEALED placeholder', () => {
+    class BadType {
+      @Field({ type: () => { throw new Error('boom'); } })
+      v!: unknown;
+    }
+    expect(() => seal(BadType)).toThrow('boom');
+    expect((BadType as any)[SEALED]).toBeUndefined();
+  });
+
+  it('seal(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
+    class BadColl {
+      @Field({ type: () => Set as any, setValue: () => { throw new Error('coll-boom'); } })
+      items!: Set<unknown>;
+    }
+    expect(() => seal(BadColl)).toThrow(/collectionValue function threw: coll-boom/);
+    expect((BadColl as any)[SEALED]).toBeUndefined();
+  });
+
+  it('seal(Class) with conflicting requiresType leaves no SEALED placeholder', () => {
+    class ConflictReq {
+      @Field(isEmail(), min(5)) v!: unknown;
+    }
+    let caught: unknown;
+    try { seal(ConflictReq); } catch (e) { caught = e; }
+    expect(caught).toBeInstanceOf(SealError);
+    expect((ConflictReq as any)[SEALED]).toBeUndefined();
   });
 });

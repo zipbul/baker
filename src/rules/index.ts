@@ -33,5 +33,3 @@ export {
 export { isNotEmptyObject, isInstance } from './object';
 export type { IsNotEmptyObjectOptions } from './object';
 export { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
-export { arrayOf } from '../decorators/field';
-export type { ArrayOfMarker } from '../decorators/field';

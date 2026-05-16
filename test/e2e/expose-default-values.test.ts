@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
-import { Field, deserialize, configure, isBakerError } from '../../index';
+import { Field, deserialize, configure, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -24,6 +24,7 @@ class DefaultsDto {
 describe('exposeDefaultValues', () => {
   it('true → uses class default values for missing fields', async () => {
     configure({ allowClassDefaults: true });
+    seal();
     const result = await deserialize<DefaultsDto>(DefaultsDto, {}) as DefaultsDto;
     expect(result.name).toBe('anonymous');
     expect(result.score).toBe(100);
@@ -31,6 +32,7 @@ describe('exposeDefaultValues', () => {
 
   it('true → ignores default when input value is present', async () => {
     configure({ allowClassDefaults: true });
+    seal();
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Alice', score: 50,
     }) as DefaultsDto;
@@ -40,12 +42,14 @@ describe('exposeDefaultValues', () => {
 
   it('false (default) → missing fields are undefined → isDefined error', async () => {
     configure({ allowClassDefaults: false });
+    seal();
     const result = await deserialize(DefaultsDto, {});
     expect(isBakerError(result)).toBe(true);
   });
 
   it('true + optional → optional fields also use default values', async () => {
     configure({ allowClassDefaults: true });
+    seal();
     const result = await deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Bob', score: 80,
     }) as DefaultsDto;

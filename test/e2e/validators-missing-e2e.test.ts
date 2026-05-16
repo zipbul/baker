@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, seal } from '../../index';
 import {
   isBase32, isBase58, isDateString, isMimeType, isCurrency, isMagnetURI,
   isHash, isRFC3339, isMilitaryTime, isLatitude, isLongitude,
@@ -8,6 +8,7 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 class Base32Dto { @Field(isBase32()) value!: string; }

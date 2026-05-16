@@ -42,30 +42,32 @@
   "module": "./dist/index.js",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./decorators": {
-      "import": "./dist/src/decorators/index.js",
-      "types": "./dist/src/decorators/index.d.ts"
+      "types": "./dist/src/decorators/index.d.ts",
+      "import": "./dist/src/decorators/index.js"
     },
     "./rules": {
-      "import": "./dist/src/rules/index.js",
-      "types": "./dist/src/rules/index.d.ts"
+      "types": "./dist/src/rules/index.d.ts",
+      "import": "./dist/src/rules/index.js"
     },
     "./symbols": {
-      "import": "./dist/src/symbols.js",
-      "types": "./dist/src/symbols.d.ts"
+      "types": "./dist/src/symbols.d.ts",
+      "import": "./dist/src/symbols.js"
     },
     "./transformers": {
-      "import": "./dist/src/transformers/index.js",
-      "types": "./dist/src/transformers/index.d.ts"
+      "types": "./dist/src/transformers/index.d.ts",
+      "import": "./dist/src/transformers/index.js"
     }
   },
   "files": [
     "dist/**/*.js",
     "dist/**/*.d.ts",
     "README.md",
+    "CHANGELOG.md",
+    "MIGRATION-3.0.md",
     "LICENSE"
   ],
   "publishConfig": {
@@ -88,7 +90,7 @@
     "@zipbul/result": "1.0.0"
   },
   "scripts": {
-    "build": "bun build index.ts src/decorators/index.ts src/rules/index.ts src/symbols.ts src/transformers/index.ts --outdir dist --target bun --format esm --splitting --packages external --root . --production && tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun scripts/add-js-extensions.ts",
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
@@ -110,8 +112,12 @@
     "arktype": "^2.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
+    "dpdm": "^4.2.0",
     "husky": "^9.1.7",
+    "knip": "^6.14.1",
     "mitata": "^1.0.34",
+    "oxfmt": "^0.50.0",
+    "oxlint": "^1.65.0",
     "reflect-metadata": "^0.2.2",
     "valibot": "^1.3.1",
     "zod": "^4.3.6"

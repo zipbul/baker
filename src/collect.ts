@@ -1,6 +1,6 @@
 import { RAW } from './symbols';
 import { globalRegistry } from './registry';
-import type { RawPropertyMeta, RuleDef, TransformDef, ExposeDef, ExcludeDef, TypeDef } from './types';
+import type { RawPropertyMeta, RuleDef } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ensureMeta — Internal utility (§3.1)
@@ -39,25 +39,5 @@ export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
 export function collectValidation(target: object, key: string, ruleDef: RuleDef): void {
   const meta = ensureMeta((target as any).constructor, key);
   meta.validation.push(ruleDef);
-}
-
-export function collectTransform(target: object, key: string, transformDef: TransformDef): void {
-  const meta = ensureMeta((target as any).constructor, key);
-  meta.transform.push(transformDef);
-}
-
-export function collectExpose(target: object, key: string, exposeDef: ExposeDef): void {
-  const meta = ensureMeta((target as any).constructor, key);
-  meta.expose.push(exposeDef);
-}
-
-export function collectExclude(target: object, key: string, excludeDef: ExcludeDef): void {
-  const meta = ensureMeta((target as any).constructor, key);
-  meta.exclude = excludeDef;
-}
-
-export function collectType(target: object, key: string, typeDef: TypeDef): void {
-  const meta = ensureMeta((target as any).constructor, key);
-  meta.type = typeDef;
 }
 

@@ -5,7 +5,7 @@ import { bench, group, run } from 'mitata';
 import { ARRAY_VALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, isBakerError } from '../index';
+import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 
 class BakerItem {
@@ -15,6 +15,7 @@ class BakerItem {
 class BakerList {
   @Field(arrayMinSize(1), { type: () => [BakerItem] }) items!: BakerItem[];
 }
+seal();
 await deserialize(BakerList, ARRAY_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────

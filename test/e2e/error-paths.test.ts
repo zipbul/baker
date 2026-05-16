@@ -1,10 +1,9 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import {
-  Field, arrayOf, deserialize, isBakerError,
-} from '../../index';
-import { isString, isNumber, isInt, min, minLength, arrayMinSize } from '../../src/rules/index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, arrayOf, deserialize, isBakerError, seal } from '../../index';
+import { isString, isNumber, isInt, min, arrayMinSize} from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: extracts errors array from BakerErrors */

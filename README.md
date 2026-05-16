@@ -6,12 +6,12 @@ The fastest decorator-based DTO validation library for TypeScript. Generates opt
 bun add @zipbul/baker
 ```
 
-Zero `reflect-metadata`. Sealed codegen. 1,975 tests. 99%+ line coverage.
+Zero `reflect-metadata`. Sealed codegen. 99%+ line coverage.
 
 ## Quick Start
 
 ```typescript
-import { deserialize, isBakerError, Field } from '@zipbul/baker';
+import { deserialize, isBakerError, Field, seal } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
 class UserDto {
@@ -19,6 +19,9 @@ class UserDto {
   @Field(isNumber(), min(0)) age!: number;
   @Field(isString, isEmail()) email!: string;
 }
+
+// Call once at app startup, after all DTOs are loaded.
+seal();
 
 const result = await deserialize(UserDto, {
   name: 'Alice', age: 30, email: 'alice@test.com',
@@ -52,17 +55,37 @@ See [`bench/`](./bench) for the current benchmark suite and exact scenarios.
 
 ## API
 
+### `seal(...classes?)`
+
+**Required.** Call once at app startup, after every DTO module has been imported. With no arguments, seals every class registered via `@Field` so far. With class arguments, seals only those (and any nested DTOs they reach). Idempotent.
+
+`deserialize` / `serialize` / `validate` throw `SealError` if the DTO is not sealed. Tests that need to mutate decorator metadata should call `seal()` after each `configure(...)` reconfiguration.
+
 ### `deserialize<T>(Class, input, options?)`
 
 Returns `T | BakerErrors` for sync DTOs, `Promise<T | BakerErrors>` for async DTOs. Never throws on validation failure.
 
+If the DTO has any async rule or transformer, `deserialize` returns a `Promise`. Otherwise it returns the value directly. For full type safety pick a strict variant (see below).
+
+### `deserializeSync<T>` / `deserializeAsync<T>`
+
+Strict variants. `deserializeSync` throws `SealError` if the DTO is async on the deserialize side. `deserializeAsync` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`).
+
 ### `serialize<T>(instance, options?)`
 
-Returns `Record<string, unknown>` for sync DTOs, `Promise<Record<string, unknown>>` for async DTOs. No validation.
+Returns `Record<string, unknown>` for sync DTOs, `Promise<Record<string, unknown>>` for async DTOs. No validation. Async asymmetry: `_isSerializeAsync` is independent of `_isAsync` — a DTO can be async on deserialize but sync on serialize, and vice versa.
+
+### `serializeSync<T>` / `serializeAsync<T>`
+
+Strict variants. `serializeSync` throws `SealError` if the DTO is async on the serialize side.
 
 ### `validate(Class, input, options?)` / `validate(input, ...rules)`
 
 DTO-level or ad-hoc single-value validation. Returns `true | BakerErrors` for sync paths, `Promise<true | BakerErrors>` for async paths.
+
+### `validateSync` / `validateAsync`
+
+Strict variants. `validateSync` throws `SealError` if the DTO is async; `validateAsync` always returns `Promise`.
 
 ### `isBakerError(value)`
 
@@ -70,7 +93,7 @@ Type guard. Narrows result to `BakerErrors` containing `{ path, code, message?, 
 
 ### `configure(config)`
 
-Global configuration. Call before first deserialize/serialize/validate. Calling it after auto-seal throws `SealError`.
+Global configuration. Must be called **before** `seal()`. After seal, `configure(...)` throws `SealError`; reconfiguring requires `unseal()` (test-only helper) + `configure(...)` + `seal()` again.
 
 ```typescript
 configure({
@@ -97,11 +120,16 @@ const isEven = createRule({
 
 One decorator for everything — replaces 30+ individual decorators from class-validator.
 
+Only fields decorated with `@Field` participate in validation, deserialization, and serialization. Undecorated fields are silently absent from results — they are not part of the DTO contract.
+
 ```typescript
 @Field(...rules)
 @Field(...rules, options)
 @Field(options)
+@Field()                    // marker-only (no rules)
 ```
+
+Each rule must be an emittable rule object created via `createRule()` or one of the built-in rule factories. Passing a raw function (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) throws `SealError` at decorator-evaluation time.
 
 ### Options
 
@@ -301,12 +329,18 @@ Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `deserialize()
 
 ### How does the AOT code generation work?
 
-On the first call to `deserialize`/`serialize`/`validate`, baker seals all registered DTOs: it analyzes field metadata, generates optimized JavaScript validation functions via `new Function()`, and caches them. Subsequent calls execute the pre-compiled functions directly.
+Calling `seal()` once at app startup walks every registered DTO, analyzes field metadata, generates optimized JavaScript validation functions via `new Function()`, and caches them. Subsequent `deserialize`/`serialize`/`validate` calls execute the pre-compiled functions directly. There is no auto-seal — forgetting to call `seal()` raises `SealError` on first use.
 
 ## Exports
 
 ```typescript
-import { deserialize, validate, serialize, configure, createRule, Field, arrayOf, isBakerError, SealError } from '@zipbul/baker';
+import {
+  seal,
+  deserialize, deserializeSync, deserializeAsync,
+  validate,    validateSync,    validateAsync,
+  serialize,   serializeSync,   serializeAsync,
+  configure, createRule, Field, arrayOf, isBakerError, SealError,
+} from '@zipbul/baker';
 import type { Transformer, TransformParams, BakerError, BakerErrors, FieldOptions, EmittableRule, RuntimeOptions } from '@zipbul/baker';
 import { isString, isEmail, isULID, isCUID2, ... } from '@zipbul/baker/rules';
 import { trimTransformer, jsonTransformer, ... } from '@zipbul/baker/transformers';

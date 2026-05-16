@@ -1,5 +1,5 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, isBakerError } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { Field, deserialize, isBakerError, seal } from '../../index';
 import {
   isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject,
   equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty,
@@ -15,6 +15,7 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: extracts the error code for a specific path from BakerErrors */
