@@ -117,7 +117,7 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 type RuleArg = EmittableRule | ArrayOfMarker;
 
 /** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
-function _assertRule(value: unknown, className: string, fieldKey: string, slot?: string): void {
+function assertRule(value: unknown, className: string, fieldKey: string, slot?: string): void {
   const loc = slot ? `${className}.${fieldKey} ${slot}` : `${className}.${fieldKey}`;
   const validForms = ` Valid @Field forms: @Field(), @Field(rule, ...), @Field(options), @Field(rule, ..., options).`;
   if (typeof value === 'function') {
@@ -266,10 +266,10 @@ export function Field(...args: any[]): PropertyDecorator {
       const r = rules[i];
       if (isArrayOfMarker(r)) {
         for (let j = 0; j < r.rules.length; j++) {
-          _assertRule(r.rules[j], ctor.name, propertyKey, `arrayOf[${j}]`);
+          assertRule(r.rules[j], ctor.name, propertyKey, `arrayOf[${j}]`);
         }
       } else {
-        _assertRule(r, ctor.name, propertyKey);
+        assertRule(r, ctor.name, propertyKey);
       }
     }
 

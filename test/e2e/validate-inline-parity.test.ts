@@ -642,7 +642,7 @@ describe('validate inline parity — autoConvert', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 16. Circular reference (fallback to _validate)
+// 16. Circular reference (fallback to validate)
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — circular reference', () => {

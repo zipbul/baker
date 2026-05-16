@@ -24,8 +24,8 @@ describe('seal() — explicit seal at startup', () => {
   it('seal() attaches SEALED executors', () => {
     const sealed = (SealTestDto as any)[SEALED];
     expect(sealed).toBeDefined();
-    expect(typeof sealed._deserialize).toBe('function');
-    expect(typeof sealed._serialize).toBe('function');
+    expect(typeof sealed.deserialize).toBe('function');
+    expect(typeof sealed.serialize).toBe('function');
   });
 
   it('deserialize works after explicit seal()', async () => {
@@ -73,7 +73,7 @@ describe('seal() — error when not sealed', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// C1: async architecture — _isAsync / _isSerializeAsync flags
+// C1: async architecture — isAsync / isSerializeAsync flags
 // ─────────────────────────────────────────────────────────────────────────────
 
 class SyncDto {
@@ -116,40 +116,40 @@ class ParentWithAsyncNestedDto {
   child!: AsyncTransformDeserializeDto;
 }
 
-describe('C1 — async architecture (_isAsync / _isSerializeAsync)', () => {
-  it('sync DTO → _isAsync === false', () => {
+describe('C1 — async architecture (isAsync / isSerializeAsync)', () => {
+  it('sync DTO → isAsync === false', () => {
     const sealed = (SyncDto as any)[SEALED];
-    expect(sealed._isAsync).toBe(false);
+    expect(sealed.isAsync).toBe(false);
   });
 
-  it('async @Transform (deserialize) → _isAsync === true', () => {
+  it('async @Transform (deserialize) → isAsync === true', () => {
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
-    expect(sealed._isAsync).toBe(true);
+    expect(sealed.isAsync).toBe(true);
   });
 
-  it('async createRule → _isAsync === true', () => {
+  it('async createRule → isAsync === true', () => {
     const sealed = (AsyncRuleDto as any)[SEALED];
-    expect(sealed._isAsync).toBe(true);
+    expect(sealed.isAsync).toBe(true);
   });
 
-  it('nested async DTO → parent _isAsync === true', () => {
+  it('nested async DTO → parent isAsync === true', () => {
     const sealed = (ParentWithAsyncNestedDto as any)[SEALED];
-    expect(sealed._isAsync).toBe(true);
+    expect(sealed.isAsync).toBe(true);
   });
 
-  it('async @Transform (serializeOnly) → _isSerializeAsync === true', () => {
+  it('async @Transform (serializeOnly) → isSerializeAsync === true', () => {
     const sealed = (AsyncTransformSerializeDto as any)[SEALED];
-    expect(sealed._isSerializeAsync).toBe(true);
+    expect(sealed.isSerializeAsync).toBe(true);
   });
 
-  it('sync DTO → _isSerializeAsync === false', () => {
+  it('sync DTO → isSerializeAsync === false', () => {
     const sealed = (SyncDto as any)[SEALED];
-    expect(sealed._isSerializeAsync).toBe(false);
+    expect(sealed.isSerializeAsync).toBe(false);
   });
 
-  it('deserialize-only async transform keeps _isSerializeAsync false', () => {
+  it('deserialize-only async transform keeps isSerializeAsync false', () => {
     const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
-    expect(sealed._isSerializeAsync).toBe(false);
+    expect(sealed.isSerializeAsync).toBe(false);
   });
 });
 

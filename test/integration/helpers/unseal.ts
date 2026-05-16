@@ -1,8 +1,8 @@
 import type { SealedExecutors } from '../../../src/types';
 
-import { _resetConfigForTesting } from '../../../src/configure';
+import { resetConfigForTesting } from '../../../src/configure';
 import { globalRegistry } from '../../../src/registry';
-import { _resetForTesting, _sealedClasses } from '../../../src/seal/seal';
+import { resetForTesting, sealedClasses } from '../../../src/seal/seal';
 import { RAW, SEALED } from '../../../src/symbols';
 
 /**
@@ -11,16 +11,16 @@ import { RAW, SEALED } from '../../../src/symbols';
  * and after any `configure(...)` change.
  */
 export function unseal(): void {
-  for (const Class of _sealedClasses) {
+  for (const Class of sealedClasses) {
     const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
-    if (sealed?._merged) {
-      (Class as any)[RAW] = sealed._merged;
+    if (sealed?.merged) {
+      (Class as any)[RAW] = sealed.merged;
     }
     delete (Class as any)[SEALED];
     globalRegistry.add(Class);
   }
-  _resetForTesting();
-  _resetConfigForTesting();
+  resetForTesting();
+  resetConfigForTesting();
 }
 
 /**

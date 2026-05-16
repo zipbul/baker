@@ -182,15 +182,15 @@ import type { RuntimeOptions } from './interfaces';
 
 export interface SealedExecutors<T> {
   /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
-  _deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
+  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
   /** Internal executor — always succeeds. serialize assumes no validation */
-  _serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
+  serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
   /** Internal executor — validate-only (no object creation). Returns null on success, BakerError[] on failure */
-  _validate(input: unknown, options?: RuntimeOptions): BakerError[] | null | Promise<BakerError[] | null>;
+  validate(input: unknown, options?: RuntimeOptions): BakerError[] | null | Promise<BakerError[] | null>;
   /** true if the deserialize direction has async rules/transforms/nested */
-  _isAsync: boolean;
+  isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */
-  _isSerializeAsync: boolean;
+  isSerializeAsync: boolean;
   /** Merged metadata cache — used internally by unseal helper */
-  _merged?: RawClassMeta;
+  merged?: RawClassMeta;
 }

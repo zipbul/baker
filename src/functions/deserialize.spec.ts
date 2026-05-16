@@ -5,7 +5,7 @@ import type { RuntimeOptions } from '../interfaces';
 
 import { isBakerError, SealError } from '../errors';
 import { globalRegistry } from '../registry';
-import { _resetForTesting } from '../seal/seal';
+import { resetForTesting } from '../seal/seal';
 import { SEALED } from '../symbols';
 import { deserialize } from './deserialize';
 
@@ -28,10 +28,10 @@ function attachSealed(
   opts?: { isAsync?: boolean },
 ): void {
   (ctor as any)[SEALED] = {
-    _deserialize: deserializeFn,
-    _serialize: () => ({}),
-    _isAsync: opts?.isAsync ?? false,
-    _isSerializeAsync: false,
+    deserialize: deserializeFn,
+    serialize: () => ({}),
+    isAsync: opts?.isAsync ?? false,
+    isSerializeAsync: false,
   };
 }
 
@@ -45,7 +45,7 @@ afterEach(() => {
     delete (ctor as any)[SEALED];
   }
   trackedClasses.length = 0;
-  _resetForTesting();
+  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ afterEach(() => {
 describe('deserialize', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
-  it('should return T instance when _deserialize returns valid value', async () => {
+  it('should return T instance when deserialize returns valid value', async () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance);
@@ -64,7 +64,7 @@ describe('deserialize', () => {
     expect(result).toBe(instance);
   });
 
-  it('should pass options to _deserialize when RuntimeOptions provided', async () => {
+  it('should pass options to deserialize when RuntimeOptions provided', async () => {
     const Dto = makeClass();
     const instance = new Dto();
     let capturedOpts: RuntimeOptions | undefined;
@@ -77,7 +77,7 @@ describe('deserialize', () => {
     expect(capturedOpts).toBe(opts);
   });
 
-  it('should pass input to _deserialize when called with object input', async () => {
+  it('should pass input to deserialize when called with object input', async () => {
     const Dto = makeClass();
     const instance = new Dto();
     let capturedInput: unknown;
@@ -109,7 +109,7 @@ describe('deserialize', () => {
     expect(caught!.message).toContain('MyDto');
   });
 
-  it('should return BakerErrors when _deserialize returns Err', async () => {
+  it('should return BakerErrors when deserialize returns Err', async () => {
     const Dto = makeClass();
     const errors = [{ path: 'name', code: 'isString' }];
     attachSealed(Dto, () => err(errors));
@@ -117,7 +117,7 @@ describe('deserialize', () => {
     expect(isBakerError(result)).toBe(true);
   });
 
-  it('should attach errors array to BakerErrors when _deserialize fails', async () => {
+  it('should attach errors array to BakerErrors when deserialize fails', async () => {
     const Dto = makeClass();
     const errors = [
       { path: 'name', code: 'isString' },
@@ -131,7 +131,7 @@ describe('deserialize', () => {
     }
   });
 
-  it('should return BakerErrors(code:invalidInput) when _deserialize returns invalidInput error', async () => {
+  it('should return BakerErrors(code:invalidInput) when deserialize returns invalidInput error', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: '', code: 'invalidInput' }]));
     const result = await deserialize(Dto, null);
@@ -141,7 +141,7 @@ describe('deserialize', () => {
     }
   });
 
-  it('should return BakerErrors when _deserialize returns Err for array input', async () => {
+  it('should return BakerErrors when deserialize returns Err for array input', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: '', code: 'invalidInput' }]));
     const result = await deserialize(Dto, [1, 2, 3]);
@@ -150,7 +150,7 @@ describe('deserialize', () => {
 
   // ── Edge ──────────────────────────────────────────────────────────────────
 
-  it('should return T when _deserialize succeeds with empty {} input for class with no fields', async () => {
+  it('should return T when deserialize succeeds with empty {} input for class with no fields', async () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance);
@@ -188,7 +188,7 @@ describe('deserialize', () => {
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should return direct value when _isAsync is false', () => {
+  it('should return direct value when isAsync is false', () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => instance, { isAsync: false });
@@ -196,7 +196,7 @@ describe('deserialize', () => {
     expect(result).toBe(instance);
   });
 
-  it('should use async path when _isAsync is true', async () => {
+  it('should use async path when isAsync is true', async () => {
     const Dto = makeClass();
     const instance = new Dto();
     attachSealed(Dto, () => Promise.resolve(instance), { isAsync: true });

@@ -58,7 +58,7 @@ export function isBakerError(value: unknown): value is BakerErrors {
 }
 
 /** @internal — create BakerErrors object */
-export function _toBakerErrors(errors: BakerError[]): BakerErrors {
+export function toBakerErrors(errors: BakerError[]): BakerErrors {
   return { [BAKER_ERROR]: true as const, errors };
 }
 

@@ -147,7 +147,7 @@ describe('E-10: isAsyncFunction robustness', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => {
-  it('Set<AsyncDeserItem> makes parent _isAsync true', () => {
+  it('Set<AsyncDeserItem> makes parent isAsync true', () => {
     class AsyncDeserItem {
       @Field(isString, {
         transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
@@ -160,10 +160,10 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSet as any)[SEALED]._isAsync).toBe(true);
+    expect((ParentSet as any)[SEALED].isAsync).toBe(true);
   });
 
-  it('Map<string, AsyncDeserVal> makes parent _isAsync true', () => {
+  it('Map<string, AsyncDeserVal> makes parent isAsync true', () => {
     class AsyncDeserVal {
       @Field(isString, {
         transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
@@ -176,10 +176,10 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentMap as any)[SEALED]._isAsync).toBe(true);
+    expect((ParentMap as any)[SEALED].isAsync).toBe(true);
   });
 
-  it('Set<AsyncSerItem> makes parent _isSerializeAsync true', () => {
+  it('Set<AsyncSerItem> makes parent isSerializeAsync true', () => {
     class AsyncSerItem {
       @Field(isNumber(), {
         transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },
@@ -192,10 +192,10 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSerSet as any)[SEALED]._isSerializeAsync).toBe(true);
+    expect((ParentSerSet as any)[SEALED].isSerializeAsync).toBe(true);
   });
 
-  it('Map<string, AsyncSerVal> makes parent _isSerializeAsync true', () => {
+  it('Map<string, AsyncSerVal> makes parent isSerializeAsync true', () => {
     class AsyncSerVal {
       @Field(isNumber(), {
         transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },
@@ -208,7 +208,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSerMap as any)[SEALED]._isSerializeAsync).toBe(true);
+    expect((ParentSerMap as any)[SEALED].isSerializeAsync).toBe(true);
   });
 
   it('async Set<DTO> deserialize returns Promise and resolves correctly', async () => {

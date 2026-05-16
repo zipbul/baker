@@ -11,7 +11,7 @@ class CallOptDto {
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-describe('_checkCallOptions — only `groups` is a valid per-call option', () => {
+describe('checkCallOptions — only `groups` is a valid per-call option', () => {
   it('deserialize with `groups` passes', () => {
     expect(() => deserialize(CallOptDto, { name: 'x' }, { groups: ['a'] })).not.toThrow();
   });

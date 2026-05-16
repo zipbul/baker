@@ -22,7 +22,7 @@ const SEAL_TIME_KEYS = new Set<string>([
  *   - seal-time keys (BakerConfig / SealOptions) → "move to configure({...})"
  *   - any other key → "unknown call option"
  */
-export function _checkCallOptions(opts: unknown): RuntimeOptions | undefined {
+export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
   if (opts === undefined || opts === null) {return undefined;}
   if (typeof opts !== 'object' || Array.isArray(opts)) {
     throw new SealError(`Call options must be a plain object. Received: ${Array.isArray(opts) ? 'array' : typeof opts}.`);

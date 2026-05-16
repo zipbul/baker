@@ -4,7 +4,7 @@ import type { RuntimeOptions } from '../interfaces';
 
 import { SealError } from '../errors';
 import { globalRegistry } from '../registry';
-import { _resetForTesting } from '../seal/seal';
+import { resetForTesting } from '../seal/seal';
 import { SEALED } from '../symbols';
 import { serialize } from './serialize';
 
@@ -27,10 +27,10 @@ function attachSealed(
   opts?: { isSerializeAsync?: boolean },
 ): void {
   (ctor as any)[SEALED] = {
-    _deserialize: () => {},
-    _serialize: serializeFn,
-    _isAsync: false,
-    _isSerializeAsync: opts?.isSerializeAsync ?? false,
+    deserialize: () => {},
+    serialize: serializeFn,
+    isAsync: false,
+    isSerializeAsync: opts?.isSerializeAsync ?? false,
   };
 }
 
@@ -44,7 +44,7 @@ afterEach(() => {
     delete (ctor as any)[SEALED];
   }
   trackedClasses.length = 0;
-  _resetForTesting();
+  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ afterEach(() => {
 describe('serialize', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
-  it('should return Record when _serialize returns plain object', async () => {
+  it('should return Record when serialize returns plain object', async () => {
     // Arrange
     const Dto = makeClass();
     const record = { name: 'Alice' };
@@ -66,7 +66,7 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should pass instance and options to _serialize when called', async () => {
+  it('should pass instance and options to serialize when called', async () => {
     // Arrange
     const Dto = makeClass();
     let capturedInstance: unknown;
@@ -105,7 +105,7 @@ describe('serialize', () => {
 
   // ── Edge ──────────────────────────────────────────────────────────────────
 
-  it('should return empty object when _serialize returns {} for instance with no registered fields', async () => {
+  it('should return empty object when serialize returns {} for instance with no registered fields', async () => {
     // Arrange
     const Dto = makeClass();
     attachSealed(Dto, () => ({}));
@@ -154,7 +154,7 @@ describe('serialize', () => {
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should return direct value when _isSerializeAsync is false', () => {
+  it('should return direct value when isSerializeAsync is false', () => {
     // Arrange
     const Dto = makeClass();
     const record = { x: 1 };
@@ -166,15 +166,15 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should use async path when _isSerializeAsync is true', async () => {
+  it('should use async path when isSerializeAsync is true', async () => {
     // Arrange
     const Dto = makeClass();
     const record = { y: 2 };
     (Dto as any)[SEALED] = {
-      _deserialize: () => {},
-      _serialize: () => Promise.resolve(record),
-      _isAsync: false,
-      _isSerializeAsync: true,
+      deserialize: () => {},
+      serialize: () => Promise.resolve(record),
+      isAsync: false,
+      isSerializeAsync: true,
     };
     trackedClasses.push(Dto);
     const instance = new Dto();

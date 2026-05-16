@@ -35,16 +35,16 @@ class AsyncDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('dual sync/async API — deserialize', () => {
-  it('sync DTO has _isAsync = false', async () => {
+  it('sync DTO has isAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
     const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
-    expect(sealed._isAsync).toBe(false);
+    expect(sealed.isAsync).toBe(false);
   });
 
-  it('async DTO has _isAsync = true', async () => {
+  it('async DTO has isAsync = true', async () => {
     await deserialize(AsyncDto, { name: 'Bob' });
     const sealed = (AsyncDto as any)[SEALED] as SealedExecutors<AsyncDto>;
-    expect(sealed._isAsync).toBe(true);
+    expect(sealed.isAsync).toBe(true);
   });
 
   it('sync DTO deserialize returns direct value', () => {
@@ -70,10 +70,10 @@ describe('dual sync/async API — deserialize', () => {
 });
 
 describe('dual sync/async API — serialize', () => {
-  it('sync DTO has _isSerializeAsync = false', async () => {
+  it('sync DTO has isSerializeAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
     const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
-    expect(sealed._isSerializeAsync).toBe(false);
+    expect(sealed.isSerializeAsync).toBe(false);
   });
 
   it('sync DTO serialize succeeds', async () => {

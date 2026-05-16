@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { BakerError } from './errors';
 
-import { isBakerError, BAKER_ERROR, SealError, _toBakerErrors } from './errors';
+import { isBakerError, BAKER_ERROR, SealError, toBakerErrors } from './errors';
 
 describe('isBakerError', () => {
   it('should return true for object with BAKER_ERROR symbol', () => {
@@ -10,9 +10,9 @@ describe('isBakerError', () => {
     expect(isBakerError(obj)).toBe(true);
   });
 
-  it('should return true for BakerErrors created via _toBakerErrors', () => {
+  it('should return true for BakerErrors created via toBakerErrors', () => {
     const errors: BakerError[] = [{ path: 'name', code: 'isString' }];
-    const result = _toBakerErrors(errors);
+    const result = toBakerErrors(errors);
     expect(isBakerError(result)).toBe(true);
   });
 
@@ -68,7 +68,7 @@ describe('isBakerError', () => {
       { path: 'name', code: 'isString' },
       { path: 'email', code: 'isEmail' },
     ];
-    const result: unknown = _toBakerErrors(errors);
+    const result: unknown = toBakerErrors(errors);
     if (isBakerError(result)) {
       expect(result.errors).toEqual(errors);
       expect(result.errors).toHaveLength(2);
@@ -78,7 +78,7 @@ describe('isBakerError', () => {
   });
 
   it('should return true for BakerErrors with empty errors array', () => {
-    const result = _toBakerErrors([]);
+    const result = toBakerErrors([]);
     expect(isBakerError(result)).toBe(true);
     expect(result.errors).toHaveLength(0);
   });

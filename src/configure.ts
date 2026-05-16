@@ -1,7 +1,7 @@
 import type { SealOptions } from './interfaces';
 
 import { SealError } from './errors';
-import { _isSealed } from './seal/seal-state';
+import { isSealed } from './seal/seal-state';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BakerConfig — Global configuration (call before seal())
@@ -28,14 +28,14 @@ const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
   'debug',
 ]);
 
-let _globalOptions: SealOptions = {};
+let globalOptionsState: SealOptions = {};
 
 /**
  * Baker global configuration. Call before `seal()`.
  * If not called, defaults are applied.
  */
 export function configure(config: BakerConfig): void {
-  if (_isSealed()) {
+  if (isSealed()) {
     throw new SealError(
       '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
     );
@@ -50,7 +50,7 @@ export function configure(config: BakerConfig): void {
       throw new SealError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
     }
   }
-  _globalOptions = {
+  globalOptionsState = {
     enableImplicitConversion: config.autoConvert ?? false,
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
@@ -60,11 +60,11 @@ export function configure(config: BakerConfig): void {
 }
 
 /** @internal — used by seal. Returns a frozen snapshot so internal mutations are visible only via configure(). */
-export function _getGlobalOptions(): SealOptions {
-  return _globalOptions;
+export function getGlobalOptions(): SealOptions {
+  return globalOptionsState;
 }
 
 /** @internal — reset to defaults on unseal */
-export function _resetConfigForTesting(): void {
-  _globalOptions = {};
+export function resetConfigForTesting(): void {
+  globalOptionsState = {};
 }

@@ -2,9 +2,9 @@ import { isErr } from '@zipbul/result';
 
 import type { RuntimeOptions } from '../interfaces';
 
-import { _toBakerErrors, SealError, type BakerError, type BakerErrors } from '../errors';
-import { _ensureSealed } from '../seal/seal';
-import { _checkCallOptions } from './_check-call-options';
+import { toBakerErrors, SealError, type BakerError, type BakerErrors } from '../errors';
+import { ensureSealed } from '../seal/seal';
+import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // deserialize — Public API (§5.1)
@@ -27,18 +27,18 @@ export function deserialize<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerErrors | Promise<T | BakerErrors> {
-  const checkedOpts = _checkCallOptions(options);
-  const sealed = _ensureSealed(Class);
+  const checkedOpts = checkCallOptions(options);
+  const sealed = ensureSealed(Class);
 
-  if (sealed._isAsync) {
-    return (sealed._deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
-      if (isErr(result)) {return _toBakerErrors(result.data as BakerError[]);}
+  if (sealed.isAsync) {
+    return (sealed.deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
+      if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
       return result as T;
     });
   }
 
-  const result = sealed._deserialize(input, checkedOpts);
-  if (isErr(result)) {return _toBakerErrors(result.data as BakerError[]);}
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
   return result as T;
 }
 
@@ -47,13 +47,13 @@ export function deserialize<T>(
  * on the deserialize side.
  */
 export function deserializeSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): T | BakerErrors {
-  const checkedOpts = _checkCallOptions(options);
-  const sealed = _ensureSealed(Class);
-  if (sealed._isAsync) {
+  const checkedOpts = checkCallOptions(options);
+  const sealed = ensureSealed(Class);
+  if (sealed.isAsync) {
     throw new SealError(`deserializeSync(${Class.name}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
   }
-  const result = sealed._deserialize(input, checkedOpts);
-  if (isErr(result)) {return _toBakerErrors(result.data as BakerError[]);}
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
   return result as T;
 }
 
@@ -65,15 +65,15 @@ export function deserializeAsync<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): Promise<T | BakerErrors> {
-  const checkedOpts = _checkCallOptions(options);
-  const sealed = _ensureSealed(Class);
-  if (sealed._isAsync) {
-    return (sealed._deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
-      if (isErr(result)) {return _toBakerErrors(result.data as BakerError[]);}
+  const checkedOpts = checkCallOptions(options);
+  const sealed = ensureSealed(Class);
+  if (sealed.isAsync) {
+    return (sealed.deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
+      if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
       return result as T;
     });
   }
-  const result = sealed._deserialize(input, checkedOpts);
-  if (isErr(result)) {return Promise.resolve(_toBakerErrors(result.data as BakerError[]));}
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {return Promise.resolve(toBakerErrors(result.data as BakerError[]));}
   return Promise.resolve(result as T);
 }

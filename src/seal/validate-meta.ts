@@ -76,6 +76,6 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
   // Seal-time strict check for "mixed sync/async rules" was attempted but produces too many
   // false positives — sync rules + async transform is a common, valid baker pattern. The
   // remediation for D9 lives in W14's strict API: `validateSync(AsyncDto, x)` and the other
-  // `*Sync` variants throw SealError at the call site after consulting `_isAsync`/`_isSerializeAsync`.
+  // `*Sync` variants throw SealError at the call site after consulting `isAsync`/`isSerializeAsync`.
   // No seal-time invariant added here.
 }

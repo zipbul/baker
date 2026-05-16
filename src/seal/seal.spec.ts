@@ -7,9 +7,9 @@ import { globalRegistry } from '../registry';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
 import { RAW, SEALED } from '../symbols';
-import { seal, _resetForTesting, __testing__ } from './seal';
+import { seal, resetForTesting, __testing__ } from './seal';
 
-const { mergeInheritance, _circularPlaceholder } = __testing__;
+const { mergeInheritance, circularPlaceholder } = __testing__;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -53,7 +53,7 @@ afterEach(() => {
     delete (ctor as any)[RAW];
   }
   freeClasses.length = 0;
-  _resetForTesting();
+  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -78,11 +78,11 @@ describe('seal', () => {
     // Assert
     const sealed = (UserDto as any)[SEALED];
     expect(sealed).toBeDefined();
-    expect(typeof sealed._deserialize).toBe('function');
-    expect(typeof sealed._serialize).toBe('function');
+    expect(typeof sealed.deserialize).toBe('function');
+    expect(typeof sealed.serialize).toBe('function');
   });
 
-  it('should expose _resetForTesting to reset _sealed flag', () => {
+  it('should expose resetForTesting to reset _sealed flag', () => {
     // Arrange
     class TestDto {}
     registerClass(TestDto, makeStringField('x'));
@@ -91,33 +91,33 @@ describe('seal', () => {
     // After reset, new classes should be batch-sealable again
     delete (TestDto as any)[SEALED];
     globalRegistry.add(TestDto);
-    _resetForTesting();
+    resetForTesting();
     seal();
     expect((TestDto as any)[SEALED]).toBeDefined();
   });
 
-  it('should seal a DTO with @IsString field — _deserialize returns instance for valid input', async () => {
+  it('should seal a DTO with @IsString field — deserialize returns instance for valid input', async () => {
     // Arrange
     class PersonDto {}
     registerClass(PersonDto, makeStringField('name'));
     seal();
     // Act
     const sealed = (PersonDto as any)[SEALED];
-    const result = await sealed._deserialize({ name: 'Alice' });
+    const result = await sealed.deserialize({ name: 'Alice' });
     // Assert
     expect(result).toBeInstanceOf(PersonDto);
     // @ts-ignore
     expect(result.name).toBe('Alice');
   });
 
-  it('should seal a DTO with @IsString field — _deserialize returns error for invalid input', async () => {
+  it('should seal a DTO with @IsString field — deserialize returns error for invalid input', async () => {
     // Arrange
     class PersonDto2 {}
     registerClass(PersonDto2, makeStringField('name'));
     seal();
     // Act
     const sealed = (PersonDto2 as any)[SEALED];
-    const result = await sealed._deserialize({ name: 42 });
+    const result = await sealed.deserialize({ name: 42 });
     // Assert — should be Err (has .data property)
     expect((result as any).data).toBeDefined();
     expect(Array.isArray((result as any).data)).toBe(true);
@@ -154,13 +154,13 @@ describe('seal', () => {
     registerClass(DtoA, raw);
     // Pre-seal DtoA
     (DtoA as any)[SEALED] = {
-      _deserialize: () => 'pre-sealed',
-      _serialize: () => ({}),
+      deserialize: () => 'pre-sealed',
+      serialize: () => ({}),
     };
     seal();
     // Assert — SEALED was not replaced (pre-sealed value preserved)
     const sealed = (DtoA as any)[SEALED];
-    expect(sealed._deserialize()).toBe('pre-sealed');
+    expect(sealed.deserialize()).toBe('pre-sealed');
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
@@ -210,26 +210,26 @@ describe('seal', () => {
 
   // ── State Transition ───────────────────────────────────────────────────────
 
-  it('should allow seal() after _resetForTesting() (state transition)', () => {
+  it('should allow seal() after resetForTesting() (state transition)', () => {
     // Arrange
     seal();
-    _resetForTesting();
+    resetForTesting();
     // Act / Assert
     expect(() => seal()).not.toThrow();
   });
 
-  it('should allow re-sealing after SEALED symbols are cleared and _resetForTesting called', () => {
+  it('should allow re-sealing after SEALED symbols are cleared and resetForTesting called', () => {
     // Arrange
     class DtoB {}
     registerClass(DtoB, makeStringField('val'));
     seal();
-    // Simulate unseal — restore RAW from _merged, re-register
+    // Simulate unseal — restore RAW from merged, re-register
     const sealed = (DtoB as any)[SEALED];
-    if (sealed?._merged) {(DtoB as any)[RAW] = sealed._merged;}
+    if (sealed?.merged) {(DtoB as any)[RAW] = sealed.merged;}
     delete (DtoB as any)[SEALED];
     globalRegistry.add(DtoB);
     freeClasses.push(DtoB);
-    _resetForTesting();
+    resetForTesting();
     // Act
     seal();
     // Assert
@@ -287,18 +287,18 @@ describe('seal', () => {
     registerClass(IdempDto, makeStringField('name'));
     seal();
     const first = (IdempDto as any)[SEALED];
-    const firstResult = await first._deserialize({ name: 'Bob' });
+    const firstResult = await first.deserialize({ name: 'Bob' });
 
-    // Simulate unseal — restore RAW from _merged, re-register
+    // Simulate unseal — restore RAW from merged, re-register
     const sealed = (IdempDto as any)[SEALED];
-    if (sealed?._merged) {(IdempDto as any)[RAW] = sealed._merged;}
+    if (sealed?.merged) {(IdempDto as any)[RAW] = sealed.merged;}
     delete (IdempDto as any)[SEALED];
     globalRegistry.add(IdempDto);
     freeClasses.push(IdempDto);
-    _resetForTesting();
+    resetForTesting();
     seal();
     const second = (IdempDto as any)[SEALED];
-    const secondResult = await second._deserialize({ name: 'Bob' });
+    const secondResult = await second.deserialize({ name: 'Bob' });
     // Assert — both produce instances with same values
     expect(firstResult).toBeInstanceOf(IdempDto);
     expect(secondResult).toBeInstanceOf(IdempDto);
@@ -824,16 +824,16 @@ describe('sealOne — banned field names (C5)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// _circularPlaceholder — placeholder executor behavior verification
+// circularPlaceholder — placeholder executor behavior verification
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('_circularPlaceholder', () => {
-  it('should return placeholder that throws SealError on _deserialize and _serialize', () => {
-    const p = _circularPlaceholder('TestDto');
-    expect(() => p._deserialize({})).toThrow(SealError);
-    expect(() => p._serialize({})).toThrow(SealError);
-    expect(p._isAsync).toBe(false);
-    expect(p._isSerializeAsync).toBe(false);
+describe('circularPlaceholder', () => {
+  it('should return placeholder that throws SealError on deserialize and serialize', () => {
+    const p = circularPlaceholder('TestDto');
+    expect(() => p.deserialize({})).toThrow(SealError);
+    expect(() => p.serialize({})).toThrow(SealError);
+    expect(p.isAsync).toBe(false);
+    expect(p.isSerializeAsync).toBe(false);
   });
 });
 
@@ -887,7 +887,7 @@ describe('analyzeAsync — discriminator', () => {
     // Assert — sealed executor should be async due to SubA's async transform
     const sealed = (ParentDisc as any)[SEALED];
     expect(sealed).toBeDefined();
-    expect(sealed._isAsync).toBe(true);
+    expect(sealed.isAsync).toBe(true);
   });
 
   it('should not infinite loop when discriminator subTypes reference each other circularly', () => {

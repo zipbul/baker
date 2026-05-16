@@ -136,7 +136,7 @@ export function buildDeserializeCode<T>(
 
   // WeakSet guard (circular references) — N-3 fix: WeakSet lives per-call, threaded through
   // `_opts` via a Symbol-keyed slot so nested DTOs in the same call share it. Symbol keys are
-  // invisible to `Object.keys`/_checkCallOptions, so this doesn't pollute the user's opts shape.
+  // invisible to `Object.keys`/checkCallOptions, so this doesn't pollute the user's opts shape.
   // The previous shared-ref WeakSet caused concurrent async deserialize() to false-positive.
   if (needsCircularCheck) {
     body += `var __SEEN_KEY = Symbol.for('baker:circular-seen');\n`;
@@ -1129,7 +1129,7 @@ function generateCollectionCode(
       const iVar = `${GEN.index}${sk}`;
       code += `  var ${GEN.arr}${sk} = new Set();\n`;
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].deserialize(${varName}[${iVar}], _opts);\n`;
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
@@ -1187,7 +1187,7 @@ function generateCollectionCode(
       code += `  var ${GEN.arr}${sk} = new Map();\n`;
       code += `  for (var ${kVar} in ${varName}) {\n`;
       code += `    if (!Object.prototype.hasOwnProperty.call(${varName}, ${kVar})) continue;\n`;
-      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._deserialize(${varName}[${kVar}], _opts);\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].deserialize(${varName}[${kVar}], _opts);\n`;
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
@@ -1254,7 +1254,7 @@ function generateNestedCode(
       execs.push(nestedSealed as SealedExecutors<unknown>);
       const awaitKwD = ctx.isAsync ? 'await ' : '';
       code += `  case ${JSON.stringify(sub.name)}:\n`;
-      code += `    var ${GEN.result}${sk} = ${awaitKwD}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKwD}_execs[${execIdx}].deserialize(${varName}, _opts);\n`;
       code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
       code += `    break;\n`;
     }
@@ -1294,7 +1294,7 @@ function generateNestedCode(
 
       code += `  var ${GEN.arr}${sk} = [];\n`;
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-      code += `    var ${GEN.result}${sk} = ${awaitKwE}_execs[${execIdx}]._deserialize(${varName}[${iVar}], _opts);\n`;
+      code += `    var ${GEN.result}${sk} = ${awaitKwE}_execs[${execIdx}].deserialize(${varName}[${iVar}], _opts);\n`;
       code += `    if (_isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
         code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
@@ -1321,7 +1321,7 @@ function generateNestedCode(
     } else {
       const awaitKwS = ctx.isAsync ? 'await ' : '';
       code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
-      code += `  var ${GEN.result}${sk} = ${awaitKwS}_execs[${execIdx}]._deserialize(${varName}, _opts);\n`;
+      code += `  var ${GEN.result}${sk} = ${awaitKwS}_execs[${execIdx}].deserialize(${varName}, _opts);\n`;
       code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
@@ -1421,7 +1421,7 @@ function generateNestedCodeValidateOnly(
     code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
       const subSealed = (sub.value as any)[SEALED] as SealedExecutors<unknown>;
-      const subMerged = subSealed._merged;
+      const subMerged = subSealed.merged;
       const canInline = subMerged && canInlineDto(subMerged, sub.value, ctx.inlineNestedClasses);
       code += `  case ${JSON.stringify(sub.name)}:\n`;
       if (canInline) {
@@ -1432,7 +1432,7 @@ function generateNestedCodeValidateOnly(
         const execIdx = execs.length;
         execs.push(subSealed);
         const awaitKw = ctx.isAsync ? 'await ' : '';
-        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}, _opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].validate(${varName}, _opts);\n`;
         code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
       }
       code += `    break;\n`;
@@ -1449,7 +1449,7 @@ function generateNestedCodeValidateOnly(
   } else {
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
     const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
-    const nestedMerged = nestedSealed._merged;
+    const nestedMerged = nestedSealed.merged;
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     // Decide: inline or function call
@@ -1488,11 +1488,11 @@ function generateNestedCodeValidateOnly(
         code += emitInlineNestedBlock(nestedMerged!, nestedCls, itemVar, ppExpr, vpPrefix, ctx);
         code += `    }\n`;
       } else {
-        // FALLBACK: function call to _validate
+        // FALLBACK: function call to validate
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = ctx.isAsync ? 'await ' : '';
-        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${iVar}], _opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].validate(${varName}[${iVar}], _opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
         code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
@@ -1527,7 +1527,7 @@ function generateNestedCodeValidateOnly(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = ctx.isAsync ? 'await ' : '';
-        code += `  var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}, _opts);\n`;
+        code += `  var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].validate(${varName}, _opts);\n`;
         code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
       }
 
@@ -1589,7 +1589,7 @@ function generateCollectionCodeValidateOnly(
   if (meta.type!.resolvedCollectionValue) {
     nestedCls = meta.type!.resolvedCollectionValue;
     nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
-    nestedMerged = nestedSealed._merged;
+    nestedMerged = nestedSealed.merged;
   }
   const useInline = nestedCls && nestedMerged && canInlineDto(nestedMerged, nestedCls, ctx.inlineNestedClasses);
 
@@ -1626,7 +1626,7 @@ function generateCollectionCodeValidateOnly(
       } else {
         const execIdx = execs.length;
         execs.push(nestedSealed);
-        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${iVar}], _opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].validate(${varName}[${iVar}], _opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
         code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
@@ -1699,7 +1699,7 @@ function generateCollectionCodeValidateOnly(
       } else {
         const execIdx = execs.length;
         execs.push(nestedSealed);
-        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}]._validate(${varName}[${kVar}], _opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}_execs[${execIdx}].validate(${varName}[${kVar}], _opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
         code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;

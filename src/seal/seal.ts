@@ -1,7 +1,7 @@
 import type { SealOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors } from '../types';
 
-import { _getGlobalOptions } from '../configure';
+import { getGlobalOptions } from '../configure';
 import { SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { RAW, SEALED } from '../symbols';
@@ -16,20 +16,20 @@ const BANNED_FIELD_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
 const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
 
 /** @internal Placeholder executor for circular dependency detection during seal */
-function _circularPlaceholder(className: string): SealedExecutors<unknown> {
+function circularPlaceholder(className: string): SealedExecutors<unknown> {
   const msg = `Circular dependency during seal: ${className} is still being sealed`;
   return {
-    _deserialize() {
+    deserialize() {
       throw new SealError(msg);
     },
-    _serialize() {
+    serialize() {
       throw new SealError(msg);
     },
-    _validate() {
+    validate() {
       throw new SealError(msg);
     },
-    _isAsync: false,
-    _isSerializeAsync: false,
+    isAsync: false,
+    isSerializeAsync: false,
   };
 }
 
@@ -82,14 +82,14 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
 // Seal state lives in ./seal-state so `configure.ts` can read it without importing this file
 // (which would form a cycle: seal → configure → seal). Re-export the test helpers used by `unseal()`.
-export { _sealedClasses, _resetForTesting } from './seal-state';
-import { _sealedClasses, _isSealed, _markSealed } from './seal-state';
+export { sealedClasses, resetForTesting } from './seal-state';
+import { sealedClasses, isSealed, markSealed } from './seal-state';
 
 /**
  * @internal — used by serialize/deserialize. Returns the sealed executor.
  * Throws if the class was never sealed. Users must call `seal()` at app startup.
  */
-export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
+export function ensureSealed(Class: Function): SealedExecutors<unknown> {
   const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
@@ -105,8 +105,8 @@ export function _ensureSealed(Class: Function): SealedExecutors<unknown> {
  * Seal every class in the decorator registry, then clear the registry.
  */
 function sealAllRegistered(): void {
-  if (_isSealed()) {return;}
-  const options = _getGlobalOptions();
+  if (isSealed()) {return;}
+  const options = getGlobalOptions();
 
   try {
     for (const Class of globalRegistry) {
@@ -123,11 +123,11 @@ function sealAllRegistered(): void {
   }
 
   for (const Class of globalRegistry) {
-    _sealedClasses.add(Class);
+    sealedClasses.add(Class);
     Object.freeze((Class as any)[RAW]);
   }
   globalRegistry.clear();
-  _markSealed();
+  markSealed();
 }
 
 /**
@@ -145,9 +145,9 @@ function sealOneClass(Class: Function): void {
     );
   }
 
-  const before = new Set(_sealedClasses);
+  const before = new Set(sealedClasses);
   const beforeSealed = new Set<Function>([...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED)));
-  const options = _getGlobalOptions();
+  const options = getGlobalOptions();
   try {
     sealOne(Class, options);
   } catch (e) {
@@ -163,14 +163,14 @@ function sealOneClass(Class: Function): void {
     throw e;
   }
 
-  _sealedClasses.add(Class);
+  sealedClasses.add(Class);
   Object.freeze((Class as any)[RAW]);
   globalRegistry.delete(Class);
 
   // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
   const newlySealed = [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED) && !before.has(C));
   for (const C of newlySealed) {
-    _sealedClasses.add(C);
+    sealedClasses.add(C);
     Object.freeze((C as any)[RAW]);
     globalRegistry.delete(C);
   }
@@ -201,7 +201,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
   if (Object.hasOwn(Class as object, SEALED)) {return;} // already sealed (prevent recursion during circular references)
 
   // 0. Register placeholder — prevent infinite recursion on circular references
-  const placeholder = _circularPlaceholder(Class.name);
+  const placeholder = circularPlaceholder(Class.name);
   (Class as any)[SEALED] = placeholder;
 
   // 1. Merge inheritance metadata
@@ -298,12 +298,12 @@ function sealOne(Class: Function, options?: SealOptions): void {
 
   // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
   Object.assign(placeholder, {
-    _deserialize: deserializeExecutor,
-    _serialize: serializeExecutor,
-    _validate: validateExecutor,
-    _isAsync: isAsync,
-    _isSerializeAsync: isSerializeAsync,
-    _merged: merged,
+    deserialize: deserializeExecutor,
+    serialize: serializeExecutor,
+    validate: validateExecutor,
+    isAsync: isAsync,
+    isSerializeAsync: isSerializeAsync,
+    merged: merged,
   });
 }
 
@@ -403,5 +403,5 @@ export function mergeInheritance(Class: Function): RawClassMeta {
 
 export const __testing__ = {
   mergeInheritance,
-  _circularPlaceholder,
+  circularPlaceholder,
 };

@@ -231,11 +231,11 @@ function generateSerializeFieldCode(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(Array.from(${fieldVal}).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+          nestedCode = `${outputTarget} = await Promise.all(Array.from(${fieldVal}).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}].serialize(__ser_item, _opts); }));`;
         } else {
           nestedCode = `var ${GEN.setArr} = [];\n`;
           nestedCode += `  for (var ${GEN.setItem} of ${fieldVal}) {\n`;
-          nestedCode += `    ${GEN.setArr}.push(${GEN.setItem} == null ? ${GEN.setItem} : _execs[${execIdx}]._serialize(${GEN.setItem}, _opts));\n`;
+          nestedCode += `    ${GEN.setArr}.push(${GEN.setItem} == null ? ${GEN.setItem} : _execs[${execIdx}].serialize(${GEN.setItem}, _opts));\n`;
           nestedCode += `  }\n`;
           nestedCode += `  ${outputTarget} = ${GEN.setArr};`;
         }
@@ -253,7 +253,7 @@ function generateSerializeFieldCode(
         nestedCode = `var ${GEN.mapObj} = {};\n`;
         nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
         nestedCode += `    ${keyCheck}`;
-        nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}_execs[${execIdx}]._serialize(${GEN.mapEntry}[1], _opts);\n`;
+        nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}_execs[${execIdx}].serialize(${GEN.mapEntry}[1], _opts);\n`;
         nestedCode += `  }\n`;
         nestedCode += `  ${outputTarget} = ${GEN.mapObj};`;
       } else {
@@ -311,7 +311,7 @@ function generateSerializeFieldCode(
           refs.push(sub.value);
           const prefix = i === 0 ? 'if' : '} else if';
           code += `${prefix} (${itemVar} instanceof _refs[${refIdx}]) {\n`;
-          code += `  var ${GEN.serResult} = ${awaitKw}_execs[${execIdx}]._serialize(${itemVar}, _opts);\n`;
+          code += `  var ${GEN.serResult} = ${awaitKw}_execs[${execIdx}].serialize(${itemVar}, _opts);\n`;
           if (keepDisc) {
             code += `  ${GEN.serResult}[${JSON.stringify(property)}] = ${JSON.stringify(sub.name)};\n`;
           }
@@ -355,18 +355,18 @@ function generateSerializeFieldCode(
 
       if (hasEach) {
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(${fieldVal}.map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}]._serialize(__ser_item, _opts); }));`;
+          nestedCode = `${outputTarget} = await Promise.all(${fieldVal}.map(async function(__ser_item) { return __ser_item == null ? __ser_item : await _execs[${execIdx}].serialize(__ser_item, _opts); }));`;
         } else {
           nestedCode = `var ${GEN.nestedArr} = [];\n`;
           nestedCode += `  for (var ${GEN.nestedIdx}=0; ${GEN.nestedIdx}<${fieldVal}.length; ${GEN.nestedIdx}++) {\n`;
           nestedCode += `    var ${GEN.nestedItem} = ${fieldVal}[${GEN.nestedIdx}];\n`;
-          nestedCode += `    ${GEN.nestedArr}.push(${GEN.nestedItem} == null ? ${GEN.nestedItem} : _execs[${execIdx}]._serialize(${GEN.nestedItem}, _opts));\n`;
+          nestedCode += `    ${GEN.nestedArr}.push(${GEN.nestedItem} == null ? ${GEN.nestedItem} : _execs[${execIdx}].serialize(${GEN.nestedItem}, _opts));\n`;
           nestedCode += `  }\n`;
           nestedCode += `  ${outputTarget} = ${GEN.nestedArr};`;
         }
       } else {
         const awaitKw = isAsync ? 'await ' : '';
-        nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}]._serialize(${fieldVal}, _opts);`;
+        nestedCode = `${outputTarget} = ${awaitKw}_execs[${execIdx}].serialize(${fieldVal}, _opts);`;
       }
     }
 

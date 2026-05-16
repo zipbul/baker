@@ -286,16 +286,16 @@ describe('buildSerializeCode', () => {
 
   // ── H4: Nested DTO serialize ────────────────────────────────────────────────
 
-  it('should call nested DTO _serialize when @Type field has a sealed nested class (H4)', () => {
+  it('should call nested DTO serialize when @Type field has a sealed nested class (H4)', () => {
     // Arrange
     class AddressDto {}
     const mockNestedSerialize = mock((_instance: unknown, _opts?: RuntimeOptions) => ({ city: 'Seoul' }));
     (AddressDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockNestedSerialize,
-      _validate: mock(() => null),
-      _isAsync: false,
-      _isSerializeAsync: false,
+      deserialize: mock(() => {}),
+      serialize: mockNestedSerialize,
+      validate: mock(() => null),
+      isAsync: false,
+      isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
     class UserDto {
@@ -320,16 +320,16 @@ describe('buildSerializeCode', () => {
     expect(result.address).toEqual({ city: 'Seoul' });
   });
 
-  it('should map each array item through nested DTO _serialize for array @Type field (H4)', () => {
+  it('should map each array item through nested DTO serialize for array @Type field (H4)', () => {
     // Arrange
     class ItemDto {}
     const mockItemSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
     (ItemDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockItemSerialize,
-      _validate: mock(() => null),
-      _isAsync: false,
-      _isSerializeAsync: false,
+      deserialize: mock(() => {}),
+      serialize: mockItemSerialize,
+      validate: mock(() => null),
+      isAsync: false,
+      isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
     class OrderDto {
@@ -358,11 +358,11 @@ describe('buildSerializeCode', () => {
     // Arrange
     class ProfileDto {}
     (ProfileDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mock(() => ({ bio: 'test' })),
-      _validate: mock(() => null),
-      _isAsync: false,
-      _isSerializeAsync: false,
+      deserialize: mock(() => {}),
+      serialize: mock(() => ({ bio: 'test' })),
+      validate: mock(() => null),
+      isAsync: false,
+      isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
     class MemberDto {
@@ -415,11 +415,11 @@ describe('buildSerializeCode', () => {
     class AsyncItemDto {}
     const mockItemSerialize = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
     (AsyncItemDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockItemSerialize,
-      _validate: mock(() => null),
-      _isAsync: true,
-      _isSerializeAsync: true,
+      deserialize: mock(() => {}),
+      serialize: mockItemSerialize,
+      validate: mock(() => null),
+      isAsync: true,
+      isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
 
     class AsyncOrderDto {
@@ -449,11 +449,11 @@ describe('buildSerializeCode', () => {
     class AsyncItemDto2 {}
     const mockItemSerialize2 = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
     (AsyncItemDto2 as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockItemSerialize2,
-      _validate: mock(() => null),
-      _isAsync: true,
-      _isSerializeAsync: true,
+      deserialize: mock(() => {}),
+      serialize: mockItemSerialize2,
+      validate: mock(() => null),
+      isAsync: true,
+      isSerializeAsync: true,
     } satisfies SealedExecutors<unknown>;
 
     class EmptyOrderDto {
@@ -485,11 +485,11 @@ describe('buildSerializeCode', () => {
     class AddressDto {}
     const mockNestedSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ city: 'Seoul', zip: '12345' }));
     (AddressDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockNestedSerialize,
-      _validate: mock(() => null),
-      _isAsync: false,
-      _isSerializeAsync: false,
+      deserialize: mock(() => {}),
+      serialize: mockNestedSerialize,
+      validate: mock(() => null),
+      isAsync: false,
+      isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
     const transformFn = mock(({ value }: any) => {
@@ -528,11 +528,11 @@ describe('buildSerializeCode', () => {
     class ProfileDto {}
     const mockProfileSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ bio: 'hello' }));
     (ProfileDto as any)[SEALED] = {
-      _deserialize: mock(() => {}),
-      _serialize: mockProfileSerialize,
-      _validate: mock(() => null),
-      _isAsync: false,
-      _isSerializeAsync: false,
+      deserialize: mock(() => {}),
+      serialize: mockProfileSerialize,
+      validate: mock(() => null),
+      isAsync: false,
+      isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>;
 
     const transformFn = mock(({ value }: any) => {

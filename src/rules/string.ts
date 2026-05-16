@@ -542,7 +542,7 @@ export function isISBN(version?: 10 | 13): EmittableRule {
 // ISIN — ISO 6166
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 
-function _validateISINStr(v: string): boolean {
+function validateISINStr(v: string): boolean {
   if (!ISIN_RE.test(v)) {return false;}
   // Luhn mod10 on expanded digits
   const expanded = v
@@ -566,7 +566,7 @@ function _validateISINStr(v: string): boolean {
   return sum % 10 === 0;
 }
 
-export const isISIN = makeStringRule('isISIN', _validateISINStr, (varName, ctx) => {
+export const isISIN = makeStringRule('isISIN', validateISINStr, (varName, ctx) => {
   const i = ctx.addRegex(ISIN_RE);
   return (
     `if (!_re[${i}].test(${varName})) ${ctx.fail('isISIN')};\n` +
@@ -584,7 +584,7 @@ export interface IsISO8601Options {
 }
 
 // Strict ISO8601: requires month/day AND hour/minute/second to be valid values
-function _validateISO8601Strict(v: string): boolean {
+function validateISO8601Strict(v: string): boolean {
   if (!ISO8601_RE.test(v)) {return false;}
   const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (!m) {return true;} // year-only or year-month partial — still ok per regex
@@ -604,7 +604,7 @@ function _validateISO8601Strict(v: string): boolean {
 
 export function isISO8601(options?: IsISO8601Options): EmittableRule {
   if (options?.strict) {
-    const validateStrict = (v: unknown): boolean => typeof v === 'string' && _validateISO8601Strict(v);
+    const validateStrict = (v: unknown): boolean => typeof v === 'string' && validateISO8601Strict(v);
     return makeRule({
       name: 'isISO8601',
       requiresType: 'string',
@@ -826,7 +826,7 @@ export const isPort = makeStringRule(
 );
 
 // EAN (EAN-8 and EAN-13 with checksum)
-function _validateEAN(value: string): boolean {
+function validateEAN(value: string): boolean {
   if (!/^\d{8}$/.test(value) && !/^\d{13}$/.test(value)) {return false;}
   const digits = value.split('').map(Number);
   const len = digits.length;
@@ -838,7 +838,7 @@ function _validateEAN(value: string): boolean {
   return check === digits[len - 1]!;
 }
 
-export const isEAN = makeStringRule('isEAN', _validateEAN, (varName, ctx) => {
+export const isEAN = makeStringRule('isEAN', validateEAN, (varName, ctx) => {
   const re8 = ctx.addRegex(/^\d{8}$/);
   const re13 = ctx.addRegex(/^\d{13}$/);
   return (
@@ -1501,7 +1501,7 @@ export function isBase64(options?: IsBase64Options): EmittableRule {
 // DateString — ISO 8601 date only (YYYY-MM-DD) with calendar validity (day must exist in month/year).
 const DATE_STRING_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 
-function _isCalendarValidDate(v: string): boolean {
+function isCalendarValidDate(v: string): boolean {
   if (!DATE_STRING_RE.test(v)) {return false;}
   const y = Number(v.slice(0, 4));
   const m = Number(v.slice(5, 7));
@@ -1511,7 +1511,7 @@ function _isCalendarValidDate(v: string): boolean {
 }
 
 export function isDateString(): EmittableRule {
-  return makeStringRule('isDateString', _isCalendarValidDate, (varName, ctx) => {
+  return makeStringRule('isDateString', isCalendarValidDate, (varName, ctx) => {
     const i = ctx.addRegex(DATE_STRING_RE);
     return (
       `if (!_re[${i}].test(${varName})) ${ctx.fail('isDateString')};\n` +
