@@ -6,8 +6,8 @@ import type { RuntimeOptions } from '../interfaces';
 import { isBakerError, SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { resetForTesting } from '../seal/seal';
-import { SEALED } from '../symbols';
 import { deserialize } from './deserialize';
+import { setSealed, deleteSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -27,12 +27,13 @@ function attachSealed(
   deserializeFn: (input: unknown, opts?: RuntimeOptions) => unknown,
   opts?: { isAsync?: boolean },
 ): void {
-  (ctor as any)[SEALED] = {
+  setSealed(ctor, {
     deserialize: deserializeFn,
     serialize: () => ({}),
+    validate: () => null,
     isAsync: opts?.isAsync ?? false,
     isSerializeAsync: false,
-  };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,7 +43,7 @@ function attachSealed(
 afterEach(() => {
   for (const ctor of trackedClasses) {
     globalRegistry.delete(ctor);
-    delete (ctor as any)[SEALED];
+    deleteSealed(ctor);
   }
   trackedClasses.length = 0;
   resetForTesting();
@@ -166,7 +167,7 @@ describe('deserialize', () => {
     const instance2 = new Dto();
     attachSealed(Dto, () => instance1);
     await deserialize(Dto, {});
-    delete (Dto as any)[SEALED];
+    deleteSealed(Dto);
     attachSealed(Dto, () => instance2);
     const result = await deserialize(Dto, {});
     expect(result).toBe(instance2);

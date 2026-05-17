@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
-import { SEALED, RAW } from '../../src/symbols';
 import { unseal, purgePoisonClasses } from './helpers/unseal';
+import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -22,7 +22,7 @@ afterEach(() => unseal());
 
 describe('seal() — explicit seal at startup', () => {
   it('seal() attaches SEALED executors', () => {
-    const sealed = (SealTestDto as any)[SEALED];
+    const sealed = requireSealed(SealTestDto);
     expect(sealed).toBeDefined();
     expect(typeof sealed.deserialize).toBe('function');
     expect(typeof sealed.serialize).toBe('function');
@@ -42,20 +42,20 @@ describe('seal() — explicit seal at startup', () => {
   it('seal() is idempotent — calling again is a no-op', () => {
     expect(() => seal()).not.toThrow();
     expect(() => seal()).not.toThrow();
-    expect((SealTestDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(SealTestDto)).toBeDefined();
   });
 
   it('unseal() removes SEALED executors', () => {
-    expect((SealTestDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(SealTestDto)).toBeDefined();
     unseal();
-    expect((SealTestDto as any)[SEALED]).toBeUndefined();
+    expect(getSealed(SealTestDto)).toBeUndefined();
   });
 
   it('seal() after unseal() re-seals', () => {
     unseal();
-    expect((SealTestDto as any)[SEALED]).toBeUndefined();
+    expect(getSealed(SealTestDto)).toBeUndefined();
     seal();
-    expect((SealTestDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(SealTestDto)).toBeDefined();
   });
 });
 
@@ -118,37 +118,37 @@ class ParentWithAsyncNestedDto {
 
 describe('C1 — async architecture (isAsync / isSerializeAsync)', () => {
   it('sync DTO → isAsync === false', () => {
-    const sealed = (SyncDto as any)[SEALED];
+    const sealed = requireSealed(SyncDto);
     expect(sealed.isAsync).toBe(false);
   });
 
   it('async @Transform (deserialize) → isAsync === true', () => {
-    const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
+    const sealed = requireSealed(AsyncTransformDeserializeDto);
     expect(sealed.isAsync).toBe(true);
   });
 
   it('async createRule → isAsync === true', () => {
-    const sealed = (AsyncRuleDto as any)[SEALED];
+    const sealed = requireSealed(AsyncRuleDto);
     expect(sealed.isAsync).toBe(true);
   });
 
   it('nested async DTO → parent isAsync === true', () => {
-    const sealed = (ParentWithAsyncNestedDto as any)[SEALED];
+    const sealed = requireSealed(ParentWithAsyncNestedDto);
     expect(sealed.isAsync).toBe(true);
   });
 
   it('async @Transform (serializeOnly) → isSerializeAsync === true', () => {
-    const sealed = (AsyncTransformSerializeDto as any)[SEALED];
+    const sealed = requireSealed(AsyncTransformSerializeDto);
     expect(sealed.isSerializeAsync).toBe(true);
   });
 
   it('sync DTO → isSerializeAsync === false', () => {
-    const sealed = (SyncDto as any)[SEALED];
+    const sealed = requireSealed(SyncDto);
     expect(sealed.isSerializeAsync).toBe(false);
   });
 
   it('deserialize-only async transform keeps isSerializeAsync false', () => {
-    const sealed = (AsyncTransformDeserializeDto as any)[SEALED];
+    const sealed = requireSealed(AsyncTransformDeserializeDto);
     expect(sealed.isSerializeAsync).toBe(false);
   });
 });
@@ -160,7 +160,7 @@ describe('C1 — async architecture (isAsync / isSerializeAsync)', () => {
 describe('seal(Class) — on-demand', () => {
   it('seal(LateDto) seals a late-registered class', async () => {
     class LateDto {}
-    (LateDto as any)[RAW] = {
+    setRaw(LateDto, {
       value: {
         validation: [{ rule: isString }],
         transform: [],
@@ -168,12 +168,11 @@ describe('seal(Class) — on-demand', () => {
         exclude: null,
         type: null,
         flags: {},
-        schema: null,
       },
-    };
+    });
 
     seal(LateDto);
-    expect((LateDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(LateDto)).toBeDefined();
 
     const instance = Object.assign(new LateDto(), { value: 'hello' });
     const result = await serialize(instance);
@@ -220,9 +219,9 @@ describe('E-25: concurrent deserialize on pre-sealed classes', () => {
   });
 
   it('all classes are sealed via beforeEach seal()', () => {
-    expect((ConcurrentA as any)[SEALED]).toBeDefined();
-    expect((ConcurrentB as any)[SEALED]).toBeDefined();
-    expect((ConcurrentC as any)[SEALED]).toBeDefined();
+    expect(getSealed(ConcurrentA)).toBeDefined();
+    expect(getSealed(ConcurrentB)).toBeDefined();
+    expect(getSealed(ConcurrentC)).toBeDefined();
   });
 });
 
@@ -322,8 +321,8 @@ describe('seal() — transactional failure cleanup', () => {
       @Field({ type: () => NestedConflict }) child!: NestedConflict;
     }
     expect(() => seal(ParentWrap)).toThrow(/conflicting requiresType/);
-    expect((ParentWrap as any)[SEALED]).toBeUndefined();
-    expect((NestedConflict as any)[SEALED]).toBeUndefined();
+    expect(getSealed(ParentWrap)).toBeUndefined();
+    expect(getSealed(NestedConflict)).toBeUndefined();
   });
 
   it('seal(Class) with throwing @Type thunk leaves no SEALED placeholder', () => {
@@ -336,7 +335,7 @@ describe('seal() — transactional failure cleanup', () => {
       v!: unknown;
     }
     expect(() => seal(BadType)).toThrow('boom');
-    expect((BadType as any)[SEALED]).toBeUndefined();
+    expect(getSealed(BadType)).toBeUndefined();
   });
 
   it('seal(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
@@ -350,7 +349,7 @@ describe('seal() — transactional failure cleanup', () => {
       items!: Set<unknown>;
     }
     expect(() => seal(BadColl)).toThrow(/collectionValue function threw: coll-boom/);
-    expect((BadColl as any)[SEALED]).toBeUndefined();
+    expect(getSealed(BadColl)).toBeUndefined();
   });
 
   it('seal(Class) with conflicting requiresType leaves no SEALED placeholder', () => {
@@ -364,6 +363,6 @@ describe('seal() — transactional failure cleanup', () => {
       caught = e;
     }
     expect(caught).toBeInstanceOf(SealError);
-    expect((ConflictReq as any)[SEALED]).toBeUndefined();
+    expect(getSealed(ConflictReq)).toBeUndefined();
   });
 });

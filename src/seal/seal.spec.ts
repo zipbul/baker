@@ -1,13 +1,13 @@
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
-import type { RawClassMeta, RuleDef } from '../types';
+import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
 
 import { SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
-import { RAW, SEALED } from '../symbols';
 import { seal, resetForTesting, __testing__ } from './seal';
+import { getSealed, setSealed, deleteSealed, getRaw, setRaw, deleteRaw, requireSealed } from '../meta-access';
 
 const { mergeInheritance, circularPlaceholder } = __testing__;
 
@@ -19,7 +19,7 @@ const freeClasses: Function[] = [];
 
 function registerClass(ctor: Function, raw?: RawClassMeta): void {
   if (raw !== undefined) {
-    (ctor as any)[RAW] = raw;
+    setRaw(ctor, raw);
   }
   globalRegistry.add(ctor);
   freeClasses.push(ctor);
@@ -49,8 +49,8 @@ function makeEmptyMeta(): RawClassMeta {
 afterEach(() => {
   for (const ctor of freeClasses) {
     globalRegistry.delete(ctor);
-    delete (ctor as any)[SEALED];
-    delete (ctor as any)[RAW];
+    deleteSealed(ctor);
+    deleteRaw(ctor);
   }
   freeClasses.length = 0;
   resetForTesting();
@@ -76,7 +76,7 @@ describe('seal', () => {
     // Act
     seal();
     // Assert
-    const sealed = (UserDto as any)[SEALED];
+    const sealed = requireSealed(UserDto);
     expect(sealed).toBeDefined();
     expect(typeof sealed.deserialize).toBe('function');
     expect(typeof sealed.serialize).toBe('function');
@@ -87,13 +87,13 @@ describe('seal', () => {
     class TestDto {}
     registerClass(TestDto, makeStringField('x'));
     seal();
-    expect((TestDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(TestDto)).toBeDefined();
     // After reset, new classes should be batch-sealable again
-    delete (TestDto as any)[SEALED];
+    deleteSealed(TestDto);
     globalRegistry.add(TestDto);
     resetForTesting();
     seal();
-    expect((TestDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(TestDto)).toBeDefined();
   });
 
   it('should seal a DTO with @IsString field — deserialize returns instance for valid input', async () => {
@@ -102,7 +102,7 @@ describe('seal', () => {
     registerClass(PersonDto, makeStringField('name'));
     seal();
     // Act
-    const sealed = (PersonDto as any)[SEALED];
+    const sealed = requireSealed(PersonDto);
     const result = await sealed.deserialize({ name: 'Alice' });
     // Assert
     expect(result).toBeInstanceOf(PersonDto);
@@ -116,7 +116,7 @@ describe('seal', () => {
     registerClass(PersonDto2, makeStringField('name'));
     seal();
     // Act
-    const sealed = (PersonDto2 as any)[SEALED];
+    const sealed = requireSealed(PersonDto2);
     const result = await sealed.deserialize({ name: 42 });
     // Assert — should be Err (has .data property)
     expect((result as any).data).toBeDefined();
@@ -126,7 +126,7 @@ describe('seal', () => {
   it('should seal @Type nested DTO so nested class is also sealed', () => {
     // Arrange
     class AddressDto {}
-    (AddressDto as any)[RAW] = makeStringField('city');
+    setRaw(AddressDto, makeStringField('city'));
     globalRegistry.add(AddressDto);
     freeClasses.push(AddressDto);
 
@@ -144,7 +144,7 @@ describe('seal', () => {
     // Act
     seal();
     // Assert — nested DTO also sealed
-    expect((AddressDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(AddressDto)).toBeDefined();
   });
 
   it('should skip sealOne if class is already SEALED (prevents double-seal)', () => {
@@ -152,15 +152,18 @@ describe('seal', () => {
     class DtoA {}
     const raw = makeStringField('x');
     registerClass(DtoA, raw);
-    // Pre-seal DtoA
-    (DtoA as any)[SEALED] = {
-      deserialize: () => 'pre-sealed',
-      serialize: () => ({}),
+    // Pre-seal DtoA with a sentinel executor; verify seal() preserves it by reference equality
+    const sentinel: SealedExecutors<unknown> = {
+      deserialize: () => ({ ok: true } as never),
+      serialize: () => ({ tag: 'pre-sealed' }),
+      validate: () => null,
+      isAsync: false,
+      isSerializeAsync: false,
     };
+    setSealed(DtoA, sentinel);
     seal();
-    // Assert — SEALED was not replaced (pre-sealed value preserved)
-    const sealed = (DtoA as any)[SEALED];
-    expect(sealed.deserialize()).toBe('pre-sealed');
+    // Assert — SEALED slot was not replaced (reference identity)
+    expect(requireSealed(DtoA)).toBe(sentinel);
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
@@ -169,7 +172,7 @@ describe('seal', () => {
     class Dto1 {}
     registerClass(Dto1, makeStringField('a'));
     seal();
-    expect((Dto1 as any)[SEALED]).toBeDefined();
+    expect(getSealed(Dto1)).toBeDefined();
     // Second call should not throw
     expect(() => seal()).not.toThrow();
   });
@@ -183,10 +186,10 @@ describe('seal', () => {
     registerClass(LateDto, makeStringField('name'));
     // seal won't seal it (already sealed=true)
     seal();
-    expect((LateDto as any)[SEALED]).toBeUndefined();
+    expect(getSealed(LateDto)).toBeUndefined();
     // seal seals it individually
     seal(LateDto);
-    expect((LateDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(LateDto)).toBeDefined();
   });
 
   // ── Negative / Error ───────────────────────────────────────────────────────
@@ -224,16 +227,16 @@ describe('seal', () => {
     registerClass(DtoB, makeStringField('val'));
     seal();
     // Simulate unseal — restore RAW from merged, re-register
-    const sealed = (DtoB as any)[SEALED];
-    if (sealed?.merged) {(DtoB as any)[RAW] = sealed.merged;}
-    delete (DtoB as any)[SEALED];
+    const sealed = requireSealed(DtoB);
+    if (sealed?.merged) {setRaw(DtoB, sealed.merged);}
+    deleteSealed(DtoB);
     globalRegistry.add(DtoB);
     freeClasses.push(DtoB);
     resetForTesting();
     // Act
     seal();
     // Assert
-    expect((DtoB as any)[SEALED]).toBeDefined();
+    expect(getSealed(DtoB)).toBeDefined();
   });
 
   // ── Corner ─────────────────────────────────────────────────────────────────
@@ -241,7 +244,7 @@ describe('seal', () => {
   it('should handle circular @Type via placeholder without infinite recursion', () => {
     // Arrange — self-referencing DTO
     class TreeDto {}
-    (TreeDto as any)[RAW] = {
+    setRaw(TreeDto, {
       value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       child: {
         validation: [],
@@ -251,7 +254,7 @@ describe('seal', () => {
         type: { fn: () => TreeDto as any },
         flags: { validateNested: true },
       },
-    };
+    });
     globalRegistry.add(TreeDto);
     freeClasses.push(TreeDto);
     // Act / Assert — should not throw or infinite loop
@@ -266,17 +269,17 @@ describe('seal', () => {
     registerClass(EmptyDto, makeEmptyMeta());
     // Act / Assert
     expect(() => seal()).not.toThrow();
-    expect((EmptyDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(EmptyDto)).toBeDefined();
   });
 
   it('should not seal a class not in globalRegistry', () => {
     // Arrange — NotRegisteredDto NOT added to globalRegistry
     class NotRegisteredDto {}
-    (NotRegisteredDto as any)[RAW] = makeStringField('x');
+    setRaw(NotRegisteredDto, makeStringField('x'));
     // (not added to freeClasses or globalRegistry)
     seal();
     // Assert
-    expect((NotRegisteredDto as any)[SEALED]).toBeUndefined();
+    expect(getSealed(NotRegisteredDto)).toBeUndefined();
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
@@ -286,18 +289,18 @@ describe('seal', () => {
     class IdempDto {}
     registerClass(IdempDto, makeStringField('name'));
     seal();
-    const first = (IdempDto as any)[SEALED];
+    const first = requireSealed(IdempDto);
     const firstResult = await first.deserialize({ name: 'Bob' });
 
     // Simulate unseal — restore RAW from merged, re-register
-    const sealed = (IdempDto as any)[SEALED];
-    if (sealed?.merged) {(IdempDto as any)[RAW] = sealed.merged;}
-    delete (IdempDto as any)[SEALED];
+    const sealed = requireSealed(IdempDto);
+    if (sealed?.merged) {setRaw(IdempDto, sealed.merged);}
+    deleteSealed(IdempDto);
     globalRegistry.add(IdempDto);
     freeClasses.push(IdempDto);
     resetForTesting();
     seal();
-    const second = (IdempDto as any)[SEALED];
+    const second = requireSealed(IdempDto);
     const secondResult = await second.deserialize({ name: 'Bob' });
     // Assert — both produce instances with same values
     expect(firstResult).toBeInstanceOf(IdempDto);
@@ -339,9 +342,9 @@ describe('seal', () => {
     seal();
 
     // Assert — both subtype classes must be sealed by the recursive call
-    expect((DogDto as any)[SEALED]).toBeDefined();
-    expect((CatDto as any)[SEALED]).toBeDefined();
-    expect((AnimalContainerDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(DogDto)).toBeDefined();
+    expect(getSealed(CatDto)).toBeDefined();
+    expect(getSealed(AnimalContainerDto)).toBeDefined();
   });
 
   // ── DX-5: @Type without @ValidateNested warning ────────────────────────────
@@ -367,7 +370,7 @@ describe('seal', () => {
     seal();
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
-    expect((AutoNestedDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(AutoNestedDto)).toBeDefined();
     warnSpy.mockRestore();
   });
 
@@ -378,12 +381,12 @@ describe('seal', () => {
     seal(); // sets _sealed=true
 
     class NestedLate {}
-    (NestedLate as any)[RAW] = makeStringField('val');
+    setRaw(NestedLate, makeStringField('val'));
     globalRegistry.add(NestedLate);
     freeClasses.push(NestedLate);
 
     class ParentLate {}
-    (ParentLate as any)[RAW] = {
+    setRaw(ParentLate, {
       child: {
         validation: [],
         transform: [],
@@ -392,7 +395,7 @@ describe('seal', () => {
         type: { fn: () => NestedLate as any },
         flags: {},
       },
-    };
+    });
     globalRegistry.add(ParentLate);
     freeClasses.push(ParentLate);
 
@@ -400,10 +403,10 @@ describe('seal', () => {
     seal(ParentLate);
 
     // Assert — both sealed, RAW frozen, removed from registry
-    expect((ParentLate as any)[SEALED]).toBeDefined();
-    expect((NestedLate as any)[SEALED]).toBeDefined();
-    expect(Object.isFrozen((ParentLate as any)[RAW])).toBe(true);
-    expect(Object.isFrozen((NestedLate as any)[RAW])).toBe(true);
+    expect(getSealed(ParentLate)).toBeDefined();
+    expect(getSealed(NestedLate)).toBeDefined();
+    expect(Object.isFrozen(getRaw(ParentLate))).toBe(true);
+    expect(Object.isFrozen(getRaw(NestedLate))).toBe(true);
     expect(globalRegistry.has(ParentLate)).toBe(false);
     expect(globalRegistry.has(NestedLate)).toBe(false);
   });
@@ -428,9 +431,9 @@ describe('seal', () => {
   it('should clean up stale placeholders when seal fails', () => {
     // Arrange — nested DTO has banned field name 'constructor' → SealError
     class BrokenNested {}
-    (BrokenNested as any)[RAW] = {
+    setRaw(BrokenNested, {
       constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    } as unknown as RawClassMeta;
+    } as unknown as RawClassMeta);
     freeClasses.push(BrokenNested);
 
     class ParentDto {}
@@ -447,7 +450,7 @@ describe('seal', () => {
     // Act — seal fails
     expect(() => seal()).toThrow(SealError);
     // Assert — stale placeholder cleaned up
-    expect((ParentDto as any)[SEALED]).toBeUndefined();
+    expect(getSealed(ParentDto)).toBeUndefined();
   });
 
   // ── DX-5 transform filter callback coverage (seal.ts#L110) ──────────────────
@@ -473,7 +476,7 @@ describe('seal', () => {
     seal();
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
-    expect((AutoNestedTransformDto as any)[SEALED]).toBeDefined();
+    expect(getSealed(AutoNestedTransformDto)).toBeDefined();
     warnSpy.mockRestore();
   });
 
@@ -511,7 +514,7 @@ describe('mergeInheritance', () => {
     // Arrange
     class StandaloneDto {}
     const raw = makeStringField('name');
-    (StandaloneDto as any)[RAW] = raw;
+    setRaw(StandaloneDto, raw);
     // Act
     const merged = mergeInheritance(StandaloneDto);
     // Assert
@@ -522,14 +525,14 @@ describe('mergeInheritance', () => {
   it('should union-merge validation rules from parent and child', () => {
     // Arrange
     class BaseDto {}
-    (BaseDto as any)[RAW] = {
+    setRaw(BaseDto, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
 
     class ChildDto extends BaseDto {}
-    (ChildDto as any)[RAW] = {
+    setRaw(ChildDto, {
       name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildDto);
     // Assert — both isString and min(1) should be present
@@ -547,13 +550,13 @@ describe('mergeInheritance', () => {
     (childFn as any).ruleName = 'lower';
 
     class BaseTr {}
-    (BaseTr as any)[RAW] = {
+    setRaw(BaseTr, {
       name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildTr extends BaseTr {}
-    (ChildTr as any)[RAW] = {
+    setRaw(ChildTr, {
       name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildTr);
     // Assert — only child transform
@@ -565,13 +568,13 @@ describe('mergeInheritance', () => {
     // Arrange
     const parentFn2 = (v: any) => v;
     class BaseTr2 {}
-    (BaseTr2 as any)[RAW] = {
+    setRaw(BaseTr2, {
       x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildTr2 extends BaseTr2 {}
-    (ChildTr2 as any)[RAW] = {
+    setRaw(ChildTr2, {
       x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildTr2);
     // Assert — parent transform inherited
@@ -582,13 +585,13 @@ describe('mergeInheritance', () => {
   it('should override parent expose with child expose when child has @Expose', () => {
     // Arrange
     class BaseEx {}
-    (BaseEx as any)[RAW] = {
+    setRaw(BaseEx, {
       field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildEx extends BaseEx {}
-    (ChildEx as any)[RAW] = {
+    setRaw(ChildEx, {
       field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildEx);
     // Assert — child name used, not parent
@@ -598,13 +601,13 @@ describe('mergeInheritance', () => {
   it('should inherit parent expose when child has no @Expose', () => {
     // Arrange
     class BaseEx2 {}
-    (BaseEx2 as any)[RAW] = {
+    setRaw(BaseEx2, {
       field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildEx2 extends BaseEx2 {}
-    (ChildEx2 as any)[RAW] = {
+    setRaw(ChildEx2, {
       field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildEx2);
     // Assert — parent expose inherited
@@ -615,13 +618,13 @@ describe('mergeInheritance', () => {
   it('should inherit parent exclude when child has no exclude', () => {
     // Arrange
     class BaseExcl {}
-    (BaseExcl as any)[RAW] = {
+    setRaw(BaseExcl, {
       secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {} },
-    };
+    });
     class ChildExcl extends BaseExcl {}
-    (ChildExcl as any)[RAW] = {
+    setRaw(ChildExcl, {
       secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildExcl);
     // Assert
@@ -632,13 +635,13 @@ describe('mergeInheritance', () => {
     // Arrange
     class NestedDto {}
     class BaseType {}
-    (BaseType as any)[RAW] = {
+    setRaw(BaseType, {
       nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {} },
-    };
+    });
     class ChildType extends BaseType {}
-    (ChildType as any)[RAW] = {
+    setRaw(ChildType, {
       nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildType);
     // Assert
@@ -648,13 +651,13 @@ describe('mergeInheritance', () => {
   it('should apply child-first flag merge (isOptional)', () => {
     // Arrange
     class BaseFlag {}
-    (BaseFlag as any)[RAW] = {
+    setRaw(BaseFlag, {
       age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true } },
-    };
+    });
     class ChildFlag extends BaseFlag {}
-    (ChildFlag as any)[RAW] = {
+    setRaw(ChildFlag, {
       age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildFlag);
     // Assert — parent flag inherited (child has none)
@@ -665,13 +668,13 @@ describe('mergeInheritance', () => {
     // Arrange — same rule instance in both parent and child
     const sharedRule = isString;
     class BaseDup {}
-    (BaseDup as any)[RAW] = {
+    setRaw(BaseDup, {
       f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildDup extends BaseDup {}
-    (ChildDup as any)[RAW] = {
+    setRaw(ChildDup, {
       f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(ChildDup);
     // Assert — deduplicated
@@ -683,7 +686,7 @@ describe('mergeInheritance', () => {
   it('should not include child in chain when child has no own RAW (inherits via prototype)', () => {
     // Arrange
     class ParentNR {}
-    (ParentNR as any)[RAW] = makeStringField('x');
+    setRaw(ParentNR, makeStringField('x'));
     class ChildNR extends ParentNR {}
     // ChildNR has NO own RAW — inherits ParentNR[RAW] via prototype chain
     // Act
@@ -696,9 +699,9 @@ describe('mergeInheritance', () => {
   it('should not double-merge parent rules when child inherits RAW via prototype', () => {
     // Arrange
     class BaseNR2 {}
-    (BaseNR2 as any)[RAW] = {
+    setRaw(BaseNR2, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class ChildNR2 extends BaseNR2 {}
     // ChildNR2 has no own RAW — rule must appear exactly once
     // Act
@@ -710,11 +713,11 @@ describe('mergeInheritance', () => {
   it('should skip intermediate class without own RAW in 3-level chain', () => {
     // Arrange
     class GrandNR {}
-    (GrandNR as any)[RAW] = makeStringField('a');
+    setRaw(GrandNR, makeStringField('a'));
     class MidNR extends GrandNR {}
     // MidNR has no own RAW
     class ChildNR3 extends MidNR {}
-    (ChildNR3 as any)[RAW] = makeStringField('b');
+    setRaw(ChildNR3, makeStringField('b'));
     // Act
     const merged = mergeInheritance(ChildNR3);
     // Assert — both fields present, each exactly once
@@ -727,17 +730,17 @@ describe('mergeInheritance', () => {
   it('should handle 3-level inheritance chain correctly', () => {
     // Arrange
     class GrandParent {}
-    (GrandParent as any)[RAW] = {
+    setRaw(GrandParent, {
       x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class ParentLevel extends GrandParent {}
-    (ParentLevel as any)[RAW] = {
+    setRaw(ParentLevel, {
       x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     class Child3 extends ParentLevel {}
-    (Child3 as any)[RAW] = {
+    setRaw(Child3, {
       x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    };
+    });
     // Act
     const merged = mergeInheritance(Child3);
     // Assert — all 3 rules in union
@@ -885,7 +888,7 @@ describe('analyzeAsync — discriminator', () => {
     seal();
 
     // Assert — sealed executor should be async due to SubA's async transform
-    const sealed = (ParentDisc as any)[SEALED];
+    const sealed = requireSealed(ParentDisc);
     expect(sealed).toBeDefined();
     expect(sealed.isAsync).toBe(true);
   });
@@ -941,7 +944,7 @@ describe('analyzeAsync — discriminator', () => {
 
     // Act / Assert — should not throw or infinite loop
     expect(() => seal()).not.toThrow();
-    expect((CircParent as any)[SEALED]).toBeDefined();
+    expect(getSealed(CircParent)).toBeDefined();
   });
 
   // ── E-14: 3 discriminator subTypes A→B→C→A circular — analyzeAsync terminates ──
@@ -996,8 +999,8 @@ describe('analyzeAsync — discriminator', () => {
 
     // Act / Assert — should not throw or infinite loop (visited Set shared across recursion)
     expect(() => seal()).not.toThrow();
-    expect((DiscA as any)[SEALED]).toBeDefined();
-    expect((DiscB as any)[SEALED]).toBeDefined();
-    expect((DiscC as any)[SEALED]).toBeDefined();
+    expect(getSealed(DiscA)).toBeDefined();
+    expect(getSealed(DiscB)).toBeDefined();
+    expect(getSealed(DiscC)).toBeDefined();
   });
 });

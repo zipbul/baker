@@ -1,25 +1,41 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
+import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, TypeDef } from '../types';
+
+import { deleteRaw, requireRaw } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { Field } from './field';
 
-const RAW = Symbol.for('baker:raw');
 const createdCtors: Function[] = [];
 
-function makeClass(): new () => any {
+function makeClass(): new () => unknown {
   const ctor = class TestFieldMeta {};
   createdCtors.push(ctor);
-  return ctor as any;
+  return ctor;
 }
 
-function getRaw(ctor: Function, key: string): any {
-  return (ctor as any)[RAW]?.[key];
+function fieldMeta(ctor: Function, key: string): RawPropertyMeta {
+  const m = requireRaw(ctor)[key];
+  if (!m) {throw new Error(`${ctor.name}.${key} not registered`);}
+  return m;
+}
+
+function fieldType(ctor: Function, key: string): TypeDef {
+  const t = fieldMeta(ctor, key).type;
+  if (!t) {throw new Error(`${ctor.name}.${key} has no type`);}
+  return t;
+}
+
+function fieldTransform(ctor: Function, key: string, idx: number): TransformDef {
+  const t = fieldMeta(ctor, key).transform[idx];
+  if (!t) {throw new Error(`${ctor.name}.${key}.transform[${idx}] missing`);}
+  return t;
 }
 
 afterEach(() => {
   for (const ctor of createdCtors) {
     globalRegistry.delete(ctor);
-    delete (ctor as any)[RAW];
+    deleteRaw(ctor);
   }
   createdCtors.length = 0;
 });
@@ -30,13 +46,14 @@ describe('@Field — metadata collection', () => {
   it('@Field({ name }) stores name in expose stack', () => {
     const Cls = makeClass();
     Field({ name: 'full_name' })(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').expose[0].name).toBe('full_name');
+    const expose = fieldMeta(Cls, 'name').expose;
+    expect(expose[0]?.name).toBe('full_name');
   });
 
   it('@Field({ deserializeName, serializeName }) stacks two direction entries', () => {
     const Cls = makeClass();
     Field({ deserializeName: 'user_name', serializeName: 'userName' })(Cls.prototype, 'name');
-    const expose = getRaw(Cls, 'name').expose;
+    const expose = fieldMeta(Cls, 'name').expose;
     expect(expose).toHaveLength(2);
     expect(expose[0]).toEqual({ name: 'user_name', deserializeOnly: true });
     expect(expose[1]).toEqual({ name: 'userName', serializeOnly: true });
@@ -47,35 +64,37 @@ describe('@Field — metadata collection', () => {
   it('@Field({ exclude: true }) sets exclude to {}', () => {
     const Cls = makeClass();
     Field({ exclude: true })(Cls.prototype, 'secret');
-    expect(getRaw(Cls, 'secret').exclude).toEqual({});
+    expect(fieldMeta(Cls, 'secret').exclude).toEqual({});
   });
 
   it('@Field({ exclude: "serializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
     Field({ exclude: 'serializeOnly' })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').exclude?.serializeOnly).toBe(true);
+    expect(fieldMeta(Cls, 'field').exclude?.serializeOnly).toBe(true);
   });
 
   it('@Field({ exclude: "deserializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
     Field({ exclude: 'deserializeOnly' })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').exclude?.deserializeOnly).toBe(true);
+    expect(fieldMeta(Cls, 'field').exclude?.deserializeOnly).toBe(true);
   });
 
   // ── transform ──
 
   it('@Field({ transform }) stores deserialize+serialize fns in transform stack', () => {
     const Cls = makeClass();
-    const desFn = ({ value }: any) => value;
-    const serFn = ({ value }: any) => value;
+    const desFn = ({ value }: TransformParams): unknown => value;
+    const serFn = ({ value }: TransformParams): unknown => value;
     Field({ transform: { deserialize: desFn, serialize: serFn } })(Cls.prototype, 'name');
-    expect(getRaw(Cls, 'name').transform).toHaveLength(2);
-    expect(getRaw(Cls, 'name').transform[0].fn).not.toBe(desFn);
-    expect(getRaw(Cls, 'name').transform[0].options?.deserializeOnly).toBe(true);
-    expect(getRaw(Cls, 'name').transform[0].fn({ value: 'x', key: 'name', obj: {} })).toBe('x');
-    expect(getRaw(Cls, 'name').transform[1].fn).not.toBe(serFn);
-    expect(getRaw(Cls, 'name').transform[1].options?.serializeOnly).toBe(true);
-    expect(getRaw(Cls, 'name').transform[1].fn({ value: 'y', key: 'name', obj: {} })).toBe('y');
+    expect(fieldMeta(Cls, 'name').transform).toHaveLength(2);
+    const d = fieldTransform(Cls, 'name', 0);
+    const s = fieldTransform(Cls, 'name', 1);
+    expect(d.fn).not.toBe(desFn);
+    expect(d.options?.deserializeOnly).toBe(true);
+    expect(d.fn({ value: 'x', key: 'name', obj: {} })).toBe('x');
+    expect(s.fn).not.toBe(serFn);
+    expect(s.options?.serializeOnly).toBe(true);
+    expect(s.fn({ value: 'y', key: 'name', obj: {} })).toBe('y');
   });
 
   // ── type ──
@@ -84,8 +103,7 @@ describe('@Field — metadata collection', () => {
     const Cls = makeClass();
     class NestedDto {}
     Field({ type: () => NestedDto })(Cls.prototype, 'child');
-    expect(getRaw(Cls, 'child').type).not.toBeNull();
-    expect(getRaw(Cls, 'child').type.fn()).toBe(NestedDto);
+    expect(fieldType(Cls, 'child').fn()).toBe(NestedDto);
   });
 
   it('@Field({ type, discriminator }) stores discriminator config', () => {
@@ -102,9 +120,10 @@ describe('@Field — metadata collection', () => {
         ],
       },
     })(Cls.prototype, 'animal');
-    const typeDef = getRaw(Cls, 'animal').type;
-    expect(typeDef.discriminator.property).toBe('breed');
-    expect(typeDef.discriminator.subTypes).toHaveLength(2);
+    const disc = fieldType(Cls, 'animal').discriminator;
+    if (!disc) {throw new Error('discriminator missing');}
+    expect(disc.property).toBe('breed');
+    expect(disc.subTypes).toHaveLength(2);
   });
 
   it('@Field({ type, discriminator, keepDiscriminatorProperty }) stores flag', () => {
@@ -115,16 +134,20 @@ describe('@Field — metadata collection', () => {
       discriminator: { property: 'kind', subTypes: [{ value: DogDto, name: 'dog' }] },
       keepDiscriminatorProperty: true,
     })(Cls.prototype, 'pet');
-    expect(getRaw(Cls, 'pet').type.keepDiscriminatorProperty).toBe(true);
+    expect(fieldType(Cls, 'pet').keepDiscriminatorProperty).toBe(true);
   });
 
   // ── groups ──
 
   it('@Field(rule, { groups }) attaches groups to validation', () => {
     const Cls = makeClass();
-    const rule = Object.assign((v: any) => typeof v === 'string', { ruleName: 'isString', emit: () => '' });
+    const rule = Object.assign((v: unknown) => typeof v === 'string', {
+      ruleName: 'isString',
+      emit: () => '',
+    }) as unknown as EmittableRule;
     Field(rule, { groups: ['admin'] })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').validation[0].groups).toEqual(['admin']);
+    const rd = fieldMeta(Cls, 'field').validation[0];
+    expect(rd?.groups).toEqual(['admin']);
   });
 
   // ── flags ──
@@ -132,19 +155,19 @@ describe('@Field — metadata collection', () => {
   it('@Field({ optional }) sets isOptional flag', () => {
     const Cls = makeClass();
     Field({ optional: true })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').flags.isOptional).toBe(true);
+    expect(fieldMeta(Cls, 'field').flags.isOptional).toBe(true);
   });
 
   it('@Field({ nullable }) sets isNullable flag', () => {
     const Cls = makeClass();
     Field({ nullable: true })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').flags.isNullable).toBe(true);
+    expect(fieldMeta(Cls, 'field').flags.isNullable).toBe(true);
   });
 
   it('@Field({ when }) sets validateIf flag', () => {
     const Cls = makeClass();
-    const cond = (obj: any) => obj.active;
+    const cond = (obj: Record<string, unknown>) => obj['active'] === true;
     Field({ when: cond })(Cls.prototype, 'field');
-    expect(getRaw(Cls, 'field').flags.validateIf).toBe(cond);
+    expect(fieldMeta(Cls, 'field').flags.validateIf).toBe(cond);
   });
 });

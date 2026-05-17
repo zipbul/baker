@@ -8,8 +8,8 @@ import { isNotEmpty } from '../rules/common';
 import { min, max } from '../rules/number';
 import { minLength } from '../rules/string';
 import { isString, isNumber } from '../rules/typechecker';
-import { SEALED } from '../symbols';
 import { buildDeserializeCode } from './deserialize-builder';
+import { setSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -706,7 +706,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
   class AddressDto {
     street!: string;
   }
-  (AddressDto as any)[SEALED] = {
+  setSealed(AddressDto, {
     deserialize: (input: unknown) => {
       const i = input as any;
       if (typeof i?.street === 'string') {
@@ -722,7 +722,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
     },
     isAsync: false,
     isSerializeAsync: false,
-  } satisfies SealedExecutors<AddressDto>;
+  } satisfies SealedExecutors<AddressDto>);
 
   class PersonDto {
     address!: AddressDto;
@@ -747,7 +747,7 @@ it('should return error when nested DTO deserialization fails', async () => {
   class PhoneDto {
     number!: string;
   }
-  (PhoneDto as any)[SEALED] = {
+  setSealed(PhoneDto, {
     deserialize: (input: unknown) => {
       const i = input as any;
       if (typeof i?.number === 'string') {
@@ -763,7 +763,7 @@ it('should return error when nested DTO deserialization fails', async () => {
     },
     isAsync: false,
     isSerializeAsync: false,
-  } satisfies SealedExecutors<PhoneDto>;
+  } satisfies SealedExecutors<PhoneDto>);
 
   class ContactDto {
     phone!: PhoneDto;
@@ -788,7 +788,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
   class CityDto {
     name!: string;
   }
-  (CityDto as any)[SEALED] = {
+  setSealed(CityDto, {
     deserialize: (input: unknown) => {
       const i = input as any;
       if (typeof i?.name === 'string') {
@@ -804,7 +804,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
     },
     isAsync: false,
     isSerializeAsync: false,
-  } satisfies SealedExecutors<CityDto>;
+  } satisfies SealedExecutors<CityDto>);
 
   class LocationDto {
     city!: CityDto;
@@ -831,7 +831,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
   class TagDto {
     label!: string;
   }
-  (TagDto as any)[SEALED] = {
+  setSealed(TagDto, {
     deserialize: (input: unknown) => {
       const i = input as any;
       if (typeof i?.label === 'string') {
@@ -847,7 +847,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
     },
     isAsync: false,
     isSerializeAsync: false,
-  } satisfies SealedExecutors<TagDto>;
+  } satisfies SealedExecutors<TagDto>);
 
   // A no-op rule to trigger hasEach:true path without failing validation
   const alwaysPass = ((_v: unknown) => true) as any;

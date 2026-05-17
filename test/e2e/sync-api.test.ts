@@ -4,8 +4,8 @@ import type { SealedExecutors } from '../../src/types';
 
 import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { SEALED } from '../../src/symbols';
 import { unseal } from '../integration/helpers/unseal';
+import { getSealed } from '../../src/meta-access';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
@@ -37,13 +37,13 @@ class AsyncDto {
 describe('dual sync/async API — deserialize', () => {
   it('sync DTO has isAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
+    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
     expect(sealed.isAsync).toBe(false);
   });
 
   it('async DTO has isAsync = true', async () => {
     await deserialize(AsyncDto, { name: 'Bob' });
-    const sealed = (AsyncDto as any)[SEALED] as SealedExecutors<AsyncDto>;
+    const sealed = getSealed(AsyncDto) as SealedExecutors<AsyncDto>;
     expect(sealed.isAsync).toBe(true);
   });
 
@@ -72,7 +72,7 @@ describe('dual sync/async API — deserialize', () => {
 describe('dual sync/async API — serialize', () => {
   it('sync DTO has isSerializeAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
+    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
     expect(sealed.isSerializeAsync).toBe(false);
   });
 

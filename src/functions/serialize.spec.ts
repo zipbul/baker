@@ -5,8 +5,8 @@ import type { RuntimeOptions } from '../interfaces';
 import { SealError } from '../errors';
 import { globalRegistry } from '../registry';
 import { resetForTesting } from '../seal/seal';
-import { SEALED } from '../symbols';
 import { serialize } from './serialize';
+import { setSealed, deleteSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -26,12 +26,13 @@ function attachSealed(
   serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>,
   opts?: { isSerializeAsync?: boolean },
 ): void {
-  (ctor as any)[SEALED] = {
+  setSealed(ctor, {
     deserialize: () => {},
     serialize: serializeFn,
+    validate: () => null,
     isAsync: false,
     isSerializeAsync: opts?.isSerializeAsync ?? false,
-  };
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ function attachSealed(
 afterEach(() => {
   for (const ctor of trackedClasses) {
     globalRegistry.delete(ctor);
-    delete (ctor as any)[SEALED];
+    deleteSealed(ctor);
   }
   trackedClasses.length = 0;
   resetForTesting();
@@ -127,7 +128,7 @@ describe('serialize', () => {
     const instance = new Dto();
     await serialize(instance);
     // Simulate re-seal
-    delete (Dto as any)[SEALED];
+    deleteSealed(Dto);
     attachSealed(Dto, () => record2);
     // Act
     const result = await serialize(instance);
@@ -170,12 +171,13 @@ describe('serialize', () => {
     // Arrange
     const Dto = makeClass();
     const record = { y: 2 };
-    (Dto as any)[SEALED] = {
+    setSealed(Dto, {
       deserialize: () => {},
       serialize: () => Promise.resolve(record),
+      validate: () => null,
       isAsync: false,
       isSerializeAsync: true,
-    };
+    });
     trackedClasses.push(Dto);
     const instance = new Dto();
     // Act

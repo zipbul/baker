@@ -3,7 +3,7 @@ import type { SealedExecutors } from '../../../src/types';
 import { resetConfigForTesting } from '../../../src/configure';
 import { globalRegistry } from '../../../src/registry';
 import { resetForTesting, sealedClasses } from '../../../src/seal/seal';
-import { RAW, SEALED } from '../../../src/symbols';
+import { getSealed, deleteSealed, setRaw } from '../../../src/meta-access';
 
 /**
  * Testing only: resets seal state + global configuration.
@@ -12,11 +12,11 @@ import { RAW, SEALED } from '../../../src/symbols';
  */
 export function unseal(): void {
   for (const Class of sealedClasses) {
-    const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
+    const sealed = getSealed(Class) as SealedExecutors<unknown> | undefined;
     if (sealed?.merged) {
-      (Class as any)[RAW] = sealed.merged;
+      setRaw(Class, sealed.merged);
     }
-    delete (Class as any)[SEALED];
+    deleteSealed(Class);
     globalRegistry.add(Class);
   }
   resetForTesting();

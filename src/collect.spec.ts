@@ -2,8 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import { ensureMeta, collectValidation } from './collect';
 import { globalRegistry } from './registry';
-
-const RAW = Symbol.for('baker:raw');
+import { getRaw, deleteRaw } from './meta-access';
 
 // Track classes created in tests so globalRegistry can be cleaned up in afterEach.
 const createdCtors: Function[] = [];
@@ -16,7 +15,7 @@ describe('collect', () => {
   afterEach(() => {
     for (const ctor of createdCtors) {
       globalRegistry.delete(ctor);
-      delete (ctor as any)[RAW];
+      deleteRaw(ctor);
     }
     createdCtors.length = 0;
   });
@@ -27,18 +26,18 @@ describe('collect', () => {
     // Act
     ensureMeta(TestClass, 'prop');
     // Assert
-    expect((TestClass as any)[RAW]).toBeDefined();
+    expect(getRaw(TestClass)).toBeDefined();
   });
 
   it('should reuse the existing RAW object when calling ensureMeta on an already-decorated class', () => {
     // Arrange
     const TestClass = tracked(class TestClass {});
     ensureMeta(TestClass, 'prop');
-    const rawBefore = (TestClass as any)[RAW];
+    const rawBefore = getRaw(TestClass);
     // Act
     ensureMeta(TestClass, 'other');
     // Assert
-    expect((TestClass as any)[RAW]).toBe(rawBefore);
+    expect(getRaw(TestClass)).toBe(rawBefore);
   });
 
   it('should create default meta for key when calling ensureMeta with a new key', () => {

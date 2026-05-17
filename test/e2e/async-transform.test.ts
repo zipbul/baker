@@ -2,9 +2,9 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, serialize, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { SEALED } from '../../src/symbols';
 import { isAsyncFunction } from '../../src/utils';
 import { unseal } from '../integration/helpers/unseal';
+import { requireSealed } from '../../src/meta-access';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
@@ -160,7 +160,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSet as any)[SEALED].isAsync).toBe(true);
+    expect(requireSealed(ParentSet).isAsync).toBe(true);
   });
 
   it('Map<string, AsyncDeserVal> makes parent isAsync true', () => {
@@ -176,7 +176,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentMap as any)[SEALED].isAsync).toBe(true);
+    expect(requireSealed(ParentMap).isAsync).toBe(true);
   });
 
   it('Set<AsyncSerItem> makes parent isSerializeAsync true', () => {
@@ -192,7 +192,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSerSet as any)[SEALED].isSerializeAsync).toBe(true);
+    expect(requireSealed(ParentSerSet).isSerializeAsync).toBe(true);
   });
 
   it('Map<string, AsyncSerVal> makes parent isSerializeAsync true', () => {
@@ -208,7 +208,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
     }
     unseal();
     seal();
-    expect((ParentSerMap as any)[SEALED].isSerializeAsync).toBe(true);
+    expect(requireSealed(ParentSerMap).isSerializeAsync).toBe(true);
   });
 
   it('async Set<DTO> deserialize returns Promise and resolves correctly', async () => {
