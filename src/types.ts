@@ -121,8 +121,11 @@ export interface ExcludeDef {
   serializeOnly?: boolean;
 }
 
+/** Generic class constructor — contravariant `never[]` args accept any user constructor */
+export type ClassCtor<T = object> = new (...args: never[]) => T;
+
 export interface TypeDef {
-  fn: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
+  fn: () => ClassCtor | ClassCtor[];
   discriminator?: {
     property: string;
     subTypes: { value: Function; name: string }[];
@@ -131,13 +134,13 @@ export interface TypeDef {
   /** seal() normalization result — true if fn() returns an array */
   isArray?: boolean;
   /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
-  resolvedClass?: new (...args: any[]) => any;
+  resolvedClass?: ClassCtor;
   /** seal() normalization result — Map or Set collection type */
   collection?: 'Map' | 'Set';
   /** Nested DTO class thunk for Map value / Set element */
-  collectionValue?: () => new (...args: any[]) => any;
+  collectionValue?: () => ClassCtor;
   /** seal() normalization result — cached class after resolving collectionValue */
-  resolvedCollectionValue?: new (...args: any[]) => any;
+  resolvedCollectionValue?: ClassCtor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,7 +155,7 @@ export interface PropertyFlags {
   /** @IsNullable() — allow and assign null, reject undefined */
   isNullable?: boolean;
   /** @ValidateIf(cond) — skip all field validation when false */
-  validateIf?: (obj: Record<string, any>) => boolean;
+  validateIf?: (obj: Record<string, unknown>) => boolean;
   /** @ValidateNested() — trigger recursive validation for nested DTOs. Used with @Type */
   validateNested?: boolean;
   /** @ValidateNested({ each: true }) — validate nested DTOs per array element */

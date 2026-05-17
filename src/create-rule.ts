@@ -58,10 +58,16 @@ export function createRule(
     return `if(!(${isAsyncFn ? 'await ' : ''}refs[${i}](${varName}))) ${ctx.fail(name)};`;
   };
 
-  (fn as any).ruleName = name;
-  (fn as any).isAsync = isAsyncFn;
-  if (constraints) {(fn as any).constraints = constraints;}
-  if (requiresType) {(fn as any).requiresType = requiresType;}
+  const mut = fn as unknown as {
+    ruleName: string;
+    isAsync: boolean;
+    constraints?: Record<string, unknown>;
+    requiresType?: InternalRule['requiresType'];
+  };
+  mut.ruleName = name;
+  mut.isAsync = isAsyncFn;
+  if (constraints) {mut.constraints = constraints;}
+  if (requiresType) {mut.requiresType = requiresType;}
 
   return fn;
 }

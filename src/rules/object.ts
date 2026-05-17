@@ -39,7 +39,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
 // isInstance(targetType) — checks if value is an instance of a specific class
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function isInstance(targetType: new (...args: any[]) => any): EmittableRule {
+export function isInstance(targetType: new (...args: never[]) => object): EmittableRule {
   return makeRule({
     name: 'isInstance',
     constraints: { type: targetType.name },

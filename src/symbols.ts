@@ -4,7 +4,7 @@
  */
 
 /** Tier 1 collection metadata (stored on Class by decorators) */
-export const RAW = Symbol.for('baker:raw');
+export const RAW: unique symbol = Symbol.for('baker:raw');
 
 /** Tier 2 seal result (dual executor stored on Class by seal()) */
-export const SEALED = Symbol.for('baker:sealed');
+export const SEALED: unique symbol = Symbol.for('baker:sealed');

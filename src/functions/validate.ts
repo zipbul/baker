@@ -15,7 +15,7 @@ import { checkCallOptions } from './check-call-options';
  * Sync DTOs return directly; async DTOs return Promise.
  */
 function validate<T>(
-  Class: new (...args: any[]) => T,
+  Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
 ): true | BakerErrors | Promise<true | BakerErrors>;
@@ -51,8 +51,8 @@ function validate(classOrInput: unknown, ...rest: unknown[]): true | BakerErrors
     if (
       r == null ||
       typeof r !== 'function' ||
-      typeof (r as any).emit !== 'function' ||
-      typeof (r as any).ruleName !== 'string'
+      typeof (r as { emit?: unknown }).emit !== 'function' ||
+      typeof (r as { ruleName?: unknown }).ruleName !== 'string'
     ) {
       throw new SealError(
         `validate(input, ...rules): argument ${i + 1} is not a baker rule (got ${r === null ? 'null' : typeof r}). Use createRule() or import a rule from @zipbul/baker/rules.`,
@@ -134,7 +134,7 @@ async function validateAdHocAsync(input: unknown, rules: EmittableRule[]): Promi
  * Sync-asserted validate. Throws `SealError` if Class has any async rule/transform
  * on the deserialize/validate side. Use when caller code assumes sync return.
  */
-function validateSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
+function validateSync<T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
@@ -148,7 +148,7 @@ function validateSync<T>(Class: new (...args: any[]) => T, input: unknown, optio
  * Async-asserted validate. Always returns Promise (sync DTOs are wrapped via Promise.resolve).
  */
 function validateAsync<T>(
-  Class: new (...args: any[]) => T,
+  Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
 ): Promise<true | BakerErrors> {

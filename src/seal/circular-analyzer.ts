@@ -20,7 +20,7 @@ export function analyzeCircular(Class: Function): boolean {
 
     visited.add(cls);
 
-    const raw = (cls as any)[RAW] as RawClassMeta | undefined;
+    const raw = (cls as unknown as { [RAW]?: RawClassMeta })[RAW];
     if (raw) {
       for (const meta of Object.values(raw)) {
         // Simple @Type

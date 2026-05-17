@@ -3,6 +3,9 @@ import type { RawPropertyMeta, RuleDef } from './types';
 import { globalRegistry } from './registry';
 import { RAW } from './symbols';
 
+type RawCarrier = { [RAW]?: Record<string, RawPropertyMeta> };
+const asRaw = (cls: Function): RawCarrier => cls as unknown as RawCarrier;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ensureMeta — Internal utility (§3.1)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -17,10 +20,10 @@ export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
   // Note: hasOwnProperty check is required — when inheriting classes, ctor.__proto__ === ParentClass,
   // so the ??= operator would find the parent's [RAW] and pollute it by storing child fields in the parent's RAW
   if (!Object.prototype.hasOwnProperty.call(ctor, RAW)) {
-    (ctor as any)[RAW] = Object.create(null) as Record<string, RawPropertyMeta>;
+    asRaw(ctor)[RAW] = Object.create(null) as Record<string, RawPropertyMeta>;
     globalRegistry.add(ctor);
   }
-  const raw = (ctor as any)[RAW] as Record<string, RawPropertyMeta>;
+  const raw = asRaw(ctor)[RAW]!;
 
   // Create default meta if key doesn't exist
   return (raw[key] ??= {
@@ -38,6 +41,6 @@ export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function collectValidation(target: object, key: string, ruleDef: RuleDef): void {
-  const meta = ensureMeta((target as any).constructor, key);
+  const meta = ensureMeta((target as { constructor: Function }).constructor, key);
   meta.validation.push(ruleDef);
 }

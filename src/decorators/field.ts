@@ -1,4 +1,4 @@
-import type { EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
+import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 
 import { ensureMeta } from '../collect';
 import { SealError } from '../errors';
@@ -23,13 +23,12 @@ interface ArrayOfMarker {
  * tags!: string[];
  */
 function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
-  const marker = { rules } as any;
-  marker[ARRAY_OF] = true;
+  const marker: { rules: EmittableRule[]; [key: symbol]: true } = { rules, [ARRAY_OF]: true };
   return marker as ArrayOfMarker;
 }
 
 function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
-  return typeof arg === 'object' && arg !== null && (arg as any)[ARRAY_OF] === true;
+  return typeof arg === 'object' && arg !== null && (arg as Record<symbol, unknown>)[ARRAY_OF] === true;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -38,7 +37,7 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 
 interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
-  type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
+  type?: () => ClassCtor | ClassCtor[];
   /** Polymorphic discriminator configuration — used with type */
   discriminator?: {
     property: string;
@@ -63,7 +62,7 @@ interface FieldOptions {
   /** Groups — field visibility control + conditional validation rule application */
   groups?: string[];
   /** Conditional validation — skip all field validation when false */
-  when?: (obj: Record<string, any>) => boolean;
+  when?: (obj: Record<string, unknown>) => boolean;
   /** Transformer or array of transformers (serialize direction applies in reverse order) */
   transform?: Transformer | Transformer[];
   /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
@@ -71,9 +70,9 @@ interface FieldOptions {
   /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
   context?: unknown;
   /** Nested DTO class thunk for Map values — used with type: () => Map */
-  mapValue?: () => new (...args: any[]) => any;
+  mapValue?: () => ClassCtor;
   /** Nested DTO class thunk for Set elements — used with type: () => Set */
-  setValue?: () => new (...args: any[]) => any;
+  setValue?: () => ClassCtor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -136,27 +135,27 @@ function assertRule(value: unknown, className: string, fieldKey: string, slot?: 
 }
 
 /** Normalize 4 overload signatures into `{ rules, options }` */
-function parseFieldArgs(args: any[]): { rules: RuleArg[]; options: FieldOptions } {
+function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOptions } {
   if (args.length === 0) {
     // Form 1: @Field()
     return { rules: [], options: {} };
   }
   if (args.length === 1 && isFieldOptions(args[0])) {
     // Form 3: @Field({ type: () => Dto })
-    const options = args[0] as FieldOptions;
+    const options = args[0];
     return { rules: options.rules ?? [], options };
   }
   // Form 2 or 4
   const lastArg = args[args.length - 1];
   if (isFieldOptions(lastArg)) {
     // Form 4: @Field(isString(), { optional: true })
-    const options = lastArg as FieldOptions;
-    let rules: RuleArg[] = args.slice(0, -1);
+    const options = lastArg;
+    let rules = args.slice(0, -1) as RuleArg[];
     if (options.rules) {rules = [...rules, ...options.rules];}
     return { rules, options };
   }
   // Form 2: @Field(isString(), email())
-  return { rules: args, options: {} };
+  return { rules: args as RuleArg[], options: {} };
 }
 
 /** Register validation rules + handle arrayOf */
@@ -249,9 +248,9 @@ function Field(...rules: RuleArg[]): PropertyDecorator;
 function Field(options: FieldOptions): PropertyDecorator;
 /** @Field(isString(), { optional: true }) — rules + options mixed */
 function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
-function Field(...args: any[]): PropertyDecorator {
+function Field(...args: unknown[]): PropertyDecorator {
   return (target, key) => {
-    const ctor = (target as any).constructor;
+    const ctor = (target as { constructor: Function }).constructor;
     if (typeof key === 'symbol') {
       throw new SealError(`@Field on ${ctor.name}: symbol property keys are not supported. ` + `Use a string property name.`);
     }

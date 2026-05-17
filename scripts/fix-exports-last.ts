@@ -3,7 +3,7 @@
 // (function/const/let/class/interface/type/enum) and add consolidated
 // `export { ... }` / `export type { ... }` block at the end.
 // Re-exports (`export { x } from '...'`) and `export *` are kept in place at end.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'fs';
 
 const files = [
   'src/rules/string.ts',

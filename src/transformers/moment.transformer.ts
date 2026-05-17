@@ -16,10 +16,10 @@ export async function momentTransformer(opts?: MomentTransformerOptions): Promis
       if (
         value &&
         typeof value === 'object' &&
-        typeof (value as any).toISOString === 'function' &&
-        typeof (value as any).format === 'function'
+        typeof (value as { toISOString(): string; format(f: string): string }).toISOString === 'function' &&
+        typeof (value as { toISOString(): string; format(f: string): string }).format === 'function'
       ) {
-        return opts?.format ? (value as any).format(opts.format) : (value as any).toISOString();
+        return opts?.format ? (value as { toISOString(): string; format(f: string): string }).format(opts.format) : (value as { toISOString(): string; format(f: string): string }).toISOString();
       }
       return value;
     },

@@ -62,12 +62,20 @@ function makeRule(options: {
   plan?: RulePlan;
 }): InternalRule {
   const fn = ((value: unknown) => options.validate(value)) as InternalRule;
-  (fn as any).emit = options.emit;
-  (fn as any).ruleName = options.name;
-  if (options.requiresType !== undefined) {(fn as any).requiresType = options.requiresType;}
-  (fn as any).constraints = options.constraints ?? {};
-  if (options.isAsync) {(fn as any).isAsync = true;}
-  if (options.plan) {(fn as any).plan = options.plan;}
+  const mut = fn as unknown as {
+    emit: InternalRule['emit'];
+    ruleName: string;
+    requiresType?: InternalRule['requiresType'];
+    constraints: Record<string, unknown>;
+    isAsync?: boolean;
+    plan?: RulePlan;
+  };
+  mut.emit = options.emit;
+  mut.ruleName = options.name;
+  if (options.requiresType !== undefined) {mut.requiresType = options.requiresType;}
+  mut.constraints = options.constraints ?? {};
+  if (options.isAsync) {mut.isAsync = true;}
+  if (options.plan) {mut.plan = options.plan;}
   return fn;
 }
 

@@ -20,7 +20,7 @@ export function serialize<T>(instance: T, options?: RuntimeOptions): Record<stri
   if (instance == null || typeof instance !== 'object') {
     throw new SealError('serialize: expected a class instance, got ' + (instance === null ? 'null' : typeof instance));
   }
-  const Class = (instance as any).constructor as Function | undefined;
+  const Class = (instance as { constructor: Function }).constructor as Function | undefined;
   if (typeof Class !== 'function') {
     throw new SealError('serialize: instance has no constructor');
   }
@@ -42,7 +42,7 @@ export function serializeSync<T>(instance: T, options?: RuntimeOptions): Record<
   if (instance == null || typeof instance !== 'object') {
     throw new SealError('serializeSync: expected a class instance, got ' + (instance === null ? 'null' : typeof instance));
   }
-  const Class = (instance as any).constructor as Function | undefined;
+  const Class = (instance as { constructor: Function }).constructor as Function | undefined;
   if (typeof Class !== 'function') {
     throw new SealError('serializeSync: instance has no constructor');
   }
@@ -66,7 +66,7 @@ export function serializeAsync<T>(instance: T, options?: RuntimeOptions): Promis
   if (instance == null || typeof instance !== 'object') {
     throw new SealError('serializeAsync: expected a class instance, got ' + (instance === null ? 'null' : typeof instance));
   }
-  const Class = (instance as any).constructor as Function | undefined;
+  const Class = (instance as { constructor: Function }).constructor as Function | undefined;
   if (typeof Class !== 'function') {
     throw new SealError('serializeAsync: instance has no constructor');
   }

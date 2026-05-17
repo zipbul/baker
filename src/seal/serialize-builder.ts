@@ -227,7 +227,7 @@ function generateSerializeFieldCode(
 
     if (collection === 'Set') {
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = (meta.type.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
+        const nestedSealed = (meta.type.resolvedCollectionValue as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
@@ -246,7 +246,7 @@ function generateSerializeFieldCode(
       // Map → plain object (W8: keys must be strings — throw otherwise)
       const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new TypeError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = (meta.type.resolvedCollectionValue as any)[SEALED] as SealedExecutors<unknown>;
+        const nestedSealed = (meta.type.resolvedCollectionValue as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = isAsync ? 'await ' : '';
@@ -294,8 +294,8 @@ function generateSerializeFieldCode(
 
       // Sort most-specific-first (subclasses take priority in inheritance relationships)
       const sorted = [...subTypes].sort((a, b) => {
-        if ((a.value as any).prototype instanceof b.value) {return -1;}
-        if ((b.value as any).prototype instanceof a.value) {return 1;}
+        if ((a.value as { prototype: unknown }).prototype instanceof b.value) {return -1;}
+        if ((b.value as { prototype: unknown }).prototype instanceof a.value) {return 1;}
         return 0;
       });
 
@@ -304,7 +304,7 @@ function generateSerializeFieldCode(
         let code = '';
         for (let i = 0; i < sorted.length; i++) {
           const sub = sorted[i]!;
-          const nestedSealed = (sub.value as any)[SEALED] as SealedExecutors<unknown>;
+          const nestedSealed = (sub.value as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
           const execIdx = execs.length;
           execs.push(nestedSealed);
           const refIdx = refs.length;
@@ -349,7 +349,7 @@ function generateSerializeFieldCode(
     } else {
       // Existing simple nested logic
       const nestedCls = meta.type!.resolvedClass ?? (meta.type!.fn() as Function);
-      const nestedSealed = (nestedCls as any)[SEALED] as SealedExecutors<unknown>;
+      const nestedSealed = (nestedCls as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
       const execIdx = execs.length;
       execs.push(nestedSealed);
 

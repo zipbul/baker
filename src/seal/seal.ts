@@ -1,5 +1,5 @@
 import type { SealOptions } from '../interfaces';
-import type { RawClassMeta, SealedExecutors } from '../types';
+import type { ClassCtor, RawClassMeta, SealedExecutors } from '../types';
 
 import { getGlobalOptions } from '../configure';
 import { SealError } from '../errors';
@@ -12,6 +12,9 @@ import { validateExposeStacks } from './expose-validator';
 import { sealedClasses, isSealed, markSealed } from './seal-state';
 import { buildSerializeCode } from './serialize-builder';
 import { validateMeta } from './validate-meta';
+
+type MetaCarrier = { [SEALED]?: SealedExecutors<unknown>; [RAW]?: RawClassMeta };
+const asCarrier = (cls: Function): MetaCarrier => cls as unknown as MetaCarrier;
 
 const BANNED_FIELD_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
 const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
@@ -89,7 +92,7 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
  * Throws if the class was never sealed. Users must call `seal()` at app startup.
  */
 function ensureSealed(Class: Function): SealedExecutors<unknown> {
-  const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
+  const sealed = asCarrier(Class)[SEALED] as SealedExecutors<unknown> | undefined;
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
     throw new SealError(
@@ -115,7 +118,7 @@ function sealAllRegistered(): void {
     // On failure, clean up stale placeholders — prevent partial seal state
     for (const Class of globalRegistry) {
       if (Object.hasOwn(Class as object, SEALED)) {
-        delete (Class as any)[SEALED];
+        delete asCarrier(Class)[SEALED];
       }
     }
     throw e;
@@ -123,7 +126,7 @@ function sealAllRegistered(): void {
 
   for (const Class of globalRegistry) {
     sealedClasses.add(Class);
-    Object.freeze((Class as any)[RAW]);
+    Object.freeze(asCarrier(Class)[RAW]);
   }
   globalRegistry.clear();
   markSealed();
@@ -152,25 +155,25 @@ function sealOneClass(Class: Function): void {
   } catch (e) {
     // Remove placeholder SEALED markers left on this class and any nested class touched during the failed seal
     if (Object.hasOwn(Class as object, SEALED) && !beforeSealed.has(Class)) {
-      delete (Class as any)[SEALED];
+      delete asCarrier(Class)[SEALED];
     }
     for (const C of globalRegistry) {
       if (Object.hasOwn(C as object, SEALED) && !beforeSealed.has(C)) {
-        delete (C as any)[SEALED];
+        delete asCarrier(C)[SEALED];
       }
     }
     throw e;
   }
 
   sealedClasses.add(Class);
-  Object.freeze((Class as any)[RAW]);
+  Object.freeze(asCarrier(Class)[RAW]);
   globalRegistry.delete(Class);
 
   // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
   const newlySealed = [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED) && !before.has(C));
   for (const C of newlySealed) {
     sealedClasses.add(C);
-    Object.freeze((C as any)[RAW]);
+    Object.freeze(asCarrier(C)[RAW]);
     globalRegistry.delete(C);
   }
 }
@@ -201,7 +204,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
-  (Class as any)[SEALED] = placeholder;
+  asCarrier(Class)[SEALED] = placeholder;
 
   // 1. Merge inheritance metadata
   const merged = mergeInheritance(Class);
@@ -232,7 +235,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
           throw new SealError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`);
         }
         if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
-          typeCopy.resolvedCollectionValue = valCls as new (...args: any[]) => any;
+          typeCopy.resolvedCollectionValue = valCls as ClassCtor;
         }
       }
       merged[key] = { ...meta, type: typeCopy };
@@ -240,14 +243,14 @@ function sealOne(Class: Function, options?: SealOptions): void {
     }
 
     const isArray = Array.isArray(typeResult);
-    const resolved = isArray ? (typeResult as any[])[0] : typeResult;
+    const resolved = isArray ? (typeResult as unknown[])[0] : typeResult;
     if (resolved == null || typeof resolved !== 'function') {
       throw new SealError(`${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`);
     }
     // Copy type object before mutating — preserve original RAW type reference
     const typeCopy = { ...meta.type, isArray };
     if (!PRIMITIVE_CTORS.has(resolved)) {
-      typeCopy.resolvedClass = resolved;
+      typeCopy.resolvedClass = resolved as ClassCtor;
       // Automatically set validateNested flags for DTO classes
       if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
         meta.flags = { ...meta.flags };
@@ -335,7 +338,7 @@ function mergeInheritance(Class: Function): RawClassMeta {
   const merged: RawClassMeta = Object.create(null) as RawClassMeta;
 
   for (const ctor of chain) {
-    const raw = (ctor as any)[RAW] as RawClassMeta;
+    const raw = asCarrier(ctor)[RAW] as RawClassMeta;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
         // First occurrence of field → shallow copy

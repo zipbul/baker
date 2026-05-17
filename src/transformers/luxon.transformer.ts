@@ -16,8 +16,8 @@ export async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<
       return value;
     },
     serialize: ({ value }) => {
-      if (value && typeof value === 'object' && typeof (value as any).toISO === 'function') {
-        return opts?.format ? (value as any).toFormat(opts.format) : (value as any).toISO();
+      if (value && typeof value === 'object' && typeof (value as { toISO(): string; toFormat(f: string): string }).toISO === 'function') {
+        return opts?.format ? (value as { toISO(): string; toFormat(f: string): string }).toFormat(opts.format) : (value as { toISO(): string; toFormat(f: string): string }).toISO();
       }
       return value;
     },

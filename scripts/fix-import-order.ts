@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Move all `import` statements to the top of bench files, preserving order.
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'fs';
 
 const files = [
   'bench/cold.bench.ts',

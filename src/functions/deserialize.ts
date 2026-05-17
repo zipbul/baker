@@ -18,12 +18,12 @@ import { checkCallOptions } from './check-call-options';
  * - Validation failure: BakerErrors (use isBakerError() to narrow)
  */
 export function deserialize<T>(
-  Class: new (...args: any[]) => T,
+  Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerErrors | Promise<T | BakerErrors>;
 export function deserialize<T>(
-  Class: new (...args: any[]) => T,
+  Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerErrors | Promise<T | BakerErrors> {
@@ -31,7 +31,7 @@ export function deserialize<T>(
   const sealed = ensureSealed(Class);
 
   if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
       if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
       return result as T;
     });
@@ -46,7 +46,7 @@ export function deserialize<T>(
  * Sync-asserted deserialize. Throws `SealError` if Class has any async rule/transform
  * on the deserialize side.
  */
-export function deserializeSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): T | BakerErrors {
+export function deserializeSync<T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): T | BakerErrors {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
@@ -61,14 +61,14 @@ export function deserializeSync<T>(Class: new (...args: any[]) => T, input: unkn
  * Async-asserted deserialize. Always returns Promise (sync DTOs are wrapped via Promise.resolve).
  */
 export function deserializeAsync<T>(
-  Class: new (...args: any[]) => T,
+  Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
 ): Promise<T | BakerErrors> {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<any>).then((result): T | BakerErrors => {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
       if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
       return result as T;
     });
