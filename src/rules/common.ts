@@ -13,7 +13,7 @@ export function equals(comparison: unknown): EmittableRule {
     validate: value => value === comparison,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(comparison);
-      return `if (${varName} !== _refs[${i}]) ${ctx.fail('equals')};`;
+      return `if (${varName} !== refs[${i}]) ${ctx.fail('equals')};`;
     },
   });
 }
@@ -29,7 +29,7 @@ export function notEquals(comparison: unknown): EmittableRule {
     validate: value => value !== comparison,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(comparison);
-      return `if (${varName} === _refs[${i}]) ${ctx.fail('notEquals')};`;
+      return `if (${varName} === refs[${i}]) ${ctx.fail('notEquals')};`;
     },
   });
 }
@@ -70,7 +70,7 @@ export function isIn(array: unknown[]): EmittableRule {
     validate: value => set.has(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(set);
-      return `if (!_refs[${i}].has(${varName})) ${ctx.fail('isIn')};`;
+      return `if (!refs[${i}].has(${varName})) ${ctx.fail('isIn')};`;
     },
   });
 }
@@ -87,7 +87,7 @@ export function isNotIn(array: unknown[]): EmittableRule {
     validate: value => !set.has(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(set);
-      return `if (_refs[${i}].has(${varName})) ${ctx.fail('isNotIn')};`;
+      return `if (refs[${i}].has(${varName})) ${ctx.fail('isNotIn')};`;
     },
   });
 }

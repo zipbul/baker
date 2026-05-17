@@ -3,21 +3,21 @@
  * without importing `seal.ts` (which would create a cycle: seal → configure → seal).
  */
 
-let _sealed = false;
+let sealed = false;
 
 /** List of sealed classes — used by unseal to remove SEALED */
 export const sealedClasses = new Set<Function>();
 
 export function isSealed(): boolean {
-  return _sealed;
+  return sealed;
 }
 
 export function markSealed(): void {
-  _sealed = true;
+  sealed = true;
 }
 
 /** @internal — used by unseal() in test helpers */
 export function resetForTesting(): void {
-  _sealed = false;
+  sealed = false;
   sealedClasses.clear();
 }

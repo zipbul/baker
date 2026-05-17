@@ -28,7 +28,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
     validate,
     emit: (varName: string, ctx: EmitContext): string => {
       if (options?.nullable) {
-        return `if (!Object.keys(${varName}).some(function(_k){return ${varName}[_k]!=null;})) ${ctx.fail('isNotEmptyObject')};`;
+        return `if (!Object.keys(${varName}).some(function(k){return ${varName}[k]!=null;})) ${ctx.fail('isNotEmptyObject')};`;
       }
       return `if (Object.keys(${varName}).length === 0) ${ctx.fail('isNotEmptyObject')};`;
     },
@@ -46,7 +46,7 @@ export function isInstance(targetType: new (...args: any[]) => any): EmittableRu
     validate: value => value instanceof targetType,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(targetType);
-      return `if (!(${varName} instanceof _refs[${i}])) ${ctx.fail('isInstance')};`;
+      return `if (!(${varName} instanceof refs[${i}])) ${ctx.fail('isInstance')};`;
     },
   });
 }

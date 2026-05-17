@@ -164,7 +164,7 @@ describe('deserialize — integration', () => {
     expect(result.issn).toBe('0378-5955');
   });
 
-  // ── H1: Internal variable name collision fields (var _out, var _errors, var _groups) ──
+  // ── H1: Internal variable name collision fields (var _out, var errors, var _groups) ──
 
   it('should deserialize DTO when field name collides with internal variable "out"', async () => {
     const result = (await deserialize(CollisionOutDto, { out: 'value' })) as CollisionOutDto;

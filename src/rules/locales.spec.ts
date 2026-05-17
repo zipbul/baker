@@ -68,7 +68,7 @@ describe('isMobilePhone', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isMobilePhone('ko-KR').emit('_v', ctx);
+    const code = isMobilePhone('ko-KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isMobilePhone');
   });
@@ -130,7 +130,7 @@ describe('isPostalCode', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isPostalCode('KR').emit('_v', ctx);
+    const code = isPostalCode('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isPostalCode');
   });
@@ -190,7 +190,7 @@ describe('isIdentityCard', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isIdentityCard('KR').emit('_v', ctx);
+    const code = isIdentityCard('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIdentityCard');
   });
@@ -239,7 +239,7 @@ describe('isPassportNumber', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isPassportNumber('KR').emit('_v', ctx);
+    const code = isPassportNumber('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isPassportNumber');
   });

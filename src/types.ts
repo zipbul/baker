@@ -16,7 +16,7 @@ export interface EmitContext {
   /** Whether this emit runs inside a type gate (typeof/instanceof already verified) */
   insideTypeGate?: boolean;
   /** @internal Path expression for inline nested — used by makeRuleEmitCtx */
-  _pathExpr?: string;
+  pathExpr?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

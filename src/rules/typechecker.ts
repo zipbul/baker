@@ -59,7 +59,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
           code += `if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
         }
         if (maxDecimalPlaces !== undefined) {
-          code += `${code ? '\nelse ' : ''}{ var _exp=${varName}.toExponential().split('e'); var _mant=(_exp[0].split('.')[1]||'').length; var _exp2=parseInt(_exp[1],10); if(Math.max(0,_mant-_exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+          code += `${code ? '\nelse ' : ''}{ var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
         }
         return code;
       }
@@ -71,7 +71,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
         code += `\nelse if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
       }
       if (maxDecimalPlaces !== undefined) {
-        code += `\nelse { var _exp=${varName}.toExponential().split('e'); var _mant=(_exp[0].split('.')[1]||'').length; var _exp2=parseInt(_exp[1],10); if(Math.max(0,_mant-_exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+        code += `\nelse { var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
       }
       return code;
     },
@@ -114,7 +114,7 @@ export function isEnum(entity: object): EmittableRule {
     validate: value => values.indexOf(value) !== -1,
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
-      return `if (_refs[${i}].indexOf(${varName}) === -1) ${ctx.fail('isEnum')};`;
+      return `if (refs[${i}].indexOf(${varName}) === -1) ${ctx.fail('isEnum')};`;
     },
   });
 }

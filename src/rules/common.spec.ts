@@ -60,10 +60,10 @@ describe('equals', () => {
     const rule = equals(5);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(code).toContain('!==');
     expect(failMock).toHaveBeenCalledWith('equals');
   });
@@ -98,10 +98,10 @@ describe('notEquals', () => {
     const rule = notEquals(5);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(code).toContain('===');
     expect(failMock).toHaveBeenCalledWith('notEquals');
   });
@@ -159,7 +159,7 @@ describe('isEmpty', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isEmpty.emit('_v', ctx);
+    const code = isEmpty.emit('v', ctx);
     // Assert
     expect(code).toContain('undefined');
     expect(code).toContain('null');
@@ -201,7 +201,7 @@ describe('isNotEmpty', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isNotEmpty.emit('_v', ctx);
+    const code = isNotEmpty.emit('v', ctx);
     // Assert
     expect(code).toContain('undefined');
     expect(code).toContain('null');
@@ -240,10 +240,10 @@ describe('isIn', () => {
     const rule = isIn([1, 2, 3]);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(code).toContain('.has(');
     expect(failMock).toHaveBeenCalledWith('isIn');
   });
@@ -293,10 +293,10 @@ describe('isNotIn', () => {
     const rule = isNotIn([1, 2, 3]);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(code).toContain('.has(');
     expect(failMock).toHaveBeenCalledWith('isNotIn');
   });

@@ -55,7 +55,7 @@ export function createRule(
   // .emit() — generates function call code via the refs array
   fn.emit = function (varName: string, ctx: EmitContext): string {
     const i = ctx.addRef(fn);
-    return `if(!(${isAsyncFn ? 'await ' : ''}_refs[${i}](${varName}))) ${ctx.fail(name)};`;
+    return `if(!(${isAsyncFn ? 'await ' : ''}refs[${i}](${varName}))) ${ctx.fail(name)};`;
   };
 
   (fn as any).ruleName = name;

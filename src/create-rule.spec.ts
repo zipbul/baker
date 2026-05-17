@@ -57,7 +57,7 @@ describe('createRule', () => {
     // Act
     const code = rule.emit('_val', ctx as any);
     // Assert
-    expect(code).toContain('_refs[3]');
+    expect(code).toContain('refs[3]');
   });
 
   it('should include the result of ctx.fail in emitted code when calling fn.emit()', () => {
@@ -99,7 +99,7 @@ describe('createRule', () => {
     // Act
     const code = rule.emit('_val', ctx as any);
     // Assert
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
   });
 
   it('should return independent functions when calling createRule twice with the same options', () => {

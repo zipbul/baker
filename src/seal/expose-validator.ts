@@ -29,20 +29,20 @@ export function validateExposeStacks(merged: RawClassMeta, className?: string): 
     // serialize direction: !deserializeOnly (includes bidirectional + serializeOnly)
     const serEntries = meta.expose.filter(e => !e.deserializeOnly);
 
-    _checkDirectionOverlap(prefix + key, desEntries, 'deserialize');
-    _checkDirectionOverlap(prefix + key, serEntries, 'serialize');
+    checkDirectionOverlap(prefix + key, desEntries, 'deserialize');
+    checkDirectionOverlap(prefix + key, serEntries, 'serialize');
   }
 }
 
 /**
  * Check for groups overlap between each pair of @Expose entries within the same direction
  */
-function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
+function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const aGroups = entries[i]!.groups ?? [];
       const bGroups = entries[j]!.groups ?? [];
-      if (_groupsOverlap(aGroups, bGroups)) {
+      if (groupsOverlap(aGroups, bGroups)) {
         const bSet = new Set(bGroups);
         const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bSet.has(g));
         throw new SealError(
@@ -59,7 +59,7 @@ function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: st
  * - both non-empty with intersection → overlap
  * - one empty + one non-empty → no overlap (different filter scopes)
  */
-function _groupsOverlap(a: string[], b: string[]): boolean {
+function groupsOverlap(a: string[], b: string[]): boolean {
   if (a.length === 0 && b.length === 0) {return true;}
   if (a.length === 0 || b.length === 0) {return false;}
   return a.some(g => b.includes(g));

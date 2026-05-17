@@ -59,19 +59,19 @@ export function validate(classOrInput: unknown, ...rest: unknown[]): true | Bake
       );
     }
   }
-  return _validateAdHoc(classOrInput, rest as EmittableRule[]);
+  return validateAdHoc(classOrInput, rest as EmittableRule[]);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ad-hoc validation
 // ─────────────────────────────────────────────────────────────────────────────
 
-function _validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors> {
+function validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors> {
   if (rules.length === 0) {return true;}
   const hasAsync = rules.some(r => r.isAsync);
 
   if (hasAsync) {
-    return _validateAdHocAsync(input, rules);
+    return validateAdHocAsync(input, rules);
   }
 
   if (rules.length === 1) {
@@ -115,7 +115,7 @@ function _validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErr
   return errors.length ? toBakerErrors(errors) : true;
 }
 
-async function _validateAdHocAsync(input: unknown, rules: EmittableRule[]): Promise<true | BakerErrors> {
+async function validateAdHocAsync(input: unknown, rules: EmittableRule[]): Promise<true | BakerErrors> {
   const errors: BakerError[] = [];
   for (const rule of rules) {
     const result = await rule(input);

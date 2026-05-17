@@ -14,7 +14,7 @@ export function arrayContains(values: unknown[]): EmittableRule {
     validate: value => Array.isArray(value) && values.every(v => value.indexOf(v) !== -1),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
-      return `if (!_refs[${i}].every(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayContains')};`;
+      return `if (!refs[${i}].every(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayContains')};`;
     },
   });
 }
@@ -31,7 +31,7 @@ export function arrayNotContains(values: unknown[]): EmittableRule {
     validate: value => Array.isArray(value) && values.every(v => !value.includes(v)),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
-      return `if (_refs[${i}].some(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayNotContains')};`;
+      return `if (refs[${i}].some(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayNotContains')};`;
     },
   });
 }
@@ -86,7 +86,7 @@ export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRu
     emit: (varName: string, ctx: EmitContext): string => {
       if (identifier) {
         const i = ctx.addRef(identifier);
-        return `{var _keys=${varName}.map(_refs[${i}]);if(new Set(_keys).size!==_keys.length)${ctx.fail('arrayUnique')};}`;
+        return `{var keys=${varName}.map(refs[${i}]);if(new Set(keys).size!==keys.length)${ctx.fail('arrayUnique')};}`;
       }
       return `if(new Set(${varName}).size!==${varName}.length)${ctx.fail('arrayUnique')};`;
     },

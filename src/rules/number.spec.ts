@@ -53,9 +53,9 @@ describe('min', () => {
     const rule = min(10);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v < 10');
+    expect(code).toContain('v < 10');
     expect(failMock).toHaveBeenCalledWith('min');
   });
 
@@ -83,8 +83,8 @@ describe('min', () => {
   it('exclusive: emit generates v <= n check', () => {
     const rule = min(10, { exclusive: true });
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v <= 10');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v <= 10');
     expect(failMock).toHaveBeenCalledWith('min');
   });
 
@@ -135,9 +135,9 @@ describe('max', () => {
     const rule = max(10);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v > 10');
+    expect(code).toContain('v > 10');
     expect(failMock).toHaveBeenCalledWith('max');
   });
 
@@ -165,8 +165,8 @@ describe('max', () => {
   it('exclusive: emit generates v >= n check', () => {
     const rule = max(10, { exclusive: true });
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v >= 10');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v >= 10');
     expect(failMock).toHaveBeenCalledWith('max');
   });
 
@@ -203,9 +203,9 @@ describe('isPositive', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isPositive.emit('_v', ctx);
+    const code = isPositive.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v <= 0');
+    expect(code).toContain('v <= 0');
     expect(failMock).toHaveBeenCalledWith('isPositive');
     expect(isPositive.ruleName).toBe('isPositive');
     expect((isPositive as any).requiresType).toBe('number');
@@ -239,9 +239,9 @@ describe('isNegative', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isNegative.emit('_v', ctx);
+    const code = isNegative.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v >= 0');
+    expect(code).toContain('v >= 0');
     expect(failMock).toHaveBeenCalledWith('isNegative');
     expect(isNegative.ruleName).toBe('isNegative');
     expect((isNegative as any).requiresType).toBe('number');
@@ -291,9 +291,9 @@ describe('isDivisibleBy', () => {
     const rule = isDivisibleBy(4);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v % 4');
+    expect(code).toContain('v % 4');
     expect(code).toContain('!== 0');
     expect(failMock).toHaveBeenCalledWith('isDivisibleBy');
   });

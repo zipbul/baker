@@ -254,7 +254,7 @@ function makeLocaleRegexRule(name: string, locale: string, registry: Record<stri
     validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRegex(re);
-      return `if (!_re[${i}].test(${varName})) ${ctx.fail(name)};`;
+      return `if (!re[${i}].test(${varName})) ${ctx.fail(name)};`;
     },
   });
 }

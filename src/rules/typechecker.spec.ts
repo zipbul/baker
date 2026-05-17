@@ -6,7 +6,7 @@ import { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
-  const failMock = mock((code: string) => `_errors.push({path:'x',code:'${code}'})`);
+  const failMock = mock((code: string) => `errors.push({path:'x',code:'${code}'})`);
   const ctx: Partial<EmitContext> = {
     addRegex: mock((_re: RegExp) => 0),
     addRef: addRefMock,
@@ -49,9 +49,9 @@ describe('isString', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isString.emit('_v', ctx);
+    const code = isString.emit('v', ctx);
     // Assert
-    expect(code).toContain(`typeof _v !== 'string'`);
+    expect(code).toContain(`typeof v !== 'string'`);
     expect(failMock).toHaveBeenCalledWith('isString');
   });
 
@@ -133,9 +133,9 @@ describe('isNumber', () => {
     const rule = isNumber();
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain(`typeof _v !== 'number'`);
+    expect(code).toContain(`typeof v !== 'number'`);
     expect(failMock).toHaveBeenCalledWith('isNumber');
     expect(rule.ruleName).toBe('isNumber');
     expect((rule as any).requiresType).toBeUndefined();
@@ -146,10 +146,10 @@ describe('isNumber', () => {
     const rule = isNumber({ maxDecimalPlaces: 2 });
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(code).toContain('toExponential');
-    expect(code).toContain('_mant');
+    expect(code).toContain('mant');
     expect(failMock).toHaveBeenCalledWith('isNumber');
   });
 
@@ -202,9 +202,9 @@ describe('isBoolean', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isBoolean.emit('_v', ctx);
+    const code = isBoolean.emit('v', ctx);
     // Assert
-    expect(code).toContain(`typeof _v !== 'boolean'`);
+    expect(code).toContain(`typeof v !== 'boolean'`);
     expect(failMock).toHaveBeenCalledWith('isBoolean');
     expect(isBoolean.ruleName).toBe('isBoolean');
     expect((isBoolean as any).requiresType).toBeUndefined();
@@ -243,7 +243,7 @@ describe('isDate', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isDate.emit('_v', ctx);
+    const code = isDate.emit('v', ctx);
     // Assert
     expect(code).toContain('instanceof Date');
     expect(code).toContain('isNaN');
@@ -306,10 +306,10 @@ describe('isEnum', () => {
     const rule = isEnum(Direction);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('indexOf(_v)');
+    expect(code).toContain('indexOf(v)');
     expect(code).toContain('=== -1');
     expect(failMock).toHaveBeenCalledWith('isEnum');
   });
@@ -369,9 +369,9 @@ describe('isInt', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isInt.emit('_v', ctx);
+    const code = isInt.emit('v', ctx);
     // Assert
-    expect(code).toContain(`typeof _v !== 'number'`);
+    expect(code).toContain(`typeof v !== 'number'`);
     expect(code).toContain('Number.isInteger');
     expect(failMock).toHaveBeenCalledWith('isInt');
     expect(isInt.ruleName).toBe('isInt');
@@ -412,8 +412,8 @@ describe('isArray', () => {
 
   it('should generate Array.isArray check code when calling emit()', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isArray.emit('_v', ctx);
-    expect(code).toContain('Array.isArray(_v)');
+    const code = isArray.emit('v', ctx);
+    expect(code).toContain('Array.isArray(v)');
     expect(failMock).toHaveBeenCalledWith('isArray');
     expect(isArray.ruleName).toBe('isArray');
     expect((isArray as any).requiresType).toBeUndefined();
@@ -453,8 +453,8 @@ describe('isObject', () => {
 
   it('should generate isObject check code when calling emit()', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isObject.emit('_v', ctx);
-    expect(code).toContain('typeof _v');
+    const code = isObject.emit('v', ctx);
+    expect(code).toContain('typeof v');
     expect(failMock).toHaveBeenCalledWith('isObject');
     expect(isObject.ruleName).toBe('isObject');
     expect((isObject as any).requiresType).toBeUndefined();
@@ -482,7 +482,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
         return 0;
       },
       fail(code: string) {
-        return `_errors.push({code:'${code}'})`;
+        return `errors.push({code:'${code}'})`;
       },
       collectErrors: true,
     };
@@ -491,8 +491,8 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
 
   /** Compile emit code into a runnable function */
   function compile(emitCode: string, _regexes: RegExp[], _refs: unknown[]) {
-    const body = `'use strict'; var _errors = []; ${emitCode} return _errors;`;
-    return new Function('_v', '_re', '_refs', body).bind(null) as (
+    const body = `'use strict'; var errors = []; ${emitCode} return errors;`;
+    return new Function('v', 're', 'refs', body).bind(null) as (
       v: unknown,
       re: RegExp[],
       refs: unknown[],
@@ -501,7 +501,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
 
   it('isString — accepts string, rejects number', () => {
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = isString.emit('_v', ctx);
+    const code = isString.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn('hello', regexes, refs)).toEqual([]);
@@ -512,7 +512,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
   it('isNumber() — accepts 42, rejects NaN', () => {
     const rule = isNumber();
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn(42, regexes, refs)).toEqual([]);
@@ -526,7 +526,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     }
     const rule = isEnum(Color);
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn('red', regexes, refs)).toEqual([]);
@@ -536,7 +536,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
 
   it('isInt — accepts integer, rejects decimal', () => {
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = isInt.emit('_v', ctx);
+    const code = isInt.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn(5, regexes, refs)).toEqual([]);
@@ -547,7 +547,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     const { min } = require('../rules/number') as typeof import('../rules/number');
     const rule = min(5);
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn(5, regexes, refs)).toEqual([]);
@@ -560,7 +560,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     const { minLength } = require('../rules/string') as typeof import('../rules/string');
     const rule = minLength(3);
     const { ctx, regexes, refs } = makeRealCtx();
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     const fn = compile(code, regexes, refs);
 
     expect(fn('abc', regexes, refs)).toEqual([]);
