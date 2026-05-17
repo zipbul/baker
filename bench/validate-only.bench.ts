@@ -1,13 +1,14 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: validate() vs deserialize() — prove Object.create elimination
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+
 import { Field, deserialize, validate } from '../index';
 import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import Ajv from 'ajv';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 

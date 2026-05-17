@@ -19,8 +19,16 @@ export function defineRuleMetadata(fn: InternalRule, meta: RuleMetadata): void {
   const target = fn as MutableRule;
   target.emit = meta.emit;
   target.ruleName = meta.ruleName;
-  if (meta.requiresType !== undefined) {target.requiresType = meta.requiresType;}
-  if (meta.constraints !== undefined) {target.constraints = meta.constraints;}
-  if (meta.isAsync !== undefined) {target.isAsync = meta.isAsync;}
-  if (meta.plan) {target.plan = meta.plan;}
+  if (meta.requiresType !== undefined) {
+    target.requiresType = meta.requiresType;
+  }
+  if (meta.constraints !== undefined) {
+    target.constraints = meta.constraints;
+  }
+  if (meta.isAsync !== undefined) {
+    target.isAsync = meta.isAsync;
+  }
+  if (meta.plan) {
+    target.plan = meta.plan;
+  }
 }

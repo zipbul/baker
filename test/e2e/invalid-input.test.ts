@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -19,44 +20,34 @@ class SimpleDto {
 describe('invalidInput error code', () => {
   it('null input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, null);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors[0]!;
-      expect(err.path).toBe('');
-      expect(err.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    const err = result.errors[0]!;
+    expect(err.path).toBe('');
+    expect(err.code).toBe('invalidInput');
   });
 
   it('undefined input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, undefined);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('array input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, [1, 2, 3]);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('string input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, 'hello');
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('number input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, 42);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('valid object → passes', async () => {

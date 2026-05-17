@@ -60,8 +60,12 @@ function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: str
  * - one empty + one non-empty → no overlap (different filter scopes)
  */
 function groupsOverlap(a: string[], b: string[]): boolean {
-  if (a.length === 0 && b.length === 0) {return true;}
-  if (a.length === 0 || b.length === 0) {return false;}
+  if (a.length === 0 && b.length === 0) {
+    return true;
+  }
+  if (a.length === 0 || b.length === 0) {
+    return false;
+  }
   return a.some(g => b.includes(g));
 }
 export { validateExposeStacks };

@@ -1,19 +1,20 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
+import { plainToInstance } from 'class-transformer';
+import { IsNumber, Min, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Error collection — 10 fields, all invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import * as reflectMetadata from 'reflect-metadata';
+import * as v from 'valibot';
+import { z } from 'zod';
+
 import { Field, deserialize, configure, isBakerError, seal } from '../index';
 import { isNumber, min } from '../src/rules/index';
 import { ERROR_ALL_FAIL } from './data';
-import * as reflectMetadata from 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
-import { IsNumber, Min, validateSync } from 'class-validator';
-import { z } from 'zod';
-import * as v from 'valibot';
-import Ajv from 'ajv';
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { type } from 'arktype';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
@@ -152,7 +153,9 @@ group('error collection — 10 fields all invalid', () => {
   });
   bench('typebox', () => {
     let n = 0;
-    for (const _ of tbCheck.Errors(ERROR_ALL_FAIL)) {n++;}
+    for (const _ of tbCheck.Errors(ERROR_ALL_FAIL)) {
+      n++;
+    }
     sinkNum += n;
   });
   bench('arktype', () => {
@@ -162,4 +165,6 @@ group('error collection — 10 fields all invalid', () => {
 });
 
 await run();
-if (sinkNum === -1) {console.log('unreachable', sinkNum);}
+if (sinkNum === -1) {
+  console.log('unreachable', sinkNum);
+}

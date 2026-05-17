@@ -1,9 +1,9 @@
 import type { SealedExecutors } from '../../../src/types';
 
 import { resetConfigForTesting } from '../../../src/configure';
+import { getSealed, deleteSealed, setRaw } from '../../../src/meta-access';
 import { globalRegistry } from '../../../src/registry';
 import { resetForTesting, sealedClasses } from '../../../src/seal/seal';
-import { getSealed, deleteSealed, setRaw } from '../../../src/meta-access';
 
 /**
  * Testing only: resets seal state + global configuration.
@@ -35,6 +35,10 @@ export function unseal(): void {
  */
 export function purgePoisonClasses(): void {
   const cls: Function[] = [];
-  for (const c of globalRegistry) {cls.push(c);}
-  for (const c of cls) {globalRegistry.delete(c);}
+  for (const c of globalRegistry) {
+    cls.push(c);
+  }
+  for (const c of cls) {
+    globalRegistry.delete(c);
+  }
 }

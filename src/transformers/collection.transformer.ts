@@ -9,7 +9,9 @@ export function csvTransformer(separator = ','): Transformer {
 
 export const jsonTransformer: Transformer = {
   deserialize: ({ value }) => {
-    if (typeof value !== 'string') {return value;}
+    if (typeof value !== 'string') {
+      return value;
+    }
     try {
       return JSON.parse(value);
     } catch {
@@ -17,7 +19,9 @@ export const jsonTransformer: Transformer = {
     }
   },
   serialize: ({ value }) => {
-    if (value != null && typeof value === 'object') {return JSON.stringify(value);}
+    if (value != null && typeof value === 'object') {
+      return JSON.stringify(value);
+    }
     return value;
   },
 };

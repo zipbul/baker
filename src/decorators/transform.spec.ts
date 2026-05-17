@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, TypeDef } from '../types';
 
+import { assertDefined } from '../../test/integration/helpers/assert';
 import { deleteRaw, requireRaw } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { Field } from './field';
@@ -16,19 +17,25 @@ function makeClass(): new () => unknown {
 
 function fieldMeta(ctor: Function, key: string): RawPropertyMeta {
   const m = requireRaw(ctor)[key];
-  if (!m) {throw new Error(`${ctor.name}.${key} not registered`);}
+  if (!m) {
+    throw new Error(`${ctor.name}.${key} not registered`);
+  }
   return m;
 }
 
 function fieldType(ctor: Function, key: string): TypeDef {
   const t = fieldMeta(ctor, key).type;
-  if (!t) {throw new Error(`${ctor.name}.${key} has no type`);}
+  if (!t) {
+    throw new Error(`${ctor.name}.${key} has no type`);
+  }
   return t;
 }
 
 function fieldTransform(ctor: Function, key: string, idx: number): TransformDef {
   const t = fieldMeta(ctor, key).transform[idx];
-  if (!t) {throw new Error(`${ctor.name}.${key}.transform[${idx}] missing`);}
+  if (!t) {
+    throw new Error(`${ctor.name}.${key}.transform[${idx}] missing`);
+  }
   return t;
 }
 
@@ -121,7 +128,7 @@ describe('@Field — metadata collection', () => {
       },
     })(Cls.prototype, 'animal');
     const disc = fieldType(Cls, 'animal').discriminator;
-    if (!disc) {throw new Error('discriminator missing');}
+    assertDefined(disc);
     expect(disc.property).toBe('breed');
     expect(disc.subTypes).toHaveLength(2);
   });

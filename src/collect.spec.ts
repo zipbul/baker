@@ -3,8 +3,8 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import type { InternalRule, RuleDef } from './types';
 
 import { ensureMeta, collectValidation } from './collect';
-import { globalRegistry } from './registry';
 import { getRaw, deleteRaw } from './meta-access';
+import { globalRegistry } from './registry';
 
 function makeRule(name: string = 'stub'): InternalRule {
   return Object.assign((_v: unknown): boolean => true, {

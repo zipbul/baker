@@ -3,11 +3,12 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../interfaces';
 
+import { assertBakerError } from '../../test/integration/helpers/assert';
 import { isBakerError, SealError } from '../errors';
+import { setSealed, deleteSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { resetForTesting } from '../seal/seal';
 import { deserialize } from './deserialize';
-import { setSealed, deleteSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -126,20 +127,16 @@ describe('deserialize', () => {
     ];
     attachSealed(Dto, () => err(errors));
     const result = await deserialize(Dto, {});
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toEqual(errors);
-    }
+    assertBakerError(result);
+    expect(result.errors).toEqual(errors);
   });
 
   it('should return BakerErrors(code:invalidInput) when deserialize returns invalidInput error', async () => {
     const Dto = makeClass();
     attachSealed(Dto, () => err([{ path: '', code: 'invalidInput' }]));
     const result = await deserialize(Dto, null);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('should return BakerErrors when deserialize returns Err for array input', async () => {

@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { Field, deserialize, serialize, configure, isBakerError, seal } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, isNumber, minLength } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -114,12 +115,10 @@ describe('Set<DTO> — deserialize', () => {
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: 'ok' }, { name: '' }],
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThan(0);
-      const err = result.errors.find(e => e.path.includes('[1]'));
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThan(0);
+    const err = result.errors.find(e => e.path.includes('[1]'));
+    expect(err).toBeDefined();
   });
 });
 
@@ -196,12 +195,10 @@ describe('Map<string, DTO> — deserialize', () => {
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThan(0);
-      const err = result.errors.find(e => e.path.includes('KRW'));
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThan(0);
+    const err = result.errors.find(e => e.path.includes('KRW'));
+    expect(err).toBeDefined();
   });
 });
 
@@ -357,11 +354,9 @@ describe('stopAtFirstError — collection', () => {
     const result = await deserialize(StopSetDto, {
       items: [{ name: '' }, { name: '' }, { name: '' }],
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(1);
-      expect(result.errors[0]!.path).toContain('[0]');
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBe(1);
+    expect(result.errors[0]!.path).toContain('[0]');
   });
 
   it('Map<string, DTO> stopAtFirstError → only first error returned', async () => {
@@ -377,10 +372,8 @@ describe('stopAtFirstError — collection', () => {
     const result = await deserialize(StopMapDto, {
       data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(1);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBe(1);
   });
 });
 
@@ -390,10 +383,8 @@ describe('collectErrors — collection', () => {
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: '' }, { name: '' }],
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(2);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(2);
   });
 
   it('Map<string, DTO> all errors collected', async () => {
@@ -401,13 +392,11 @@ describe('collectErrors — collection', () => {
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(2);
-      const paths = result.errors.map(e => e.path);
-      expect(paths.some(p => p.includes('USD'))).toBe(true);
-      expect(paths.some(p => p.includes('EUR'))).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(2);
+    const paths = result.errors.map(e => e.path);
+    expect(paths.some(p => p.includes('USD'))).toBe(true);
+    expect(paths.some(p => p.includes('EUR'))).toBe(true);
   });
 });
 

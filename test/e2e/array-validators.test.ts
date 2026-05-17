@@ -11,6 +11,7 @@ import {
   arrayContains,
   arrayNotContains,
 } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -140,9 +141,7 @@ describe('Set collection + array-level rules', () => {
 
   it('Set with arrayMinSize — too few items → error', async () => {
     const result = await deserialize(SetWithMinDto, { items: [{ name: 'a' }] });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'arrayMinSize')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'arrayMinSize')).toBe(true);
   });
 });

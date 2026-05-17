@@ -67,7 +67,9 @@ function validate(classOrInput: unknown, ...rest: unknown[]): true | BakerErrors
 // ─────────────────────────────────────────────────────────────────────────────
 
 function validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors> {
-  if (rules.length === 0) {return true;}
+  if (rules.length === 0) {
+    return true;
+  }
   const hasAsync = rules.some(r => r.isAsync);
 
   if (hasAsync) {
@@ -84,10 +86,16 @@ function validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErro
     const second = rules[1]!;
     const firstOk = first(input);
     const secondOk = second(input);
-    if (firstOk && secondOk) {return true;}
+    if (firstOk && secondOk) {
+      return true;
+    }
     const errors: BakerError[] = [];
-    if (!firstOk) {errors.push({ path: '', code: first.ruleName });}
-    if (!secondOk) {errors.push({ path: '', code: second.ruleName });}
+    if (!firstOk) {
+      errors.push({ path: '', code: first.ruleName });
+    }
+    if (!secondOk) {
+      errors.push({ path: '', code: second.ruleName });
+    }
     return toBakerErrors(errors);
   }
 
@@ -98,11 +106,19 @@ function validateAdHoc(input: unknown, rules: EmittableRule[]): true | BakerErro
     const firstOk = first(input);
     const secondOk = second(input);
     const thirdOk = third(input);
-    if (firstOk && secondOk && thirdOk) {return true;}
+    if (firstOk && secondOk && thirdOk) {
+      return true;
+    }
     const errors: BakerError[] = [];
-    if (!firstOk) {errors.push({ path: '', code: first.ruleName });}
-    if (!secondOk) {errors.push({ path: '', code: second.ruleName });}
-    if (!thirdOk) {errors.push({ path: '', code: third.ruleName });}
+    if (!firstOk) {
+      errors.push({ path: '', code: first.ruleName });
+    }
+    if (!secondOk) {
+      errors.push({ path: '', code: second.ruleName });
+    }
+    if (!thirdOk) {
+      errors.push({ path: '', code: third.ruleName });
+    }
     return toBakerErrors(errors);
   }
 

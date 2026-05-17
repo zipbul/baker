@@ -23,7 +23,9 @@ const SEAL_TIME_KEYS = new Set<string>([
  *   - any other key → "unknown call option"
  */
 export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
-  if (opts === undefined || opts === null) {return undefined;}
+  if (opts === undefined || opts === null) {
+    return undefined;
+  }
   if (typeof opts !== 'object' || Array.isArray(opts)) {
     throw new SealError(`Call options must be a plain object. Received: ${Array.isArray(opts) ? 'array' : typeof opts}.`);
   }
@@ -38,7 +40,9 @@ export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
     throw new SealError(`Call options must be a plain object literal. Received instance of ${ctorName}.`);
   }
   for (const key of Object.keys(opts)) {
-    if (CALL_OPTION_KEYS.has(key)) {continue;}
+    if (CALL_OPTION_KEYS.has(key)) {
+      continue;
+    }
     if (SEAL_TIME_KEYS.has(key)) {
       throw new SealError(
         `Option '${key}' is a seal-time setting and cannot be passed per-call. ` +

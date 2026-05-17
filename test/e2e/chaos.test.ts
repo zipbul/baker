@@ -2,10 +2,15 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, serialize, validate, configure, Field, isBakerError, createRule, seal } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
+import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
 afterEach(() => unseal());
+
+const isStringPredicate = (v: unknown): boolean => typeof v === 'string';
+const alwaysFalse = (_v: unknown): boolean => false;
+const makeStringRuleBelow50 = (i: number): ((v: unknown) => boolean) => (i < 50 ? isStringPredicate : alwaysFalse);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Empty object to DTO with many required fields
@@ -28,20 +33,18 @@ describe('chaos — empty object to DTO with many required fields', () => {
   it('all errors collected for empty input', async () => {
     seal();
     const result = await deserialize(ManyFieldsDto, {});
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const paths = result.errors.map(e => e.path);
-      expect(paths).toContain('a');
-      expect(paths).toContain('b');
-      expect(paths).toContain('c');
-      expect(paths).toContain('d');
-      expect(paths).toContain('e');
-      expect(paths).toContain('f');
-      expect(paths).toContain('g');
-      expect(paths).toContain('h');
-      expect(paths).toContain('i');
-      expect(paths).toContain('j');
-    }
+    assertBakerError(result);
+    const paths = result.errors.map(e => e.path);
+    expect(paths).toContain('a');
+    expect(paths).toContain('b');
+    expect(paths).toContain('c');
+    expect(paths).toContain('d');
+    expect(paths).toContain('e');
+    expect(paths).toContain('f');
+    expect(paths).toContain('g');
+    expect(paths).toContain('h');
+    expect(paths).toContain('i');
+    expect(paths).toContain('j');
   });
 });
 
@@ -95,10 +98,8 @@ describe('chaos — deeply nested DTO (10+ levels)', () => {
     seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 123 } } } } } } } } } } };
     const result = await deserialize(Root, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
 });
 
@@ -115,22 +116,24 @@ describe('chaos — 1000+ fields DTO', () => {
   it('all 1000 fields validate correctly', async () => {
     seal();
     const input: Record<string, number> = {};
-    for (let i = 0; i < 1000; i++) {input[`f${i}`] = i;}
+    for (let i = 0; i < 1000; i++) {
+      input[`f${i}`] = i;
+    }
     const result = await deserialize<BigDto>(BigDto, input);
     expect(isBakerError(result)).toBe(false);
-    expect((result as Record<string, number>)["f0"]).toBe(0);
-    expect((result as Record<string, number>)["f999"]).toBe(999);
+    expect((result as Record<string, number>)['f0']).toBe(0);
+    expect((result as Record<string, number>)['f999']).toBe(999);
   });
 
   it('all 1000 fields report errors on invalid input', async () => {
     seal();
     const input: Record<string, string> = {};
-    for (let i = 0; i < 1000; i++) {input[`f${i}`] = 'bad';}
-    const result = await deserialize(BigDto, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(1000);
+    for (let i = 0; i < 1000; i++) {
+      input[`f${i}`] = 'bad';
     }
+    const result = await deserialize(BigDto, input);
+    assertBakerError(result);
+    expect(result.errors.length).toBe(1000);
   });
 });
 
@@ -149,10 +152,8 @@ describe('chaos — circular reference detection', () => {
     const obj: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     obj.child.child = obj;
     const result = await deserialize(TreeNode, obj);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'circular')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'circular')).toBe(true);
   });
 });
 
@@ -171,10 +172,8 @@ describe('chaos — 10000 deserializations', () => {
     const input = { name: 'test', age: 25 };
     for (let i = 0; i < 10_000; i++) {
       const result = (await deserialize<SimpleDto>(SimpleDto, input)) as SimpleDto;
-      if (i % 1000 === 0) {
-        expect(result.name).toBe('test');
-        expect(result.age).toBe(25);
-      }
+      expect(result.name).toBe('test');
+      expect(result.age).toBe(25);
     }
   });
 });
@@ -223,10 +222,8 @@ describe('chaos — every rule type on one field', () => {
   it('short string fails minLength among other rules', async () => {
     seal();
     const result = await deserialize(KitchenSinkDto, { email: 'a@b' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
 });
 
@@ -253,10 +250,8 @@ describe('chaos — extremely long string (100KB)', () => {
     }
     seal(D);
     const result = await deserialize(D, { v: 'x'.repeat(100_000) });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
 });
 
@@ -371,21 +366,19 @@ describe('chaos — prototype pollution attempt', () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"polluted":true}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
-    if (!isBakerError(result)) {
-      expect(result.name).toBe('ok');
-      expect((result as SafeDto & { polluted?: unknown }).polluted).toBeUndefined();
-      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
-    }
+    assertNotBakerError(result);
+    expect(result.name).toBe('ok');
+    expect((result as SafeDto & { polluted?: unknown }).polluted).toBeUndefined();
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
 
   it('constructor key does not pollute result', async () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","constructor":{"prototype":{"polluted":true}}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
-    if (!isBakerError(result)) {
-      expect(result.name).toBe('ok');
-      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
-    }
+    assertNotBakerError(result);
+    expect(result.name).toBe('ok');
+    expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
 
   it('forbidUnknown mode rejects __proto__ and constructor', async () => {
@@ -393,10 +386,8 @@ describe('chaos — prototype pollution attempt', () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"p":true},"constructor":{}}');
     const result = await deserialize(SafeDto, malicious);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
 });
 
@@ -439,12 +430,10 @@ describe('chaos — validate with 100 rules on single value', () => {
 
   it('failing rules among 100 all reported', async () => {
     seal();
-    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, v => (i < 50 ? typeof v === 'string' : false)));
+    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, makeStringRuleBelow50(i)));
     const result = await validate('hello', ...rules);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(50);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBe(50);
   });
 });
 

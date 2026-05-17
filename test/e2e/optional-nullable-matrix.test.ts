@@ -7,15 +7,30 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-async function tryDeserialize<T>(
-  cls: new (...args: never[]) => T,
-  input: unknown,
-): Promise<{ ok: true; value: T } | { ok: false; codes: string[] }> {
+type TryResult<T> = { ok: true; value: T } | { ok: false; codes: string[] };
+
+async function tryDeserialize<T>(cls: new (...args: never[]) => T, input: unknown): Promise<TryResult<T>> {
   const result = await deserialize(cls, input);
   if (isBakerError(result)) {
     return { ok: false, codes: result.errors.map(x => x.code) };
   }
   return { ok: true, value: result };
+}
+
+/** Asserts r is success and returns the value (narrowing). */
+function expectSuccess<T>(r: TryResult<T>): T {
+  if (!r.ok) {
+    throw new Error(`expected success, got codes: ${JSON.stringify(r.codes)}`);
+  }
+  return r.value;
+}
+
+/** Asserts r is failure and returns the codes (narrowing). */
+function expectFailureCodes<T>(r: TryResult<T>): string[] {
+  if (r.ok) {
+    throw new Error('expected failure, got success');
+  }
+  return r.codes;
 }
 
 // ─── Matrix: 4 decorator states x 4 input values ────────────────────────────
@@ -54,13 +69,13 @@ describe('A: isString only', () => {
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('hello');}
+    expect(expectSuccess(r).v).toBe('hello');
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('isString');}
+    expect(expectFailureCodes(r)).toContain('isString');
   });
 });
 
@@ -75,7 +90,7 @@ describe('B: optional + isString', () => {
   it('undefined → passes (Optional)', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBeUndefined();}
+    expect(expectSuccess(r).v).toBeUndefined();
   });
 
   it('null → passes (Optional skips null/undefined)', async () => {
@@ -86,13 +101,13 @@ describe('B: optional + isString', () => {
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('hello');}
+    expect(expectSuccess(r).v).toBe('hello');
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('isString');}
+    expect(expectFailureCodes(r)).toContain('isString');
   });
 });
 
@@ -112,19 +127,19 @@ describe('C: nullable + isString', () => {
   it('null → passes (Nullable)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBeNull();}
+    expect(expectSuccess(r).v).toBeNull();
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('hello');}
+    expect(expectSuccess(r).v).toBe('hello');
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('isString');}
+    expect(expectFailureCodes(r)).toContain('isString');
   });
 });
 
@@ -139,25 +154,25 @@ describe('D: optional + nullable + isString', () => {
   it('undefined → passes', async () => {
     const r = await tryDeserialize(Dto, {});
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBeUndefined();}
+    expect(expectSuccess(r).v).toBeUndefined();
   });
 
   it('null → passes', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBeNull();}
+    expect(expectSuccess(r).v).toBeNull();
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('hello');}
+    expect(expectSuccess(r).v).toBe('hello');
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('isString');}
+    expect(expectFailureCodes(r)).toContain('isString');
   });
 });
 
@@ -177,19 +192,19 @@ describe('E: nullable + isString (required by default)', () => {
   it('null → passes (nullable allows null)', async () => {
     const r = await tryDeserialize(Dto, { v: null });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBeNull();}
+    expect(expectSuccess(r).v).toBeNull();
   });
 
   it('valid string → passes', async () => {
     const r = await tryDeserialize(Dto, { v: 'hello' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('hello');}
+    expect(expectSuccess(r).v).toBe('hello');
   });
 
   it('number → isString rejected', async () => {
     const r = await tryDeserialize(Dto, { v: 42 });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('isString');}
+    expect(expectFailureCodes(r)).toContain('isString');
   });
 });
 
@@ -206,13 +221,13 @@ describe('empty string ("") handling', () => {
   it('isString allows empty string', async () => {
     const r = await tryDeserialize(StrDto, { v: '' });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe('');}
+    expect(expectSuccess(r).v).toBe('');
   });
 
   it('minLength(1) rejects empty string', async () => {
     const r = await tryDeserialize(MinLenDto, { v: '' });
     expect(r.ok).toBe(false);
-    if (!r.ok) {expect(r.codes).toContain('minLength');}
+    expect(expectFailureCodes(r)).toContain('minLength');
   });
 });
 
@@ -229,12 +244,12 @@ describe('falsy value handling', () => {
   it('0 passes isNumber', async () => {
     const r = await tryDeserialize(NumDto, { v: 0 });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe(0);}
+    expect(expectSuccess(r).v).toBe(0);
   });
 
   it('false passes isBoolean', async () => {
     const r = await tryDeserialize(BoolDto, { v: false });
     expect(r.ok).toBe(true);
-    if (r.ok) {expect(r.value.v).toBe(false);}
+    expect(expectSuccess(r).v).toBe(false);
   });
 });

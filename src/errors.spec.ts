@@ -2,6 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { BakerError } from './errors';
 
+import { assertBakerError } from '../test/integration/helpers/assert';
 import { isBakerError, BAKER_ERROR, SealError, toBakerErrors } from './errors';
 
 describe('isBakerError', () => {
@@ -69,12 +70,9 @@ describe('isBakerError', () => {
       { path: 'email', code: 'isEmail' },
     ];
     const result: unknown = toBakerErrors(errors);
-    if (isBakerError(result)) {
-      expect(result.errors).toEqual(errors);
-      expect(result.errors).toHaveLength(2);
-    } else {
-      expect.unreachable();
-    }
+    assertBakerError(result);
+    expect(result.errors).toEqual(errors);
+    expect(result.errors).toHaveLength(2);
   });
 
   it('should return true for BakerErrors with empty errors array', () => {

@@ -1,13 +1,22 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, serialize, seal } from '../../index';
+import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { isAsyncFunction } from '../../src/utils';
 import { unseal } from '../integration/helpers/unseal';
-import { requireSealed } from '../../src/meta-access';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
+
+const trimIfString = ({ value }: { value: unknown }): unknown => {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return value;
+};
+const promiseTrimIfString = ({ value }: { value: unknown }): Promise<unknown> => Promise.resolve(trimIfString({ value }));
+const passthrough = ({ value }: { value: unknown }): unknown => value;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -36,8 +45,12 @@ class AsyncChainDto {
     transform: {
       deserialize: async ({ value }) => {
         let v = value;
-        if (typeof v === 'string') {v = v.trim();}
-        if (typeof v === 'string') {v = v.toUpperCase();}
+        if (typeof v === 'string') {
+          v = v.trim();
+        }
+        if (typeof v === 'string') {
+          v = v.toUpperCase();
+        }
         return v;
       },
       serialize: ({ value }) => value,
@@ -63,8 +76,8 @@ describe('async @Transform — deserialize', () => {
     class PromiseDeserializeDto {
       @Field(isString, {
         transform: {
-          deserialize: ({ value }) => Promise.resolve(typeof value === 'string' ? value.trim() : value),
-          serialize: ({ value }) => value,
+          deserialize: promiseTrimIfString,
+          serialize: passthrough,
         },
       })
       name!: string;

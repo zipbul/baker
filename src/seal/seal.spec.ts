@@ -1,15 +1,15 @@
-import { isErr } from '@zipbul/result';
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
 import type { BakerError } from '../errors';
 import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
 
+import { assertIsErr } from '../../test/integration/helpers/assert';
 import { SealError } from '../errors';
+import { getSealed, setSealed, deleteSealed, getRaw, setRaw, deleteRaw, requireSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
 import { seal, resetForTesting, __testing__ } from './seal';
-import { getSealed, setSealed, deleteSealed, getRaw, setRaw, deleteRaw, requireSealed } from '../meta-access';
 
 const { mergeInheritance, circularPlaceholder } = __testing__;
 
@@ -25,6 +25,14 @@ function registerClass(ctor: Function, raw?: RawClassMeta): void {
   }
   globalRegistry.add(ctor);
   freeClasses.push(ctor);
+}
+
+/** Restore raw meta from sealed.merged if present (module-scope helper). */
+function restoreRawFromMerged(ctor: Function): void {
+  const sealed = requireSealed(ctor);
+  if (sealed?.merged) {
+    setRaw(ctor, sealed.merged);
+  }
 }
 
 function makeStringField(name: string, rules: RuleDef[] = []): RawClassMeta {
@@ -121,7 +129,7 @@ describe('seal', () => {
     const sealed = requireSealed(PersonDto2);
     const result = await sealed.deserialize({ name: 42 });
     // Assert — should be Err (has .data property)
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     expect(result.data).toBeDefined();
     expect(Array.isArray(result.data)).toBe(true);
   });
@@ -157,7 +165,7 @@ describe('seal', () => {
     registerClass(DtoA, raw);
     // Pre-seal DtoA with a sentinel executor; verify seal() preserves it by reference equality
     const sentinel: SealedExecutors<unknown> = {
-      deserialize: () => ({ ok: true } as never),
+      deserialize: () => ({ ok: true }) as never,
       serialize: () => ({ tag: 'pre-sealed' }),
       validate: () => null,
       isAsync: false,
@@ -230,8 +238,7 @@ describe('seal', () => {
     registerClass(DtoB, makeStringField('val'));
     seal();
     // Simulate unseal — restore RAW from merged, re-register
-    const sealed = requireSealed(DtoB);
-    if (sealed?.merged) {setRaw(DtoB, sealed.merged);}
+    restoreRawFromMerged(DtoB);
     deleteSealed(DtoB);
     globalRegistry.add(DtoB);
     freeClasses.push(DtoB);
@@ -296,8 +303,7 @@ describe('seal', () => {
     const firstResult = await first.deserialize({ name: 'Bob' });
 
     // Simulate unseal — restore RAW from merged, re-register
-    const sealed = requireSealed(IdempDto);
-    if (sealed?.merged) {setRaw(IdempDto, sealed.merged);}
+    restoreRawFromMerged(IdempDto);
     deleteSealed(IdempDto);
     globalRegistry.add(IdempDto);
     freeClasses.push(IdempDto);

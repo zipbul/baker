@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
 import { arrayOf, configure, deserialize, Field, isBakerError, serialize, seal } from '../../index';
 import { isNumber, isString, min, minLength } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -78,10 +79,8 @@ describe('option combinations meta', () => {
     expect(ok.name).toBe('alice');
 
     const bad = await deserialize(Dto, { name: 'alice' });
-    expect(isBakerError(bad)).toBe(true);
-    if (isBakerError(bad)) {
-      expect(bad.errors[0]!.code).toBe('whitelistViolation');
-    }
+    assertBakerError(bad);
+    expect(bad.errors[0]!.code).toBe('whitelistViolation');
   });
 
   it('groups affect deserialize visibility and serialize output consistently', async () => {

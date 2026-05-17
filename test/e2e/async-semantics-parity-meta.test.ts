@@ -13,6 +13,14 @@ const asyncEven = createRule({
   requiresType: 'number',
 });
 
+const asyncTrimUpper = async ({ value }: { value: unknown }): Promise<unknown> => {
+  if (typeof value === 'string') {
+    return value.trim().toUpperCase();
+  }
+  return value;
+};
+const passthrough = ({ value }: { value: unknown }): unknown => value;
+
 const asyncStartsWithA = createRule({
   name: 'asyncStartsWithA',
   validate: async value => typeof value === 'string' && value.startsWith('a'),
@@ -56,8 +64,8 @@ describe('async semantics parity meta', () => {
     class Dto {
       @Field(isString, {
         transform: {
-          deserialize: async ({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-          serialize: ({ value }) => value,
+          deserialize: asyncTrimUpper,
+          serialize: passthrough,
         },
       })
       value!: string;

@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, createRule, seal } from '../../index';
+import { Field, deserialize, createRule, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -41,11 +42,9 @@ describe('createRule — sync', () => {
 
   it('rule violation → custom error code', async () => {
     const result = await deserialize(EvenDto, { value: 3 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'isEven');
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'isEven');
+    expect(err).toBeDefined();
   });
 
   it('can be called directly', () => {
@@ -62,11 +61,9 @@ describe('createRule — async', () => {
 
   it('async rule violation', async () => {
     const result = await deserialize(AsyncRuleDto, { score: -1 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'asyncPositive');
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'asyncPositive');
+    expect(err).toBeDefined();
   });
 
   it('promise-returning non-async rule violation throws contract error', () => {

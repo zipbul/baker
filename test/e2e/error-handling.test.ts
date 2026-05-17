@@ -3,6 +3,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { Field, deserialize, configure, isBakerError, seal } from '../../index';
 import { collectValidation } from '../../src/collect';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -64,19 +65,15 @@ describe('error handling — stopAtFirstError', () => {
     configure({ stopAtFirstError: true });
     seal();
     const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(1);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBe(1);
   });
 
   it('stopAtFirstError: false (default) → collects all errors', async () => {
     seal();
     const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(3);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
 });
 
@@ -84,22 +81,18 @@ describe('error handling — custom message', () => {
   it('string message', async () => {
     seal();
     const result = await deserialize(MessageDto, { name: 123 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.path === 'name');
-      expect(err!.message).toBe('name must be a string');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.path === 'name');
+    expect(err!.message).toBe('name must be a string');
   });
 
   it('function message', async () => {
     seal();
     const result = await deserialize(MessageFnDto, { score: 'abc' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.path === 'score');
-      expect(err!.message).toContain('score');
-      expect(err!.message).toContain('abc');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.path === 'score');
+    expect(err!.message).toContain('score');
+    expect(err!.message).toContain('abc');
   });
 });
 
@@ -107,11 +100,9 @@ describe('error handling — context', () => {
   it('includes context object', async () => {
     seal();
     const result = await deserialize(ContextDto, { email: 'not-email' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.path === 'email');
-      expect(err!.context).toEqual({ severity: 'critical' });
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.path === 'email');
+    expect(err!.context).toEqual({ severity: 'critical' });
   });
 });
 

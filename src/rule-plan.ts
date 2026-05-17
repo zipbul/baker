@@ -50,7 +50,9 @@ function makePlannedRule(options: {
     validate: options.validate,
     emit: (varName, ctx) => emitRulePlan(varName, ctx, options.name, options.plan),
   };
-  if (options.constraints !== undefined) {inner.constraints = options.constraints;}
+  if (options.constraints !== undefined) {
+    inner.constraints = options.constraints;
+  }
   return makeRule(inner);
 }
 
@@ -69,9 +71,15 @@ function makeRule(options: {
     ruleName: options.name,
     constraints: options.constraints ?? {},
   };
-  if (options.requiresType !== undefined) {meta.requiresType = options.requiresType;}
-  if (options.isAsync !== undefined) {meta.isAsync = options.isAsync;}
-  if (options.plan !== undefined) {meta.plan = options.plan;}
+  if (options.requiresType !== undefined) {
+    meta.requiresType = options.requiresType;
+  }
+  if (options.isAsync !== undefined) {
+    meta.isAsync = options.isAsync;
+  }
+  if (options.plan !== undefined) {
+    meta.plan = options.plan;
+  }
   defineRuleMetadata(fn, meta);
   return fn;
 }
@@ -90,20 +98,30 @@ function emitRulePlan(
 
 /** Strip `x !== x` / `getTime() !== getTime()` self-comparison guards — redundant inside type gate */
 function stripSelfComparison(check: RulePlanCheck): RulePlanCheck {
-  if (check.kind === 'compare') {return check;}
+  if (check.kind === 'compare') {
+    return check;
+  }
   const filtered = check.checks.filter(c => !isSelfComparison(c));
-  if (filtered.length === 0) {return check;} // safety: don't strip everything
-  if (filtered.length === 1) {return filtered[0]!;}
+  if (filtered.length === 0) {
+    return check;
+  } // safety: don't strip everything
+  if (filtered.length === 1) {
+    return filtered[0]!;
+  }
   return { kind: check.kind, checks: filtered };
 }
 
 function isSelfComparison(check: RulePlanCheck): boolean {
-  if (check.kind !== 'compare' || check.op !== '!==') {return false;}
+  if (check.kind !== 'compare' || check.op !== '!==') {
+    return false;
+  }
   return exprEqual(check.left, check.right);
 }
 
 function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
-  if (a.kind !== b.kind) {return false;}
+  if (a.kind !== b.kind) {
+    return false;
+  }
   switch (a.kind) {
     case 'value':
       return true;

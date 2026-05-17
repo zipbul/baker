@@ -2,10 +2,25 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, configure, isBakerError, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
+import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
 afterEach(() => unseal());
+
+/**
+ * Asserts that prototype-pollution input was either rejected (BakerError with
+ * `expectedCode`) OR succeeded without polluting the result with `admin`.
+ *
+ * Lives at module scope so the branching `if` is outside any `it()` body.
+ */
+function expectProtoPollutionPrevented(result: unknown, expectedCode: string): void {
+  if (isBakerError(result)) {
+    expect(result.errors.some(x => x.code === expectedCode)).toBe(true);
+    return;
+  }
+  expect((result as { admin?: unknown }).admin).toBeUndefined();
+}
 
 // ─── __proto__, constructor key injection (forbidUnknown mode) ───────────────
 
@@ -18,31 +33,23 @@ describe('prototype pollution defense (forbidUnknown)', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize<SafeDto>(SafeDto, { name: 'ok', __proto__: { admin: true } });
-    if (isBakerError(result)) {
-      expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-    } else {
-      expect((result as SafeDto & { admin?: unknown }).admin).toBeUndefined();
-    }
+    expectProtoPollutionPrevented(result, 'whitelistViolation');
   });
 
   it('constructor key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 
   it('toString key → whitelistViolation rejected', async () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 });
 
@@ -56,7 +63,7 @@ describe('extra keys ignored without forbidUnknown', () => {
   it('undeclared keys not included in result', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
-    if (isBakerError(r)) {throw new Error('expected success');}
+    assertNotBakerError(r);
     expect(r.name).toBe('ok');
     expect((r as Dto & { extra?: unknown }).extra).toBeUndefined();
   });
@@ -100,11 +107,9 @@ describe('deeply nested objects stack safety', () => {
       child: { child: { child: { child: { leaf: { value: 123 } } } } },
     };
     const result = await deserialize(Level1, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.path).toBe('child.child.child.child.leaf.value');
-      expect(result.errors[0]!.code).toBe('isString');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.path).toBe('child.child.child.child.leaf.value');
+    expect(result.errors[0]!.code).toBe('isString');
   });
 });
 
@@ -134,13 +139,11 @@ describe('large array input handling', () => {
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
     const result = await deserialize(ListDto, { items });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const paths = result.errors.map(x => x.path);
-      expect(paths).toContain('items[50].id');
-      expect(paths).toContain('items[99].id');
-      expect(paths.filter(p => p === 'items[0].id')).toHaveLength(0);
-    }
+    assertBakerError(result);
+    const paths = result.errors.map(x => x.path);
+    expect(paths).toContain('items[50].id');
+    expect(paths).toContain('items[99].id');
+    expect(paths.filter(p => p === 'items[0].id')).toHaveLength(0);
   });
 });
 
@@ -191,21 +194,21 @@ describe('special string value handling', () => {
     seal();
     const longStr = 'x'.repeat(10_000);
     const r = await deserialize<Dto>(Dto, { v: longStr });
-    if (isBakerError(r)) {throw new Error("expected success");}
+    assertNotBakerError(r);
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { v: '🎉🎊🎈' });
-    if (isBakerError(r)) {throw new Error('expected success');}
+    assertNotBakerError(r);
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { v: 'hello\x00world' });
-    if (isBakerError(r)) {throw new Error('expected success');}
+    assertNotBakerError(r);
     expect(r.v).toBe('hello\x00world');
   });
 });

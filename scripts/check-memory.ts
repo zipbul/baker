@@ -82,7 +82,9 @@ for (const { label, fn } of cases) {
   Bun.gc(true);
   const before = process.memoryUsage().heapUsed;
 
-  for (let i = 0; i < ITERATIONS; i++) {fn();}
+  for (let i = 0; i < ITERATIONS; i++) {
+    fn();
+  }
 
   Bun.gc(true);
   Bun.gc(true);
@@ -90,7 +92,9 @@ for (const { label, fn } of cases) {
   const bytesPerCall = (after - before) / ITERATIONS;
 
   const status = bytesPerCall > THRESHOLD_BYTES_PER_CALL ? 'FAIL' : 'PASS';
-  if (status === 'FAIL') {failed = true;}
+  if (status === 'FAIL') {
+    failed = true;
+  }
   console.log(`[${status}] ${label}: ${bytesPerCall.toFixed(3)} bytes/call (${ITERATIONS} iterations)`);
 }
 

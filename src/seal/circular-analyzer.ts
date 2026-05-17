@@ -14,7 +14,9 @@ export function analyzeCircular(Class: Function): boolean {
   const visited = new Set<Function>();
 
   function walk(cls: Function): boolean {
-    if (visited.has(cls)) {return true;} // back-edge → cycle detected
+    if (visited.has(cls)) {
+      return true;
+    } // back-edge → cycle detected
 
     visited.add(cls);
 
@@ -30,12 +32,16 @@ export function analyzeCircular(Class: Function): boolean {
             throw new SealError(`${cls.name}: type function threw: ${(e as Error).message}`);
           }
           const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
-          if (walk(nested as Function)) {return true;}
+          if (walk(nested as Function)) {
+            return true;
+          }
         }
         // discriminator subTypes
         if (meta.type?.discriminator) {
           for (const sub of meta.type.discriminator.subTypes) {
-            if (walk(sub.value)) {return true;}
+            if (walk(sub.value)) {
+              return true;
+            }
           }
         }
         // W1 (F-1): collectionValue thunk (Set/Map nested DTO) — invoke and walk
@@ -46,7 +52,9 @@ export function analyzeCircular(Class: Function): boolean {
           } catch (e) {
             throw new SealError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`);
           }
-          if (typeof resolved === 'function' && walk(resolved as Function)) {return true;}
+          if (typeof resolved === 'function' && walk(resolved as Function)) {
+            return true;
+          }
         }
       }
     }

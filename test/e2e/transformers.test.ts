@@ -213,6 +213,16 @@ describe('jsonTransformer', () => {
     const plain = await serialize(result);
     expect(plain.value).toBe('{"a":1}');
   });
+
+  it('deserialize passes through non-string values unchanged', () => {
+    const out = jsonTransformer.deserialize({ value: { already: 'object' }, key: 'k', obj: {} });
+    expect(out).toEqual({ already: 'object' });
+  });
+
+  it('deserialize returns the raw string when JSON.parse throws', () => {
+    const out = jsonTransformer.deserialize({ value: 'not-json{', key: 'k', obj: {} });
+    expect(out).toBe('not-json{');
+  });
 });
 
 // ─── transform array ────────────────────────────────────────────────────────

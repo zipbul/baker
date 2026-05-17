@@ -492,11 +492,7 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
   /** Compile emit code into a runnable function */
   function compile(emitCode: string, _regexes: RegExp[], _refs: unknown[]) {
     const body = `'use strict'; var errors = []; ${emitCode} return errors;`;
-    return new Function('v', 're', 'refs', body).bind(null) as (
-      v: unknown,
-      re: RegExp[],
-      refs: unknown[],
-    ) => { code: string }[];
+    return new Function('v', 're', 'refs', body).bind(null) as (v: unknown, re: RegExp[], refs: unknown[]) => { code: string }[];
   }
 
   it('isString — accepts string, rejects number', () => {

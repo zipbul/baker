@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, arrayOf, deserialize, isBakerError, seal } from '../../index';
+import { Field, arrayOf, deserialize, seal } from '../../index';
 import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -10,7 +11,7 @@ afterEach(() => unseal());
 /** Helper: extracts errors array from BakerErrors */
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {throw new Error('expected validation failure');}
+  assertBakerError(result);
   return [...result.errors];
 }
 
@@ -183,9 +184,7 @@ describe('BakerErrors from deserialize', () => {
 
   it('errors array accessible via isBakerError', async () => {
     const result = await deserialize(UserProfile, { name: 123 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(1);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(1);
   });
 });

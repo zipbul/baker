@@ -13,7 +13,9 @@ export interface IsNotEmptyObjectOptions {
 
 export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRule {
   const validate = (value: unknown): boolean => {
-    if (value === null || typeof value !== 'object' || Array.isArray(value)) {return false;}
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+      return false;
+    }
     const keys = Object.keys(value as object);
     if (options?.nullable) {
       return keys.some(k => (value as Record<string, unknown>)[k] != null);

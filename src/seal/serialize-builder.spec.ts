@@ -3,9 +3,9 @@ import { describe, it, expect, mock } from 'bun:test';
 import type { RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors } from '../types';
 
+import { setSealed } from '../meta-access';
 import { isString } from '../rules/typechecker';
 import { buildSerializeCode } from './serialize-builder';
-import { setSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -494,7 +494,10 @@ describe('buildSerializeCode', () => {
 
     const transformFn = mock(({ value }: { value: unknown }) => {
       // Transform adds a computed field to the nested result
-      return { ...(value as Record<string, unknown>), formatted: `${(value as Record<string, unknown>)["city"]} ${(value as Record<string, unknown>)["zip"]}` };
+      return {
+        ...(value as Record<string, unknown>),
+        formatted: `${(value as Record<string, unknown>)['city']} ${(value as Record<string, unknown>)['zip']}`,
+      };
     });
 
     class UserDto {
@@ -536,7 +539,10 @@ describe('buildSerializeCode', () => {
     } satisfies SealedExecutors<unknown>);
 
     const transformFn = mock(({ value }: { value: unknown }) => {
-      return { ...(value as Record<string, unknown>), bioUpper: ((value as Record<string, unknown>)["bio"] as string).toUpperCase() };
+      return {
+        ...(value as Record<string, unknown>),
+        bioUpper: ((value as Record<string, unknown>)['bio'] as string).toUpperCase(),
+      };
     });
 
     class MemberDto {

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, configure, deserialize, isBakerError, seal } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -138,10 +139,8 @@ describe('@Type hint implicit conversion', () => {
     configure({ autoConvert: true });
     seal();
     const result = await deserialize(TypeHintFailDto, { value: 'abc' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('conversionFailed');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('conversionFailed');
   });
 });
 
@@ -172,9 +171,7 @@ describe('stopAtFirstError + autoConvert', () => {
     configure({ autoConvert: true, stopAtFirstError: true });
     seal();
     const result = await deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(1);
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(1);
   });
 });

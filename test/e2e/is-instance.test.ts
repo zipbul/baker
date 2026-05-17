@@ -15,7 +15,9 @@ class InstanceDto {
   @Field(isInstance(MyDate), {
     transform: {
       deserialize: ({ value }) => {
-        if (typeof value === 'string') {return new MyDate(value);}
+        if (typeof value === 'string') {
+          return new MyDate(value);
+        }
         return value;
       },
       serialize: ({ value }) => value,

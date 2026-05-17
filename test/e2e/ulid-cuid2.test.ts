@@ -15,7 +15,9 @@ async function pass<T>(cls: new (...a: never[]) => T, input: unknown): Promise<T
 /** Helper: verify rejection + return error code */
 async function failCode(cls: new (...args: never[]) => unknown, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {throw new Error('expected validation failure');}
+  if (!isBakerError(result)) {
+    throw new Error('expected validation failure');
+  }
   return result.errors[0]!.code;
 }
 

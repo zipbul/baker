@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { deserialize, Field, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
+import { assertBakerError } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => {
@@ -73,7 +74,7 @@ class IsDefinedNumberDto {
   value!: number;
 }
 
-/** @Field alone — no other validation */
+/** `@Field` alone — no other validation */
 class IsDefinedOnlyDto {
   @Field()
   value!: unknown;
@@ -288,11 +289,9 @@ describe('deserialize — @Field message integration', () => {
 
   it('should include field-level message in BakerError.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors[0]!.message).toBe('Invalid name field');
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]!.message).toBe('Invalid name field');
   });
 
   it('should return normally regardless of message on validation success', async () => {
@@ -309,11 +308,9 @@ describe('deserialize — @Field context integration', () => {
 
   it('should include value in BakerError.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors[0]!.context).toEqual({ errorCode: 'E001' });
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThan(0);
+    expect(result.errors[0]!.context).toEqual({ errorCode: 'E001' });
   });
 });
 
@@ -338,8 +335,8 @@ describe('M4 — validation groups runtime filtering', () => {
   });
 
   it('fields without groups are always executed', async () => {
-    expect(
-      isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] })),
-    ).toBe(true);
+    expect(isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] }))).toBe(
+      true,
+    );
   });
 });

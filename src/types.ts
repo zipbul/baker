@@ -35,7 +35,7 @@ export interface EmittableRule {
   /**
    * Meta for the builder to determine whether to insert a typeof guard.
    * Only set for rules that assume a specific type (e.g., isEmail → 'string').
-   * @IsString itself is undefined (it includes its own typeof check).
+   * `@IsString` itself is undefined (it includes its own typeof check).
    */
   readonly requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
   /** Expose rule parameters for external reading */
@@ -148,17 +148,17 @@ export interface TypeDef {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PropertyFlags {
-  /** @IsOptional() — skip all validation when undefined/null */
+  /** `@IsOptional`() — skip all validation when undefined/null */
   isOptional?: boolean;
-  /** @IsDefined() — disallow undefined (overrides @IsOptional). Current code rejects only undefined; null is delegated to subsequent validation */
+  /** `@IsDefined`() — disallow undefined (overrides @IsOptional). Current code rejects only undefined; null is delegated to subsequent validation */
   isDefined?: boolean;
-  /** @IsNullable() — allow and assign null, reject undefined */
+  /** `@IsNullable`() — allow and assign null, reject undefined */
   isNullable?: boolean;
-  /** @ValidateIf(cond) — skip all field validation when false */
+  /** `@ValidateIf`(cond) — skip all field validation when false */
   validateIf?: (obj: Record<string, unknown>) => boolean;
-  /** @ValidateNested() — trigger recursive validation for nested DTOs. Used with @Type */
+  /** `@ValidateNested`() — trigger recursive validation for nested DTOs. Used with @Type */
   validateNested?: boolean;
-  /** @ValidateNested({ each: true }) — validate nested DTOs per array element */
+  /** `@ValidateNested`({ each: true }) — validate nested DTOs per array element */
   validateNestedEach?: boolean;
 }
 

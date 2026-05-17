@@ -19,8 +19,10 @@ interface ArrayOfMarker {
  * Apply rules to each element of an array.
  *
  * @example
- * @Field(arrayOf(isString(), minLength(1)))
+ * ```ts
+ * \@Field(arrayOf(isString(), minLength(1)))
  * tags!: string[];
+ * ```
  */
 function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
   const marker: { rules: EmittableRule[]; [key: symbol]: true } = { rules, [ARRAY_OF]: true };
@@ -100,12 +102,20 @@ const FIELD_OPTION_KEYS = new Set([
 ]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
-  if (typeof arg === 'function') {return false;}
-  if (typeof arg !== 'object' || arg === null) {return false;}
-  if (isArrayOfMarker(arg)) {return false;}
+  if (typeof arg === 'function') {
+    return false;
+  }
+  if (typeof arg !== 'object' || arg === null) {
+    return false;
+  }
+  if (isArrayOfMarker(arg)) {
+    return false;
+  }
   // Treat as FieldOptions if at least one known key exists
   const keys = Object.keys(arg);
-  if (keys.length === 0) {return true;} // @Field({})
+  if (keys.length === 0) {
+    return true;
+  } // @Field({})
   return keys.some(k => FIELD_OPTION_KEYS.has(k));
 }
 
@@ -151,7 +161,9 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
     // Form 4: @Field(isString(), { optional: true })
     const options = lastArg;
     let rules = args.slice(0, -1) as RuleArg[];
-    if (options.rules) {rules = [...rules, ...options.rules];}
+    if (options.rules) {
+      rules = [...rules, ...options.rules];
+    }
     return { rules, options };
   }
   // Form 2: @Field(isString(), email())
@@ -164,16 +176,28 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
         const rd: RuleDef = { rule: innerRule, each: true };
-        if (options.groups !== undefined) {rd.groups = options.groups;}
-        if (options.message !== undefined) {rd.message = options.message;}
-        if (options.context !== undefined) {rd.context = options.context;}
+        if (options.groups !== undefined) {
+          rd.groups = options.groups;
+        }
+        if (options.message !== undefined) {
+          rd.message = options.message;
+        }
+        if (options.context !== undefined) {
+          rd.context = options.context;
+        }
         meta.validation.push(rd);
       }
     } else {
       const rd: RuleDef = { rule: rule as InternalRule };
-      if (options.groups !== undefined) {rd.groups = options.groups;}
-      if (options.message !== undefined) {rd.message = options.message;}
-      if (options.context !== undefined) {rd.context = options.context;}
+      if (options.groups !== undefined) {
+        rd.groups = options.groups;
+      }
+      if (options.message !== undefined) {
+        rd.message = options.message;
+      }
+      if (options.context !== undefined) {
+        rd.context = options.context;
+      }
       meta.validation.push(rd);
     }
   }
@@ -183,17 +207,23 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
     const ed: ExposeDef = { name: options.name };
-    if (options.groups !== undefined) {ed.groups = options.groups;}
+    if (options.groups !== undefined) {
+      ed.groups = options.groups;
+    }
     meta.expose.push(ed);
   } else if (options.deserializeName || options.serializeName) {
     if (options.deserializeName) {
       const ed: ExposeDef = { name: options.deserializeName, deserializeOnly: true };
-      if (options.groups !== undefined) {ed.groups = options.groups;}
+      if (options.groups !== undefined) {
+        ed.groups = options.groups;
+      }
       meta.expose.push(ed);
     }
     if (options.serializeName) {
       const ed: ExposeDef = { name: options.serializeName, serializeOnly: true };
-      if (options.groups !== undefined) {ed.groups = options.groups;}
+      if (options.groups !== undefined) {
+        ed.groups = options.groups;
+      }
       meta.expose.push(ed);
     }
   } else if (options.groups) {
@@ -224,7 +254,9 @@ function wrapTransform(
 
 /** Register Transformer — split into direction-specific TransformDefs */
 function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions): void {
-  if (!options.transform) {return;}
+  if (!options.transform) {
+    return;
+  }
   const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
   for (const t of transformers) {
     const deserialize = wrapTransform(propertyKey, 'deserialize', t.deserialize);
@@ -240,13 +272,13 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 // @Field — Field decorator (4 overloads)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** @Field() — empty field registration */
+/** `@Field`() — empty field registration */
 function Field(): PropertyDecorator;
-/** @Field(isString(), email()) — variadic rules */
+/** `@Field`(isString(), email()) — variadic rules */
 function Field(...rules: RuleArg[]): PropertyDecorator;
-/** @Field({ type: () => Dto }) — options object */
+/** `@Field`({ type: () => Dto }) — options object */
 function Field(options: FieldOptions): PropertyDecorator;
-/** @Field(isString(), { optional: true }) — rules + options mixed */
+/** `@Field`(isString(), { optional: true }) — rules + options mixed */
 function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
 function Field(...args: unknown[]): PropertyDecorator {
   return (target, key) => {
@@ -275,17 +307,29 @@ function Field(...args: unknown[]): PropertyDecorator {
     applyValidation(meta, rules, options);
 
     // ── flags ──
-    if (options.optional) {meta.flags.isOptional = true;}
-    if (options.nullable) {meta.flags.isNullable = true;}
-    if (options.when) {meta.flags.validateIf = options.when;}
+    if (options.optional) {
+      meta.flags.isOptional = true;
+    }
+    if (options.nullable) {
+      meta.flags.isNullable = true;
+    }
+    if (options.when) {
+      meta.flags.validateIf = options.when;
+    }
 
     // ── type (nested DTO + discriminator + collection) ──
     if (options.type) {
       const td: TypeDef = { fn: options.type as TypeDef['fn'] };
-      if (options.discriminator !== undefined) {td.discriminator = options.discriminator;}
-      if (options.keepDiscriminatorProperty !== undefined) {td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;}
+      if (options.discriminator !== undefined) {
+        td.discriminator = options.discriminator;
+      }
+      if (options.keepDiscriminatorProperty !== undefined) {
+        td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;
+      }
       const cv = options.mapValue ?? options.setValue;
-      if (cv !== undefined) {td.collectionValue = cv;}
+      if (cv !== undefined) {
+        td.collectionValue = cv;
+      }
       meta.type = td;
     }
 

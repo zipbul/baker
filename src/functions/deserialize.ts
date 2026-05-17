@@ -32,13 +32,17 @@ export function deserialize<T>(
 
   if (sealed.isAsync) {
     return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
-      if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
+      if (isErr(result)) {
+        return toBakerErrors(result.data as BakerError[]);
+      }
       return result as T;
     });
   }
 
   const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
+  if (isErr(result)) {
+    return toBakerErrors(result.data as BakerError[]);
+  }
   return result as T;
 }
 
@@ -46,14 +50,20 @@ export function deserialize<T>(
  * Sync-asserted deserialize. Throws `SealError` if Class has any async rule/transform
  * on the deserialize side.
  */
-export function deserializeSync<T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): T | BakerErrors {
+export function deserializeSync<T>(
+  Class: new (...args: never[]) => T,
+  input: unknown,
+  options?: RuntimeOptions,
+): T | BakerErrors {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
     throw new SealError(`deserializeSync(${Class.name}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
   }
   const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
+  if (isErr(result)) {
+    return toBakerErrors(result.data as BakerError[]);
+  }
   return result as T;
 }
 
@@ -69,11 +79,15 @@ export function deserializeAsync<T>(
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
     return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
-      if (isErr(result)) {return toBakerErrors(result.data as BakerError[]);}
+      if (isErr(result)) {
+        return toBakerErrors(result.data as BakerError[]);
+      }
       return result as T;
     });
   }
   const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {return Promise.resolve(toBakerErrors(result.data as BakerError[]));}
+  if (isErr(result)) {
+    return Promise.resolve(toBakerErrors(result.data as BakerError[]));
+  }
   return Promise.resolve(result as T);
 }

@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, configure, isBakerError, Field, seal } from '../../index';
+import { deserialize, configure, Field, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -29,12 +30,10 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'whitelistViolation');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('extra');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'whitelistViolation');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('extra');
   });
 
   it('only declared fields → passes', async () => {
@@ -56,43 +55,35 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ExposedDto, { user_name: 'Carol', hack: 1 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
 
   it('collectErrors mode collects multiple undeclared fields', async () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const errors = result.errors.filter(e => e.code === 'whitelistViolation');
-      expect(errors.length).toBe(2);
-    }
+    assertBakerError(result);
+    const errors = result.errors.filter(e => e.code === 'whitelistViolation');
+    expect(errors.length).toBe(2);
   });
 
   it('stopAtFirstError + forbidUnknown → first violation only', async () => {
     configure({ forbidUnknown: true, stopAtFirstError: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBe(1);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBe(1);
   });
 
   it('forbidUnknown + validation errors collected together', async () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 123, age: 'bad', extra: 'x' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const errors = result.errors;
-      expect(errors.some(x => x.code === 'isString')).toBe(true);
-      expect(errors.some(x => x.code === 'isNumber')).toBe(true);
-      expect(errors.some(x => x.code === 'whitelistViolation')).toBe(true);
-    }
+    assertBakerError(result);
+    const errors = result.errors;
+    expect(errors.some(x => x.code === 'isString')).toBe(true);
+    expect(errors.some(x => x.code === 'isNumber')).toBe(true);
+    expect(errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 });

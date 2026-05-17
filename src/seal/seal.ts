@@ -42,20 +42,26 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
   const v = visited ?? new Set<Function>();
   for (const meta of Object.values(merged)) {
     // 1. createRule may return Promise<boolean> even without `async` syntax.
-    if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {return true;}
+    if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {
+      return true;
+    }
     // 2. @Transform async
     const transforms =
       direction === 'deserialize'
         ? meta.transform.filter(td => !td.options?.serializeOnly)
         : meta.transform.filter(td => !td.options?.deserializeOnly);
-    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) {return true;}
+    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) {
+      return true;
+    }
     // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
     if (meta.type?.resolvedClass) {
       const nestedClass = meta.type.resolvedClass;
       if (!v.has(nestedClass)) {
         v.add(nestedClass);
         const nestedMerged = mergeInheritance(nestedClass);
-        if (analyzeAsync(nestedMerged, direction, v)) {return true;}
+        if (analyzeAsync(nestedMerged, direction, v)) {
+          return true;
+        }
       }
     }
     // discriminator subTypes
@@ -64,7 +70,9 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
         if (!v.has(sub.value)) {
           v.add(sub.value);
           const subMerged = mergeInheritance(sub.value);
-          if (analyzeAsync(subMerged, direction, v)) {return true;}
+          if (analyzeAsync(subMerged, direction, v)) {
+            return true;
+          }
         }
       }
     }
@@ -74,7 +82,9 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
       if (!v.has(valueClass)) {
         v.add(valueClass);
         const valueMerged = mergeInheritance(valueClass);
-        if (analyzeAsync(valueMerged, direction, v)) {return true;}
+        if (analyzeAsync(valueMerged, direction, v)) {
+          return true;
+        }
       }
     }
   }
@@ -104,7 +114,9 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
  * Seal every class in the decorator registry, then clear the registry.
  */
 function sealAllRegistered(): void {
-  if (isSealed()) {return;}
+  if (isSealed()) {
+    return;
+  }
   const options = getGlobalOptions();
 
   try {
@@ -136,7 +148,9 @@ function sealAllRegistered(): void {
  * seal(Class) call can re-attempt cleanly.
  */
 function sealOneClass(Class: Function): void {
-  if (hasSealedOwn(Class)) {return;}
+  if (hasSealedOwn(Class)) {
+    return;
+  }
   if (!hasRawOwn(Class)) {
     throw new SealError(
       `${Class.name}: cannot seal a class that has no @Field decorators. ` +
@@ -197,7 +211,9 @@ function seal(...classes: Function[]): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function sealOne(Class: Function, options?: SealOptions): void {
-  if (hasSealedOwn(Class)) {return;} // already sealed (prevent recursion during circular references)
+  if (hasSealedOwn(Class)) {
+    return;
+  } // already sealed (prevent recursion during circular references)
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
@@ -216,7 +232,9 @@ function sealOne(Class: Function, options?: SealOptions): void {
   // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
   //     Prevent original RAW mutation: copy type/flags before mutating (C-16 root fix)
   for (const [key, meta] of Object.entries(merged)) {
-    if (!meta.type?.fn) {continue;}
+    if (!meta.type?.fn) {
+      continue;
+    }
     const typeResult = meta.type.fn();
 
     // Detect Map/Set collection
@@ -251,8 +269,12 @@ function sealOne(Class: Function, options?: SealOptions): void {
       // Automatically set validateNested flags for DTO classes
       if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
         meta.flags = { ...meta.flags };
-        if (!meta.flags.validateNested) {meta.flags.validateNested = true;}
-        if (isArray && !meta.flags.validateNestedEach) {meta.flags.validateNestedEach = true;}
+        if (!meta.flags.validateNested) {
+          meta.flags.validateNested = true;
+        }
+        if (isArray && !meta.flags.validateNestedEach) {
+          meta.flags.validateNestedEach = true;
+        }
       }
     }
     merged[key] = { ...meta, type: typeCopy };
@@ -326,7 +348,9 @@ function mergeInheritance(Class: Function): RawClassMeta {
   const chain: Function[] = [];
   let current: Function | null = Class;
   while (current && current !== Object) {
-    if (hasRawOwn(current)) {chain.push(current);}
+    if (hasRawOwn(current)) {
+      chain.push(current);
+    }
     const proto = Object.getPrototypeOf(current);
     current = proto === current ? null : proto;
   }
@@ -382,13 +406,24 @@ function mergeInheritance(Class: Function): RawClassMeta {
         // flags: child takes priority, only supplement missing flags from parent
         const mf = m.flags;
         const pf = p.flags;
-        if (pf.isOptional !== undefined && mf.isOptional === undefined) {mf.isOptional = pf.isOptional;}
-        if (pf.isDefined !== undefined && mf.isDefined === undefined) {mf.isDefined = pf.isDefined;}
-        if (pf.validateIf !== undefined && mf.validateIf === undefined) {mf.validateIf = pf.validateIf;}
-        if (pf.isNullable !== undefined && mf.isNullable === undefined) {mf.isNullable = pf.isNullable;}
-        if (pf.validateNested !== undefined && mf.validateNested === undefined) {mf.validateNested = pf.validateNested;}
-        if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined)
-          {mf.validateNestedEach = pf.validateNestedEach;}
+        if (pf.isOptional !== undefined && mf.isOptional === undefined) {
+          mf.isOptional = pf.isOptional;
+        }
+        if (pf.isDefined !== undefined && mf.isDefined === undefined) {
+          mf.isDefined = pf.isDefined;
+        }
+        if (pf.validateIf !== undefined && mf.validateIf === undefined) {
+          mf.validateIf = pf.validateIf;
+        }
+        if (pf.isNullable !== undefined && mf.isNullable === undefined) {
+          mf.isNullable = pf.isNullable;
+        }
+        if (pf.validateNested !== undefined && mf.validateNested === undefined) {
+          mf.validateNested = pf.validateNested;
+        }
+        if (pf.validateNestedEach !== undefined && mf.validateNestedEach === undefined) {
+          mf.validateNestedEach = pf.validateNestedEach;
+        }
       }
     }
   }

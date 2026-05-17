@@ -3,10 +3,10 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import type { RuntimeOptions } from '../interfaces';
 
 import { SealError } from '../errors';
+import { setSealed, deleteSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { resetForTesting } from '../seal/seal';
 import { serialize } from './serialize';
-import { setSealed, deleteSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

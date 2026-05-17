@@ -40,7 +40,7 @@ type StringRuleCase = {
   samples: unknown[];
 };
 
-async function dtoPasses(rule: import("../../src/types").EmittableRule, value: unknown): Promise<boolean> {
+async function dtoPasses(rule: import('../../src/types').EmittableRule, value: unknown): Promise<boolean> {
   class Dto {
     @Field(rule)
     value!: unknown;

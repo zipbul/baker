@@ -5,8 +5,11 @@ function walk(d: string): string[] {
   const out: string[] = [];
   for (const e of readdirSync(d)) {
     const p = join(d, e);
-    if (statSync(p).isDirectory()) {out.push(...walk(p));}
-    else if (p.endsWith('.js')) {out.push(p);}
+    if (statSync(p).isDirectory()) {
+      out.push(...walk(p));
+    } else if (p.endsWith('.js')) {
+      out.push(p);
+    }
   }
   return out;
 }
@@ -39,10 +42,14 @@ for (const f of files) {
   });
   // Also handle dynamic imports
   src = src.replace(/(\bimport\s*\(['"])(\.[^'"\n]*?)(['"]\s*\))/g, (m, pre, path, post) => {
-    if (path.endsWith('.js') || path.endsWith('.json')) {return m;}
+    if (path.endsWith('.js') || path.endsWith('.json')) {
+      return m;
+    }
     const absPath = join(f, '..', path);
     try {
-      if (statSync(absPath).isDirectory()) {return `${pre}${path}/index.js${post}`;}
+      if (statSync(absPath).isDirectory()) {
+        return `${pre}${path}/index.js${post}`;
+      }
     } catch {}
     return `${pre}${path}.js${post}`;
   });

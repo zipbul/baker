@@ -7,7 +7,9 @@ import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
-  if (!Number.isFinite(n)) {throw new Error(`min: bound must be a finite number, got ${n}`);}
+  if (!Number.isFinite(n)) {
+    throw new Error(`min: bound must be a finite number, got ${n}`);
+  }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
@@ -31,7 +33,9 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
-  if (!Number.isFinite(n)) {throw new Error(`max: bound must be a finite number, got ${n}`);}
+  if (!Number.isFinite(n)) {
+    throw new Error(`max: bound must be a finite number, got ${n}`);
+  }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
@@ -83,7 +87,9 @@ export const isNegative = makePlannedRule({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isDivisibleBy(n: number): EmittableRule {
-  if (n === 0) {throw new Error('isDivisibleBy: divisor must not be zero');}
+  if (n === 0) {
+    throw new Error('isDivisibleBy: divisor must not be zero');
+  }
   return makeRule({
     name: 'isDivisibleBy',
     requiresType: 'number',

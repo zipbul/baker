@@ -246,7 +246,9 @@ function isPassportNumber(locale: string): EmittableRule {
 }
 function makeLocaleRegexRule(name: string, locale: string, registry: Record<string, RegExp>): EmittableRule {
   const re = registry[locale];
-  if (!re) {throw new Error(`Unsupported locale: "${locale}" for ${name}`);}
+  if (!re) {
+    throw new Error(`Unsupported locale: "${locale}" for ${name}`);
+  }
   return makeRule({
     name,
     requiresType: 'string',

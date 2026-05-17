@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -35,11 +36,9 @@ describe('circular reference detection', () => {
     circular.child.child = circular; // circular reference
 
     const result = await deserialize(TreeNode, circular);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'circular');
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'circular');
+    expect(err).toBeDefined();
   });
 
   it('auto mode (default) → auto-detects circular structure DTO', async () => {

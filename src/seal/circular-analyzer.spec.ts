@@ -2,8 +2,8 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { ClassCtor, RawClassMeta } from '../types';
 
-import { analyzeCircular } from './circular-analyzer';
 import { setRaw } from '../meta-access';
+import { analyzeCircular } from './circular-analyzer';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — manual RAW meta setup
@@ -67,7 +67,10 @@ describe('analyzeCircular', () => {
     setRaw(BDto, {});
 
     class ADto {}
-    setRaw(ADto, makeTypeMeta(() => BDto));
+    setRaw(
+      ADto,
+      makeTypeMeta(() => BDto),
+    );
 
     // Act
     const result = analyzeCircular(ADto);
@@ -79,7 +82,10 @@ describe('analyzeCircular', () => {
     // Arrange — B has no [RAW]
     class BNoRaw {}
     class ADto {}
-    setRaw(ADto, makeTypeMeta(() => BNoRaw));
+    setRaw(
+      ADto,
+      makeTypeMeta(() => BNoRaw),
+    );
     // Act
     const result = analyzeCircular(ADto);
     // Assert
@@ -91,7 +97,10 @@ describe('analyzeCircular', () => {
   it('should return true when class references itself (self-loop)', () => {
     // Arrange
     class SelfRefDto {}
-    setRaw(SelfRefDto, makeTypeMeta(() => SelfRefDto));
+    setRaw(
+      SelfRefDto,
+      makeTypeMeta(() => SelfRefDto),
+    );
     // Act
     const result = analyzeCircular(SelfRefDto);
     // Assert
@@ -103,8 +112,14 @@ describe('analyzeCircular', () => {
     class BDto2 {}
     class ADto2 {}
 
-    setRaw(ADto2, makeTypeMeta(() => BDto2));
-    setRaw(BDto2, makeTypeMeta(() => ADto2));
+    setRaw(
+      ADto2,
+      makeTypeMeta(() => BDto2),
+    );
+    setRaw(
+      BDto2,
+      makeTypeMeta(() => ADto2),
+    );
 
     // Act
     const result = analyzeCircular(ADto2);
@@ -116,7 +131,10 @@ describe('analyzeCircular', () => {
     // Arrange
     class ContentDto {}
     class ParentDto {}
-    setRaw(ContentDto, makeTypeMeta(() => ParentDto));
+    setRaw(
+      ContentDto,
+      makeTypeMeta(() => ParentDto),
+    );
     setRaw(ParentDto, makeDiscriminatorMeta([{ value: ContentDto, name: 'content' }]));
 
     // Act
@@ -133,7 +151,10 @@ describe('analyzeCircular', () => {
     class CDto {}
     class ADto {}
 
-    setRaw(CDto, makeTypeMeta(() => ADto)); // C → A (creates cycle)
+    setRaw(
+      CDto,
+      makeTypeMeta(() => ADto),
+    ); // C → A (creates cycle)
     setRaw(ADto, {
       field: {
         validation: [],
@@ -196,15 +217,27 @@ describe('analyzeCircular', () => {
     class CDto {}
     class DDto {}
 
-    setRaw(BDto, makeTypeMeta(() => ADto));
-    setRaw(CDto, makeTypeMeta(() => ADto));
-    setRaw(DDto, makeTypeMeta(() => ADto));
+    setRaw(
+      BDto,
+      makeTypeMeta(() => ADto),
+    );
+    setRaw(
+      CDto,
+      makeTypeMeta(() => ADto),
+    );
+    setRaw(
+      DDto,
+      makeTypeMeta(() => ADto),
+    );
 
-    setRaw(ADto, makeDiscriminatorMeta([
-      { value: BDto, name: 'b' },
-      { value: CDto, name: 'c' },
-      { value: DDto, name: 'd' },
-    ]));
+    setRaw(
+      ADto,
+      makeDiscriminatorMeta([
+        { value: BDto, name: 'b' },
+        { value: CDto, name: 'c' },
+        { value: DDto, name: 'd' },
+      ]),
+    );
 
     // Act — should terminate without stack overflow
     const result = analyzeCircular(ADto);
@@ -224,11 +257,14 @@ describe('analyzeCircular', () => {
     setRaw(CDto, {});
     setRaw(DDto, {});
 
-    setRaw(ADto, makeDiscriminatorMeta([
-      { value: BDto, name: 'b' },
-      { value: CDto, name: 'c' },
-      { value: DDto, name: 'd' },
-    ]));
+    setRaw(
+      ADto,
+      makeDiscriminatorMeta([
+        { value: BDto, name: 'b' },
+        { value: CDto, name: 'c' },
+        { value: DDto, name: 'd' },
+      ]),
+    );
 
     // Act
     const result = analyzeCircular(ADto);
@@ -242,9 +278,12 @@ describe('analyzeCircular', () => {
   it('should throw SealError when lazy type function throws', () => {
     // Arrange
     class LazyThrowDto {}
-    setRaw(LazyThrowDto, makeTypeMeta(() => {
-      throw new Error('boom');
-    }));
+    setRaw(
+      LazyThrowDto,
+      makeTypeMeta(() => {
+        throw new Error('boom');
+      }),
+    );
     // Act / Assert
     expect(() => analyzeCircular(LazyThrowDto)).toThrow('boom');
   });
@@ -252,9 +291,12 @@ describe('analyzeCircular', () => {
   it('should include class name in SealError when lazy type throws', () => {
     // Arrange
     class NamedThrowDto {}
-    setRaw(NamedThrowDto, makeTypeMeta(() => {
-      throw new Error('broken ref');
-    }));
+    setRaw(
+      NamedThrowDto,
+      makeTypeMeta(() => {
+        throw new Error('broken ref');
+      }),
+    );
     // Act / Assert
     try {
       analyzeCircular(NamedThrowDto);

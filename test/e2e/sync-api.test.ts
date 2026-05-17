@@ -3,9 +3,9 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import type { SealedExecutors } from '../../src/types';
 
 import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { getSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
-import { getSealed } from '../../src/meta-access';
 
 beforeEach(() => seal());
 afterEach(() => unseal());

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, serialize, Field, isBakerError, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
+import { assertBakerError } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -108,12 +109,10 @@ describe('nested — integration', () => {
     const result = await deserialize(OrderDto, {
       items: [{ name: 123 }, { name: 456 }],
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]!.path).toBe('items[0].name');
-      expect(result.errors[0]!.code).toBe('isString');
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]!.path).toBe('items[0].name');
+    expect(result.errors[0]!.code).toBe('isString');
   });
 
   it('should return isArray error for nested array with stopAtFirstError=true and non-array input', async () => {
@@ -128,10 +127,8 @@ describe('nested — integration', () => {
     configure({ stopAtFirstError: true });
     seal();
     const result = await deserialize(OrderDto, { items: 'not an array' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('isArray');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('isArray');
   });
 
   it('should handle empty nested array with stopAtFirstError=true', async () => {
@@ -229,10 +226,8 @@ describe('nested — integration', () => {
     const result = await deserialize(NotificationDto3, {
       content: { type: 'unknown', body: 'x' },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'invalidDiscriminator')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'invalidDiscriminator')).toBe(true);
   });
 
   // ─── PB-4: serialize null nested ────────────────────────────────────────────

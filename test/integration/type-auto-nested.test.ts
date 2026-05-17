@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
+import { assertBakerError } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => seal());
@@ -115,10 +116,8 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     }
     seal(OrderDto);
     const result = await deserialize(OrderDto, { items: 'not an array' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('isArray');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('isArray');
   });
 
   it('should validate each element in the array', async () => {
@@ -134,10 +133,8 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     const result = await deserialize(OrderDto, {
       items: [{ name: 'valid' }, { name: 123 }],
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.path.startsWith('items[1]'))).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.path.startsWith('items[1]'))).toBe(true);
   });
 
   it('should handle empty array', async () => {

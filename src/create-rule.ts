@@ -64,8 +64,12 @@ export function createRule(
     ruleName: name,
     isAsync: isAsyncFn,
   };
-  if (constraints !== undefined) {meta.constraints = constraints;}
-  if (requiresType !== undefined) {meta.requiresType = requiresType;}
+  if (constraints !== undefined) {
+    meta.constraints = constraints;
+  }
+  if (requiresType !== undefined) {
+    meta.requiresType = requiresType;
+  }
   defineRuleMetadata(fn, meta);
 
   return fn;

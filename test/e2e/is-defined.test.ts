@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, isBakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -29,10 +30,8 @@ class DefinedOverrideDto {
 describe('@IsDefined (implicit in new API)', () => {
   it('undefined → isDefined error', async () => {
     const result = await deserialize(DefinedDto, {});
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(e => e.code === 'isDefined')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(e => e.code === 'isDefined')).toBe(true);
   });
 
   it('valid value → passes', async () => {

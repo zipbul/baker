@@ -2,10 +2,32 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
 import { isString, minLength, maxLength, matches } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
+
+const passthrough = ({ value }: { value: unknown }): unknown => value;
+const stringTo42Async = async ({ value }: { value: unknown }): Promise<unknown> => {
+  if (typeof value === 'string') {
+    return 42;
+  }
+  return value;
+};
+const emptyToNull = ({ value }: { value: unknown }): unknown => {
+  if (value === 'EMPTY') {
+    return null;
+  }
+  return value;
+};
+const upperIfString = ({ value }: { value: unknown }): unknown => {
+  if (typeof value === 'string') {
+    return value.toUpperCase();
+  }
+  return value;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 class TrimLowerDto {
@@ -115,20 +137,18 @@ describe('E-24: async transform failure error path', () => {
     class AsyncInvalidDto {
       @Field(isString, {
         transform: {
-          deserialize: async ({ value }) => (typeof value === 'string' ? 42 : value),
-          serialize: ({ value }) => value,
+          deserialize: stringTo42Async,
+          serialize: passthrough,
         },
       })
       name!: string;
     }
     seal(AsyncInvalidDto);
     const result = await deserialize(AsyncInvalidDto, { name: 'hello' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(x => x.code === 'isString');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('name');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(x => x.code === 'isString');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('name');
   });
 
   it('async transform throws → error propagated', async () => {
@@ -157,8 +177,8 @@ describe('@Transform null return behavior', () => {
     class NullTransformDto {
       @Field(isString, {
         transform: {
-          deserialize: ({ value }) => (value === 'EMPTY' ? null : value),
-          serialize: ({ value }) => value,
+          deserialize: emptyToNull,
+          serialize: passthrough,
         },
       })
       v!: string;
@@ -172,8 +192,8 @@ describe('@Transform null return behavior', () => {
     class TransformDto {
       @Field(isString, {
         transform: {
-          deserialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
-          serialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
+          deserialize: upperIfString,
+          serialize: upperIfString,
         },
       })
       v!: string;

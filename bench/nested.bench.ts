@@ -1,19 +1,20 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
+import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Nested object (3 levels) — valid + invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import * as reflectMetadata from 'reflect-metadata';
+import * as v from 'valibot';
+import { z } from 'zod';
+
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
-import * as reflectMetadata from 'reflect-metadata';
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
-import { z } from 'zod';
-import * as v from 'valibot';
-import Ajv from 'ajv';
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { type } from 'arktype';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
@@ -181,8 +182,13 @@ group('nested 3-level — valid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_VALID);
-    if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(NESTED_VALID)) {sinkNum += 1;}}
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(NESTED_VALID)) {
+        sinkNum += 1;
+      }
+    }
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_VALID);
@@ -213,8 +219,13 @@ group('nested 3-level — invalid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_INVALID);
-    if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(NESTED_INVALID)) {sinkNum += 1;}}
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(NESTED_INVALID)) {
+        sinkNum += 1;
+      }
+    }
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_INVALID);
@@ -223,4 +234,6 @@ group('nested 3-level — invalid input', () => {
 });
 
 await run();
-if (sinkNum === -1) {console.log('unreachable', sinkNum);}
+if (sinkNum === -1) {
+  console.log('unreachable', sinkNum);
+}

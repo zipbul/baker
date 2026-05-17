@@ -5,12 +5,13 @@ import type { BakerError } from '../errors';
 import type { SealOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 
+import { assertIsErr } from '../../test/integration/helpers/assert';
+import { setSealed } from '../meta-access';
 import { isNotEmpty } from '../rules/common';
 import { min, max } from '../rules/number';
 import { minLength } from '../rules/string';
 import { isString, isNumber } from '../rules/typechecker';
 import { buildDeserializeCode } from './deserialize-builder';
-import { setSealed } from '../meta-access';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -19,6 +20,41 @@ import { setSealed } from '../meta-access';
 async function run<T>(Class: new (...a: never[]) => T, merged: RawClassMeta, options?: SealOptions, input?: unknown) {
   const exec = buildDeserializeCode<T>(Class, merged, options, false, false);
   return exec(input !== undefined ? input : {});
+}
+
+const matchPathAndCode =
+  (path: string, code: string) =>
+  (e: BakerError): boolean =>
+    e.path === path && e.code === code;
+
+/**
+ * Module-scope helper used by tests that build minimal sealed executors
+ * matching a single string property — keeps the branching `if` outside `it()`.
+ */
+function stringFieldExecutors<T extends object>(Class: new () => T, prop: string): SealedExecutors<T> {
+  return {
+    deserialize: (input: unknown) => {
+      const i = input as Record<string, unknown>;
+      const value = i?.[prop];
+      if (typeof value !== 'string') {
+        return err([{ path: prop, code: 'isString' }]);
+      }
+      const out: T = new Class();
+      Object.defineProperty(out, prop, {
+        value,
+        writable: true,
+        enumerable: true,
+        configurable: true,
+      });
+      return out;
+    },
+    serialize: () => ({}),
+    validate() {
+      return null;
+    },
+    isAsync: false,
+    isSerializeAsync: false,
+  } satisfies SealedExecutors<T>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +87,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec(null);
     // Assert
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     const errs = result.data;
     expect(errs[0]?.path).toBe('');
     expect(errs[0]?.code).toBe('invalidInput');
@@ -65,7 +101,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec([1, 2, 3]);
     // Assert
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     expect(result.data[0]?.code).toBe('invalidInput');
   });
 
@@ -142,7 +178,7 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'not-a-number' });
     // Assert — collects both errors
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     const errs = result.data;
     expect(errs.length).toBeGreaterThanOrEqual(2);
   });
@@ -161,7 +197,7 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'bad' });
     // Assert — early return with 1 error
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     const errs = result.data;
     expect(errs.length).toBe(1);
   });
@@ -210,7 +246,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({ email: 123 });
     // Assert
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     const errs = result.data;
     expect(errs[0]?.path).toBe('email');
     expect(errs[0]?.code).toBe('isString');
@@ -228,7 +264,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({});
     // Assert
-    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    assertIsErr<BakerError[]>(result);
     const errs = result.data;
     expect(errs.some((e: BakerError) => e.path === 'name')).toBe(true);
   });
@@ -313,7 +349,7 @@ it('should include string message in BakerError when validation fails', async ()
   // Act
   const result = await run(MsgDto, merged, undefined, { name: 42 });
   // Assert
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toBe('이름은 문자열이어야 합니다');
 });
@@ -341,7 +377,7 @@ it('should include function message result in BakerError when validation fails',
   // Act
   const result = await run(FnMsgDto, merged, undefined, { age: 'hello' });
   // Assert
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toContain('age must be a number');
 });
@@ -364,7 +400,7 @@ it('should include context in BakerError when validation fails', async () => {
   // Act
   const result = await run(CtxDto, merged, undefined, { name: 99 });
   // Assert
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errs = result.data;
   expect(errs[0]?.context).toEqual({ httpStatus: 400, extra: 'info' });
 });
@@ -387,7 +423,7 @@ it('should not include message/context when not set (backward compat)', async ()
   // Act
   const result = await run(NoMsgDto, merged, undefined, { name: 42 });
   // Assert
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toBeUndefined();
   expect(errs[0]?.context).toBeUndefined();
@@ -707,23 +743,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
   class AddressDto {
     street!: string;
   }
-  setSealed(AddressDto, {
-    deserialize: (input: unknown) => {
-      const i = input as Record<string, unknown>;
-      if (typeof i?.street === 'string') {
-        const a = new AddressDto();
-        a.street = i.street;
-        return a;
-      }
-      return err([{ path: 'street', code: 'isString' }]);
-    },
-    serialize: () => ({}),
-    validate() {
-      return null;
-    },
-    isAsync: false,
-    isSerializeAsync: false,
-  } satisfies SealedExecutors<AddressDto>);
+  setSealed(AddressDto, stringFieldExecutors(AddressDto, 'street'));
 
   class PersonDto {
     address!: AddressDto;
@@ -748,23 +768,7 @@ it('should return error when nested DTO deserialization fails', async () => {
   class PhoneDto {
     number!: string;
   }
-  setSealed(PhoneDto, {
-    deserialize: (input: unknown) => {
-      const i = input as Record<string, unknown>;
-      if (typeof i?.number === 'string') {
-        const p = new PhoneDto();
-        p.number = i.number;
-        return p;
-      }
-      return err([{ path: 'number', code: 'isString' }]);
-    },
-    serialize: () => ({}),
-    validate() {
-      return null;
-    },
-    isAsync: false,
-    isSerializeAsync: false,
-  } satisfies SealedExecutors<PhoneDto>);
+  setSealed(PhoneDto, stringFieldExecutors(PhoneDto, 'number'));
 
   class ContactDto {
     phone!: PhoneDto;
@@ -789,23 +793,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
   class CityDto {
     name!: string;
   }
-  setSealed(CityDto, {
-    deserialize: (input: unknown) => {
-      const i = input as Record<string, unknown>;
-      if (typeof i?.name === 'string') {
-        const c = new CityDto();
-        c.name = i.name;
-        return c;
-      }
-      return err([{ path: 'name', code: 'isString' }]);
-    },
-    serialize: () => ({}),
-    validate() {
-      return null;
-    },
-    isAsync: false,
-    isSerializeAsync: false,
-  } satisfies SealedExecutors<CityDto>);
+  setSealed(CityDto, stringFieldExecutors(CityDto, 'name'));
 
   class LocationDto {
     city!: CityDto;
@@ -832,23 +820,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
   class TagDto {
     label!: string;
   }
-  setSealed(TagDto, {
-    deserialize: (input: unknown) => {
-      const i = input as Record<string, unknown>;
-      if (typeof i?.label === 'string') {
-        const t = new TagDto();
-        t.label = i.label;
-        return t;
-      }
-      return err([{ path: 'label', code: 'isString' }]);
-    },
-    serialize: () => ({}),
-    validate() {
-      return null;
-    },
-    isAsync: false,
-    isSerializeAsync: false,
-  } satisfies SealedExecutors<TagDto>);
+  setSealed(TagDto, stringFieldExecutors(TagDto, 'label'));
 
   // A no-op rule to trigger hasEach:true path without failing validation
   const alwaysPass: EmittableRule = Object.assign((_v: unknown): boolean => true, {
@@ -1056,7 +1028,7 @@ it('whitelist: should fail with whitelistViolation for extra key (stopAtFirstErr
     },
   };
   const result = await run(WlDto2, merged, { whitelist: true, stopAtFirstError: true }, { name: 'ok', extra: 1 });
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errors = result.data;
   expect(errors).toHaveLength(1);
   expect(errors[0]?.code).toBe('whitelistViolation');
@@ -1078,11 +1050,11 @@ it('whitelist: should collect all violations (collectErrors)', async () => {
     },
   };
   const result = await run(WlDto3, merged, { whitelist: true }, { name: 'ok', extra1: 1, extra2: 2 });
-  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  assertIsErr<BakerError[]>(result);
   const errors = result.data;
   expect(errors.length).toBeGreaterThanOrEqual(2);
-  expect(errors.some((e: BakerError) => e.path === 'extra1' && e.code === 'whitelistViolation')).toBe(true);
-  expect(errors.some((e: BakerError) => e.path === 'extra2' && e.code === 'whitelistViolation')).toBe(true);
+  expect(errors.some(matchPathAndCode('extra1', 'whitelistViolation'))).toBe(true);
+  expect(errors.some(matchPathAndCode('extra2', 'whitelistViolation'))).toBe(true);
 });
 
 it('whitelist: should use extract key (not field key) for @Expose', async () => {

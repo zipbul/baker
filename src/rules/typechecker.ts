@@ -29,16 +29,24 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
   const maxDecimalPlaces = options?.maxDecimalPlaces;
 
   const validate = (value: unknown): boolean => {
-    if (typeof value !== 'number') {return false;}
+    if (typeof value !== 'number') {
+      return false;
+    }
     // Check NaN first — since isFinite(NaN) is also false, order matters
-    if (isNaN(value)) {return allowNaN;}
+    if (isNaN(value)) {
+      return allowNaN;
+    }
     // Non-NaN non-finite values (Infinity / -Infinity)
-    if (!isFinite(value)) {return allowInfinity;}
+    if (!isFinite(value)) {
+      return allowInfinity;
+    }
     if (maxDecimalPlaces !== undefined) {
       const parts = value.toExponential().split('e');
       const mantissaDecimals = (parts[0]!.split('.')[1] || '').length;
       const exponent = parseInt(parts[1]!, 10);
-      if (Math.max(0, mantissaDecimals - exponent) > maxDecimalPlaces) {return false;}
+      if (Math.max(0, mantissaDecimals - exponent) > maxDecimalPlaces) {
+        return false;
+      }
     }
     return true;
   };

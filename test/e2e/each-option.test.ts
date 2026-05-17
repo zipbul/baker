@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, arrayOf, deserialize, configure, isBakerError, seal } from '../../index';
 import { isArray, isString, isNumber, min, minLength, arrayMinSize } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -62,12 +63,10 @@ describe('each:true — error paths', () => {
   it('error path includes index', async () => {
     seal();
     const result = await deserialize(StringArrayDto, { tags: ['ok', 42] });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const tagErr = result.errors.find(err => err.path.startsWith('tags'));
-      expect(tagErr).toBeDefined();
-      expect(tagErr!.path).toContain('[');
-    }
+    assertBakerError(result);
+    const tagErr = result.errors.find(err => err.path.startsWith('tags'));
+    expect(tagErr).toBeDefined();
+    expect(tagErr!.path).toContain('[');
   });
 });
 
@@ -103,12 +102,10 @@ describe('each:true — Set with stopAtFirstError', () => {
     }
     seal(SetDto);
     const result = await deserialize(SetDto, { items: new Set([42, 'ok']) });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(err => err.path.startsWith('items'));
-      expect(err).toBeDefined();
-      expect(err!.path).toMatch(/items\[\d+\]/);
-    }
+    assertBakerError(result);
+    const err = result.errors.find(err => err.path.startsWith('items'));
+    expect(err).toBeDefined();
+    expect(err!.path).toMatch(/items\[\d+\]/);
   });
 });
 
@@ -127,12 +124,10 @@ describe('each:true — Map with stopAtFirstError', () => {
         ['b', 'ok'],
       ]),
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(err => err.path.startsWith('items'));
-      expect(err).toBeDefined();
-      expect(err!.path).toMatch(/items\[\d+\]/);
-    }
+    assertBakerError(result);
+    const err = result.errors.find(err => err.path.startsWith('items'));
+    expect(err).toBeDefined();
+    expect(err!.path).toMatch(/items\[\d+\]/);
   });
 });
 
@@ -145,11 +140,9 @@ describe('each:true — Set with collectErrors', () => {
     }
     seal(SetCollectDto);
     const result = await deserialize(SetCollectDto, { items: new Set([42, 99]) });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
-      expect(itemErrors.length).toBeGreaterThanOrEqual(2);
-    }
+    assertBakerError(result);
+    const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
+    expect(itemErrors.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -167,10 +160,8 @@ describe('each:true — Map with collectErrors', () => {
         ['b', 99],
       ]),
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
-      expect(itemErrors.length).toBeGreaterThanOrEqual(2);
-    }
+    assertBakerError(result);
+    const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
+    expect(itemErrors.length).toBeGreaterThanOrEqual(2);
   });
 });

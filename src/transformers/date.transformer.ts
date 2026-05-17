@@ -12,7 +12,9 @@ export const unixMillisTransformer: Transformer = {
 
 export const isoStringTransformer: Transformer = {
   deserialize: ({ value }) => {
-    if (typeof value !== 'string') {return value;}
+    if (typeof value !== 'string') {
+      return value;
+    }
     const d = new Date(value);
     return Number.isNaN(d.getTime()) ? value : d;
   },

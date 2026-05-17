@@ -2,10 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { validate, deserialize, isBakerError, Field, createRule, seal } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, max, minLength } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
+
+const isEvenNumber = (v: unknown): boolean => typeof v === 'number' && (v as number) % 2 === 0;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Ad-hoc validation — single value + rules
@@ -18,10 +21,8 @@ describe('validate ad-hoc — sync rules', () => {
 
   it('single rule fail → BakerErrors with code', async () => {
     const result = await validate(123, isString);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toEqual([{ path: '', code: 'isString' }]);
-    }
+    assertBakerError(result);
+    expect(result.errors).toEqual([{ path: '', code: 'isString' }]);
   });
 
   it('multiple rules all pass → true', async () => {
@@ -30,20 +31,16 @@ describe('validate ad-hoc — sync rules', () => {
 
   it('multiple rules partial fail → BakerErrors with failed codes only', async () => {
     const result = await validate('ab', isString, minLength(3), isEmail());
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(2);
-      expect(result.errors[0]!.code).toBe('minLength');
-      expect(result.errors[1]!.code).toBe('isEmail');
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]!.code).toBe('minLength');
+    expect(result.errors[1]!.code).toBe('isEmail');
   });
 
   it('multiple rules all fail → BakerErrors with all codes', async () => {
     const result = await validate(42, isString, minLength(3), isEmail());
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(3);
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(3);
   });
 
   it('number validation with min/max', async () => {
@@ -66,9 +63,8 @@ describe('validate ad-hoc — sync rules', () => {
 
   it('error path is empty string for ad-hoc', async () => {
     const result = await validate(123, isString);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.path).toBe('');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.path).toBe('');
   });
 
   it('sync rules return directly', () => {
@@ -94,20 +90,16 @@ describe('validate ad-hoc — async rules', () => {
 
   it('async rule fail → BakerErrors', async () => {
     const result = await validate('hello', asyncFail);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('asyncFail');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('asyncFail');
   });
 
   it('mixed sync + async rules', async () => {
     const result = await validate(123, isString, asyncPass);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(2);
-      expect(result.errors[0]!.code).toBe('isString');
-      expect(result.errors[1]!.code).toBe('asyncPass');
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(2);
+    expect(result.errors[0]!.code).toBe('isString');
+    expect(result.errors[1]!.code).toBe('asyncPass');
   });
 
   it('returns Promise for async rules', () => {
@@ -143,13 +135,11 @@ describe('validate ad-hoc — edge cases', () => {
   });
 
   it('createRule with simple form', async () => {
-    const isEven = createRule('isEven', v => typeof v === 'number' && (v as number) % 2 === 0);
+    const isEven = createRule('isEven', isEvenNumber);
     expect(await validate(4, isEven)).toBe(true);
     const result = await validate(3, isEven);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('isEven');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('isEven');
   });
 });
 
@@ -179,21 +169,17 @@ describe('validate DTO — basic', () => {
 
   it('invalid input → BakerErrors with field paths', async () => {
     const result = await validate(SimpleDto, { name: 'A', age: -5, email: 'bad' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const codes = result.errors.map(e => e.code);
-      expect(codes).toContain('minLength');
-      expect(codes).toContain('min');
-      expect(codes).toContain('isEmail');
-    }
+    assertBakerError(result);
+    const codes = result.errors.map(e => e.code);
+    expect(codes).toContain('minLength');
+    expect(codes).toContain('min');
+    expect(codes).toContain('isEmail');
   });
 
   it('wrong types → BakerErrors', async () => {
     const result = await validate(SimpleDto, { name: 123, age: 'bad', email: 42 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(3);
-    }
+    assertBakerError(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
 
   it('missing fields → BakerErrors', async () => {
@@ -203,18 +189,14 @@ describe('validate DTO — basic', () => {
 
   it('null input → BakerErrors with invalidInput code', async () => {
     const result = await validate(SimpleDto, null);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('array input → BakerErrors with invalidInput code', async () => {
     const result = await validate(SimpleDto, [1, 2, 3]);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('invalidInput');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('sync DTO returns directly', () => {
@@ -230,11 +212,9 @@ describe('validate DTO — nested', () => {
 
   it('invalid nested field → BakerErrors with nested path', async () => {
     const result = await validate(NestedUserDto, { name: 'Bob', address: { city: '' } });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const paths = result.errors.map(e => e.path);
-      expect(paths.some(p => p.includes('address'))).toBe(true);
-    }
+    assertBakerError(result);
+    const paths = result.errors.map(e => e.path);
+    expect(paths.some(p => p.includes('address'))).toBe(true);
   });
 });
 
@@ -259,11 +239,11 @@ describe('validate DTO — consistency with deserialize', () => {
     const input = { name: 123, age: 'x', email: 42 };
     const vResult = await validate(SimpleDto, input);
     const dResult = await deserialize(SimpleDto, input);
-    if (isBakerError(vResult) && isBakerError(dResult)) {
-      const vCodes = vResult.errors.map(e => `${e.path}:${e.code}`).sort();
-      const dCodes = dResult.errors.map(e => `${e.path}:${e.code}`).sort();
-      expect(vCodes).toEqual(dCodes);
-    }
+    assertBakerError(vResult);
+    assertBakerError(dResult);
+    const vCodes = vResult.errors.map(e => `${e.path}:${e.code}`).sort();
+    const dCodes = dResult.errors.map(e => `${e.path}:${e.code}`).sort();
+    expect(vCodes).toEqual(dCodes);
   });
 });
 
@@ -352,15 +332,15 @@ describe('validate ad-hoc — no rules', () => {
 
 describe('validate ad-hoc — invalid rule argument rejection', () => {
   it('non-function rule throws SealError', () => {
-    expect(() => validate("hello", 42 as never)).toThrow(/argument 1 is not a baker rule/);
+    expect(() => validate('hello', 42 as never)).toThrow(/argument 1 is not a baker rule/);
   });
 
   it('null rule throws SealError', () => {
-    expect(() => validate("hello", null as never)).toThrow(/got null/);
+    expect(() => validate('hello', null as never)).toThrow(/got null/);
   });
 
   it('function without emit/ruleName throws SealError', () => {
-    const fakeRule = ((() => true) as never);
+    const fakeRule = (() => true) as never;
     expect(() => validate('hello', fakeRule)).toThrow(/is not a baker rule/);
   });
 });
@@ -398,10 +378,8 @@ describe('validate overload resolution', () => {
   it('function + EmittableRule → ad-hoc mode (validates function value)', async () => {
     const fn = () => {};
     const result = await validate(fn, isString);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.code).toBe('isString');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.code).toBe('isString');
   });
 
   it('string + rules → ad-hoc mode', async () => {

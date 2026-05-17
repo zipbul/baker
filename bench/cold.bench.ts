@@ -1,17 +1,18 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Benchmark: Cold start — schema definition + first validation (compile cost)
-// ─────────────────────────────────────────────────────────────────────────────
-import { bench, group, run } from 'mitata';
-import { Field, deserialize, seal } from '../index';
-import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
-import { unseal } from '../test/integration/helpers/unseal';
-import * as reflectMetadata from 'reflect-metadata';
 import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import Ajv from 'ajv';
 import { type } from 'arktype';
+// ─────────────────────────────────────────────────────────────────────────────
+// Benchmark: Cold start — schema definition + first validation (compile cost)
+// ─────────────────────────────────────────────────────────────────────────────
+import { bench, group, run } from 'mitata';
+import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
+
+import { Field, deserialize, seal } from '../index';
+import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
+import { unseal } from '../test/integration/helpers/unseal';
 
 const input = { name: 'Alice', email: 'alice@example.com', age: 30, active: true, tag: 'ok' };
 

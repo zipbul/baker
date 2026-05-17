@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
-import { isString, isNumber, isEmail, min } from '../../src/rules/index';
-import { unseal, purgePoisonClasses } from './helpers/unseal';
 import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
+import { isString, isNumber, isEmail, min } from '../../src/rules/index';
+import { assertBakerError } from './helpers/assert';
+import { unseal, purgePoisonClasses } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -260,11 +261,9 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     seal();
 
     const result = await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find((x: { code: string }) => x.code === 'whitelistViolation');
-      expect(err).toBeDefined();
-    }
+    assertBakerError(result);
+    const err = result.errors.find((x: { code: string }) => x.code === 'whitelistViolation');
+    expect(err).toBeDefined();
   });
 
   it('should remove forbidUnknown effect after unseal + reconfigure without it', async () => {

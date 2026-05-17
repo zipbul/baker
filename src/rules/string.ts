@@ -177,7 +177,9 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
   const checkFn = noSymbols
     ? (s: string): boolean => s.length > 0 && NO_SYMBOLS_RE.test(s)
     : (s: string): boolean => {
-        if (s.length === 0) {return false;}
+        if (s.length === 0) {
+          return false;
+        }
         const n = Number(s);
         return !isNaN(n) && isFinite(n);
       };
@@ -368,9 +370,15 @@ function isIP(version?: 4 | 6): EmittableRule {
     requiresType: 'string',
     constraints: { version },
     validate: value => {
-      if (typeof value !== 'string') {return false;}
-      if (version === 4) {return IPV4_RE.test(value);}
-      if (version === 6) {return IPV6_RE.test(value);}
+      if (typeof value !== 'string') {
+        return false;
+      }
+      if (version === 4) {
+        return IPV4_RE.test(value);
+      }
+      if (version === 6) {
+        return IPV6_RE.test(value);
+      }
       return IPV4_RE.test(value) || IPV6_RE.test(value);
     },
     emit: (varName: string, ctx: EmitContext): string => {
@@ -415,7 +423,9 @@ function isRgbColor(includePercentValues: boolean = false): EmittableRule {
     requiresType: 'string',
     constraints: { includePercentValues },
     validate: value => {
-      if (typeof value !== 'string') {return false;}
+      if (typeof value !== 'string') {
+        return false;
+      }
       if (includePercentValues) {
         return RGB_PERCENT_NOALPHA_RE.test(value) || RGBA_PERCENT_RE.test(value) || RGB_RE.test(value) || RGBA_RE.test(value);
       }
@@ -463,8 +473,12 @@ function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
     requiresType: 'string',
     constraints: { no_separators: options?.no_separators },
     validate: value => {
-      if (typeof value !== 'string') {return false;}
-      if (options?.no_separators) {return MAC_NO_SEP_RE.test(value);}
+      if (typeof value !== 'string') {
+        return false;
+      }
+      if (options?.no_separators) {
+        return MAC_NO_SEP_RE.test(value);
+      }
       return MAC_COLON_RE.test(value) || MAC_HYPHEN_RE.test(value);
     },
     emit: (varName: string, ctx: EmitContext): string => {
@@ -482,9 +496,13 @@ function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
 // ISBN
 function validateISBN10(str: string): boolean {
   const s = str.replace(/[-\s]/g, '');
-  if (!/^\d{9}[\dX]$/.test(s)) {return false;}
+  if (!/^\d{9}[\dX]$/.test(s)) {
+    return false;
+  }
   let sum = 0;
-  for (let i = 0; i < 9; i++) {sum += (10 - i) * (s.charCodeAt(i) - 48);}
+  for (let i = 0; i < 9; i++) {
+    sum += (10 - i) * (s.charCodeAt(i) - 48);
+  }
   const last = s[9] === 'X' ? 10 : s.charCodeAt(9) - 48;
   sum += last;
   return sum % 11 === 0;
@@ -492,7 +510,9 @@ function validateISBN10(str: string): boolean {
 
 function validateISBN13(str: string): boolean {
   const s = str.replace(/[-\s]/g, '');
-  if (!/^\d{13}$/.test(s)) {return false;}
+  if (!/^\d{13}$/.test(s)) {
+    return false;
+  }
   let sum = 0;
   for (let i = 0; i < 12; i++) {
     sum += (s.charCodeAt(i) - 48) * (i % 2 === 0 ? 1 : 3);
@@ -503,9 +523,15 @@ function validateISBN13(str: string): boolean {
 
 function isISBN(version?: 10 | 13): EmittableRule {
   const validateFn = (value: unknown): boolean => {
-    if (typeof value !== 'string') {return false;}
-    if (version === 10) {return validateISBN10(value);}
-    if (version === 13) {return validateISBN13(value);}
+    if (typeof value !== 'string') {
+      return false;
+    }
+    if (version === 10) {
+      return validateISBN10(value);
+    }
+    if (version === 13) {
+      return validateISBN13(value);
+    }
     return validateISBN10(value) || validateISBN13(value);
   };
 
@@ -530,8 +556,12 @@ function isISBN(version?: 10 | 13): EmittableRule {
     validate: validateFn,
     emit: (varName: string, ctx: EmitContext): string => {
       const fail = ctx.fail('isISBN');
-      if (version === 10) {return emitISBN10(varName).replace(/%%FAIL%%/g, fail);}
-      if (version === 13) {return emitISBN13(varName).replace(/%%FAIL%%/g, fail);}
+      if (version === 10) {
+        return emitISBN10(varName).replace(/%%FAIL%%/g, fail);
+      }
+      if (version === 13) {
+        return emitISBN13(varName).replace(/%%FAIL%%/g, fail);
+      }
       const emit10 = emitISBN10(varName).replace(/%%FAIL%%/g, '__isbn_ok=false');
       const emit13 = emitISBN13(varName).replace(/%%FAIL%%/g, '__isbn_ok=false');
       return `{var __isbn_ok=true;${emit10} if(!__isbn_ok){__isbn_ok=true;${emit13}} if(!__isbn_ok)${fail};}`;
@@ -543,7 +573,9 @@ function isISBN(version?: 10 | 13): EmittableRule {
 const ISIN_RE = /^[A-Z]{2}[A-Z0-9]{9}[0-9]$/;
 
 function validateISINStr(v: string): boolean {
-  if (!ISIN_RE.test(v)) {return false;}
+  if (!ISIN_RE.test(v)) {
+    return false;
+  }
   // Luhn mod10 on expanded digits
   const expanded = v
     .split('')
@@ -558,7 +590,9 @@ function validateISINStr(v: string): boolean {
     let n = parseInt(expanded[i]!, 10);
     if (alternate) {
       n *= 2;
-      if (n > 9) {n -= 9;}
+      if (n > 9) {
+        n -= 9;
+      }
     }
     sum += n;
     alternate = !alternate;
@@ -585,17 +619,27 @@ interface IsISO8601Options {
 
 // Strict ISO8601: requires month/day AND hour/minute/second to be valid values
 function validateISO8601Strict(v: string): boolean {
-  if (!ISO8601_RE.test(v)) {return false;}
+  if (!ISO8601_RE.test(v)) {
+    return false;
+  }
   const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (!m) {return true;} // year-only or year-month partial — still ok per regex
+  if (!m) {
+    return true;
+  } // year-only or year-month partial — still ok per regex
   const month = Number(m[2]);
   const day = Number(m[3]);
-  if (month < 1 || month > 12) {return false;}
+  if (month < 1 || month > 12) {
+    return false;
+  }
   const maxDay = new Date(Number(m[1]), month, 0).getDate();
-  if (day < 1 || day > maxDay) {return false;}
+  if (day < 1 || day > maxDay) {
+    return false;
+  }
   // Time component check: hour 0-23, minute 0-59, second 0-60 (leap second).
   const tm = v.match(/T(\d{2}):(\d{2}):(\d{2})/);
-  if (!tm) {return true;}
+  if (!tm) {
+    return true;
+  }
   const hh = Number(tm[1]);
   const mm = Number(tm[2]);
   const ss = Number(tm[3]);
@@ -660,7 +704,9 @@ function validateISSN(value: string, options?: IsISSNOptions): boolean {
   const s = requireHyphen ? value : value.replace(/-/g, '');
   // Format with hyphen: NNNN-NNNX, without: NNNNNNXX
   const re = requireHyphen ? /^\d{4}-\d{3}[\dX]$/ : /^\d{7}[\dX]$/;
-  if (!re.test(s)) {return false;}
+  if (!re.test(s)) {
+    return false;
+  }
   const digits = s.replace(/-/g, '');
   let sum = 0;
   for (let i = 0; i < 7; i++) {
@@ -759,20 +805,36 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
   const partRe = allowUnderscores ? /^[a-zA-Z0-9_-]+$/ : /^[a-zA-Z0-9-]+$/;
 
   const validateFqdn = (value: unknown): boolean => {
-    if (typeof value !== 'string') {return false;}
+    if (typeof value !== 'string') {
+      return false;
+    }
     let str = value;
-    if (allowTrailingDot && str.endsWith('.')) {str = str.slice(0, -1);}
-    if (str.length === 0) {return false;}
+    if (allowTrailingDot && str.endsWith('.')) {
+      str = str.slice(0, -1);
+    }
+    if (str.length === 0) {
+      return false;
+    }
     const parts = str.split('.');
-    if (requireTld && parts.length < 2) {return false;}
+    if (requireTld && parts.length < 2) {
+      return false;
+    }
     if (requireTld) {
       const tld = parts[parts.length - 1];
-      if (!tld || tld.length < 2 || !/^[a-zA-Z]{2,}$/.test(tld)) {return false;}
+      if (!tld || tld.length < 2 || !/^[a-zA-Z]{2,}$/.test(tld)) {
+        return false;
+      }
     }
     return parts.every(part => {
-      if (part.length === 0 || part.length > 63) {return false;}
-      if (!partRe.test(part)) {return false;}
-      if (!allowUnderscores && (part.startsWith('-') || part.endsWith('-'))) {return false;}
+      if (part.length === 0 || part.length > 63) {
+        return false;
+      }
+      if (!partRe.test(part)) {
+        return false;
+      }
+      if (!allowUnderscores && (part.startsWith('-') || part.endsWith('-'))) {
+        return false;
+      }
       return true;
     });
   };
@@ -790,7 +852,9 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
       const ri = ctx.addRegex(partRe);
       const tldRi = requireTld ? ctx.addRegex(/^[a-zA-Z]{2,}$/) : -1;
       let code = `{var fq=${varName};`;
-      if (allowTrailingDot) {code += `if(fq.endsWith('.'))fq=fq.slice(0,-1);`;}
+      if (allowTrailingDot) {
+        code += `if(fq.endsWith('.'))fq=fq.slice(0,-1);`;
+      }
       code += `if(fq.length===0)${ctx.fail('isFQDN')};`;
       code += `else{var fp=fq.split('.');`;
       if (requireTld) {
@@ -803,10 +867,14 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
       }
       code += `if(p.length===0||p.length>63)return false;`;
       code += `if(!re[${ri}].test(p))return false;`;
-      if (!allowUnderscores) {code += `if(p[0]==='-'||p[p.length-1]==='-')return false;`;}
+      if (!allowUnderscores) {
+        code += `if(p[0]==='-'||p[p.length-1]==='-')return false;`;
+      }
       code += `return true;}))${ctx.fail('isFQDN')};`;
       // close: requireTld adds else{ for tld block
-      if (requireTld) {code += '}';} // close tld else{
+      if (requireTld) {
+        code += '}';
+      } // close tld else{
       code += '}'; // close split else{
       code += '}'; // close outer {
       return code;
@@ -827,7 +895,9 @@ const isPort = makeStringRule(
 
 // EAN (EAN-8 and EAN-13 with checksum)
 function validateEAN(value: string): boolean {
-  if (!/^\d{8}$/.test(value) && !/^\d{13}$/.test(value)) {return false;}
+  if (!/^\d{8}$/.test(value) && !/^\d{13}$/.test(value)) {
+    return false;
+  }
   const digits = value.split('').map(Number);
   const len = digits.length;
   let sum = 0;
@@ -1427,7 +1497,9 @@ const isMongoId = makeStringRule(
 
 // JSON
 const validateJsonString = (value: unknown): boolean => {
-  if (typeof value !== 'string') {return false;}
+  if (typeof value !== 'string') {
+    return false;
+  }
   try {
     JSON.parse(value);
     return true;
@@ -1451,8 +1523,12 @@ function isBase32(): EmittableRule {
   return makeStringRule(
     'isBase32',
     v => {
-      if (v.length === 0) {return false;}
-      if (v.length % 8 !== 0) {return false;}
+      if (v.length === 0) {
+        return false;
+      }
+      if (v.length % 8 !== 0) {
+        return false;
+      }
       return re.test(v);
     },
     (varName, ctx) => {
@@ -1486,7 +1562,9 @@ function isBase64(options?: IsBase64Options): EmittableRule {
   return makeStringRule(
     'isBase64',
     v => {
-      if (v.length === 0) {return false;}
+      if (v.length === 0) {
+        return false;
+      }
       return re.test(v);
     },
     (varName, ctx) => {
@@ -1502,7 +1580,9 @@ function isBase64(options?: IsBase64Options): EmittableRule {
 const DATE_STRING_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
 
 function isCalendarValidDate(v: string): boolean {
-  if (!DATE_STRING_RE.test(v)) {return false;}
+  if (!DATE_STRING_RE.test(v)) {
+    return false;
+  }
   const y = Number(v.slice(0, 4));
   const m = Number(v.slice(5, 7));
   const d = Number(v.slice(8, 10));
@@ -1540,7 +1620,9 @@ function isCurrency(): EmittableRule {
   return makeStringRule(
     'isCurrency',
     v => {
-      if (v.length === 0) {return false;}
+      if (v.length === 0) {
+        return false;
+      }
       return CURRENCY_RE.test(v);
     },
     (varName, ctx) => {
@@ -1568,14 +1650,18 @@ const isMagnetURI = makeStringRule(
 // Credit Card — Luhn algorithm (§4.8 C)
 function luhn(str: string): boolean {
   const s = str.replace(/[\s-]/g, '');
-  if (s.length === 0 || !/^\d+$/.test(s)) {return false;}
+  if (s.length === 0 || !/^\d+$/.test(s)) {
+    return false;
+  }
   let sum = 0;
   let alternate = false;
   for (let i = s.length - 1; i >= 0; i--) {
     let n = s.charCodeAt(i) - 48;
     if (alternate) {
       n *= 2;
-      if (n > 9) {n -= 9;}
+      if (n > 9) {
+        n -= 9;
+      }
     }
     sum += n;
     alternate = !alternate;
@@ -1682,10 +1768,14 @@ const IBAN_COUNTRY_LENGTH: Record<string, number> = {
 function validateIBAN(value: string, options?: IsIBANOptions): boolean {
   let s = options?.allowSpaces ? value.replace(/\s/g, '') : value;
   s = s.toUpperCase();
-  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(s)) {return false;}
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(s)) {
+    return false;
+  }
   const country = s.slice(0, 2);
   const expectedLength = IBAN_COUNTRY_LENGTH[country];
-  if (expectedLength !== undefined && s.length !== expectedLength) {return false;}
+  if (expectedLength !== undefined && s.length !== expectedLength) {
+    return false;
+  }
   // Rearrange: move first 4 chars to end
   const rearranged = s.slice(4) + s.slice(0, 4);
   // Convert letters to digits (A=10, B=11, ...)
@@ -1727,10 +1817,16 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
 // ByteLength — counts UTF-8 bytes via Buffer.byteLength
 function isByteLength(min: number, max?: number): EmittableRule {
   const validateByteLength = (value: unknown): boolean => {
-    if (typeof value !== 'string') {return false;}
+    if (typeof value !== 'string') {
+      return false;
+    }
     const byteLen = Buffer.byteLength(value, 'utf8');
-    if (byteLen < min) {return false;}
-    if (max !== undefined && byteLen > max) {return false;}
+    if (byteLen < min) {
+      return false;
+    }
+    if (max !== undefined && byteLen > max) {
+      return false;
+    }
     return true;
   };
   return makeRule({
@@ -1741,7 +1837,9 @@ function isByteLength(min: number, max?: number): EmittableRule {
     emit: (varName: string, ctx: EmitContext): string => {
       let code = `{var bl=Buffer.byteLength(${varName},'utf8');`;
       code += `if(bl<${min})${ctx.fail('isByteLength')};`;
-      if (max !== undefined) {code += `else if(bl>${max})${ctx.fail('isByteLength')};`;}
+      if (max !== undefined) {
+        code += `else if(bl>${max})${ctx.fail('isByteLength')};`;
+      }
       code += '}';
       return code;
     },
@@ -1782,7 +1880,9 @@ function isHash(algorithm: string): EmittableRule {
     constraints: { algorithm },
     validate: value => typeof value === 'string' && !!re && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
-      if (!re) {return ctx.fail('isHash') + ';';}
+      if (!re) {
+        return ctx.fail('isHash') + ';';
+      }
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isHash')};`;
     },
@@ -1823,10 +1923,14 @@ function checkLatitude(value: unknown): boolean {
   }
   if (typeof value === 'string') {
     const n = parseFloat(value);
-    if (isNaN(n)) {return false;}
+    if (isNaN(n)) {
+      return false;
+    }
     if (String(n) !== value && value !== String(n)) {
       // extra chars check — parseFloat('90abc') = 90 but should fail
-      if (!/^-?\d+(\.\d+)?$/.test(value)) {return false;}
+      if (!/^-?\d+(\.\d+)?$/.test(value)) {
+        return false;
+      }
     }
     return n >= -90 && n <= 90;
   }
@@ -1856,8 +1960,12 @@ function checkLongitude(value: unknown): boolean {
   }
   if (typeof value === 'string') {
     const n = parseFloat(value);
-    if (isNaN(n)) {return false;}
-    if (!/^-?\d+(\.\d+)?$/.test(value)) {return false;}
+    if (isNaN(n)) {
+      return false;
+    }
+    if (!/^-?\d+(\.\d+)?$/.test(value)) {
+      return false;
+    }
     return n >= -180 && n <= 180;
   }
   return false;
@@ -2133,22 +2241,32 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
   const minSymbols = options?.minSymbols ?? 1;
 
   const validate = (v: string): boolean => {
-    if (v.length < minLength) {return false;}
+    if (v.length < minLength) {
+      return false;
+    }
     if (minLower > 0) {
       const cnt = (v.match(/[a-z]/g) || []).length;
-      if (cnt < minLower) {return false;}
+      if (cnt < minLower) {
+        return false;
+      }
     }
     if (minUpper > 0) {
       const cnt = (v.match(/[A-Z]/g) || []).length;
-      if (cnt < minUpper) {return false;}
+      if (cnt < minUpper) {
+        return false;
+      }
     }
     if (minNums > 0) {
       const cnt = (v.match(/[0-9]/g) || []).length;
-      if (cnt < minNums) {return false;}
+      if (cnt < minNums) {
+        return false;
+      }
     }
     if (minSymbols > 0) {
       const cnt = (v.match(/[^a-zA-Z0-9]/g) || []).length;
-      if (cnt < minSymbols) {return false;}
+      if (cnt < minSymbols) {
+        return false;
+      }
     }
     return true;
   };
@@ -2161,11 +2279,18 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
     emit: (varName: string, ctx: EmitContext): string => {
       let code = '';
       code += `if(${varName}.length<${minLength})${ctx.fail('isStrongPassword')};`;
-      if (minLower > 0) {code += `\nelse if((${varName}.match(/[a-z]/g)||[]).length<${minLower})${ctx.fail('isStrongPassword')};`;}
-      if (minUpper > 0) {code += `\nelse if((${varName}.match(/[A-Z]/g)||[]).length<${minUpper})${ctx.fail('isStrongPassword')};`;}
-      if (minNums > 0) {code += `\nelse if((${varName}.match(/[0-9]/g)||[]).length<${minNums})${ctx.fail('isStrongPassword')};`;}
-      if (minSymbols > 0)
-        {code += `\nelse if((${varName}.match(/[^a-zA-Z0-9]/g)||[]).length<${minSymbols})${ctx.fail('isStrongPassword')};`;}
+      if (minLower > 0) {
+        code += `\nelse if((${varName}.match(/[a-z]/g)||[]).length<${minLower})${ctx.fail('isStrongPassword')};`;
+      }
+      if (minUpper > 0) {
+        code += `\nelse if((${varName}.match(/[A-Z]/g)||[]).length<${minUpper})${ctx.fail('isStrongPassword')};`;
+      }
+      if (minNums > 0) {
+        code += `\nelse if((${varName}.match(/[0-9]/g)||[]).length<${minNums})${ctx.fail('isStrongPassword')};`;
+      }
+      if (minSymbols > 0) {
+        code += `\nelse if((${varName}.match(/[^a-zA-Z0-9]/g)||[]).length<${minSymbols})${ctx.fail('isStrongPassword')};`;
+      }
       return code;
     },
   });
@@ -2194,7 +2319,9 @@ function isTaxId(locale: string): EmittableRule {
     constraints: { locale },
     validate: value => typeof value === 'string' && !!re && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
-      if (!re) {return ctx.fail('isTaxId') + ';';}
+      if (!re) {
+        return ctx.fail('isTaxId') + ';';
+      }
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isTaxId')};`;
     },
@@ -2239,5 +2366,87 @@ function isCUID2(): EmittableRule {
     { format: 'cuid2' },
   );
 }
-export { minLength, maxLength, length, contains, notContains, matches, isLowercase, isUppercase, isAscii, isAlpha, isAlphanumeric, isBooleanString, isNumberString, isDecimal, isFullWidth, isHalfWidth, isVariableWidth, isMultibyte, isSurrogatePair, isHexadecimal, isOctal, isEmail, isURL, isUUID, isIP, isHexColor, isRgbColor, isHSL, isMACAddress, isISBN, isISIN, isISO8601, isISRC, isISSN, isJWT, isLatLong, isLocale, isDataURI, isFQDN, isPort, isEAN, isISO31661Alpha2, isISO31661Alpha3, isBIC, isFirebasePushId, isSemVer, isMongoId, isJSON, isBase32, isBase58, isBase64, isDateString, isMimeType, isCurrency, isMagnetURI, isCreditCard, isIBAN, isByteLength, isHash, isRFC3339, isMilitaryTime, isLatitude, isLongitude, isEthereumAddress, isBtcAddress, isISO4217CurrencyCode, isPhoneNumber, isStrongPassword, isTaxId, isULID, isCUID2 };
-export type { IsNumberStringOptions, IsURLOptions, IsMACAddressOptions, IsISO8601Options, IsISSNOptions, IsFQDNOptions, IsBase64Options, IsIBANOptions, IsStrongPasswordOptions };
+export {
+  minLength,
+  maxLength,
+  length,
+  contains,
+  notContains,
+  matches,
+  isLowercase,
+  isUppercase,
+  isAscii,
+  isAlpha,
+  isAlphanumeric,
+  isBooleanString,
+  isNumberString,
+  isDecimal,
+  isFullWidth,
+  isHalfWidth,
+  isVariableWidth,
+  isMultibyte,
+  isSurrogatePair,
+  isHexadecimal,
+  isOctal,
+  isEmail,
+  isURL,
+  isUUID,
+  isIP,
+  isHexColor,
+  isRgbColor,
+  isHSL,
+  isMACAddress,
+  isISBN,
+  isISIN,
+  isISO8601,
+  isISRC,
+  isISSN,
+  isJWT,
+  isLatLong,
+  isLocale,
+  isDataURI,
+  isFQDN,
+  isPort,
+  isEAN,
+  isISO31661Alpha2,
+  isISO31661Alpha3,
+  isBIC,
+  isFirebasePushId,
+  isSemVer,
+  isMongoId,
+  isJSON,
+  isBase32,
+  isBase58,
+  isBase64,
+  isDateString,
+  isMimeType,
+  isCurrency,
+  isMagnetURI,
+  isCreditCard,
+  isIBAN,
+  isByteLength,
+  isHash,
+  isRFC3339,
+  isMilitaryTime,
+  isLatitude,
+  isLongitude,
+  isEthereumAddress,
+  isBtcAddress,
+  isISO4217CurrencyCode,
+  isPhoneNumber,
+  isStrongPassword,
+  isTaxId,
+  isULID,
+  isCUID2,
+};
+export type {
+  IsNumberStringOptions,
+  IsURLOptions,
+  IsMACAddressOptions,
+  IsISO8601Options,
+  IsISSNOptions,
+  IsFQDNOptions,
+  IsBase64Options,
+  IsIBANOptions,
+  IsStrongPasswordOptions,
+};

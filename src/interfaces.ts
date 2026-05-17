@@ -20,7 +20,7 @@ export interface SealOptions {
   stopAtFirstError?: boolean;
   /**
    * true: reject undeclared fields. Uses the key set from mergeInheritance(Class) as the allowlist.
-   * @Exclude fields are also included in the whitelist — their presence is allowed but they are excluded from the result.
+   * `@Exclude` fields are also included in the whitelist — their presence is allowed but they are excluded from the result.
    * @default false
    */
   whitelist?: boolean;

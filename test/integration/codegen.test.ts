@@ -2,9 +2,9 @@ import { isErr } from '@zipbul/result';
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, deserialize, seal } from '../../index';
+import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
-import { requireSealed } from '../../src/meta-access';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 

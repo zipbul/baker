@@ -29,11 +29,15 @@ for (const file of files) {
   for (let i = 0; i < lines.length; i += 1) {
     const ln = lines[i]!;
     const m = ln.match(declRe);
-    if (!m) {continue;}
+    if (!m) {
+      continue;
+    }
     const kind = m[1]!;
     const name = m[2]!;
     if (kind === 'interface' || kind === 'type') {
-      if (!typeNames.includes(name)) {typeNames.push(name);}
+      if (!typeNames.includes(name)) {
+        typeNames.push(name);
+      }
     } else if (!valueNames.includes(name)) {
       valueNames.push(name);
     }

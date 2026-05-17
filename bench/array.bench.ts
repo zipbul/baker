@@ -1,19 +1,20 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
+import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Array of 1000 objects — valid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import * as reflectMetadata from 'reflect-metadata';
+import * as v from 'valibot';
+import { z } from 'zod';
+
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 import { ARRAY_VALID } from './data';
-import * as reflectMetadata from 'reflect-metadata';
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
-import { z } from 'zod';
-import * as v from 'valibot';
-import Ajv from 'ajv';
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
-import { type } from 'arktype';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
@@ -134,8 +135,13 @@ group('array 1000 items — valid input', () => {
   });
   bench('typebox', () => {
     const ok = tbCheck.Check(ARRAY_VALID);
-    if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(ARRAY_VALID)) {sinkNum += 1;}}
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(ARRAY_VALID)) {
+        sinkNum += 1;
+      }
+    }
   });
   bench('arktype', () => {
     const r = arkList(ARRAY_VALID);
@@ -144,4 +150,6 @@ group('array 1000 items — valid input', () => {
 });
 
 await run();
-if (sinkNum === -1) {console.log('unreachable', sinkNum);}
+if (sinkNum === -1) {
+  console.log('unreachable', sinkNum);
+}

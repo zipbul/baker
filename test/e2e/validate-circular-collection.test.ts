@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { validate, isBakerError, Field, configure, seal } from '../../index';
+import { validate, Field, configure, seal } from '../../index';
 import { isString, minLength } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -58,12 +59,10 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       ],
     };
     const result = await validate(SetNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'minLength');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('children[0].children[0].value');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'minLength');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('children[0].children[0].value');
   });
 
   it('deeper recursion violation → path chains indices correctly', async () => {
@@ -78,12 +77,10 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       ],
     };
     const result = await validate(SetNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'minLength');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('children[0].children[1].value');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'minLength');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('children[0].children[1].value');
   });
 
   it('nested set item not an object → invalidInput with depth path', async () => {
@@ -93,12 +90,10 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       children: [{ value: 'a', children: ['not-an-object'] }],
     };
     const result = await validate(SetNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'invalidInput');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('children[0].children[0].');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'invalidInput');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('children[0].children[0].');
   });
 });
 
@@ -124,12 +119,10 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'minLength');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('branches[a].branches[bad].value');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'minLength');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('branches[a].branches[bad].value');
   });
 
   it('deeper recursion violation → path chains keys correctly', async () => {
@@ -147,12 +140,10 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'minLength');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('branches[lvl1].branches[lvl2b].value');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'minLength');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('branches[lvl1].branches[lvl2b].value');
   });
 
   it('nested map value not an object → invalidInput with depth path', async () => {
@@ -167,12 +158,10 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'invalidInput');
-      expect(err).toBeDefined();
-      expect(err!.path).toBe('branches[a].branches[bad].');
-    }
+    assertBakerError(result);
+    const err = result.errors.find(e => e.code === 'invalidInput');
+    expect(err).toBeDefined();
+    expect(err!.path).toBe('branches[a].branches[bad].');
   });
 });
 
@@ -191,12 +180,10 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
       children: [{ value: 'a', children: [{ value: '' }, { value: '' }] }],
     };
     const result = await validate(SetNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]!.code).toBe('minLength');
-      expect(result.errors[0]!.path).toBe('children[0].children[0].value');
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]!.code).toBe('minLength');
+    expect(result.errors[0]!.path).toBe('children[0].children[0].value');
   });
 
   it('Map: depth-2 violation returns first error only', async () => {
@@ -213,11 +200,9 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
       },
     };
     const result = await validate(MapNode, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]!.code).toBe('minLength');
-      expect(result.errors[0]!.path).toBe('branches[a].branches[x].value');
-    }
+    assertBakerError(result);
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]!.code).toBe('minLength');
+    expect(result.errors[0]!.path).toBe('branches[a].branches[x].value');
   });
 });

@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, validate, Field, isBakerError, configure, seal } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -266,10 +267,8 @@ describe('validate inline parity — very deep nesting (11 levels)', () => {
     seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
     const result = validate(Root, input);
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
-    }
+    assertBakerError(result);
+    expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
 });
 
@@ -416,13 +415,13 @@ describe('validate inline parity — stopAtFirstError', () => {
     const valResult = validate(Root, input);
     expect(isBakerError(desResult)).toBe(true);
     expect(isBakerError(valResult)).toBe(true);
-    if (isBakerError(desResult) && isBakerError(valResult)) {
-      // Both should have exactly 1 error
-      expect(desResult.errors.length).toBe(1);
-      expect(valResult.errors.length).toBe(1);
-      expect(valResult.errors[0]!.path).toBe(desResult.errors[0]!.path);
-      expect(valResult.errors[0]!.code).toBe(desResult.errors[0]!.code);
-    }
+    assertBakerError(desResult);
+    assertBakerError(valResult);
+    // Both should have exactly 1 error
+    expect(desResult.errors.length).toBe(1);
+    expect(valResult.errors.length).toBe(1);
+    expect(valResult.errors[0]!.path).toBe(desResult.errors[0]!.path);
+    expect(valResult.errors[0]!.code).toBe(desResult.errors[0]!.code);
   });
 });
 

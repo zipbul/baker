@@ -28,14 +28,18 @@ afterEach(() => unseal());
 /** Helper: verify rejection + return error code */
 async function failCode<T>(cls: new (...args: never[]) => T, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {throw new Error('expected validation failure');}
+  if (!isBakerError(result)) {
+    throw new Error('expected validation failure');
+  }
   return result.errors[0]!.code;
 }
 
 /** Helper: successful deserialize, returns the typed instance (throws on validation failure). */
 async function ok<T extends { v: unknown }>(cls: new (...args: never[]) => T, input: unknown): Promise<T> {
   const result = await deserialize<T>(cls, input);
-  if (isBakerError(result)) {throw new Error('expected success, got error: ' + JSON.stringify(result.errors));}
+  if (isBakerError(result)) {
+    throw new Error('expected success, got error: ' + JSON.stringify(result.errors));
+  }
   return result;
 }
 

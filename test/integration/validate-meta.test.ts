@@ -8,8 +8,12 @@ import { unseal } from './helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => {
   const toDelete: Function[] = [];
-  for (const cls of globalRegistry) {toDelete.push(cls);}
-  for (const cls of toDelete) {globalRegistry.delete(cls);}
+  for (const cls of globalRegistry) {
+    toDelete.push(cls);
+  }
+  for (const cls of toDelete) {
+    globalRegistry.delete(cls);
+  }
   unseal();
 });
 

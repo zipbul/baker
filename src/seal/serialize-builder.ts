@@ -35,20 +35,32 @@ const GEN = {
 function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['expose']): string {
   // serializeOnly @Expose with name → use that name
   const serDef = exposeStack.find(e => e.serializeOnly && e.name);
-  if (serDef) {return serDef.name!;}
+  if (serDef) {
+    return serDef.name!;
+  }
   // Non-directional @Expose with name → use for both directions
   const biDef = exposeStack.find(e => !e.deserializeOnly && !e.serializeOnly && e.name);
-  if (biDef) {return biDef.name!;}
+  if (biDef) {
+    return biDef.name!;
+  }
   return fieldKey;
 }
 
 /** Determine expose groups for serialize direction — returns undefined (no restriction) if any unconditional expose entry exists */
 function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
   const serEntries = exposeStack.filter(e => !e.deserializeOnly);
-  if (serEntries.length === 0) {return undefined;}
-  if (serEntries.some(e => !e.groups || e.groups.length === 0)) {return undefined;}
+  if (serEntries.length === 0) {
+    return undefined;
+  }
+  if (serEntries.some(e => !e.groups || e.groups.length === 0)) {
+    return undefined;
+  }
   const all = new Set<string>();
-  for (const e of serEntries) {for (const g of e.groups!) {all.add(g);}}
+  for (const e of serEntries) {
+    for (const g of e.groups!) {
+      all.add(g);
+    }
+  }
   return [...all];
 }
 
@@ -62,7 +74,9 @@ function buildSerializeTransformExpr(
   serTransforms: TransformDef[],
   refs: unknown[],
 ): string | null {
-  if (serTransforms.length === 0) {return null;}
+  if (serTransforms.length === 0) {
+    return null;
+  }
   if (serTransforms.length === 1) {
     const td = serTransforms[0]!;
     const refIdx = refs.length;
@@ -294,8 +308,12 @@ function generateSerializeFieldCode(
 
       // Sort most-specific-first (subclasses take priority in inheritance relationships)
       const sorted = [...subTypes].sort((a, b) => {
-        if ((a.value as { prototype: unknown }).prototype instanceof b.value) {return -1;}
-        if ((b.value as { prototype: unknown }).prototype instanceof a.value) {return 1;}
+        if ((a.value as { prototype: unknown }).prototype instanceof b.value) {
+          return -1;
+        }
+        if ((b.value as { prototype: unknown }).prototype instanceof a.value) {
+          return 1;
+        }
         return 0;
       });
 

@@ -76,7 +76,9 @@ function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
     requiresType: 'array',
     constraints: {},
     validate: value => {
-      if (!Array.isArray(value)) {return false;}
+      if (!Array.isArray(value)) {
+        return false;
+      }
       if (identifier) {
         const keys = value.map(identifier);
         return new Set(keys).size === keys.length;

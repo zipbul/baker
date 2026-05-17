@@ -9,7 +9,9 @@ export async function momentTransformer(opts?: MomentTransformerOptions): Promis
 
   return {
     deserialize: ({ value }) => {
-      if (typeof value === 'string' || value instanceof Date) {return moment(value);}
+      if (typeof value === 'string' || value instanceof Date) {
+        return moment(value);
+      }
       return value;
     },
     serialize: ({ value }) => {
@@ -19,7 +21,9 @@ export async function momentTransformer(opts?: MomentTransformerOptions): Promis
         typeof (value as { toISOString(): string; format(f: string): string }).toISOString === 'function' &&
         typeof (value as { toISOString(): string; format(f: string): string }).format === 'function'
       ) {
-        return opts?.format ? (value as { toISOString(): string; format(f: string): string }).format(opts.format) : (value as { toISOString(): string; format(f: string): string }).toISOString();
+        return opts?.format
+          ? (value as { toISOString(): string; format(f: string): string }).format(opts.format)
+          : (value as { toISOString(): string; format(f: string): string }).toISOString();
       }
       return value;
     },

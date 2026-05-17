@@ -17,7 +17,9 @@ export function getSealed(cls: Function): SealedExecutors<unknown> | undefined {
 /** Same as getSealed but throws if the class is not sealed — for callers that establish the invariant elsewhere. */
 export function requireSealed(cls: Function): SealedExecutors<unknown> {
   const v = (cls as SealedCarrier)[SEALED];
-  if (v === undefined) {throw new Error(`${cls.name || '<anonymous>'}: class is not sealed`);}
+  if (v === undefined) {
+    throw new Error(`${cls.name || '<anonymous>'}: class is not sealed`);
+  }
   return v;
 }
 
@@ -44,7 +46,9 @@ export function getRaw(cls: Function): RawClassMeta | undefined {
 /** Same as getRaw but throws if the class has no @Field decorators — for callers that establish the invariant elsewhere. */
 export function requireRaw(cls: Function): RawClassMeta {
   const v = (cls as RawCarrier)[RAW];
-  if (v === undefined) {throw new Error(`${cls.name || '<anonymous>'}: class has no @Field decorators`);}
+  if (v === undefined) {
+    throw new Error(`${cls.name || '<anonymous>'}: class has no @Field decorators`);
+  }
   return v;
 }
 
@@ -58,5 +62,7 @@ export function hasRawOwn(cls: Function): boolean {
 
 export function freezeRaw(cls: Function): void {
   const raw = getRaw(cls);
-  if (raw) {Object.freeze(raw);}
+  if (raw) {
+    Object.freeze(raw);
+  }
 }

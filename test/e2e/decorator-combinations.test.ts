@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, deserialize, serialize, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -14,6 +14,7 @@ import {
   matches,
   arrayMinSize,
 } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -21,9 +22,14 @@ afterEach(() => unseal());
 
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {throw new Error('expected error');}
+  assertBakerError(result);
   return result.errors;
 }
+
+const matchPathCode =
+  (path: string, code: string) =>
+  (e: { path: string; code: string }): boolean =>
+    e.path === path && e.code === code;
 
 // ─── 1. @IsString + @MinLength + @MaxLength + @Matches ─────────────────────
 
@@ -250,7 +256,7 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
       title: 'Hello',
       tags: [{ label: 'ok' }, { label: 123 }],
     });
-    expect(errors.some(e => e.path === 'tags[1].label' && e.code === 'isString')).toBe(true);
+    expect(errors.some(matchPathCode('tags[1].label', 'isString'))).toBe(true);
   });
 });
 

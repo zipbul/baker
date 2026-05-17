@@ -2,10 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
+import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
+
+const matchPathCode =
+  (path: string, code: string) =>
+  (e: { path: string; code: string }): boolean =>
+    e.path === path && e.code === code;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 class AddressDto {
@@ -120,20 +127,16 @@ describe('@Nested serialization', () => {
 describe('@Nested edge cases', () => {
   it('non-object passed to nested DTO → error', async () => {
     const result = await deserialize(UserDto, { name: 'Alice', address: 'not-object' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors[0]!;
-      expect(err.path).toBe('address');
-      expect(err.code).toBe('isObject');
-    }
+    assertBakerError(result);
+    const err = result.errors[0]!;
+    expect(err.path).toBe('address');
+    expect(err.code).toBe('isObject');
   });
 
   it('specific element failure in array nested → index in path', async () => {
     const result = await deserialize(ListDto, { items: [{ label: 'ok' }, { label: 123 }, { label: 'fine' }] });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(err => err.path === 'items[1].label' && err.code === 'isString')).toBe(true);
-    }
+    assertBakerError(result);
+    expect(result.errors.some(matchPathCode('items[1].label', 'isString'))).toBe(true);
   });
 
   it('@Nested + optional → missing nested field allowed', async () => {
