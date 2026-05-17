@@ -2,11 +2,20 @@
 // Benchmark: Simple flat object (5 fields) — valid + invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-
-// ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
+import * as reflectMetadata from 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+import { IsString, IsEmail, IsNumber, IsBoolean, Min, Max, MinLength, validateSync } from 'class-validator';
+import { z } from 'zod';
+import * as v from 'valibot';
+import Ajv from 'ajv';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { type } from 'arktype';
+
+// ── Baker ────────────────────────────────────────────────────────────────────
 
 class BakerSimple {
   @Field(isString, minLength(2)) name!: string;
@@ -18,10 +27,7 @@ class BakerSimple {
 seal();
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import * as reflectMetadata from 'reflect-metadata';
 void reflectMetadata;
-import { plainToInstance } from 'class-transformer';
-import { IsString, IsEmail, IsNumber, IsBoolean, Min, Max, MinLength, validateSync } from 'class-validator';
 
 class CvSimple {
   @IsString() @MinLength(2) name!: string;
@@ -32,7 +38,6 @@ class CvSimple {
 }
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodSimple = z.object({
   name: z.string().min(2),
@@ -43,7 +48,6 @@ const zodSimple = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const valibotSimple = v.object({
   name: v.pipe(v.string(), v.minLength(2)),
@@ -54,7 +58,6 @@ const valibotSimple = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const ajvSimple = ajv.compile({
@@ -71,8 +74,6 @@ const ajvSimple = ajv.compile({
 });
 
 // ── TypeBox + AJV ────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbSimple = T.Object({
   name: T.String({ minLength: 2 }),
@@ -84,7 +85,6 @@ const tbSimple = T.Object({
 const tbCheck = TypeCompiler.Compile(tbSimple);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkSimple = type({
   name: 'string >= 2',

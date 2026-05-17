@@ -2,11 +2,20 @@
 // Benchmark: Array of 1000 objects — valid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-
-// ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 import { ARRAY_VALID } from './data';
+import * as reflectMetadata from 'reflect-metadata';
+import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
+import { z } from 'zod';
+import * as v from 'valibot';
+import Ajv from 'ajv';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { type } from 'arktype';
+
+// ── Baker ────────────────────────────────────────────────────────────────────
 
 class BakerItem {
   @Field(isString) name!: string;
@@ -19,10 +28,7 @@ seal();
 await deserialize(BakerList, ARRAY_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import * as reflectMetadata from 'reflect-metadata';
 void reflectMetadata;
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 
 class CvItem {
   @IsString() name!: string;
@@ -33,7 +39,6 @@ class CvList {
 }
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodList = z.object({
   items: z
@@ -47,7 +52,6 @@ const zodList = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const vList = v.object({
   items: v.pipe(
@@ -62,7 +66,6 @@ const vList = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const ajvList = ajv.compile({
@@ -85,8 +88,6 @@ const ajvList = ajv.compile({
 });
 
 // ── TypeBox ──────────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbList = T.Object({
   items: T.Array(
@@ -100,7 +101,6 @@ const tbList = T.Object({
 const tbCheck = TypeCompiler.Compile(tbList);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkItem = type({ name: 'string', value: 'number >= 0' });
 const arkList = type({ items: arkItem.array().atLeastLength(1) });

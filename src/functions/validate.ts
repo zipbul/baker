@@ -14,7 +14,7 @@ import { checkCallOptions } from './check-call-options';
  * DTO-level validation — validates input against a decorated class.
  * Sync DTOs return directly; async DTOs return Promise.
  */
-export function validate<T>(
+function validate<T>(
   Class: new (...args: any[]) => T,
   input: unknown,
   options?: RuntimeOptions,
@@ -24,9 +24,9 @@ export function validate<T>(
  * Ad-hoc validation — validates a single value against one or more rules.
  * Sync rules return directly; async rules return Promise.
  */
-export function validate(input: unknown, ...rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors>;
+function validate(input: unknown, ...rules: EmittableRule[]): true | BakerErrors | Promise<true | BakerErrors>;
 
-export function validate(classOrInput: unknown, ...rest: unknown[]): true | BakerErrors | Promise<true | BakerErrors> {
+function validate(classOrInput: unknown, ...rest: unknown[]): true | BakerErrors | Promise<true | BakerErrors> {
   // ── DTO mode: validate(Class, input, options?) ────────────────────────
   if (typeof classOrInput === 'function' && rest.length >= 1) {
     const secondArg = rest[0];
@@ -134,7 +134,7 @@ async function validateAdHocAsync(input: unknown, rules: EmittableRule[]): Promi
  * Sync-asserted validate. Throws `SealError` if Class has any async rule/transform
  * on the deserialize/validate side. Use when caller code assumes sync return.
  */
-export function validateSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
+function validateSync<T>(Class: new (...args: any[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
@@ -147,7 +147,7 @@ export function validateSync<T>(Class: new (...args: any[]) => T, input: unknown
 /**
  * Async-asserted validate. Always returns Promise (sync DTOs are wrapped via Promise.resolve).
  */
-export function validateAsync<T>(
+function validateAsync<T>(
   Class: new (...args: any[]) => T,
   input: unknown,
   options?: RuntimeOptions,
@@ -162,3 +162,4 @@ export function validateAsync<T>(
   const result = sealed.validate(input, checkedOpts) as BakerError[] | null;
   return Promise.resolve(result === null ? true : toBakerErrors(result));
 }
+export { validate, validateSync, validateAsync };

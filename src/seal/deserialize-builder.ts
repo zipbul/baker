@@ -95,7 +95,7 @@ function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): str
 // buildDeserializeCode — new Function-based executor generation (§4.9)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function buildDeserializeCode<T>(
+function buildDeserializeCode<T>(
   Class: Function,
   merged: RawClassMeta,
   options: SealOptions | undefined,
@@ -234,7 +234,7 @@ export function buildDeserializeCode<T>(
 // buildValidateCode — validate-only executor (no Object.create, no assignments)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function buildValidateCode(
+function buildValidateCode(
   Class: Function,
   merged: RawClassMeta,
   options: SealOptions | undefined,
@@ -1762,3 +1762,4 @@ function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
     pathExpr: pathExpr,
   };
 }
+export { buildDeserializeCode, buildValidateCode };

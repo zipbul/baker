@@ -10,7 +10,7 @@ import { isAsyncFunction, isPromiseLike } from '../utils';
 
 const ARRAY_OF = Symbol.for('baker:arrayOf');
 
-export interface ArrayOfMarker {
+interface ArrayOfMarker {
   readonly [key: symbol]: true;
   readonly rules: EmittableRule[];
 }
@@ -22,7 +22,7 @@ export interface ArrayOfMarker {
  * @Field(arrayOf(isString(), minLength(1)))
  * tags!: string[];
  */
-export function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
+function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
   const marker = { rules } as any;
   marker[ARRAY_OF] = true;
   return marker as ArrayOfMarker;
@@ -36,7 +36,7 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 // FieldOptions — @Field options object
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface FieldOptions {
+interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
   type?: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
   /** Polymorphic discriminator configuration — used with type */
@@ -242,14 +242,14 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @Field() — empty field registration */
-export function Field(): PropertyDecorator;
+function Field(): PropertyDecorator;
 /** @Field(isString(), email()) — variadic rules */
-export function Field(...rules: RuleArg[]): PropertyDecorator;
+function Field(...rules: RuleArg[]): PropertyDecorator;
 /** @Field({ type: () => Dto }) — options object */
-export function Field(options: FieldOptions): PropertyDecorator;
+function Field(options: FieldOptions): PropertyDecorator;
 /** @Field(isString(), { optional: true }) — rules + options mixed */
-export function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
-export function Field(...args: any[]): PropertyDecorator {
+function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
+function Field(...args: any[]): PropertyDecorator {
   return (target, key) => {
     const ctor = (target as any).constructor;
     if (typeof key === 'symbol') {
@@ -306,3 +306,5 @@ export function Field(...args: any[]): PropertyDecorator {
     applyTransform(meta, propertyKey, options);
   };
 }
+export { arrayOf, Field };
+export type { ArrayOfMarker, FieldOptions };

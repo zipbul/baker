@@ -2,11 +2,14 @@
 // Benchmark: validate() vs deserialize() — prove Object.create elimination
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-
-// ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, validate } from '../index';
 import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+
+// ── Baker ────────────────────────────────────────────────────────────────────
 
 class BkAddr {
   @Field(isString, minLength(1)) street!: string;
@@ -39,8 +42,6 @@ const cartInput = { items: Array.from({ length: 1000 }, (_, i) => ({ name: `item
 deserialize(BkCart, cartInput);
 
 // ── TypeBox (validate-only baseline) ─────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbOrder = T.Object({
   title: T.String({ minLength: 1 }),
@@ -69,7 +70,6 @@ const tbCart = T.Object({
 const tbCartCheck = TypeCompiler.Compile(tbCart);
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 const ajv = new Ajv({ allErrors: true });
 const ajvCart = ajv.compile({
   type: 'object',

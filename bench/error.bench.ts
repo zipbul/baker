@@ -2,11 +2,20 @@
 // Benchmark: Error collection — 10 fields, all invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-
-// ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, configure, isBakerError, seal } from '../index';
 import { isNumber, min } from '../src/rules/index';
 import { ERROR_ALL_FAIL } from './data';
+import * as reflectMetadata from 'reflect-metadata';
+import { plainToInstance } from 'class-transformer';
+import { IsNumber, Min, validateSync } from 'class-validator';
+import { z } from 'zod';
+import * as v from 'valibot';
+import Ajv from 'ajv';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { type } from 'arktype';
+
+// ── Baker ────────────────────────────────────────────────────────────────────
 
 configure({ stopAtFirstError: false });
 
@@ -27,10 +36,7 @@ seal();
 await deserialize(BakerErrors, ERROR_ALL_FAIL);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import * as reflectMetadata from 'reflect-metadata';
 void reflectMetadata;
-import { plainToInstance } from 'class-transformer';
-import { IsNumber, Min, validateSync } from 'class-validator';
 
 class CvErrors {
   @IsNumber() @Min(1) f0!: number;
@@ -46,7 +52,6 @@ class CvErrors {
 }
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodErrors = z.object({
   f0: z.number().min(1),
@@ -62,7 +67,6 @@ const zodErrors = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const vErrors = v.object({
   f0: v.pipe(v.number(), v.minValue(1)),
@@ -78,7 +82,6 @@ const vErrors = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const props: Record<string, object> = {};
@@ -90,8 +93,6 @@ for (let i = 0; i < 10; i++) {
 const ajvErrors = ajv.compile({ type: 'object', required, properties: props });
 
 // ── TypeBox ──────────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbErrors = T.Object({
   f0: T.Number({ minimum: 1 }),
@@ -108,7 +109,6 @@ const tbErrors = T.Object({
 const tbCheck = TypeCompiler.Compile(tbErrors);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkErrors = type({
   f0: 'number >= 1',

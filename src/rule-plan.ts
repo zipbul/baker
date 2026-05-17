@@ -5,23 +5,23 @@ type RulePlanCache = {
   time?: string;
 };
 
-export const planValue = (): RulePlanExpr => ({ kind: 'value' });
+const planValue = (): RulePlanExpr => ({ kind: 'value' });
 
-export const planLength = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
+const planLength = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
   kind: 'member',
   object,
   property: 'length',
 });
 
-export const planTime = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
+const planTime = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
   kind: 'call0',
   object,
   method: 'getTime',
 });
 
-export const planLiteral = (value: number): RulePlanExpr => ({ kind: 'literal', value });
+const planLiteral = (value: number): RulePlanExpr => ({ kind: 'literal', value });
 
-export const planCompare = (
+const planCompare = (
   left: RulePlanExpr,
   op: '<' | '<=' | '>' | '>=' | '===' | '!==',
   right: number | RulePlanExpr,
@@ -32,9 +32,9 @@ export const planCompare = (
   right: typeof right === 'number' ? planLiteral(right) : right,
 });
 
-export const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: 'or', checks });
+const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: 'or', checks });
 
-export function makePlannedRule(options: {
+function makePlannedRule(options: {
   name: string;
   requiresType: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
   constraints?: Record<string, unknown>;
@@ -52,7 +52,7 @@ export function makePlannedRule(options: {
   return makeRule(inner);
 }
 
-export function makeRule(options: {
+function makeRule(options: {
   name: string;
   validate: (value: unknown) => boolean | Promise<boolean>;
   emit: (varName: string, ctx: EmitContext) => string;
@@ -71,7 +71,7 @@ export function makeRule(options: {
   return fn;
 }
 
-export function emitRulePlan(
+function emitRulePlan(
   varName: string,
   ctx: EmitContext,
   ruleName: string,
@@ -135,3 +135,4 @@ function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache
       throw new Error('unreachable');
   }
 }
+export { planValue, planLength, planTime, planLiteral, planCompare, planOr, makePlannedRule, makeRule, emitRulePlan };

@@ -9,6 +9,7 @@ import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
 import { validateExposeStacks } from './expose-validator';
+import { sealedClasses, isSealed, markSealed } from './seal-state';
 import { buildSerializeCode } from './serialize-builder';
 import { validateMeta } from './validate-meta';
 
@@ -82,14 +83,12 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
 // Seal state lives in ./seal-state so `configure.ts` can read it without importing this file
 // (which would form a cycle: seal → configure → seal). Re-export the test helpers used by `unseal()`.
-export { sealedClasses, resetForTesting } from './seal-state';
-import { sealedClasses, isSealed, markSealed } from './seal-state';
 
 /**
  * @internal — used by serialize/deserialize. Returns the sealed executor.
  * Throws if the class was never sealed. Users must call `seal()` at app startup.
  */
-export function ensureSealed(Class: Function): SealedExecutors<unknown> {
+function ensureSealed(Class: Function): SealedExecutors<unknown> {
   const sealed = (Class as any)[SEALED] as SealedExecutors<unknown> | undefined;
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
@@ -183,7 +182,7 @@ function sealOneClass(Class: Function): void {
  *
  * Baker requires this call before any deserialize/serialize/validate. There is no implicit seal.
  */
-export function seal(...classes: Function[]): void {
+function seal(...classes: Function[]): void {
   if (classes.length === 0) {
     sealAllRegistered();
     return;
@@ -322,7 +321,7 @@ function sealOne(Class: Function, options?: SealOptions): void {
  * - type: child takes priority, inherits from parent if absent in child
  * - flags: child takes priority, only missing flags are supplemented from parent
  */
-export function mergeInheritance(Class: Function): RawClassMeta {
+function mergeInheritance(Class: Function): RawClassMeta {
   // Collect classes with RAW along the prototype chain (array order: child first)
   const chain: Function[] = [];
   let current: Function | null = Class;
@@ -401,7 +400,10 @@ export function mergeInheritance(Class: Function): RawClassMeta {
 // __testing__ — test-only export (TST-ACCESS compliant)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const __testing__ = {
+const __testing__ = {
   mergeInheritance,
   circularPlaceholder,
 };
+
+export { ensureSealed, seal, mergeInheritance, __testing__ };
+export { sealedClasses, resetForTesting } from './seal-state';

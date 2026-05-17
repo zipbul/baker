@@ -2,11 +2,20 @@
 // Benchmark: Nested object (3 levels) — valid + invalid
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-
-// ── Baker ────────────────────────────────────────────────────────────────────
 import { Field, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
+import * as reflectMetadata from 'reflect-metadata';
+import { plainToInstance, Type as CvType } from 'class-transformer';
+import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
+import { z } from 'zod';
+import * as v from 'valibot';
+import Ajv from 'ajv';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import { type } from 'arktype';
+
+// ── Baker ────────────────────────────────────────────────────────────────────
 
 class BakerAddress {
   @Field(isString, minLength(1)) street!: string;
@@ -27,10 +36,7 @@ seal();
 await deserialize(BakerOrder, NESTED_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import * as reflectMetadata from 'reflect-metadata';
 void reflectMetadata;
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 
 class CvAddress {
   @IsString() @MinLength(1) street!: string;
@@ -49,7 +55,6 @@ class CvOrder {
 }
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodAddress = z.object({
   street: z.string().min(1),
@@ -68,7 +73,6 @@ const zodOrder = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const vAddress = v.object({
   street: v.pipe(v.string(), v.minLength(1)),
@@ -87,7 +91,6 @@ const vOrder = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const ajvOrder = ajv.compile({
@@ -117,8 +120,6 @@ const ajvOrder = ajv.compile({
 });
 
 // ── TypeBox ──────────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbOrder = T.Object({
   title: T.String({ minLength: 1 }),
@@ -136,7 +137,6 @@ const tbOrder = T.Object({
 const tbCheck = TypeCompiler.Compile(tbOrder);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkOrder = type({
   title: 'string >= 1',

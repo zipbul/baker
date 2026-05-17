@@ -32,7 +32,7 @@ const MOBILE_PHONE_REGEXES: Record<string, RegExp> = {
   'pl-PL': /^(\+?48)?[45789]\d{8}$/,
 };
 
-export function isMobilePhone(locale: string): EmittableRule {
+function isMobilePhone(locale: string): EmittableRule {
   return makeLocaleRegexRule('isMobilePhone', locale, MOBILE_PHONE_REGEXES);
 }
 
@@ -99,7 +99,7 @@ const POSTAL_CODE_REGEXES: Record<string, RegExp> = {
   ZM: /^\d{5}$/,
 };
 
-export function isPostalCode(locale: string): EmittableRule {
+function isPostalCode(locale: string): EmittableRule {
   return makeLocaleRegexRule('isPostalCode', locale, POSTAL_CODE_REGEXES);
 }
 
@@ -162,7 +162,7 @@ const IDENTITY_CARD_REGEXES: Record<string, RegExp> = {
   ZA: /^\d{13}$/,
 };
 
-export function isIdentityCard(locale: string): EmittableRule {
+function isIdentityCard(locale: string): EmittableRule {
   return makeLocaleRegexRule('isIdentityCard', locale, IDENTITY_CARD_REGEXES);
 }
 
@@ -241,7 +241,7 @@ const PASSPORT_REGEXES: Record<string, RegExp> = {
   ZA: /^[A-Z]\d{8}$/i,
 };
 
-export function isPassportNumber(locale: string): EmittableRule {
+function isPassportNumber(locale: string): EmittableRule {
   return makeLocaleRegexRule('isPassportNumber', locale, PASSPORT_REGEXES);
 }
 function makeLocaleRegexRule(name: string, locale: string, registry: Record<string, RegExp>): EmittableRule {
@@ -258,3 +258,4 @@ function makeLocaleRegexRule(name: string, locale: string, registry: Record<stri
     },
   });
 }
+export { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber };

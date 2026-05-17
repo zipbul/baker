@@ -2,14 +2,21 @@
 // Benchmark: Cold start — schema definition + first validation (compile cost)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import { Field, deserialize, seal } from '../index';
+import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
+import { unseal } from '../test/integration/helpers/unseal';
+import * as reflectMetadata from 'reflect-metadata';
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
+import * as v from 'valibot';
+import { z } from 'zod';
 
 const input = { name: 'Alice', email: 'alice@example.com', age: 30, active: true, tag: 'ok' };
 
-import { Field, deserialize, seal } from '../index';
-import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 // ── Baker ────────────────────────────────────────────────────────────────────
 // Baker's seal is one-time per class. To measure cold start, we use unseal helper.
-import { unseal } from '../test/integration/helpers/unseal';
 
 class BakerCold {
   @Field(isString, minLength(2)) name!: string;
@@ -23,19 +30,12 @@ seal();
 await deserialize(BakerCold, input);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import * as reflectMetadata from 'reflect-metadata';
 void reflectMetadata;
 // ── TypeBox ──────────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmarks — cold compile + first validate.

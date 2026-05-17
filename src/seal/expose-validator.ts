@@ -11,7 +11,7 @@ import { SealError } from '../errors';
  *          - both non-empty groups with intersection → overlap
  *          - one ungrouped + one grouped → no overlap (different scope)
  */
-export function validateExposeStacks(merged: RawClassMeta, className?: string): void {
+function validateExposeStacks(merged: RawClassMeta, className?: string): void {
   const prefix = className ? `${className}.` : '';
   for (const [key, meta] of Object.entries(merged)) {
     // ① single-entry check: deserializeOnly + serializeOnly cannot coexist
@@ -64,3 +64,4 @@ function groupsOverlap(a: string[], b: string[]): boolean {
   if (a.length === 0 || b.length === 0) {return false;}
   return a.some(g => b.includes(g));
 }
+export { validateExposeStacks };

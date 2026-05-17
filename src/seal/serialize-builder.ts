@@ -116,7 +116,7 @@ function buildPostNestedTransformCode(
  * Generate serialize executor code.
  * Assumes no validation — always returns Record<string, unknown> (§4.3).
  */
-export function buildSerializeCode<T>(
+function buildSerializeCode<T>(
   Class: Function,
   merged: RawClassMeta,
   options: SealOptions | undefined,
@@ -417,3 +417,4 @@ function buildSerializeOutputExpr(
 
   return `${outputTarget} = ${fieldValueExpr};`;
 }
+export { buildSerializeCode };

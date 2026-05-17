@@ -6,7 +6,7 @@ import { makePlannedRule, makeRule, planCompare, planLength } from '../rule-plan
 // arrayContains(values) — array contains all specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function arrayContains(values: unknown[]): EmittableRule {
+function arrayContains(values: unknown[]): EmittableRule {
   return makeRule({
     name: 'arrayContains',
     requiresType: 'array',
@@ -23,7 +23,7 @@ export function arrayContains(values: unknown[]): EmittableRule {
 // arrayNotContains(values) — array does not contain any of the specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function arrayNotContains(values: unknown[]): EmittableRule {
+function arrayNotContains(values: unknown[]): EmittableRule {
   return makeRule({
     name: 'arrayNotContains',
     requiresType: 'array',
@@ -40,7 +40,7 @@ export function arrayNotContains(values: unknown[]): EmittableRule {
 // arrayMinSize(min) — minimum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function arrayMinSize(min: number): EmittableRule {
+function arrayMinSize(min: number): EmittableRule {
   const plan = { cacheKey: 'length', failure: planCompare(planLength(), '<', min) } as const;
   return makePlannedRule({
     name: 'arrayMinSize',
@@ -55,7 +55,7 @@ export function arrayMinSize(min: number): EmittableRule {
 // arrayMaxSize(max) — maximum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function arrayMaxSize(max: number): EmittableRule {
+function arrayMaxSize(max: number): EmittableRule {
   const plan = { cacheKey: 'length', failure: planCompare(planLength(), '>', max) } as const;
   return makePlannedRule({
     name: 'arrayMaxSize',
@@ -70,7 +70,7 @@ export function arrayMaxSize(max: number): EmittableRule {
 // arrayUnique(identifier?) — no duplicates in array
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
+function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
   return makeRule({
     name: 'arrayUnique',
     requiresType: 'array',
@@ -98,10 +98,11 @@ export function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRu
 // ─────────────────────────────────────────────────────────────────────────────
 
 const arrayNotEmptyPlan = { cacheKey: 'length', failure: planCompare(planLength(), '===', 0) } as const;
-export const arrayNotEmpty = makePlannedRule({
+const arrayNotEmpty = makePlannedRule({
   name: 'arrayNotEmpty',
   requiresType: 'array',
   constraints: {},
   plan: arrayNotEmptyPlan,
   validate: value => Array.isArray(value) && value.length > 0,
 });
+export { arrayContains, arrayNotContains, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty };
