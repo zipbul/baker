@@ -1,7 +1,7 @@
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 
-import { SEALED } from '../symbols';
+import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ function generateSerializeFieldCode(
 
     if (collection === 'Set') {
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = (meta.type.resolvedCollectionValue as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+        const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
@@ -246,7 +246,7 @@ function generateSerializeFieldCode(
       // Map → plain object (W8: keys must be strings — throw otherwise)
       const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new TypeError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = (meta.type.resolvedCollectionValue as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+        const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = isAsync ? 'await ' : '';
@@ -304,7 +304,7 @@ function generateSerializeFieldCode(
         let code = '';
         for (let i = 0; i < sorted.length; i++) {
           const sub = sorted[i]!;
-          const nestedSealed = (sub.value as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+          const nestedSealed = getSealed(sub.value) as SealedExecutors<unknown>;
           const execIdx = execs.length;
           execs.push(nestedSealed);
           const refIdx = refs.length;
@@ -349,7 +349,7 @@ function generateSerializeFieldCode(
     } else {
       // Existing simple nested logic
       const nestedCls = meta.type!.resolvedClass ?? (meta.type!.fn() as Function);
-      const nestedSealed = (nestedCls as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+      const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
       const execIdx = execs.length;
       execs.push(nestedSealed);
 

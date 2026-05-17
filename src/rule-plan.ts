@@ -1,5 +1,7 @@
 import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './types';
 
+import { defineRuleMetadata } from './rule-metadata';
+
 type RulePlanCache = {
   length?: string;
   time?: string;
@@ -62,20 +64,15 @@ function makeRule(options: {
   plan?: RulePlan;
 }): InternalRule {
   const fn = ((value: unknown) => options.validate(value)) as InternalRule;
-  const mut = fn as unknown as {
-    emit: InternalRule['emit'];
-    ruleName: string;
-    requiresType?: InternalRule['requiresType'];
-    constraints: Record<string, unknown>;
-    isAsync?: boolean;
-    plan?: RulePlan;
+  const meta: Parameters<typeof defineRuleMetadata>[1] = {
+    emit: options.emit,
+    ruleName: options.name,
+    constraints: options.constraints ?? {},
   };
-  mut.emit = options.emit;
-  mut.ruleName = options.name;
-  if (options.requiresType !== undefined) {mut.requiresType = options.requiresType;}
-  mut.constraints = options.constraints ?? {};
-  if (options.isAsync) {mut.isAsync = true;}
-  if (options.plan) {mut.plan = options.plan;}
+  if (options.requiresType !== undefined) {meta.requiresType = options.requiresType;}
+  if (options.isAsync !== undefined) {meta.isAsync = options.isAsync;}
+  if (options.plan !== undefined) {meta.plan = options.plan;}
+  defineRuleMetadata(fn, meta);
   return fn;
 }
 

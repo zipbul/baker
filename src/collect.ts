@@ -1,10 +1,7 @@
-import type { RawPropertyMeta, RuleDef } from './types';
+import type { RawClassMeta, RawPropertyMeta, RuleDef } from './types';
 
+import { getRaw, hasRawOwn, setRaw } from './meta-access';
 import { globalRegistry } from './registry';
-import { RAW } from './symbols';
-
-type RawCarrier = { [RAW]?: Record<string, RawPropertyMeta> };
-const asRaw = (cls: Function): RawCarrier => cls as unknown as RawCarrier;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ensureMeta — Internal utility (§3.1)
@@ -17,13 +14,13 @@ const asRaw = (cls: Function): RawCarrier => cls as unknown as RawCarrier;
  */
 export function ensureMeta(ctor: Function, key: string): RawPropertyMeta {
   // Create Class[RAW] if it doesn't exist (uses null prototype — zero prototype chain interference)
-  // Note: hasOwnProperty check is required — when inheriting classes, ctor.__proto__ === ParentClass,
+  // Note: hasOwn check is required — when inheriting classes, ctor.__proto__ === ParentClass,
   // so the ??= operator would find the parent's [RAW] and pollute it by storing child fields in the parent's RAW
-  if (!Object.prototype.hasOwnProperty.call(ctor, RAW)) {
-    asRaw(ctor)[RAW] = Object.create(null) as Record<string, RawPropertyMeta>;
+  if (!hasRawOwn(ctor)) {
+    setRaw(ctor, Object.create(null) as RawClassMeta);
     globalRegistry.add(ctor);
   }
-  const raw = asRaw(ctor)[RAW]!;
+  const raw = getRaw(ctor)!;
 
   // Create default meta if key doesn't exist
   return (raw[key] ??= {

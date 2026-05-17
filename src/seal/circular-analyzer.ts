@@ -1,7 +1,5 @@
-import type { RawClassMeta } from '../types'; // used in walk() cast
-
 import { SealError } from '../errors';
-import { RAW } from '../symbols';
+import { getRaw } from '../meta-access';
 
 /**
  * Static analysis for circular references (§4.6)
@@ -20,7 +18,7 @@ export function analyzeCircular(Class: Function): boolean {
 
     visited.add(cls);
 
-    const raw = (cls as unknown as { [RAW]?: RawClassMeta })[RAW];
+    const raw = getRaw(cls);
     if (raw) {
       for (const meta of Object.values(raw)) {
         // Simple @Type

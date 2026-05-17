@@ -7,7 +7,7 @@ import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleD
 
 import { SealError, type BakerError } from '../errors';
 import { emitRulePlan } from '../rule-plan';
-import { SEALED } from '../symbols';
+import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -95,6 +95,24 @@ function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): str
 // buildDeserializeCode — new Function-based executor generation (§4.9)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type DeserializeExecutor<T> = (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
+type ValidateExecutor = (input: unknown, opts?: RuntimeOptions) => BakerError[] | null | Promise<BakerError[] | null>;
+
+function buildDeserializeCode<T>(
+  Class: Function,
+  merged: RawClassMeta,
+  options: SealOptions | undefined,
+  needsCircularCheck: boolean,
+  isAsync: boolean,
+): DeserializeExecutor<T>;
+function buildDeserializeCode(
+  Class: Function,
+  merged: RawClassMeta,
+  options: SealOptions | undefined,
+  needsCircularCheck: boolean,
+  isAsync: boolean,
+  validateOnly: true,
+): ValidateExecutor;
 function buildDeserializeCode<T>(
   Class: Function,
   merged: RawClassMeta,
@@ -102,7 +120,7 @@ function buildDeserializeCode<T>(
   needsCircularCheck: boolean,
   isAsync: boolean,
   validateOnly = false,
-): (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]> {
+): DeserializeExecutor<T> | ValidateExecutor {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
   const collectErrors = !stopAtFirstError;
   const exposeDefaultValues = options?.exposeDefaultValues ?? false;
@@ -240,11 +258,8 @@ function buildValidateCode(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-): (input: unknown, opts?: RuntimeOptions) => BakerError[] | null | Promise<BakerError[] | null> {
-  return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, true) as unknown as (
-    input: unknown,
-    opts?: RuntimeOptions,
-  ) => BakerError[] | null | Promise<BakerError[] | null>;
+): ValidateExecutor {
+  return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, true);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1112,7 +1127,7 @@ function generateCollectionCode(
   // nested DTO executor (if present)
   let execIdx = -1;
   if (meta.type!.resolvedCollectionValue) {
-    const nestedSealed = (meta.type!.resolvedCollectionValue as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+    const nestedSealed = getSealed(meta.type!.resolvedCollectionValue) as SealedExecutors<unknown>;
     execIdx = execs.length;
     execs.push(nestedSealed);
   }
@@ -1252,7 +1267,7 @@ function generateNestedCode(
     code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
     code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
-      const nestedSealed = (sub.value as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown> | undefined;
+      const nestedSealed = getSealed(sub.value) as SealedExecutors<unknown> | undefined;
       const execIdx = execs.length;
       execs.push(nestedSealed as SealedExecutors<unknown>);
       const awaitKwD = ctx.isAsync ? 'await ' : '';
@@ -1279,7 +1294,7 @@ function generateNestedCode(
   } else {
     // §8.1 simple nested or §8.2 each array
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-    const nestedSealed = (nestedCls as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown> | undefined;
+    const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown> | undefined;
     const execIdx = execs.length;
     execs.push(nestedSealed as SealedExecutors<unknown>);
 
@@ -1423,7 +1438,7 @@ function generateNestedCodeValidateOnly(
     code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
     code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
-      const subSealed = (sub.value as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+      const subSealed = getSealed(sub.value) as SealedExecutors<unknown>;
       const subMerged = subSealed.merged;
       const canInline = subMerged && canInlineDto(sub.value, ctx.inlineNestedClasses);
       code += `  case ${JSON.stringify(sub.name)}:\n`;
@@ -1451,7 +1466,7 @@ function generateNestedCodeValidateOnly(
     code += `}\n`;
   } else {
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-    const nestedSealed = (nestedCls as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+    const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
     const nestedMerged = nestedSealed.merged;
     const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
@@ -1591,7 +1606,7 @@ function generateCollectionCodeValidateOnly(
   let nestedMerged: RawClassMeta | undefined;
   if (meta.type!.resolvedCollectionValue) {
     nestedCls = meta.type!.resolvedCollectionValue;
-    nestedSealed = (nestedCls as unknown as { [SEALED]?: SealedExecutors<unknown> })[SEALED] as SealedExecutors<unknown>;
+    nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
     nestedMerged = nestedSealed.merged;
   }
   const useInline = nestedCls && nestedMerged && canInlineDto(nestedCls, ctx.inlineNestedClasses);

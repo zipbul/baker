@@ -3,8 +3,8 @@ import type { ClassCtor, RawClassMeta, SealedExecutors } from '../types';
 
 import { getGlobalOptions } from '../configure';
 import { SealError } from '../errors';
+import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
-import { RAW, SEALED } from '../symbols';
 import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
@@ -12,9 +12,6 @@ import { validateExposeStacks } from './expose-validator';
 import { sealedClasses, isSealed, markSealed } from './seal-state';
 import { buildSerializeCode } from './serialize-builder';
 import { validateMeta } from './validate-meta';
-
-type MetaCarrier = { [SEALED]?: SealedExecutors<unknown>; [RAW]?: RawClassMeta };
-const asCarrier = (cls: Function): MetaCarrier => cls as unknown as MetaCarrier;
 
 const BANNED_FIELD_NAMES = new Set(['__proto__', 'constructor', 'prototype']);
 const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
@@ -92,7 +89,7 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
  * Throws if the class was never sealed. Users must call `seal()` at app startup.
  */
 function ensureSealed(Class: Function): SealedExecutors<unknown> {
-  const sealed = asCarrier(Class)[SEALED] as SealedExecutors<unknown> | undefined;
+  const sealed = getSealed(Class);
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
     throw new SealError(
@@ -117,8 +114,8 @@ function sealAllRegistered(): void {
   } catch (e) {
     // On failure, clean up stale placeholders — prevent partial seal state
     for (const Class of globalRegistry) {
-      if (Object.hasOwn(Class as object, SEALED)) {
-        delete asCarrier(Class)[SEALED];
+      if (hasSealedOwn(Class)) {
+        deleteSealed(Class);
       }
     }
     throw e;
@@ -126,7 +123,7 @@ function sealAllRegistered(): void {
 
   for (const Class of globalRegistry) {
     sealedClasses.add(Class);
-    Object.freeze(asCarrier(Class)[RAW]);
+    freezeRaw(Class);
   }
   globalRegistry.clear();
   markSealed();
@@ -139,8 +136,8 @@ function sealAllRegistered(): void {
  * seal(Class) call can re-attempt cleanly.
  */
 function sealOneClass(Class: Function): void {
-  if (Object.hasOwn(Class as object, SEALED)) {return;}
-  if (!Object.hasOwn(Class as object, RAW)) {
+  if (hasSealedOwn(Class)) {return;}
+  if (!hasRawOwn(Class)) {
     throw new SealError(
       `${Class.name}: cannot seal a class that has no @Field decorators. ` +
         `seal(${Class.name}) is a no-op unless ${Class.name} has at least one @Field.`,
@@ -148,32 +145,32 @@ function sealOneClass(Class: Function): void {
   }
 
   const before = new Set(sealedClasses);
-  const beforeSealed = new Set<Function>([...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED)));
+  const beforeSealed = new Set<Function>([...globalRegistry].filter(C => hasSealedOwn(C)));
   const options = getGlobalOptions();
   try {
     sealOne(Class, options);
   } catch (e) {
     // Remove placeholder SEALED markers left on this class and any nested class touched during the failed seal
-    if (Object.hasOwn(Class as object, SEALED) && !beforeSealed.has(Class)) {
-      delete asCarrier(Class)[SEALED];
+    if (hasSealedOwn(Class) && !beforeSealed.has(Class)) {
+      deleteSealed(Class);
     }
     for (const C of globalRegistry) {
-      if (Object.hasOwn(C as object, SEALED) && !beforeSealed.has(C)) {
-        delete asCarrier(C)[SEALED];
+      if (hasSealedOwn(C) && !beforeSealed.has(C)) {
+        deleteSealed(C);
       }
     }
     throw e;
   }
 
   sealedClasses.add(Class);
-  Object.freeze(asCarrier(Class)[RAW]);
+  freezeRaw(Class);
   globalRegistry.delete(Class);
 
   // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
-  const newlySealed = [...globalRegistry].filter(C => Object.hasOwn(C as object, SEALED) && !before.has(C));
+  const newlySealed = [...globalRegistry].filter(C => hasSealedOwn(C) && !before.has(C));
   for (const C of newlySealed) {
     sealedClasses.add(C);
-    Object.freeze(asCarrier(C)[RAW]);
+    freezeRaw(C);
     globalRegistry.delete(C);
   }
 }
@@ -200,11 +197,11 @@ function seal(...classes: Function[]): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function sealOne(Class: Function, options?: SealOptions): void {
-  if (Object.hasOwn(Class as object, SEALED)) {return;} // already sealed (prevent recursion during circular references)
+  if (hasSealedOwn(Class)) {return;} // already sealed (prevent recursion during circular references)
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
-  asCarrier(Class)[SEALED] = placeholder;
+  setSealed(Class, placeholder);
 
   // 1. Merge inheritance metadata
   const merged = mergeInheritance(Class);
@@ -329,7 +326,7 @@ function mergeInheritance(Class: Function): RawClassMeta {
   const chain: Function[] = [];
   let current: Function | null = Class;
   while (current && current !== Object) {
-    if (Object.hasOwn(current as object, RAW)) {chain.push(current);}
+    if (hasRawOwn(current)) {chain.push(current);}
     const proto = Object.getPrototypeOf(current);
     current = proto === current ? null : proto;
   }
@@ -338,7 +335,7 @@ function mergeInheritance(Class: Function): RawClassMeta {
   const merged: RawClassMeta = Object.create(null) as RawClassMeta;
 
   for (const ctor of chain) {
-    const raw = asCarrier(ctor)[RAW] as RawClassMeta;
+    const raw = getRaw(ctor)!;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
         // First occurrence of field → shallow copy

@@ -1,5 +1,6 @@
 import type { EmittableRule, EmitContext, InternalRule } from './types';
 
+import { defineRuleMetadata } from './rule-metadata';
 import { isAsyncFunction, isPromiseLike } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -58,16 +59,14 @@ export function createRule(
     return `if(!(${isAsyncFn ? 'await ' : ''}refs[${i}](${varName}))) ${ctx.fail(name)};`;
   };
 
-  const mut = fn as unknown as {
-    ruleName: string;
-    isAsync: boolean;
-    constraints?: Record<string, unknown>;
-    requiresType?: InternalRule['requiresType'];
+  const meta: Parameters<typeof defineRuleMetadata>[1] = {
+    emit: fn.emit,
+    ruleName: name,
+    isAsync: isAsyncFn,
   };
-  mut.ruleName = name;
-  mut.isAsync = isAsyncFn;
-  if (constraints) {mut.constraints = constraints;}
-  if (requiresType) {mut.requiresType = requiresType;}
+  if (constraints !== undefined) {meta.constraints = constraints;}
+  if (requiresType !== undefined) {meta.requiresType = requiresType;}
+  defineRuleMetadata(fn, meta);
 
   return fn;
 }
