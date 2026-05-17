@@ -27,7 +27,8 @@ seal();
 await deserialize(BakerErrors, ERROR_ALL_FAIL);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
+import * as reflectMetadata from 'reflect-metadata';
+void reflectMetadata;
 import { plainToInstance } from 'class-transformer';
 import { IsNumber, Min, validateSync } from 'class-validator';
 

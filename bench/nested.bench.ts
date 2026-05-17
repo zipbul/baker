@@ -27,7 +27,8 @@ seal();
 await deserialize(BakerOrder, NESTED_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
+import * as reflectMetadata from 'reflect-metadata';
+void reflectMetadata;
 import { plainToInstance, Type as CvType } from 'class-transformer';
 import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 
@@ -181,7 +182,7 @@ group('nested 3-level — valid input', () => {
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_VALID);
     if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(NESTED_VALID)) sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(NESTED_VALID)) {sinkNum += 1;}}
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_VALID);
@@ -213,7 +214,7 @@ group('nested 3-level — invalid input', () => {
   bench('typebox', () => {
     const ok = tbCheck.Check(NESTED_INVALID);
     if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(NESTED_INVALID)) sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(NESTED_INVALID)) {sinkNum += 1;}}
   });
   bench('arktype', () => {
     const r = arkOrder(NESTED_INVALID);

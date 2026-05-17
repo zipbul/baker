@@ -18,7 +18,8 @@ class BakerSimple {
 seal();
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
+import * as reflectMetadata from 'reflect-metadata';
+void reflectMetadata;
 import { plainToInstance } from 'class-transformer';
 import { IsString, IsEmail, IsNumber, IsBoolean, Min, Max, MinLength, validateSync } from 'class-validator';
 
@@ -135,7 +136,7 @@ group('simple object — valid input', () => {
   bench('typebox', () => {
     const ok = tbCheck.Check(SIMPLE_VALID);
     if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(SIMPLE_VALID)) sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(SIMPLE_VALID)) {sinkNum += 1;}}
   });
   bench('arktype', () => {
     const r = arkSimple(SIMPLE_VALID);
@@ -169,7 +170,7 @@ group('simple object — invalid input', () => {
   bench('typebox', () => {
     const ok = tbCheck.Check(SIMPLE_INVALID);
     if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(SIMPLE_INVALID)) sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(SIMPLE_INVALID)) {sinkNum += 1;}}
   });
   bench('arktype', () => {
     const r = arkSimple(SIMPLE_INVALID);

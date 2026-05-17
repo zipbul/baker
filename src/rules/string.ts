@@ -123,7 +123,7 @@ export const isUppercase = makeRule({
 });
 
 // ASCII: all code points in [0x00, 0x7F]
-const ASCII_RE = /^[\x00-\x7F]*$/;
+const ASCII_RE = new RegExp(`^[${String.fromCharCode(0)}-${String.fromCharCode(0x7f)}]*$`);
 export const isAscii = makeStringRule(
   'isAscii',
   v => ASCII_RE.test(v),
@@ -243,7 +243,7 @@ export const isVariableWidth = makeStringRule(
 );
 
 // Multibyte: any character outside Latin-1 / half-width range
-const MULTIBYTE_RE = /[^\x00-\xFF]/;
+const MULTIBYTE_RE = new RegExp(`[^${String.fromCharCode(0)}-${String.fromCharCode(0xff)}]`);
 export const isMultibyte = makeStringRule(
   'isMultibyte',
   v => v.length > 0 && MULTIBYTE_RE.test(v),

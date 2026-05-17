@@ -48,7 +48,7 @@ function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): strin
   if (serEntries.length === 0) {return undefined;}
   if (serEntries.some(e => !e.groups || e.groups.length === 0)) {return undefined;}
   const all = new Set<string>();
-  for (const e of serEntries) {for (const g of e.groups!) all.add(g);}
+  for (const e of serEntries) {for (const g of e.groups!) {all.add(g);}}
   return [...all];
 }
 

@@ -108,6 +108,8 @@ function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
       return exprEqual(a.object, (b as typeof a).object);
     case 'call0':
       return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
+    default:
+      throw new Error('unreachable');
   }
 }
 
@@ -129,5 +131,7 @@ function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache
       return cache?.length ?? `${emitPlanExpr(expr.object, varName, cache)}.length`;
     case 'call0':
       return cache?.time ?? `${emitPlanExpr(expr.object, varName, cache)}.getTime()`;
+    default:
+      throw new Error('unreachable');
   }
 }

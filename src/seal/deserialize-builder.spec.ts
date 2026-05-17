@@ -7,8 +7,7 @@ import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 import { isNotEmpty } from '../rules/common';
 import { min, max } from '../rules/number';
 import { minLength } from '../rules/string';
-import { isString } from '../rules/typechecker';
-import { isNumber } from '../rules/typechecker';
+import { isString, isNumber } from '../rules/typechecker';
 import { SEALED } from '../symbols';
 import { buildDeserializeCode } from './deserialize-builder';
 

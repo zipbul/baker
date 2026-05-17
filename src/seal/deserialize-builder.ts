@@ -87,7 +87,7 @@ function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): str
   if (desEntries.some(e => !e.groups || e.groups.length === 0)) {return undefined;}
   // Merge groups from all entries
   const all = new Set<string>();
-  for (const e of desEntries) {for (const g of e.groups!) all.add(g);}
+  for (const e of desEntries) {for (const g of e.groups!) {all.add(g);}}
   return [...all];
 }
 

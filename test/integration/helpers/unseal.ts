@@ -35,6 +35,6 @@ export function unseal(): void {
  */
 export function purgePoisonClasses(): void {
   const cls: Function[] = [];
-  for (const c of globalRegistry) cls.push(c);
-  for (const c of cls) globalRegistry.delete(c);
+  for (const c of globalRegistry) {cls.push(c);}
+  for (const c of cls) {globalRegistry.delete(c);}
 }

@@ -23,7 +23,8 @@ seal();
 await deserialize(BakerCold, input);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
+import * as reflectMetadata from 'reflect-metadata';
+void reflectMetadata;
 // ── TypeBox ──────────────────────────────────────────────────────────────────
 import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';

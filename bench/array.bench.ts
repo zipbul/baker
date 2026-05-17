@@ -19,7 +19,8 @@ seal();
 await deserialize(BakerList, ARRAY_VALID);
 
 // ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
+import * as reflectMetadata from 'reflect-metadata';
+void reflectMetadata;
 import { plainToInstance, Type as CvType } from 'class-transformer';
 import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 
@@ -134,7 +135,7 @@ group('array 1000 items — valid input', () => {
   bench('typebox', () => {
     const ok = tbCheck.Check(ARRAY_VALID);
     if (ok) {sinkNum += 1;}
-    else {for (const _ of tbCheck.Errors(ARRAY_VALID)) sinkNum += 1;}
+    else {for (const _ of tbCheck.Errors(ARRAY_VALID)) {sinkNum += 1;}}
   });
   bench('arktype', () => {
     const r = arkList(ARRAY_VALID);
