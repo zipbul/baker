@@ -6,7 +6,7 @@ import Ajv from 'ajv';
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
 
-import { Field, deserialize, validate } from '../index';
+import { Field, deserialize, seal, validate } from '../index';
 import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
@@ -38,6 +38,7 @@ class BkCart {
 }
 
 // Warm seal
+seal();
 deserialize(BkOrder, NESTED_VALID);
 const cartInput = { items: Array.from({ length: 1000 }, (_, i) => ({ name: `item${i}`, price: i })) };
 deserialize(BkCart, cartInput);
