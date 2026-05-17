@@ -76,7 +76,7 @@ class IsDefinedNumberDto {
 /** @Field alone — no other validation */
 class IsDefinedOnlyDto {
   @Field()
-  value!: any;
+  value!: unknown;
 }
 
 // ── C4: NaN/Infinity gate DTOs ───────────────────────────────────────────────
@@ -325,7 +325,7 @@ describe('M4 — validation groups runtime filtering', () => {
 
   it('no groups provided → group-gated fields excluded (visibility control)', async () => {
     const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 })) as AdminOnlyDto;
-    expect((result as any).secret).toBeUndefined();
+    expect((result as AdminOnlyDto & { secret?: unknown })['secret']).toBeUndefined();
   });
 
   it('groups match → field included + rules executed', async () => {
@@ -334,12 +334,12 @@ describe('M4 — validation groups runtime filtering', () => {
 
   it('groups mismatch → field excluded', async () => {
     const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['viewer'] })) as AdminOnlyDto;
-    expect((result as any).secret).toBeUndefined();
+    expect((result as AdminOnlyDto & { secret?: unknown })['secret']).toBeUndefined();
   });
 
   it('fields without groups are always executed', async () => {
     expect(
-      isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' as any }, { groups: ['viewer'] })),
+      isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] })),
     ).toBe(true);
   });
 });

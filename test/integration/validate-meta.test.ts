@@ -46,7 +46,7 @@ describe('validateMeta — discriminator invariants', () => {
 
   it('subTypes entry with non-class value throws SealError', () => {
     class BadValue {
-      @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [{ value: 'NotAClass' as any, name: 'a' }] } })
+      @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [{ value: 'NotAClass' as never, name: 'a' }] } })
       v!: unknown;
     }
     expect(() => seal(BadValue)).toThrow(/must be a class constructor/);
@@ -78,7 +78,7 @@ describe('validateMeta — discriminator invariants', () => {
   it('subType value without @Field decorators throws SealError', () => {
     class NoFields {}
     class HasUndecoratedSub {
-      @Field({ type: () => NoFields as any, discriminator: { property: 'k', subTypes: [{ value: NoFields as any, name: 'a' }] } })
+      @Field({ type: () => NoFields, discriminator: { property: 'k', subTypes: [{ value: NoFields, name: 'a' }] } })
       v!: NoFields;
     }
     expect(() => seal(HasUndecoratedSub)).toThrow(/has no @Field decorators/);
@@ -89,7 +89,7 @@ describe('validateMeta — Set/Map collection invariants', () => {
   it('setValue target without @Field throws SealError', () => {
     class NoFieldsItem {}
     class SetParent {
-      @Field({ type: () => Set as any, setValue: () => NoFieldsItem as any })
+      @Field({ type: () => Set, setValue: () => NoFieldsItem })
       items!: Set<NoFieldsItem>;
     }
     expect(() => seal(SetParent)).toThrow(/setValue target.*has no @Field decorators/);
@@ -98,7 +98,7 @@ describe('validateMeta — Set/Map collection invariants', () => {
   it('mapValue target without @Field throws SealError', () => {
     class NoFieldsVal {}
     class MapParent {
-      @Field({ type: () => Map as any, mapValue: () => NoFieldsVal as any })
+      @Field({ type: () => Map, mapValue: () => NoFieldsVal })
       m!: Map<string, NoFieldsVal>;
     }
     expect(() => seal(MapParent)).toThrow(/mapValue target.*has no @Field decorators/);

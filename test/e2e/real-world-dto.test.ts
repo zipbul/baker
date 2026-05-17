@@ -104,9 +104,9 @@ describe('CreateUserDto — deserialization', () => {
   });
 
   it('passes without optional fields', async () => {
-    const input = { ...validInput };
-    delete (input as any).active;
-    delete (input as any).addresses;
+    const input: Record<string, unknown> = { ...validInput };
+    delete input['active'];
+    delete input['addresses'];
     const user = (await deserialize(CreateUserDto, input)) as CreateUserDto;
     expect(user.active).toBeUndefined();
   });

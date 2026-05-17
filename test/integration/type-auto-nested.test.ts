@@ -42,7 +42,7 @@ describe('@Type auto-nested', () => {
       inner: Object.assign(new InnerDto(), { value: 'world' }),
     });
     const result = await serialize(dto);
-    expect((result['inner'] as any)['value']).toBe('world');
+    expect((result['inner'] as { value?: unknown })['value']).toBe('world');
   });
 
   it('should return BakerErrors for invalid nested field with @Type alone', async () => {
@@ -98,10 +98,10 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
       items: [Object.assign(new ItemDto(), { name: 'X' }), Object.assign(new ItemDto(), { name: 'Y' })],
     });
     const result = await serialize(dto);
-    const items = result['items'] as any[];
+    const items = result['items'] as Array<{ name: string }>;
     expect(items).toHaveLength(2);
-    expect(items[0]['name']).toBe('X');
-    expect(items[1]['name']).toBe('Y');
+    expect(items[0]!['name']).toBe('X');
+    expect(items[1]!['name']).toBe('Y');
   });
 
   it('should return BakerErrors with isArray error when non-array passed to @Type(() => [Dto])', async () => {

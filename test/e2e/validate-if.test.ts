@@ -12,7 +12,7 @@ class ConditionalDto {
   @Field(isString)
   type!: string;
 
-  @Field(isString, { when: (obj: any) => obj.type === 'business' })
+  @Field(isString, { when: (obj: { type?: unknown }) => obj.type === 'business' })
   companyName!: string;
 }
 
@@ -20,7 +20,7 @@ class ConditionalWithMinDto {
   @Field(isNumber())
   role!: number;
 
-  @Field(isNumber(), min(100), { when: (obj: any) => obj.role >= 2 })
+  @Field(isNumber(), min(100), { when: (obj: { role?: number }) => obj.role! >= 2 })
   budget!: number;
 }
 
@@ -50,7 +50,7 @@ describe('@Field({ when }) — conditional validation', () => {
   it('condition false → value present but skipped (not assigned)', async () => {
     const result = (await deserialize(ConditionalDto, {
       type: 'personal',
-      companyName: 123 as any,
+      companyName: 123,
     })) as ConditionalDto;
     expect(result.type).toBe('personal');
   });

@@ -23,7 +23,7 @@ class SetNode {
   @Field(isString, minLength(1)) value!: string;
   @Field({
     optional: true,
-    type: () => Set as unknown as new () => Set<SetNode>,
+    type: () => Set,
     setValue: () => SetNode,
   })
   children?: Set<SetNode>;
@@ -33,7 +33,7 @@ class MapNode {
   @Field(isString, minLength(1)) value!: string;
   @Field({
     optional: true,
-    type: () => Map as unknown as new () => Map<string, MapNode>,
+    type: () => Map,
     mapValue: () => MapNode,
   })
   branches?: Map<string, MapNode>;
@@ -90,7 +90,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
     seal();
     const input = {
       value: 'root',
-      children: [{ value: 'a', children: ['not-an-object' as unknown as SetNode] }],
+      children: [{ value: 'a', children: ['not-an-object'] }],
     };
     const result = await validate(SetNode, input);
     expect(isBakerError(result)).toBe(true);
@@ -162,7 +162,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       branches: {
         a: {
           value: 'A',
-          branches: { bad: 'not-an-object' as unknown as MapNode },
+          branches: { bad: 'not-an-object' },
         },
       },
     };

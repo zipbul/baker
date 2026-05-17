@@ -18,11 +18,11 @@ function expectSameErrors(desResult: unknown, valResult: unknown, _label: string
   const valIsErr = isBakerError(valResult);
   expect(valIsErr).toBe(desIsErr);
 
-  if (desIsErr && valIsErr) {
-    const desErrors = (desResult as any).errors.map((e: any) => ({ path: e.path, code: e.code }));
-    const valErrors = (valResult as any).errors.map((e: any) => ({ path: e.path, code: e.code }));
-    desErrors.sort((a: any, b: any) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code));
-    valErrors.sort((a: any, b: any) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code));
+  if (isBakerError(desResult) && isBakerError(valResult)) {
+    const desErrors = desResult.errors.map(e => ({ path: e.path, code: e.code }));
+    const valErrors = valResult.errors.map(e => ({ path: e.path, code: e.code }));
+    desErrors.sort((a, b) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code));
+    valErrors.sort((a, b) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code));
     expect(valErrors).toEqual(desErrors);
   } else if (!desIsErr && !valIsErr) {
     // deserialize returns object, validate returns true
@@ -598,7 +598,7 @@ describe('validate inline parity — groups', () => {
 
   it('without admin group — secret not validated', () => {
     seal();
-    const input = { name: 'A', secret: 123 as any, nested: { v: 'ok' } };
+    const input = { name: 'A', secret: 123, nested: { v: 'ok' } };
     expectSameErrors(
       deserialize(Outer, input, { groups: ['user'] }),
       validate(Outer, input, { groups: ['user'] }),

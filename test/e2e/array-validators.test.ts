@@ -128,7 +128,7 @@ describe('Set collection + array-level rules', () => {
   }
 
   class SetWithMinDto {
-    @Field(arrayMinSize(2), { type: () => Set as any, setValue: () => SetItem })
+    @Field(arrayMinSize(2), { type: () => Set, setValue: () => SetItem })
     items!: Set<SetItem>;
   }
 

@@ -1,12 +1,21 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
+import type { InternalRule, RuleDef } from './types';
+
 import { ensureMeta, collectValidation } from './collect';
 import { globalRegistry } from './registry';
 import { getRaw, deleteRaw } from './meta-access';
 
+function makeRule(name: string = 'stub'): InternalRule {
+  return Object.assign((_v: unknown): boolean => true, {
+    emit: (_var: string, _ctx: import('./types').EmitContext): string => '',
+    ruleName: name,
+  });
+}
+
 // Track classes created in tests so globalRegistry can be cleaned up in afterEach.
 const createdCtors: Function[] = [];
-function tracked<T extends new (...args: any[]) => any>(ctor: T): T {
+function tracked<T extends new (...args: never[]) => unknown>(ctor: T): T {
   createdCtors.push(ctor);
   return ctor;
 }
@@ -86,9 +95,9 @@ describe('collect', () => {
   it('should append ruleDef to meta.validation when calling collectValidation', () => {
     // Arrange
     const TestClass = tracked(class TestClass {});
-    const ruleDef = { rule: {} as any, each: false };
+    const ruleDef: RuleDef = { rule: makeRule(), each: false };
     // Act
-    collectValidation({ constructor: TestClass } as any, 'prop', ruleDef);
+    collectValidation({ constructor: TestClass }, 'prop', ruleDef);
     // Assert
     const meta = ensureMeta(TestClass, 'prop');
     expect(meta.validation).toContain(ruleDef);
@@ -107,13 +116,13 @@ describe('collect', () => {
   it('should accumulate ruleDefs in order when calling collectValidation multiple times', () => {
     // Arrange
     const TestClass = tracked(class TestClass {});
-    const rule1 = { rule: {} as any };
-    const rule2 = { rule: {} as any };
-    const rule3 = { rule: {} as any };
+    const rule1: RuleDef = { rule: makeRule() };
+    const rule2: RuleDef = { rule: makeRule() };
+    const rule3: RuleDef = { rule: makeRule() };
     // Act
-    collectValidation({ constructor: TestClass } as any, 'prop', rule1 as any);
-    collectValidation({ constructor: TestClass } as any, 'prop', rule2 as any);
-    collectValidation({ constructor: TestClass } as any, 'prop', rule3 as any);
+    collectValidation({ constructor: TestClass }, 'prop', rule1);
+    collectValidation({ constructor: TestClass }, 'prop', rule2);
+    collectValidation({ constructor: TestClass }, 'prop', rule3);
     // Assert
     const meta = ensureMeta(TestClass, 'prop');
     expect(meta.validation).toEqual([rule1, rule2, rule3]);
@@ -122,11 +131,11 @@ describe('collect', () => {
   it('should reflect call order in meta.validation when collectValidation is called in a specific order', () => {
     // Arrange
     const TestClass = tracked(class TestClass {});
-    const ruleA = { rule: { ruleName: 'A' } as any };
-    const ruleB = { rule: { ruleName: 'B' } as any };
+    const ruleA: RuleDef = { rule: makeRule('A') };
+    const ruleB: RuleDef = { rule: makeRule('B') };
     // Act — B first, then A
-    collectValidation({ constructor: TestClass } as any, 'prop', ruleB as any);
-    collectValidation({ constructor: TestClass } as any, 'prop', ruleA as any);
+    collectValidation({ constructor: TestClass }, 'prop', ruleB);
+    collectValidation({ constructor: TestClass }, 'prop', ruleA);
     // Assert: B precedes A in the array
     const meta = ensureMeta(TestClass, 'prop');
     expect(meta.validation[0]).toBe(ruleB);

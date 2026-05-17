@@ -7,10 +7,10 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-async function tryDeserialize(
-  cls: new (...args: any[]) => any,
+async function tryDeserialize<T>(
+  cls: new (...args: never[]) => T,
   input: unknown,
-): Promise<{ ok: true; value: any } | { ok: false; codes: string[] }> {
+): Promise<{ ok: true; value: T } | { ok: false; codes: string[] }> {
   const result = await deserialize(cls, input);
   if (isBakerError(result)) {
     return { ok: false, codes: result.errors.map(x => x.code) };

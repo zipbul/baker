@@ -26,10 +26,17 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: verify rejection + return error code */
-async function failCode(cls: new (...args: any[]) => any, input: unknown): Promise<string> {
+async function failCode<T>(cls: new (...args: never[]) => T, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
   if (!isBakerError(result)) {throw new Error('expected validation failure');}
   return result.errors[0]!.code;
+}
+
+/** Helper: successful deserialize, returns the typed instance (throws on validation failure). */
+async function ok<T extends { v: unknown }>(cls: new (...args: never[]) => T, input: unknown): Promise<T> {
+  const result = await deserialize<T>(cls, input);
+  if (isBakerError(result)) {throw new Error('expected success, got error: ' + JSON.stringify(result.errors));}
+  return result;
 }
 
 // ─── @IsNumber boundary values ──────────────────────────────────────────────
@@ -49,16 +56,16 @@ describe('@IsNumber boundary values', () => {
     expect(await failCode(Dto, { v: -Infinity })).toBe('isNumber');
   });
   it('0 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 0 })) as any).v).toBe(0);
+    expect((await ok(Dto, { v: 0 })).v).toBe(0);
   });
   it('-0 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: -0 })) as any).v).toBe(-0);
+    expect((await ok(Dto, { v: -0 })).v).toBe(-0);
   });
   it('MAX_SAFE_INTEGER passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: Number.MAX_SAFE_INTEGER })) as any).v).toBe(Number.MAX_SAFE_INTEGER);
+    expect((await ok(Dto, { v: Number.MAX_SAFE_INTEGER })).v).toBe(Number.MAX_SAFE_INTEGER);
   });
   it('MIN_SAFE_INTEGER passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: Number.MIN_SAFE_INTEGER })) as any).v).toBe(Number.MIN_SAFE_INTEGER);
+    expect((await ok(Dto, { v: Number.MIN_SAFE_INTEGER })).v).toBe(Number.MIN_SAFE_INTEGER);
   });
 });
 
@@ -67,8 +74,8 @@ describe('@IsNumber({ allowNaN: true }) NaN allowed', () => {
     @Field(isNumber({ allowNaN: true })) v!: number;
   }
   it('NaN passes', async () => {
-    const r = (await deserialize<any>(Dto, { v: NaN })) as any;
-    expect(isNaN(r.v)).toBe(true);
+    const r = await ok(Dto, { v: NaN });
+    expect(isNaN(r.v as number)).toBe(true);
   });
 });
 
@@ -77,10 +84,10 @@ describe('@IsNumber({ allowInfinity: true }) Infinity allowed', () => {
     @Field(isNumber({ allowInfinity: true })) v!: number;
   }
   it('Infinity passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: Infinity })) as any).v).toBe(Infinity);
+    expect((await ok(Dto, { v: Infinity })).v).toBe(Infinity);
   });
   it('-Infinity passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: -Infinity })) as any).v).toBe(-Infinity);
+    expect((await ok(Dto, { v: -Infinity })).v).toBe(-Infinity);
   });
 });
 
@@ -89,16 +96,16 @@ describe('@IsNumber({ maxDecimalPlaces: 2 }) decimal limit', () => {
     @Field(isNumber({ maxDecimalPlaces: 2 })) v!: number;
   }
   it('2 decimal places passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 3.14 })) as any).v).toBe(3.14);
+    expect((await ok(Dto, { v: 3.14 })).v).toBe(3.14);
   });
   it('integer passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 5 })) as any).v).toBe(5);
+    expect((await ok(Dto, { v: 5 })).v).toBe(5);
   });
   it('3 decimal places rejected', async () => {
     expect(await failCode(Dto, { v: 3.141 })).toBe('isNumber');
   });
   it('0 decimal places (integer) boundary', async () => {
-    expect(((await deserialize<any>(Dto, { v: 10 })) as any).v).toBe(10);
+    expect((await ok(Dto, { v: 10 })).v).toBe(10);
   });
 });
 
@@ -112,7 +119,7 @@ describe('@IsPositive boundary values', () => {
     expect(await failCode(Dto, { v: 0 })).toBe('isPositive');
   });
   it('0.001 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 0.001 })) as any).v).toBe(0.001);
+    expect((await ok(Dto, { v: 0.001 })).v).toBe(0.001);
   });
 });
 
@@ -124,7 +131,7 @@ describe('@IsNegative boundary values', () => {
     expect(await failCode(Dto, { v: 0 })).toBe('isNegative');
   });
   it('-0.001 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: -0.001 })) as any).v).toBe(-0.001);
+    expect((await ok(Dto, { v: -0.001 })).v).toBe(-0.001);
   });
 });
 
@@ -135,10 +142,10 @@ describe('@IsInt boundary values', () => {
     @Field(isInt) v!: number;
   }
   it('MAX_SAFE_INTEGER passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: Number.MAX_SAFE_INTEGER })) as any).v).toBe(Number.MAX_SAFE_INTEGER);
+    expect((await ok(Dto, { v: Number.MAX_SAFE_INTEGER })).v).toBe(Number.MAX_SAFE_INTEGER);
   });
   it('MIN_SAFE_INTEGER passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: Number.MIN_SAFE_INTEGER })) as any).v).toBe(Number.MIN_SAFE_INTEGER);
+    expect((await ok(Dto, { v: Number.MIN_SAFE_INTEGER })).v).toBe(Number.MIN_SAFE_INTEGER);
   });
   it('0.5 rejected', async () => {
     expect(await failCode(Dto, { v: 0.5 })).toBe('isInt');
@@ -155,13 +162,13 @@ describe('@Min boundary values', () => {
     @Field(min(5)) v!: number;
   }
   it('exactly 5 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 5 })) as any).v).toBe(5);
+    expect((await ok(Dto, { v: 5 })).v).toBe(5);
   });
   it('4.999 rejected', async () => {
     expect(await failCode(Dto, { v: 4.999 })).toBe('min');
   });
   it('5.001 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 5.001 })) as any).v).toBe(5.001);
+    expect((await ok(Dto, { v: 5.001 })).v).toBe(5.001);
   });
 });
 
@@ -170,13 +177,13 @@ describe('@Max boundary values', () => {
     @Field(max(10)) v!: number;
   }
   it('exactly 10 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 10 })) as any).v).toBe(10);
+    expect((await ok(Dto, { v: 10 })).v).toBe(10);
   });
   it('10.001 rejected', async () => {
     expect(await failCode(Dto, { v: 10.001 })).toBe('max');
   });
   it('9.999 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 9.999 })) as any).v).toBe(9.999);
+    expect((await ok(Dto, { v: 9.999 })).v).toBe(9.999);
   });
 });
 
@@ -187,7 +194,7 @@ describe('@MinLength boundary values', () => {
     @Field(minLength(3)) v!: string;
   }
   it('exactly 3 chars passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 'abc' })) as any).v).toBe('abc');
+    expect((await ok(Dto, { v: 'abc' })).v).toBe('abc');
   });
   it('2 chars rejected', async () => {
     expect(await failCode(Dto, { v: 'ab' })).toBe('minLength');
@@ -202,7 +209,7 @@ describe('@MaxLength boundary values', () => {
     @Field(maxLength(5)) v!: string;
   }
   it('exactly 5 chars passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: 'abcde' })) as any).v).toBe('abcde');
+    expect((await ok(Dto, { v: 'abcde' })).v).toBe('abcde');
   });
   it('6 chars rejected', async () => {
     expect(await failCode(Dto, { v: 'abcdef' })).toBe('maxLength');
@@ -216,13 +223,13 @@ describe('@IsPort boundary values', () => {
     @Field(isPort) v!: string;
   }
   it('"0" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '0' })) as any).v).toBe('0');
+    expect((await ok(Dto, { v: '0' })).v).toBe('0');
   });
   it('"1" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '1' })) as any).v).toBe('1');
+    expect((await ok(Dto, { v: '1' })).v).toBe('1');
   });
   it('"65535" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '65535' })) as any).v).toBe('65535');
+    expect((await ok(Dto, { v: '65535' })).v).toBe('65535');
   });
   it('"65536" rejected', async () => {
     expect(await failCode(Dto, { v: '65536' })).toBe('isPort');
@@ -239,10 +246,10 @@ describe('@IsLatitude boundary values', () => {
     @Field(isLatitude) v!: string;
   }
   it('"-90" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '-90' })) as any).v).toBe('-90');
+    expect((await ok(Dto, { v: '-90' })).v).toBe('-90');
   });
   it('"90" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '90' })) as any).v).toBe('90');
+    expect((await ok(Dto, { v: '90' })).v).toBe('90');
   });
   it('"90.1" rejected', async () => {
     expect(await failCode(Dto, { v: '90.1' })).toBe('isLatitude');
@@ -257,10 +264,10 @@ describe('@IsLongitude boundary values', () => {
     @Field(isLongitude) v!: string;
   }
   it('"-180" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '-180' })) as any).v).toBe('-180');
+    expect((await ok(Dto, { v: '-180' })).v).toBe('-180');
   });
   it('"180" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '180' })) as any).v).toBe('180');
+    expect((await ok(Dto, { v: '180' })).v).toBe('180');
   });
   it('"180.1" rejected', async () => {
     expect(await failCode(Dto, { v: '180.1' })).toBe('isLongitude');
@@ -274,10 +281,10 @@ describe('@IsMilitaryTime boundary values', () => {
     @Field(isMilitaryTime) v!: string;
   }
   it('"00:00" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '00:00' })) as any).v).toBe('00:00');
+    expect((await ok(Dto, { v: '00:00' })).v).toBe('00:00');
   });
   it('"23:59" passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '23:59' })) as any).v).toBe('23:59');
+    expect((await ok(Dto, { v: '23:59' })).v).toBe('23:59');
   });
   it('"24:00" rejected', async () => {
     expect(await failCode(Dto, { v: '24:00' })).toBe('isMilitaryTime');
@@ -294,7 +301,7 @@ describe('@ArrayMinSize boundary values', () => {
     @Field(arrayMinSize(2)) v!: number[];
   }
   it('exactly 2 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: [1, 2] })) as any).v).toEqual([1, 2]);
+    expect((await ok(Dto, { v: [1, 2] })).v).toEqual([1, 2]);
   });
   it('1 rejected', async () => {
     expect(await failCode(Dto, { v: [1] })).toBe('arrayMinSize');
@@ -309,7 +316,7 @@ describe('@ArrayMaxSize boundary values', () => {
     @Field(arrayMaxSize(3)) v!: number[];
   }
   it('exactly 3 passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: [1, 2, 3] })) as any).v).toEqual([1, 2, 3]);
+    expect((await ok(Dto, { v: [1, 2, 3] })).v).toEqual([1, 2, 3]);
   });
   it('4 rejected', async () => {
     expect(await failCode(Dto, { v: [1, 2, 3, 4] })).toBe('arrayMaxSize');
@@ -335,7 +342,7 @@ describe('@IsString with non-string types', () => {
     expect(await failCode(Dto, { v: [] })).toBe('isString');
   });
   it('empty string passes', async () => {
-    expect(((await deserialize<any>(Dto, { v: '' })) as any).v).toBe('');
+    expect((await ok(Dto, { v: '' })).v).toBe('');
   });
 });
 

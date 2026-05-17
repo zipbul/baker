@@ -313,7 +313,7 @@ describe('@Field message + groups combination', () => {
       { secret: 42, id: 1 },
       { groups: ['viewer'] },
     )) as GroupsWithMessageDto;
-    expect((result as any).secret).toBeUndefined();
+    expect((result as GroupsWithMessageDto & { secret?: unknown }).secret).toBeUndefined();
     expect(result.id).toBe(1);
   });
 });

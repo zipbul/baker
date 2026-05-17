@@ -15,8 +15,8 @@ import { setSealed, deleteSealed } from '../meta-access';
 
 const trackedClasses: Function[] = [];
 
-function makeClass(name = 'TestDto'): new (...args: any[]) => any {
-  const ctor = class {} as any;
+function makeClass(name = 'TestDto'): new (...args: never[]) => object {
+  const ctor = class {};
   Object.defineProperty(ctor, 'name', { value: name });
   trackedClasses.push(ctor);
   return ctor;
@@ -178,13 +178,15 @@ describe('deserialize', () => {
   it('should return independent T instances on repeated calls with same input', async () => {
     const Dto = makeClass();
     let idx = 0;
-    const instances = [new Dto(), new Dto()];
+    const inst0 = new Dto();
+    const inst1 = new Dto();
+    const instances = [inst0, inst1] as const;
     attachSealed(Dto, () => instances[idx++]);
     const input = { name: 'Alice' };
     const r1 = await deserialize(Dto, input);
     const r2 = await deserialize(Dto, input);
-    expect(r1).toBe(instances[0]);
-    expect(r2).toBe(instances[1]);
+    expect(r1).toBe(inst0);
+    expect(r2).toBe(inst1);
   });
 
   // ── Sync/Async branching ─────────────────────────────────────────────────

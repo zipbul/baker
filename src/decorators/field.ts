@@ -37,7 +37,7 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 
 interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
-  type?: () => ClassCtor | ClassCtor[];
+  type?: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
   /** Polymorphic discriminator configuration — used with type */
   discriminator?: {
     property: string;

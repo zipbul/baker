@@ -12,7 +12,7 @@ afterEach(() => unseal());
 
 // Set<primitive>
 class PrimitiveSetDto {
-  @Field({ type: () => Set as any })
+  @Field({ type: () => Set })
   tags!: Set<string>;
 }
 
@@ -23,13 +23,13 @@ class TagDto {
 }
 
 class NestedSetDto {
-  @Field({ type: () => Set as any, setValue: () => TagDto })
+  @Field({ type: () => Set, setValue: () => TagDto })
   tags!: Set<TagDto>;
 }
 
 // Map<string, primitive>
 class PrimitiveMapDto {
-  @Field({ type: () => Map as any })
+  @Field({ type: () => Map })
   config!: Map<string, unknown>;
 }
 
@@ -40,24 +40,24 @@ class PriceDto {
 }
 
 class NestedMapDto {
-  @Field({ type: () => Map as any, mapValue: () => PriceDto })
+  @Field({ type: () => Map, mapValue: () => PriceDto })
   prices!: Map<string, PriceDto>;
 }
 
 // Set with validation rules
 class ValidatedSetDto {
-  @Field(arrayOf(isString, minLength(2)), { type: () => Set as any })
+  @Field(arrayOf(isString, minLength(2)), { type: () => Set })
   items!: Set<string>;
 }
 
 // Optional/nullable collection
 class OptionalSetDto {
-  @Field({ type: () => Set as any, optional: true })
+  @Field({ type: () => Set, optional: true })
   tags?: Set<string>;
 }
 
 class NullableMapDto {
-  @Field({ type: () => Map as any, nullable: true })
+  @Field({ type: () => Map, nullable: true })
   data!: Map<string, unknown> | null;
 }
 
@@ -312,9 +312,9 @@ describe('Set<DTO> serialize — null elements', () => {
   it('null element in Set → null preserved', async () => {
     seal();
     const tag = Object.assign(new TagDto(), { name: 'a' });
-    const dto = Object.assign(new NestedSetDto(), { tags: new Set([tag, null as any]) });
+    const dto = Object.assign(new NestedSetDto(), { tags: new Set<TagDto | null>([tag, null]) });
     const result = await serialize(dto);
-    const arr = result['tags'] as any[];
+    const arr = result['tags'] as unknown[];
     expect(arr).toHaveLength(2);
     expect(arr[0]).toEqual({ name: 'a' });
     expect(arr[1]).toBeNull();
@@ -349,7 +349,7 @@ describe('stopAtFirstError — collection', () => {
     configure({ stopAtFirstError: true });
 
     class StopSetDto {
-      @Field({ type: () => Set as any, setValue: () => TagDto })
+      @Field({ type: () => Set, setValue: () => TagDto })
       items!: Set<TagDto>;
     }
     seal(StopSetDto);
@@ -369,7 +369,7 @@ describe('stopAtFirstError — collection', () => {
     seal();
 
     class StopMapDto {
-      @Field({ type: () => Map as any, mapValue: () => PriceDto })
+      @Field({ type: () => Map, mapValue: () => PriceDto })
       data!: Map<string, PriceDto>;
     }
     seal(StopMapDto);
@@ -420,14 +420,14 @@ describe('Map non-string key throws at serialize', () => {
     @Field(isString) v!: string;
   }
   class NonStringKeyMapDto {
-    @Field({ type: () => Map as any, setValue: () => MapItemDto })
+    @Field({ type: () => Map, setValue: () => MapItemDto })
     entries!: Map<unknown, MapItemDto>;
   }
 
   it('number key in Map throws TypeError', () => {
     seal();
     const m = new Map<unknown, MapItemDto>();
-    m.set(1 as any, Object.assign(new MapItemDto(), { v: 'a' }));
+    m.set(1, Object.assign(new MapItemDto(), { v: 'a' }));
     const dto = Object.assign(new NonStringKeyMapDto(), { entries: m });
     expect(() => serialize(dto)).toThrow(/non-string key/);
   });
@@ -435,7 +435,7 @@ describe('Map non-string key throws at serialize', () => {
   it('object key in Map throws TypeError', () => {
     seal();
     const m = new Map<unknown, MapItemDto>();
-    m.set({} as any, Object.assign(new MapItemDto(), { v: 'a' }));
+    m.set({}, Object.assign(new MapItemDto(), { v: 'a' }));
     const dto = Object.assign(new NonStringKeyMapDto(), { entries: m });
     expect(() => serialize(dto)).toThrow(/non-string key/);
   });
@@ -443,14 +443,14 @@ describe('Map non-string key throws at serialize', () => {
 
 describe('primitive Map non-string key throws at serialize', () => {
   class PrimMapDto {
-    @Field({ type: () => Map as any })
+    @Field({ type: () => Map })
     m!: Map<unknown, string>;
   }
 
   it('number key in primitive Map throws TypeError', () => {
     seal();
     const m = new Map<unknown, string>();
-    m.set(1 as any, 'a');
+    m.set(1, 'a');
     const dto = Object.assign(new PrimMapDto(), { m });
     expect(() => serialize(dto)).toThrow(/non-string key/);
   });

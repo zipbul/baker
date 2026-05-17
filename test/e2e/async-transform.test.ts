@@ -155,7 +155,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       v!: string;
     }
     class ParentSet {
-      @Field({ type: () => Set as any, setValue: () => AsyncDeserItem })
+      @Field({ type: () => Set, setValue: () => AsyncDeserItem })
       items!: Set<AsyncDeserItem>;
     }
     unseal();
@@ -171,7 +171,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       v!: string;
     }
     class ParentMap {
-      @Field({ type: () => Map as any, setValue: () => AsyncDeserVal })
+      @Field({ type: () => Map, setValue: () => AsyncDeserVal })
       entries!: Map<string, AsyncDeserVal>;
     }
     unseal();
@@ -187,7 +187,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       score!: number;
     }
     class ParentSerSet {
-      @Field({ type: () => Set as any, setValue: () => AsyncSerItem })
+      @Field({ type: () => Set, setValue: () => AsyncSerItem })
       items!: Set<AsyncSerItem>;
     }
     unseal();
@@ -203,7 +203,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       n!: number;
     }
     class ParentSerMap {
-      @Field({ type: () => Map as any, setValue: () => AsyncSerVal })
+      @Field({ type: () => Map, setValue: () => AsyncSerVal })
       entries!: Map<string, AsyncSerVal>;
     }
     unseal();
@@ -219,7 +219,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       v!: string;
     }
     class ParentDe {
-      @Field({ type: () => Set as any, setValue: () => AsyncItem2 })
+      @Field({ type: () => Set, setValue: () => AsyncItem2 })
       items!: Set<AsyncItem2>;
     }
     unseal();
@@ -240,7 +240,7 @@ describe('async serialize Set<DTO>', () => {
     @Field(isString) name!: string;
   }
   class AsyncSerSetDto {
-    @Field({ type: () => Set as any, setValue: () => SetItemDto })
+    @Field({ type: () => Set, setValue: () => SetItemDto })
     items!: Set<SetItemDto>;
     @Field(isString, {
       transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
@@ -256,7 +256,7 @@ describe('async serialize Set<DTO>', () => {
     expect(dto.items).toBeInstanceOf(Set);
     const result = await serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
-    expect((result.items as any[]).length).toBe(2);
+    expect((result.items as unknown[]).length).toBe(2);
   });
 });
 
@@ -278,6 +278,6 @@ describe('async serialize array of nested DTOs', () => {
     })) as AsyncArrayDto;
     const result = await serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
-    expect((result.items as any[]).length).toBe(2);
+    expect((result.items as unknown[]).length).toBe(2);
   });
 });

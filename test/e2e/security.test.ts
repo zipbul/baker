@@ -17,11 +17,11 @@ describe('prototype pollution defense (forbidUnknown)', () => {
   it('__proto__ key → pollution prevented', async () => {
     configure({ forbidUnknown: true });
     seal();
-    const result = await deserialize<any>(SafeDto, { name: 'ok', __proto__: { admin: true } });
+    const result = await deserialize<SafeDto>(SafeDto, { name: 'ok', __proto__: { admin: true } });
     if (isBakerError(result)) {
       expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
     } else {
-      expect(result.admin).toBeUndefined();
+      expect((result as SafeDto & { admin?: unknown }).admin).toBeUndefined();
     }
   });
 
@@ -55,9 +55,10 @@ describe('extra keys ignored without forbidUnknown', () => {
 
   it('undeclared keys not included in result', async () => {
     seal();
-    const r = (await deserialize<any>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} })) as any;
+    const r = await deserialize<Dto>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
+    if (isBakerError(r)) {throw new Error('expected success');}
     expect(r.name).toBe('ok');
-    expect(r.extra).toBeUndefined();
+    expect((r as Dto & { extra?: unknown }).extra).toBeUndefined();
   });
 });
 
@@ -129,7 +130,7 @@ describe('large array input handling', () => {
 
   it('some invalid among 1000 → only those indices have errors', async () => {
     seal();
-    const items: any[] = Array.from({ length: 100 }, (_, i) => ({ id: i }));
+    const items: Array<{ id: number | string }> = Array.from({ length: 100 }, (_, i) => ({ id: i }));
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
     const result = await deserialize(ListDto, { items });
@@ -189,19 +190,22 @@ describe('special string value handling', () => {
   it('very long string (10K) passes', async () => {
     seal();
     const longStr = 'x'.repeat(10_000);
-    const r = (await deserialize<any>(Dto, { v: longStr })) as any;
+    const r = await deserialize<Dto>(Dto, { v: longStr });
+    if (isBakerError(r)) {throw new Error("expected success");}
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
     seal();
-    const r = (await deserialize<any>(Dto, { v: '🎉🎊🎈' })) as any;
+    const r = await deserialize<Dto>(Dto, { v: '🎉🎊🎈' });
+    if (isBakerError(r)) {throw new Error('expected success');}
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
     seal();
-    const r = (await deserialize<any>(Dto, { v: 'hello\x00world' })) as any;
+    const r = await deserialize<Dto>(Dto, { v: 'hello\x00world' });
+    if (isBakerError(r)) {throw new Error('expected success');}
     expect(r.v).toBe('hello\x00world');
   });
 });

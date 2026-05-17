@@ -125,7 +125,7 @@ export interface ExcludeDef {
 export type ClassCtor<T = object> = new (...args: never[]) => T;
 
 export interface TypeDef {
-  fn: () => ClassCtor | ClassCtor[];
+  fn: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
   discriminator?: {
     property: string;
     subTypes: { value: Function; name: string }[];

@@ -1,9 +1,16 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
+import type { EmittableRule } from '../../src/types';
+
 import { Field, deserialize, serialize, SealError, seal } from '../../index';
 import { ensureMeta } from '../../src/collect';
 import { isNumber } from '../../src/rules/index';
 import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
+
+/** Test-only: cast arbitrary garbage into an EmittableRule slot to exercise @Field's runtime rejection. */
+function asRule(v: unknown): EmittableRule {
+  return v as EmittableRule;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -43,15 +50,15 @@ describe('SealError', () => {
   });
 
   it('serialize null → SealError', () => {
-    expect(() => serialize(null as any)).toThrow(SealError);
+    expect(() => serialize(null)).toThrow(SealError);
   });
 
   it('serialize primitive → SealError', () => {
-    expect(() => serialize(42 as any)).toThrow(SealError);
+    expect(() => serialize(42)).toThrow(SealError);
   });
 
   it('serialize undefined → SealError', () => {
-    expect(() => serialize(undefined as any)).toThrow(SealError);
+    expect(() => serialize(undefined)).toThrow(SealError);
   });
 
   it('serialize Object.create(null) → SealError (no constructor)', () => {
@@ -63,7 +70,7 @@ describe('SealError', () => {
   it('@Field with rule factory not invoked → SealError with factory hint', () => {
     expect(() => {
       class BadFactoryDto {
-        @Field(isNumber as any) v!: number;
+        @Field(asRule(isNumber)) v!: number;
       }
       seal(BadFactoryDto);
     }).toThrow(/is not a baker rule.*Did you forget to call/);
@@ -72,7 +79,7 @@ describe('SealError', () => {
   it('@Field with non-function (number) → SealError', () => {
     expect(() => {
       class BadArgDto {
-        @Field(42 as any) v!: number;
+        @Field(asRule(42)) v!: number;
       }
       seal(BadArgDto);
     }).toThrow(/expected a baker rule.*got number/);
@@ -81,7 +88,7 @@ describe('SealError', () => {
   it('@Field(null) → SealError', () => {
     expect(() => {
       class NullArgDto {
-        @Field(null as any) v!: number;
+        @Field(asRule(null)) v!: number;
       }
       seal(NullArgDto);
     }).toThrow(/got null/);

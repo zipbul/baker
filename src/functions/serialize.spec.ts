@@ -14,8 +14,8 @@ import { setSealed, deleteSealed } from '../meta-access';
 
 const trackedClasses: Function[] = [];
 
-function makeClass(name = 'TestDto'): new (...args: any[]) => any {
-  const ctor = class {} as any;
+function makeClass(name = 'TestDto'): new (...args: never[]) => object {
+  const ctor = class {};
   Object.defineProperty(ctor, 'name', { value: name });
   trackedClasses.push(ctor);
   return ctor;

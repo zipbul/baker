@@ -19,7 +19,7 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
+async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
   if (!isBakerError(result)) {throw new Error('expected error');}
   return result.errors;
@@ -158,7 +158,7 @@ describe('@ValidateIf + @IsNumber combination', () => {
     @Field(isBoolean) hasDiscount!: boolean;
 
     @Field(isNumber(), min(0), max(100), {
-      when: (obj: any) => obj.hasDiscount === true,
+      when: (obj: { hasDiscount?: unknown }) => obj.hasDiscount === true,
     })
     discountPercent!: number;
   }
@@ -292,7 +292,7 @@ describe('@ValidateIf + @Transform interaction', () => {
     @Field(isBoolean) enabled!: boolean;
 
     @Field(isString, {
-      when: (obj: any) => obj.enabled === true,
+      when: (obj: { enabled?: unknown }) => obj.enabled === true,
       transform: {
         deserialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),
         serialize: ({ value }) => (typeof value === 'string' ? value.toUpperCase() : value),

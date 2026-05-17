@@ -1463,7 +1463,7 @@ describe('isJSON', () => {
   });
 
   it('should return false for non-string value', () => {
-    expect(isJSON(42 as any)).toBe(false);
+    expect(isJSON(42 as never)).toBe(false);
   });
 
   it('should generate try-catch or ref-based code when calling emit() and have ruleName isJSON', () => {
@@ -1814,7 +1814,7 @@ describe('isHash', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isHash('md5')(42 as any)).toBe(false);
+    expect(isHash('md5')(42 as never)).toBe(false);
   });
 
   it('should have requiresType string', () => {
@@ -1834,7 +1834,7 @@ describe('isHash', () => {
 
   it('should generate immediate fail code for unknown algorithm emit', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isHash('unknownAlgo' as any).emit('v', ctx);
+    const code = isHash('unknownAlgo' as never).emit('v', ctx);
     expect(code).toContain('isHash');
     expect(failMock).toHaveBeenCalledWith('isHash');
   });
@@ -1868,7 +1868,7 @@ describe('isRFC3339', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isRFC3339(12345 as any)).toBe(false);
+    expect(isRFC3339(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isRFC3339', () => {
@@ -1912,7 +1912,7 @@ describe('isMilitaryTime', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isMilitaryTime(1230 as any)).toBe(false);
+    expect(isMilitaryTime(1230 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isMilitaryTime', () => {
@@ -1972,13 +1972,13 @@ describe('isLatitude', () => {
   });
 
   it('should return false for non-string non-number input', () => {
-    expect(isLatitude(null as any)).toBe(false);
-    expect(isLatitude({} as any)).toBe(false);
+    expect(isLatitude(null as never)).toBe(false);
+    expect(isLatitude({} as never)).toBe(false);
   });
 
   it('should have ruleName isLatitude and requiresType undefined', () => {
     expect(isLatitude.ruleName).toBe('isLatitude');
-    expect((isLatitude as any).requiresType).toBeUndefined();
+    expect(isLatitude.requiresType).toBeUndefined();
   });
 
   it('should generate emit code', () => {
@@ -2025,13 +2025,13 @@ describe('isLongitude', () => {
   });
 
   it('should return false for non-string non-number input', () => {
-    expect(isLongitude(null as any)).toBe(false);
-    expect(isLongitude({} as any)).toBe(false);
+    expect(isLongitude(null as never)).toBe(false);
+    expect(isLongitude({} as never)).toBe(false);
   });
 
   it('should have ruleName isLongitude and requiresType undefined', () => {
     expect(isLongitude.ruleName).toBe('isLongitude');
-    expect((isLongitude as any).requiresType).toBeUndefined();
+    expect(isLongitude.requiresType).toBeUndefined();
   });
 
   it('should generate emit code', () => {
@@ -2066,7 +2066,7 @@ describe('isEthereumAddress', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isEthereumAddress(123 as any)).toBe(false);
+    expect(isEthereumAddress(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isEthereumAddress', () => {
@@ -2110,7 +2110,7 @@ describe('isBtcAddress', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isBtcAddress(123 as any)).toBe(false);
+    expect(isBtcAddress(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isBtcAddress', () => {
@@ -2154,7 +2154,7 @@ describe('isISO4217CurrencyCode', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isISO4217CurrencyCode(123 as any)).toBe(false);
+    expect(isISO4217CurrencyCode(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isISO4217CurrencyCode', () => {
@@ -2198,7 +2198,7 @@ describe('isPhoneNumber', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPhoneNumber(123 as any)).toBe(false);
+    expect(isPhoneNumber(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPhoneNumber', () => {
@@ -2251,7 +2251,7 @@ describe('isStrongPassword', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isStrongPassword()(12345678 as any)).toBe(false);
+    expect(isStrongPassword()(12345678 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isStrongPassword', () => {
@@ -2309,7 +2309,7 @@ describe('isTaxId', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isTaxId('US')(123 as any)).toBe(false);
+    expect(isTaxId('US')(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isTaxId', () => {

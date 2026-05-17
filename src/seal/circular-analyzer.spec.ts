@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
-import type { RawClassMeta } from '../types';
+import type { ClassCtor, RawClassMeta } from '../types';
 
 import { analyzeCircular } from './circular-analyzer';
 import { setRaw } from '../meta-access';
@@ -16,7 +16,7 @@ function makeTypeMeta(fn: () => Function): RawClassMeta {
       transform: [],
       expose: [],
       exclude: null,
-      type: { fn: fn as () => new (...args: any[]) => any },
+      type: { fn: fn as () => ClassCtor },
       flags: {},
     },
   };
@@ -30,7 +30,7 @@ function makeDiscriminatorMeta(subTypes: { value: Function; name: string }[]): R
       expose: [],
       exclude: null,
       type: {
-        fn: () => subTypes[0]!.value as new (...args: any[]) => any,
+        fn: () => subTypes[0]!.value as ClassCtor,
         discriminator: { property: 'type', subTypes },
       },
       flags: {},

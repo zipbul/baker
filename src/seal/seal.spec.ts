@@ -1,5 +1,7 @@
+import { isErr } from '@zipbul/result';
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
+import type { BakerError } from '../errors';
 import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
 
 import { SealError } from '../errors';
@@ -119,8 +121,9 @@ describe('seal', () => {
     const sealed = requireSealed(PersonDto2);
     const result = await sealed.deserialize({ name: 42 });
     // Assert — should be Err (has .data property)
-    expect((result as any).data).toBeDefined();
-    expect(Array.isArray((result as any).data)).toBe(true);
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    expect(result.data).toBeDefined();
+    expect(Array.isArray(result.data)).toBe(true);
   });
 
   it('should seal @Type nested DTO so nested class is also sealed', () => {
@@ -137,7 +140,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AddressDto as any },
+        type: { fn: () => AddressDto },
         flags: { validateNested: true },
       },
     });
@@ -251,7 +254,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => TreeDto as any },
+        type: { fn: () => TreeDto },
         flags: { validateNested: true },
       },
     });
@@ -324,7 +327,7 @@ describe('seal', () => {
         expose: [],
         exclude: null,
         type: {
-          fn: () => DogDto as any,
+          fn: () => DogDto,
           discriminator: {
             property: 'type',
             subTypes: [
@@ -361,7 +364,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => NestedTarget as any },
+        type: { fn: () => NestedTarget },
         flags: {}, // no validateNested — seal should auto-set it
       },
     });
@@ -392,7 +395,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => NestedLate as any },
+        type: { fn: () => NestedLate },
         flags: {},
       },
     });
@@ -420,7 +423,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => null as any },
+        type: { fn: () => null as never },
         flags: {},
       },
     });
@@ -431,9 +434,9 @@ describe('seal', () => {
   it('should clean up stale placeholders when seal fails', () => {
     // Arrange — nested DTO has banned field name 'constructor' → SealError
     class BrokenNested {}
-    setRaw(BrokenNested, {
-      constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    } as unknown as RawClassMeta);
+    const brokenRaw: RawClassMeta = Object.create(null) as RawClassMeta;
+    brokenRaw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
+    setRaw(BrokenNested, brokenRaw);
     freeClasses.push(BrokenNested);
 
     class ParentDto {}
@@ -443,7 +446,7 @@ describe('seal', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => BrokenNested as any },
+        type: { fn: () => BrokenNested },
         flags: { validateNested: true },
       },
     });
@@ -467,7 +470,7 @@ describe('seal', () => {
         transform: [{ fn: () => 'x', options: { serializeOnly: true } }],
         expose: [],
         exclude: null,
-        type: { fn: () => NestedA as any },
+        type: { fn: () => NestedA },
         flags: {}, // no validateNested — seal should auto-set it
       },
     });
@@ -492,7 +495,7 @@ describe('seal', () => {
         transform: [{ fn: () => 'x' }],
         expose: [],
         exclude: null,
-        type: { fn: () => NestedB as any },
+        type: { fn: () => NestedB },
         flags: {}, // no validateNested
       },
     });
@@ -541,13 +544,8 @@ describe('mergeInheritance', () => {
 
   it('should ignore parent transform when child has its own transform', () => {
     // Arrange
-    const parentFn = (v: any) => v.trim();
-    (parentFn as any).emit = () => '';
-    (parentFn as any).ruleName = 'trim';
-
-    const childFn = (v: any) => v.toLowerCase();
-    (childFn as any).emit = () => '';
-    (childFn as any).ruleName = 'lower';
+    const parentFn = ({ value }: { value: unknown }): unknown => (value as string).trim();
+    const childFn = ({ value }: { value: unknown }): unknown => (value as string).toLowerCase();
 
     class BaseTr {}
     setRaw(BaseTr, {
@@ -566,7 +564,7 @@ describe('mergeInheritance', () => {
 
   it('should inherit parent transform when child has none', () => {
     // Arrange
-    const parentFn2 = (v: any) => v;
+    const parentFn2 = ({ value }: { value: unknown }): unknown => value;
     class BaseTr2 {}
     setRaw(BaseTr2, {
       x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {} },
@@ -777,9 +775,8 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named constructor', () => {
     // Arrange
     class BannedConstructorDto {}
-    const raw = {
-      constructor: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    } as unknown as RawClassMeta;
+    const raw: RawClassMeta = Object.create(null) as RawClassMeta;
+    raw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
     registerClass(BannedConstructorDto, raw);
     // Act / Assert
     expect(() => seal()).toThrow(SealError);
@@ -788,9 +785,8 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw SealError when a field is named prototype', () => {
     // Arrange
     class BannedPrototypeDto {}
-    const raw = {
-      prototype: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
-    } as unknown as RawClassMeta;
+    const raw: RawClassMeta = Object.create(null) as RawClassMeta;
+    raw['prototype'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
     registerClass(BannedPrototypeDto, raw);
     // Act / Assert
     expect(() => seal()).toThrow(SealError);
@@ -848,7 +844,7 @@ describe('analyzeAsync — discriminator', () => {
   it('should detect async transform in discriminator subType', () => {
     // Arrange — SubA has an async transform
     class SubA {}
-    const asyncFn = async (v: any) => v;
+    const asyncFn = async ({ value }: { value: unknown }): Promise<unknown> => value;
     registerClass(SubA, {
       val: {
         validation: [{ rule: isString }],
@@ -871,7 +867,7 @@ describe('analyzeAsync — discriminator', () => {
         expose: [],
         exclude: null,
         type: {
-          fn: () => SubA as any,
+          fn: () => SubA,
           discriminator: {
             property: 'kind',
             subTypes: [
@@ -905,7 +901,7 @@ describe('analyzeAsync — discriminator', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => CircSubB as any },
+        type: { fn: () => CircSubB },
         flags: { validateNested: true },
       },
     });
@@ -916,7 +912,7 @@ describe('analyzeAsync — discriminator', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => CircSubA as any },
+        type: { fn: () => CircSubA },
         flags: { validateNested: true },
       },
     });
@@ -929,7 +925,7 @@ describe('analyzeAsync — discriminator', () => {
         expose: [],
         exclude: null,
         type: {
-          fn: () => CircSubA as any,
+          fn: () => CircSubA,
           discriminator: {
             property: 'kind',
             subTypes: [
@@ -962,7 +958,7 @@ describe('analyzeAsync — discriminator', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => DiscC as any },
+        type: { fn: () => DiscC },
         flags: { validateNested: true },
       },
     });
@@ -973,7 +969,7 @@ describe('analyzeAsync — discriminator', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => DiscA as any },
+        type: { fn: () => DiscA },
         flags: { validateNested: true },
       },
     });
@@ -984,7 +980,7 @@ describe('analyzeAsync — discriminator', () => {
         expose: [],
         exclude: null,
         type: {
-          fn: () => DiscB as any,
+          fn: () => DiscB,
           discriminator: {
             property: 'kind',
             subTypes: [

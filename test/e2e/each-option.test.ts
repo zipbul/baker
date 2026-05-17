@@ -122,8 +122,8 @@ describe('each:true — Map with stopAtFirstError', () => {
     }
     seal(MapDto);
     const result = await deserialize(MapDto, {
-      items: new Map([
-        ['a', 99 as any],
+      items: new Map<string, unknown>([
+        ['a', 99],
         ['b', 'ok'],
       ]),
     });
@@ -162,9 +162,9 @@ describe('each:true — Map with collectErrors', () => {
     }
     seal(MapCollectDto);
     const result = await deserialize(MapCollectDto, {
-      items: new Map([
-        ['a', 42 as any],
-        ['b', 99 as any],
+      items: new Map<string, unknown>([
+        ['a', 42],
+        ['b', 99],
       ]),
     });
     expect(isBakerError(result)).toBe(true);

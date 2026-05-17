@@ -89,15 +89,15 @@ describe('serializeSync / serializeAsync', () => {
 
 describe('serializeSync / serializeAsync — defensive input checks', () => {
   it('serializeSync(null) throws SealError', () => {
-    expect(() => (serializeSync as any)(null)).toThrow(/expected a class instance, got null/);
+    expect(() => serializeSync(null)).toThrow(/expected a class instance, got null/);
   });
 
   it('serializeSync(undefined) throws SealError', () => {
-    expect(() => (serializeSync as any)(undefined)).toThrow(/expected a class instance, got undefined/);
+    expect(() => serializeSync(undefined)).toThrow(/expected a class instance, got undefined/);
   });
 
   it('serializeSync("string") throws SealError', () => {
-    expect(() => (serializeSync as any)('hello')).toThrow(/expected a class instance, got string/);
+    expect(() => serializeSync('hello')).toThrow(/expected a class instance, got string/);
   });
 
   it('serializeSync(Object.create(null)) throws "no constructor"', () => {
@@ -106,11 +106,11 @@ describe('serializeSync / serializeAsync — defensive input checks', () => {
   });
 
   it('serializeAsync(null) throws SealError', () => {
-    expect(() => (serializeAsync as any)(null)).toThrow(/expected a class instance/);
+    expect(() => serializeAsync(null)).toThrow(/expected a class instance/);
   });
 
   it('serializeAsync(undefined) throws SealError', () => {
-    expect(() => (serializeAsync as any)(undefined)).toThrow(/expected a class instance/);
+    expect(() => serializeAsync(undefined)).toThrow(/expected a class instance/);
   });
 
   it('serializeAsync(Object.create(null)) throws "no constructor"', () => {

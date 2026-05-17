@@ -64,7 +64,7 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: extracts the error code for a specific path from BakerErrors */
-async function getErrorCode(cls: new (...args: any[]) => any, input: unknown, path?: string): Promise<string> {
+async function getErrorCode(cls: new (...args: never[]) => unknown, input: unknown, path?: string): Promise<string> {
   const result = await deserialize(cls, input);
   if (!isBakerError(result)) {throw new Error('expected validation failure');}
   const err = path !== undefined ? result.errors.find(x => x.path === path) : result.errors[0];

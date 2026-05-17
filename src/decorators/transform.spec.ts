@@ -141,10 +141,10 @@ describe('@Field — metadata collection', () => {
 
   it('@Field(rule, { groups }) attaches groups to validation', () => {
     const Cls = makeClass();
-    const rule = Object.assign((v: unknown) => typeof v === 'string', {
+    const rule: EmittableRule = Object.assign((v: unknown): boolean => typeof v === 'string', {
       ruleName: 'isString',
-      emit: () => '',
-    }) as unknown as EmittableRule;
+      emit: (): string => '',
+    });
     Field(rule, { groups: ['admin'] })(Cls.prototype, 'field');
     const rd = fieldMeta(Cls, 'field').validation[0];
     expect(rd?.groups).toEqual(['admin']);

@@ -55,8 +55,8 @@ describe('codegen — integration', () => {
     const sealed = requireSealed(CodegenSimpleDto);
     const result = await sealed.deserialize({ name: 'Alice', value: 42 });
     expect(isErr(result)).toBe(false);
-    expect((result as any).name).toBe('Alice');
-    expect((result as any).value).toBe(42);
+    expect((result as CodegenSimpleDto).name).toBe('Alice');
+    expect((result as CodegenSimpleDto).value).toBe(42);
   });
 
   it('deserialize should return error Result for invalid input', async () => {

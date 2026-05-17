@@ -8,12 +8,12 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: verify pass */
-async function pass<T>(cls: new (...a: any[]) => T, input: unknown): Promise<T> {
+async function pass<T>(cls: new (...a: never[]) => T, input: unknown): Promise<T> {
   return deserialize<T>(cls, input) as Promise<T>;
 }
 
 /** Helper: verify rejection + return error code */
-async function failCode(cls: new (...args: any[]) => any, input: unknown): Promise<string> {
+async function failCode(cls: new (...args: never[]) => unknown, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
   if (!isBakerError(result)) {throw new Error('expected validation failure');}
   return result.errors[0]!.code;

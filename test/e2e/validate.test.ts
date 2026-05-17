@@ -352,15 +352,15 @@ describe('validate ad-hoc — no rules', () => {
 
 describe('validate ad-hoc — invalid rule argument rejection', () => {
   it('non-function rule throws SealError', () => {
-    expect(() => validate('hello', 42 as any)).toThrow(/argument 1 is not a baker rule/);
+    expect(() => validate("hello", 42 as never)).toThrow(/argument 1 is not a baker rule/);
   });
 
   it('null rule throws SealError', () => {
-    expect(() => validate('hello', null as any)).toThrow(/got null/);
+    expect(() => validate("hello", null as never)).toThrow(/got null/);
   });
 
   it('function without emit/ruleName throws SealError', () => {
-    const fakeRule = (() => true) as any;
+    const fakeRule = ((() => true) as never);
     expect(() => validate('hello', fakeRule)).toThrow(/is not a baker rule/);
   });
 });

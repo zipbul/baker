@@ -1,16 +1,18 @@
 import { describe, it, expect, mock } from 'bun:test';
 
+import type { EmitContext } from './types';
+
 import { createRule } from './create-rule';
 
 function makeCtx(refIndex: number = 0) {
-  const addRefMock = mock((_fn: Function) => refIndex);
+  const addRefMock = mock((_fn: unknown) => refIndex);
   const failMock = mock((code: string) => `_errors.push({path:'x',code:'${code}'})`);
-  const ctx = {
+  const ctx: EmitContext = {
     addRegex: mock((_re: RegExp) => 0),
     addRef: addRefMock,
     addExecutor: mock(() => 0),
     fail: failMock,
-    collectErrors: true as const,
+    collectErrors: true,
   };
   return { ctx, addRefMock, failMock };
 }
@@ -45,7 +47,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(typeof code).toBe('string');
   });
@@ -55,7 +57,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(3);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).toContain('refs[3]');
   });
@@ -65,7 +67,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert: fail was called and its return value appears in the emitted code
     expect(failMock).toHaveBeenCalledWith('myRule');
     expect(code).toContain(failMock.mock.results[0]!.value as string);
@@ -87,7 +89,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: validateFn });
     const { ctx, addRefMock } = makeCtx(0);
     // Act
-    rule.emit('_val', ctx as any);
+    rule.emit('_val', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledWith(rule);
   });
@@ -97,7 +99,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).toContain('refs[0]');
   });
@@ -133,7 +135,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).toContain('await');
   });
@@ -143,7 +145,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'syncRule', validate: _v => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).not.toContain('await');
   });

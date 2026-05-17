@@ -58,7 +58,7 @@ describe('isMobilePhone', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isMobilePhone('ko-KR')(12345 as any)).toBe(false);
+    expect(isMobilePhone('ko-KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isMobilePhone', () => {
@@ -74,7 +74,7 @@ describe('isMobilePhone', () => {
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isMobilePhone('xx-XX' as any)).toThrow('Unsupported locale');
+    expect(() => isMobilePhone('xx-XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
@@ -120,7 +120,7 @@ describe('isPostalCode', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPostalCode('KR')(12345 as any)).toBe(false);
+    expect(isPostalCode('KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPostalCode', () => {
@@ -136,7 +136,7 @@ describe('isPostalCode', () => {
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isPostalCode('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isPostalCode('XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {
@@ -180,7 +180,7 @@ describe('isIdentityCard', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isIdentityCard('KR')(12345 as any)).toBe(false);
+    expect(isIdentityCard('KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isIdentityCard', () => {
@@ -196,7 +196,7 @@ describe('isIdentityCard', () => {
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isIdentityCard('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isIdentityCard('XX' as never)).toThrow('Unsupported locale');
   });
 });
 
@@ -229,7 +229,7 @@ describe('isPassportNumber', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPassportNumber('KR')(123456789 as any)).toBe(false);
+    expect(isPassportNumber('KR')(123456789 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPassportNumber', () => {
@@ -245,7 +245,7 @@ describe('isPassportNumber', () => {
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isPassportNumber('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isPassportNumber('XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {

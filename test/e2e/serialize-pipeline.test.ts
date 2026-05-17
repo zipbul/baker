@@ -148,9 +148,9 @@ describe('E-19: nested array with null elements — serialize', () => {
     const result = await serialize(parent);
     expect(result.name).toBe('Alice');
     expect(result.children).toHaveLength(3);
-    expect((result.children as any[])[0]).toEqual({ label: 'first' });
-    expect((result.children as any[])[1]).toBeNull();
-    expect((result.children as any[])[2]).toEqual({ label: 'third' });
+    expect((result.children as unknown[])[0]).toEqual({ label: 'first' });
+    expect((result.children as unknown[])[1]).toBeNull();
+    expect((result.children as unknown[])[2]).toEqual({ label: 'third' });
   });
 
   it('array with all null elements → serialize returns [null, null]', async () => {

@@ -152,7 +152,7 @@ describe('buildSerializeCode', () => {
     class TransDto {
       name = 'alice';
     }
-    const transformFn = mock(({ value }: any) => (value as string).toUpperCase());
+    const transformFn = mock(({ value }: { value: unknown }) => (value as string).toUpperCase());
     const merged: RawClassMeta = {
       name: {
         validation: [],
@@ -176,8 +176,8 @@ describe('buildSerializeCode', () => {
     class MultiTransDto {
       name = 'alice';
     }
-    const upperFn = mock(({ value }: any) => (value as string).toUpperCase());
-    const prefixFn = mock(({ value }: any) => 'PREFIX_' + (value as string));
+    const upperFn = mock(({ value }: { value: unknown }) => (value as string).toUpperCase());
+    const prefixFn = mock(({ value }: { value: unknown }) => 'PREFIX_' + (value as string));
     const merged: RawClassMeta = {
       name: {
         validation: [],
@@ -201,9 +201,9 @@ describe('buildSerializeCode', () => {
     class TriTransDto {
       tag = 'hello';
     }
-    const t1 = mock(({ value }: any) => (value as string).toUpperCase());
-    const t2 = mock(({ value }: any) => (value as string) + '!');
-    const t3 = mock(({ value }: any) => '[' + (value as string) + ']');
+    const t1 = mock(({ value }: { value: unknown }) => (value as string).toUpperCase());
+    const t2 = mock(({ value }: { value: unknown }) => (value as string) + '!');
+    const t3 = mock(({ value }: { value: unknown }) => '[' + (value as string) + ']');
     const merged: RawClassMeta = {
       tag: {
         validation: [],
@@ -307,7 +307,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AddressDto as any },
+        type: { fn: () => AddressDto },
         flags: { validateNested: true },
       },
     };
@@ -341,7 +341,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ItemDto as any },
+        type: { fn: () => ItemDto },
         flags: { validateNested: true },
       },
     };
@@ -374,7 +374,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ProfileDto as any },
+        type: { fn: () => ProfileDto },
         flags: { validateNested: true, isOptional: true },
       },
     };
@@ -431,7 +431,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto as any },
+        type: { fn: () => AsyncItemDto },
         flags: { validateNested: true },
       },
     };
@@ -465,7 +465,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto2 as any },
+        type: { fn: () => AsyncItemDto2 },
         flags: { validateNested: true },
       },
     };
@@ -492,9 +492,9 @@ describe('buildSerializeCode', () => {
       isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>);
 
-    const transformFn = mock(({ value }: any) => {
+    const transformFn = mock(({ value }: { value: unknown }) => {
       // Transform adds a computed field to the nested result
-      return { ...(value as Record<string, unknown>), formatted: `${(value as any).city} ${(value as any).zip}` };
+      return { ...(value as Record<string, unknown>), formatted: `${(value as Record<string, unknown>)["city"]} ${(value as Record<string, unknown>)["zip"]}` };
     });
 
     class UserDto {
@@ -506,7 +506,7 @@ describe('buildSerializeCode', () => {
         transform: [{ fn: transformFn, options: { serializeOnly: true } }],
         expose: [],
         exclude: null,
-        type: { fn: () => AddressDto as any, resolvedClass: AddressDto as any },
+        type: { fn: () => AddressDto, resolvedClass: AddressDto },
         flags: { validateNested: true },
       },
     };
@@ -535,8 +535,8 @@ describe('buildSerializeCode', () => {
       isSerializeAsync: false,
     } satisfies SealedExecutors<unknown>);
 
-    const transformFn = mock(({ value }: any) => {
-      return { ...(value as Record<string, unknown>), bioUpper: ((value as any).bio as string).toUpperCase() };
+    const transformFn = mock(({ value }: { value: unknown }) => {
+      return { ...(value as Record<string, unknown>), bioUpper: ((value as Record<string, unknown>)["bio"] as string).toUpperCase() };
     });
 
     class MemberDto {
@@ -548,7 +548,7 @@ describe('buildSerializeCode', () => {
         transform: [{ fn: transformFn, options: { serializeOnly: true } }],
         expose: [],
         exclude: null,
-        type: { fn: () => ProfileDto as any, resolvedClass: ProfileDto as any },
+        type: { fn: () => ProfileDto, resolvedClass: ProfileDto },
         flags: { validateNested: true, isOptional: true },
       },
     };
@@ -575,7 +575,7 @@ describe('buildSerializeCode', () => {
 
   it('should convert Set to array first then apply transform (collection + transform)', () => {
     // Arrange
-    const transformFn = mock(({ value }: any) => {
+    const transformFn = mock(({ value }: { value: unknown }) => {
       // Transform sorts the array
       return [...(value as number[])].sort((a, b) => a - b);
     });
@@ -589,7 +589,7 @@ describe('buildSerializeCode', () => {
         transform: [{ fn: transformFn, options: { serializeOnly: true } }],
         expose: [],
         exclude: null,
-        type: { fn: () => Number as any, collection: 'Set' },
+        type: { fn: () => Number, collection: 'Set' },
         flags: {},
       },
     };

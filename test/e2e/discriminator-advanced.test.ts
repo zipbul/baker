@@ -81,7 +81,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
     })) as OwnerKeepDiscDto;
     expect(result.pet).toBeInstanceOf(DogDto);
     expect((result.pet as DogDto).breed).toBe('Poodle');
-    expect((result.pet as any).kind).toBe('dog');
+    expect((result.pet as DogDto & { kind?: string }).kind).toBe('dog');
   });
 
   it('keepDiscriminatorProperty not set → discriminator field absent from result', async () => {
@@ -89,7 +89,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },
     })) as OwnerDto;
-    expect((result.pet as any).type).toBeUndefined();
+    expect((result.pet as object & { type?: unknown }).type).toBeUndefined();
   });
 });
 
@@ -271,8 +271,8 @@ describe('discriminator default branch — context payload', () => {
     const r = await validate(OwnerV, { pet: { kind: 'bird' } });
     expect(isBakerError(r)).toBe(true);
     if (isBakerError(r)) {
-      const err = r.errors.find((e: any) => e.code === 'invalidDiscriminator');
-      expect((err as any).context).toMatchObject({ received: 'bird', validSubTypes: ['cat', 'dog'] });
+      const err = r.errors.find((e: { code: string }) => e.code === 'invalidDiscriminator');
+      expect((err as { context?: unknown })?.context).toMatchObject({ received: 'bird', validSubTypes: ['cat', 'dog'] });
     }
   });
 });
@@ -318,7 +318,7 @@ describe('async serialize: discriminator + array (each)', () => {
     const dog = Object.assign(Object.create(DogA.prototype), { kind: 'dog', bark: 'woof' });
     const owner = Object.assign(Object.create(OwnerA.prototype), { pets: [cat, dog], tag: 'root' });
 
-    const result = (await serialize(owner)) as Record<string, any>;
+    const result = (await serialize(owner)) as Record<string, unknown>;
     expect(Array.isArray(result.pets)).toBe(true);
     expect(result.pets).toHaveLength(2);
     expect(result.tag).toBe('<root>');

@@ -1,6 +1,7 @@
 import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
+import type { BakerError } from '../errors';
 import type { SealOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 
@@ -15,7 +16,7 @@ import { setSealed } from '../meta-access';
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function run<T>(Class: new (...a: any[]) => T, merged: RawClassMeta, options?: SealOptions, input?: unknown) {
+async function run<T>(Class: new (...a: never[]) => T, merged: RawClassMeta, options?: SealOptions, input?: unknown) {
   const exec = buildDeserializeCode<T>(Class, merged, options, false, false);
   return exec(input !== undefined ? input : {});
 }
@@ -50,10 +51,10 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec(null);
     // Assert
-    expect(isErr(result)).toBe(true);
-    const errs = (result as any).data;
-    expect(errs[0].path).toBe('');
-    expect(errs[0].code).toBe('invalidInput');
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    const errs = result.data;
+    expect(errs[0]?.path).toBe('');
+    expect(errs[0]?.code).toBe('invalidInput');
   });
 
   it('should return invalidInput error when input is an array', async () => {
@@ -64,8 +65,8 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec([1, 2, 3]);
     // Assert
-    expect(isErr(result)).toBe(true);
-    expect((result as any).data[0].code).toBe('invalidInput');
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    expect(result.data[0]?.code).toBe('invalidInput');
   });
 
   it('should skip optional field when value is undefined (@IsOptional)', async () => {
@@ -141,8 +142,8 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'not-a-number' });
     // Assert — collects both errors
-    expect(isErr(result)).toBe(true);
-    const errs = (result as any).data;
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    const errs = result.data;
     expect(errs.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -160,8 +161,8 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'bad' });
     // Assert — early return with 1 error
-    expect(isErr(result)).toBe(true);
-    const errs = (result as any).data;
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    const errs = result.data;
     expect(errs.length).toBe(1);
   });
 
@@ -209,10 +210,10 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({ email: 123 });
     // Assert
-    expect(isErr(result)).toBe(true);
-    const errs = (result as any).data;
-    expect(errs[0].path).toBe('email');
-    expect(errs[0].code).toBe('isString');
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    const errs = result.data;
+    expect(errs[0]?.path).toBe('email');
+    expect(errs[0]?.code).toBe('isString');
   });
 
   it('should return error when required field is absent from input', async () => {
@@ -227,9 +228,9 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({});
     // Assert
-    expect(isErr(result)).toBe(true);
-    const errs = (result as any).data;
-    expect(errs.some((e: any) => e.path === 'name')).toBe(true);
+    if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+    const errs = result.data;
+    expect(errs.some((e: BakerError) => e.path === 'name')).toBe(true);
   });
 
   it('should treat @IsDefined as overriding @IsOptional (undefined still fails)', async () => {
@@ -312,9 +313,9 @@ it('should include string message in BakerError when validation fails', async ()
   // Act
   const result = await run(MsgDto, merged, undefined, { name: 42 });
   // Assert
-  expect(isErr(result)).toBe(true);
-  const errs = (result as any).data;
-  expect(errs[0].message).toBe('이름은 문자열이어야 합니다');
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errs = result.data;
+  expect(errs[0]?.message).toBe('이름은 문자열이어야 합니다');
 });
 
 it('should include function message result in BakerError when validation fails', async () => {
@@ -340,9 +341,9 @@ it('should include function message result in BakerError when validation fails',
   // Act
   const result = await run(FnMsgDto, merged, undefined, { age: 'hello' });
   // Assert
-  expect(isErr(result)).toBe(true);
-  const errs = (result as any).data;
-  expect(errs[0].message).toContain('age must be a number');
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errs = result.data;
+  expect(errs[0]?.message).toContain('age must be a number');
 });
 
 it('should include context in BakerError when validation fails', async () => {
@@ -363,9 +364,9 @@ it('should include context in BakerError when validation fails', async () => {
   // Act
   const result = await run(CtxDto, merged, undefined, { name: 99 });
   // Assert
-  expect(isErr(result)).toBe(true);
-  const errs = (result as any).data;
-  expect(errs[0].context).toEqual({ httpStatus: 400, extra: 'info' });
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errs = result.data;
+  expect(errs[0]?.context).toEqual({ httpStatus: 400, extra: 'info' });
 });
 
 it('should not include message/context when not set (backward compat)', async () => {
@@ -386,10 +387,10 @@ it('should not include message/context when not set (backward compat)', async ()
   // Act
   const result = await run(NoMsgDto, merged, undefined, { name: 42 });
   // Assert
-  expect(isErr(result)).toBe(true);
-  const errs = (result as any).data;
-  expect(errs[0].message).toBeUndefined();
-  expect(errs[0].context).toBeUndefined();
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errs = result.data;
+  expect(errs[0]?.message).toBeUndefined();
+  expect(errs[0]?.context).toBeUndefined();
 });
 
 // ── each: true with Set ────────────────────────────────────────────────────
@@ -507,7 +508,7 @@ it('should fail at first error with Set and each:true when stopAtFirstError:true
     },
   };
   const exec = buildDeserializeCode<SetStopDto>(SetStopDto, merged, { stopAtFirstError: true }, false, false);
-  const result = await exec({ names: new Set(['hello', 42 as any]) });
+  const result = await exec({ names: new Set(['hello', 42]) });
   expect(isErr(result)).toBe(true);
 });
 
@@ -546,9 +547,9 @@ it('should fail with Map and each:true when stopAtFirstError:true', async () => 
   };
   const exec = buildDeserializeCode<MapStopDto>(MapStopDto, merged, { stopAtFirstError: true }, false, false);
   const result = await exec({
-    tags: new Map([
+    tags: new Map<string, unknown>([
       ['k1', 'v1'],
-      ['k2', 42 as any],
+      ['k2', 42],
     ]),
   });
   expect(isErr(result)).toBe(true);
@@ -560,7 +561,7 @@ it('should skip validation when @ValidateIf returns false', async () => {
   class ConditionalDto {
     age?: number;
   }
-  const validateIfFn = (input: object) => (input as any).checkAge === true;
+  const validateIfFn = (input: object) => (input as Record<string, unknown>)['checkAge'] === true;
   const merged: RawClassMeta = {
     age: {
       validation: [{ rule: isNumber() }],
@@ -572,7 +573,7 @@ it('should skip validation when @ValidateIf returns false', async () => {
     },
   };
   const exec = buildDeserializeCode<ConditionalDto>(ConditionalDto, merged, undefined, false, false);
-  const result = await exec({ checkAge: false, age: 'notanumber' as any });
+  const result = await exec({ checkAge: false, age: 'notanumber' });
   expect(isErr(result)).toBe(false);
 });
 
@@ -580,7 +581,7 @@ it('should run validation when @ValidateIf returns true', async () => {
   class ConditionalDto2 {
     age?: number;
   }
-  const validateIfFn = (input: object) => (input as any).checkAge === true;
+  const validateIfFn = (input: object) => (input as Record<string, unknown>)['checkAge'] === true;
   const merged: RawClassMeta = {
     age: {
       validation: [{ rule: isNumber() }],
@@ -592,7 +593,7 @@ it('should run validation when @ValidateIf returns true', async () => {
     },
   };
   const exec = buildDeserializeCode<ConditionalDto2>(ConditionalDto2, merged, undefined, false, false);
-  const result = await exec({ checkAge: true, age: 'notanumber' as any });
+  const result = await exec({ checkAge: true, age: 'notanumber' });
   expect(isErr(result)).toBe(true);
 });
 
@@ -645,7 +646,7 @@ it('should skip field when exclude is set without serializeOnly (deserializeOnly
   const exec = buildDeserializeCode<ExcludeDto>(ExcludeDto, merged, undefined, false, false);
   const result = await exec({ name: 'Alice', secret: 'hidden' });
   expect(isErr(result)).toBe(false);
-  expect((result as any).secret).toBeUndefined();
+  expect((result as ExcludeDto & { secret?: unknown }).secret).toBeUndefined();
 });
 
 // ─── expose.every(serializeOnly) skip (covers L167-168) ──────────────────────
@@ -676,7 +677,7 @@ it('should skip field where all exposures are serializeOnly', async () => {
   const exec = buildDeserializeCode<ExposeOnlyDto>(ExposeOnlyDto, merged, undefined, false, false);
   const result = await exec({ name: 'Alice', outOnly: 'ignored' });
   expect(isErr(result)).toBe(false);
-  expect((result as any).outOnly).toBeUndefined();
+  expect((result as ExposeOnlyDto).outOnly).toBeUndefined();
 });
 
 // ─── stopAtFirstError + message extras (covers L330) ─────────────────────────
@@ -696,7 +697,7 @@ it('should include message extras in error when stopAtFirstError:true', async ()
     },
   };
   const exec = buildDeserializeCode<MsgDto>(MsgDto, merged, { stopAtFirstError: true }, false, false);
-  const result = await exec({ name: 42 as any });
+  const result = await exec({ name: 42 });
   expect(isErr(result)).toBe(true);
 });
 
@@ -708,7 +709,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
   }
   setSealed(AddressDto, {
     deserialize: (input: unknown) => {
-      const i = input as any;
+      const i = input as Record<string, unknown>;
       if (typeof i?.street === 'string') {
         const a = new AddressDto();
         a.street = i.street;
@@ -733,7 +734,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
       transform: [],
       expose: [],
       exclude: null,
-      type: { fn: () => AddressDto as any },
+      type: { fn: () => AddressDto },
       flags: { validateNested: true },
     },
   };
@@ -749,7 +750,7 @@ it('should return error when nested DTO deserialization fails', async () => {
   }
   setSealed(PhoneDto, {
     deserialize: (input: unknown) => {
-      const i = input as any;
+      const i = input as Record<string, unknown>;
       if (typeof i?.number === 'string') {
         const p = new PhoneDto();
         p.number = i.number;
@@ -774,7 +775,7 @@ it('should return error when nested DTO deserialization fails', async () => {
       transform: [],
       expose: [],
       exclude: null,
-      type: { fn: () => PhoneDto as any },
+      type: { fn: () => PhoneDto },
       flags: { validateNested: true },
     },
   };
@@ -790,7 +791,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
   }
   setSealed(CityDto, {
     deserialize: (input: unknown) => {
-      const i = input as any;
+      const i = input as Record<string, unknown>;
       if (typeof i?.name === 'string') {
         const c = new CityDto();
         c.name = i.name;
@@ -815,7 +816,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
       transform: [],
       expose: [],
       exclude: null,
-      type: { fn: () => CityDto as any },
+      type: { fn: () => CityDto },
       flags: { validateNested: true },
     },
   };
@@ -833,7 +834,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
   }
   setSealed(TagDto, {
     deserialize: (input: unknown) => {
-      const i = input as any;
+      const i = input as Record<string, unknown>;
       if (typeof i?.label === 'string') {
         const t = new TagDto();
         t.label = i.label;
@@ -850,9 +851,10 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
   } satisfies SealedExecutors<TagDto>);
 
   // A no-op rule to trigger hasEach:true path without failing validation
-  const alwaysPass = ((_v: unknown) => true) as any;
-  alwaysPass.emit = (_varName: string, _ctx: any) => '';
-  alwaysPass.ruleName = 'alwaysPass';
+  const alwaysPass: EmittableRule = Object.assign((_v: unknown): boolean => true, {
+    emit: (_varName: string, _ctx: import('../types').EmitContext): string => '',
+    ruleName: 'alwaysPass',
+  });
 
   class PostDto {
     tags!: TagDto[];
@@ -863,7 +865,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
       transform: [],
       expose: [],
       exclude: null,
-      type: { fn: () => TagDto as any },
+      type: { fn: () => TagDto },
       flags: { validateNested: true },
     },
   };
@@ -1054,11 +1056,11 @@ it('whitelist: should fail with whitelistViolation for extra key (stopAtFirstErr
     },
   };
   const result = await run(WlDto2, merged, { whitelist: true, stopAtFirstError: true }, { name: 'ok', extra: 1 });
-  expect(isErr(result)).toBe(true);
-  const errors = (result as any).data;
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errors = result.data;
   expect(errors).toHaveLength(1);
-  expect(errors[0].code).toBe('whitelistViolation');
-  expect(errors[0].path).toBe('extra');
+  expect(errors[0]?.code).toBe('whitelistViolation');
+  expect(errors[0]?.path).toBe('extra');
 });
 
 it('whitelist: should collect all violations (collectErrors)', async () => {
@@ -1076,11 +1078,11 @@ it('whitelist: should collect all violations (collectErrors)', async () => {
     },
   };
   const result = await run(WlDto3, merged, { whitelist: true }, { name: 'ok', extra1: 1, extra2: 2 });
-  expect(isErr(result)).toBe(true);
-  const errors = (result as any).data;
+  if (!isErr<BakerError[]>(result)) throw new Error('expected err');
+  const errors = result.data;
   expect(errors.length).toBeGreaterThanOrEqual(2);
-  expect(errors.some((e: any) => e.path === 'extra1' && e.code === 'whitelistViolation')).toBe(true);
-  expect(errors.some((e: any) => e.path === 'extra2' && e.code === 'whitelistViolation')).toBe(true);
+  expect(errors.some((e: BakerError) => e.path === 'extra1' && e.code === 'whitelistViolation')).toBe(true);
+  expect(errors.some((e: BakerError) => e.path === 'extra2' && e.code === 'whitelistViolation')).toBe(true);
 });
 
 it('whitelist: should use extract key (not field key) for @Expose', async () => {

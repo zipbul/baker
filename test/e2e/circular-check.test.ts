@@ -31,7 +31,7 @@ describe('circular reference detection', () => {
   });
 
   it('circular reference input → circular error', async () => {
-    const circular: any = { value: 'a', child: { value: 'b' } };
+    const circular: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     circular.child.child = circular; // circular reference
 
     const result = await deserialize(TreeNode, circular);

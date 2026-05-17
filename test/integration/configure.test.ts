@@ -6,27 +6,32 @@ import { unseal } from './helpers/unseal';
 beforeEach(() => unseal());
 afterEach(() => unseal());
 
+/** Test-only wrapper: configure accepts a strict SealOptions, but we want to feed it garbage to test rejection. */
+function configureBad(c: unknown): void {
+  (configure as (c: unknown) => void)(c);
+}
+
 describe('configure() — input validation', () => {
   it('configure(null) throws SealError', () => {
-    expect(() => (configure as unknown as (c: unknown) => void)(null)).toThrow(SealError);
-    expect(() => (configure as unknown as (c: unknown) => void)(null)).toThrow(/requires a plain object/);
+    expect(() => configureBad(null)).toThrow(SealError);
+    expect(() => configureBad(null)).toThrow(/requires a plain object/);
   });
 
   it('configure(undefined) throws SealError', () => {
-    expect(() => (configure as unknown as (c: unknown) => void)(undefined)).toThrow(SealError);
+    expect(() => configureBad(undefined)).toThrow(SealError);
   });
 
   it('configure("string") throws SealError', () => {
-    expect(() => (configure as unknown as (c: unknown) => void)('hello')).toThrow(SealError);
+    expect(() => configureBad('hello')).toThrow(SealError);
   });
 
   it('configure([]) throws SealError', () => {
-    expect(() => (configure as unknown as (c: unknown) => void)([])).toThrow(/Received: array/);
+    expect(() => configureBad([])).toThrow(/Received: array/);
   });
 
   it('configure({unknownKey}) throws SealError listing valid keys', () => {
-    expect(() => (configure as unknown as (c: unknown) => void)({ unknownKey: 1 })).toThrow(/unknown key 'unknownKey'/);
-    expect(() => (configure as unknown as (c: unknown) => void)({ unknownKey: 1 })).toThrow(/Valid keys: autoConvert/);
+    expect(() => configureBad({ unknownKey: 1 })).toThrow(/unknown key 'unknownKey'/);
+    expect(() => configureBad({ unknownKey: 1 })).toThrow(/Valid keys: autoConvert/);
   });
 
   it('configure({autoConvert: true}) accepts known key', () => {

@@ -8,7 +8,7 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 
 /** Helper: extracts errors array from BakerErrors */
-async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
+async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
   if (!isBakerError(result)) {throw new Error('expected validation failure');}
   return [...result.errors];

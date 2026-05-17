@@ -40,10 +40,10 @@ class ComplexSerializeDto {
   @Field({ type: () => [ChildDto] })
   children!: (ChildDto | null)[];
 
-  @Field({ type: () => Set as any, setValue: () => ChildDto })
+  @Field({ type: () => Set, setValue: () => ChildDto })
   tags!: Set<ChildDto | null>;
 
-  @Field({ type: () => Map as any, mapValue: () => ChildDto })
+  @Field({ type: () => Map, mapValue: () => ChildDto })
   lookup!: Map<string, ChildDto | null>;
 
   @Field({

@@ -252,7 +252,7 @@ describe('configure() — post-seal misuse', () => {
 
 describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
   it('should apply new forbidUnknown config after unseal + reconfigure', async () => {
-    const r1 = (await deserialize<any>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' })) as any;
+    const r1 = (await deserialize<SealTestDto>(SealTestDto, { name: 'Alice', age: 25, extra: 'ok' })) as SealTestDto;
     expect(r1.name).toBe('Alice');
 
     unseal();
@@ -262,7 +262,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     const result = await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
     expect(isBakerError(result)).toBe(true);
     if (isBakerError(result)) {
-      const err = result.errors.find((x: any) => x.code === 'whitelistViolation');
+      const err = result.errors.find((x: { code: string }) => x.code === 'whitelistViolation');
       expect(err).toBeDefined();
     }
   });
@@ -278,7 +278,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     configure({});
     seal();
 
-    const result = (await deserialize<any>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' })) as any;
+    const result = (await deserialize<SealTestDto>(SealTestDto, { name: 'Bob', age: 30, extra: 'ok' })) as SealTestDto;
     expect(result.name).toBe('Bob');
   });
 });
@@ -296,7 +296,7 @@ describe('seal() — transactional failure cleanup', () => {
   it('nested setValue thunk thrown during analyzeCircular wraps in SealError', () => {
     class NestedBad {
       @Field({
-        type: () => Set as any,
+        type: () => Set,
         setValue: () => {
           throw new Error('nested-boom');
         },
@@ -341,7 +341,7 @@ describe('seal() — transactional failure cleanup', () => {
   it('seal(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
     class BadColl {
       @Field({
-        type: () => Set as any,
+        type: () => Set,
         setValue: () => {
           throw new Error('coll-boom');
         },

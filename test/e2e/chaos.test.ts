@@ -116,10 +116,10 @@ describe('chaos — 1000+ fields DTO', () => {
     seal();
     const input: Record<string, number> = {};
     for (let i = 0; i < 1000; i++) {input[`f${i}`] = i;}
-    const result = await deserialize<any>(BigDto, input);
+    const result = await deserialize<BigDto>(BigDto, input);
     expect(isBakerError(result)).toBe(false);
-    expect((result as any).f0).toBe(0);
-    expect((result as any).f999).toBe(999);
+    expect((result as Record<string, number>)["f0"]).toBe(0);
+    expect((result as Record<string, number>)["f999"]).toBe(999);
   });
 
   it('all 1000 fields report errors on invalid input', async () => {
@@ -146,7 +146,7 @@ describe('chaos — circular reference detection', () => {
 
   it('actual circular input detected', async () => {
     seal();
-    const obj: any = { value: 'a', child: { value: 'b' } };
+    const obj: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     obj.child.child = obj;
     const result = await deserialize(TreeNode, obj);
     expect(isBakerError(result)).toBe(true);
@@ -370,21 +370,21 @@ describe('chaos — prototype pollution attempt', () => {
   it('__proto__ key does not pollute result', async () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"polluted":true}}');
-    const result = await deserialize<any>(SafeDto, malicious);
+    const result = await deserialize<SafeDto>(SafeDto, malicious);
     if (!isBakerError(result)) {
       expect(result.name).toBe('ok');
-      expect((result as any).polluted).toBeUndefined();
-      expect(({} as any).polluted).toBeUndefined();
+      expect((result as SafeDto & { polluted?: unknown }).polluted).toBeUndefined();
+      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     }
   });
 
   it('constructor key does not pollute result', async () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","constructor":{"prototype":{"polluted":true}}}');
-    const result = await deserialize<any>(SafeDto, malicious);
+    const result = await deserialize<SafeDto>(SafeDto, malicious);
     if (!isBakerError(result)) {
       expect(result.name).toBe('ok');
-      expect(({} as any).polluted).toBeUndefined();
+      expect(({} as Record<string, unknown>)["polluted"]).toBeUndefined();
     }
   });
 

@@ -58,7 +58,7 @@ describe('isString', () => {
   it('should have ruleName isString and requiresType undefined', () => {
     // Arrange / Act / Assert
     expect(isString.ruleName).toBe('isString');
-    expect((isString as any).requiresType).toBeUndefined();
+    expect(isString.requiresType).toBeUndefined();
   });
 });
 
@@ -138,7 +138,7 @@ describe('isNumber', () => {
     expect(code).toContain(`typeof v !== 'number'`);
     expect(failMock).toHaveBeenCalledWith('isNumber');
     expect(rule.ruleName).toBe('isNumber');
-    expect((rule as any).requiresType).toBeUndefined();
+    expect(rule.requiresType).toBeUndefined();
   });
 
   it('should generate maxDecimalPlaces check code when emit() is called with maxDecimalPlaces option (covers L56)', () => {
@@ -207,7 +207,7 @@ describe('isBoolean', () => {
     expect(code).toContain(`typeof v !== 'boolean'`);
     expect(failMock).toHaveBeenCalledWith('isBoolean');
     expect(isBoolean.ruleName).toBe('isBoolean');
-    expect((isBoolean as any).requiresType).toBeUndefined();
+    expect(isBoolean.requiresType).toBeUndefined();
   });
 });
 
@@ -249,7 +249,7 @@ describe('isDate', () => {
     expect(code).toContain('isNaN');
     expect(failMock).toHaveBeenCalledWith('isDate');
     expect(isDate.ruleName).toBe('isDate');
-    expect((isDate as any).requiresType).toBeUndefined();
+    expect(isDate.requiresType).toBeUndefined();
   });
 });
 
@@ -375,7 +375,7 @@ describe('isInt', () => {
     expect(code).toContain('Number.isInteger');
     expect(failMock).toHaveBeenCalledWith('isInt');
     expect(isInt.ruleName).toBe('isInt');
-    expect((isInt as any).requiresType).toBe('number');
+    expect(isInt.requiresType).toBe('number');
   });
 });
 
@@ -416,7 +416,7 @@ describe('isArray', () => {
     expect(code).toContain('Array.isArray(v)');
     expect(failMock).toHaveBeenCalledWith('isArray');
     expect(isArray.ruleName).toBe('isArray');
-    expect((isArray as any).requiresType).toBeUndefined();
+    expect(isArray.requiresType).toBeUndefined();
   });
 });
 
@@ -457,7 +457,7 @@ describe('isObject', () => {
     expect(code).toContain('typeof v');
     expect(failMock).toHaveBeenCalledWith('isObject');
     expect(isObject.ruleName).toBe('isObject');
-    expect((isObject as any).requiresType).toBeUndefined();
+    expect(isObject.requiresType).toBeUndefined();
   });
 });
 

@@ -181,7 +181,7 @@ describe('nested — integration', () => {
     })) as NotificationDto;
     expect(result.content).toBeInstanceOf(TextContent);
     expect((result.content as TextContent).body).toBe('hello');
-    expect((result.content as any).type).toBe('text');
+    expect((result.content as { type?: unknown }).type).toBe('text');
   });
 
   it('should NOT keep discriminator property when keepDiscriminatorProperty is false/undefined', async () => {
@@ -205,7 +205,7 @@ describe('nested — integration', () => {
       content: { type: 'text', body: 'world' },
     })) as NotificationDto2;
     expect(result.content).toBeInstanceOf(TextContent2);
-    expect((result.content as any).type).toBeUndefined();
+    expect((result.content as { type?: unknown }).type).toBeUndefined();
   });
 
   it('should return BakerErrors with invalidDiscriminator for unknown discriminator value', async () => {
