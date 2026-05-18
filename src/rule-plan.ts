@@ -48,7 +48,7 @@ function makePlannedRule(options: {
     requiresType: options.requiresType,
     plan: options.plan,
     validate: options.validate,
-    emit: (varName, ctx) => emitRulePlan(varName, ctx, options.name, options.plan),
+    emit: (varName, ctx) => emitRulePlan(varName, ctx, options.name, options.plan, undefined, ctx.insideTypeGate),
   };
   if (options.constraints !== undefined) {
     inner.constraints = options.constraints;
