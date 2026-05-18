@@ -247,7 +247,7 @@ function buildDeserializeCode<T>(
 
   // sourceURL (§4.9)
   // Sanitize class name so it cannot inject newlines / */ that would break out of the comment.
-  const safeClsName = String(Class.name).replace(/[^\w$.-]/g, '_');
+  const safeClsName = Class.name.replace(/[^\w$.-]/g, '_');
   body += `//# sourceURL=baker://${safeClsName}/${validateOnly ? 'validate' : 'deserialize'}\n`;
 
   // ── Execute new Function ───────────────────────────────────────────────────
