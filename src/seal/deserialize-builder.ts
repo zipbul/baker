@@ -1075,22 +1075,26 @@ function emitEachRules(
       return block;
     };
 
+    // Compute collection kind once via integer dispatch — eliminates 2-3× repeated
+    // Array.isArray / instanceof Set / instanceof Map evaluation
+    const kindVar = `__bk$ck${sanitizeKey(fieldKey)}`;
     code += eachGuardOpen;
+    code += `var ${kindVar} = Array.isArray(${varName})?1:(${varName} instanceof Set?2:(${varName} instanceof Map?3:0));\n`;
     if (collectErrors) {
-      code += `if (${collections[0]!.guard}) {\n`;
+      code += `if (${kindVar} === 1) {\n`;
       code += emitCollectionBlock(collections[0]!);
-      code += `} else if (${collections[1]!.guard}) {\n`;
+      code += `} else if (${kindVar} === 2) {\n`;
       code += emitCollectionBlock(collections[1]!);
-      code += `} else if (${collections[2]!.guard}) {\n`;
+      code += `} else if (${kindVar} === 3) {\n`;
       code += emitCollectionBlock(collections[2]!);
       code += `} else { ${GEN.errList}.push({path:${pathKey},code:'isArray'}); }\n`;
     } else {
-      code += `if (!${collections[0]!.guard} && !(${varName} instanceof Set) && !(${varName} instanceof Map)) ${emitCtx.fail('isArray')};\n`;
-      code += `if (${collections[0]!.guard}) {\n`;
+      code += `if (${kindVar} === 0) ${emitCtx.fail('isArray')};\n`;
+      code += `if (${kindVar} === 1) {\n`;
       code += emitCollectionBlock(collections[0]!);
-      code += `} else if (${collections[1]!.guard}) {\n`;
+      code += `} else if (${kindVar} === 2) {\n`;
       code += emitCollectionBlock(collections[1]!);
-      code += `} else if (${collections[2]!.guard}) {\n`;
+      code += `} else if (${kindVar} === 3) {\n`;
       code += emitCollectionBlock(collections[2]!);
       code += `}\n`;
     }
@@ -1372,7 +1376,8 @@ function generateNestedCode(
     code += `}\n`;
     // keepDiscriminatorProperty: preserve discriminator property in result object (PB-3)
     if (meta.type.keepDiscriminatorProperty) {
-      code += `if (${GEN.out}[${JSON.stringify(fieldKey)}] != null) ${GEN.out}[${JSON.stringify(fieldKey)}][${discProp}] = ${GEN.disc}${sk};\n`;
+      const fkJson = JSON.stringify(fieldKey);
+      code += `{var __dh=${GEN.out}[${fkJson}]; if(__dh!=null) __dh[${discProp}]=${GEN.disc}${sk};}\n`;
     }
   } else {
     // §8.1 simple nested or §8.2 each array
@@ -1461,13 +1466,9 @@ function generateNestedResultCode(fieldKey: string, resultVar: string, collectEr
 // generateNestedCodeValidateOnly — validate-only nested (inline when possible)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Check if a nested DTO can be inlined (only circular references prevent inlining) */
-function canInlineDto(cls: Function, inlinedSet: Set<Function>): boolean {
-  if (inlinedSet.has(cls)) {
-    return false;
-  } // circular — only hard constraint
-  return true;
-}
+// Inline-eligibility predicate: a nested DTO can be inlined unless it is already in the
+// active inline-set (circular reference). Inlined directly at the three call sites below
+// — no extra function call at seal time.
 
 /**
  * Emit inline validation code for all fields of a nested DTO.
@@ -1528,7 +1529,7 @@ function generateNestedCodeValidateOnly(
     for (const sub of meta.type.discriminator.subTypes) {
       const subSealed = getSealed(sub.value) as SealedExecutors<unknown>;
       const subMerged = subSealed.merged;
-      const canInline = subMerged && canInlineDto(sub.value, ctx.inlineNestedClasses);
+      const canInline = subMerged && !ctx.inlineNestedClasses.has(sub.value);
       code += `  case ${JSON.stringify(sub.name)}:\n`;
       if (canInline) {
         const ppExpr = ctx.pathPrefix ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
@@ -1559,7 +1560,7 @@ function generateNestedCodeValidateOnly(
     const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     // Decide: inline or function call
-    const useInline = nestedMerged && canInlineDto(nestedCls, ctx.inlineNestedClasses);
+    const useInline = nestedMerged && !ctx.inlineNestedClasses.has(nestedCls);
 
     if (hasEach) {
       const iVar = `${GEN.index}${sk}`;
@@ -1575,7 +1576,7 @@ function generateNestedCodeValidateOnly(
         const ppExpr = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
-        const vpPrefix = `${sk}${iVar}_`;
+        const vpPrefix = `${sk}i_`;
 
         code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
         // Input type guard for the item
@@ -1698,7 +1699,7 @@ function generateCollectionCodeValidateOnly(
     nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
     nestedMerged = nestedSealed.merged;
   }
-  const useInline = nestedCls && nestedMerged && canInlineDto(nestedCls, ctx.inlineNestedClasses);
+  const useInline = nestedCls && nestedMerged && !ctx.inlineNestedClasses.has(nestedCls);
 
   let code = '';
 
@@ -1716,7 +1717,7 @@ function generateCollectionCodeValidateOnly(
         const ppExpr = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
-        const vpPrefix = `${sk}c${iVar}_`;
+        const vpPrefix = `${sk}c_`;
         const itemInvalidPathExpr = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
@@ -1796,7 +1797,7 @@ function generateCollectionCodeValidateOnly(
         const ppExpr = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`;
-        const vpPrefix = `${sk}m${kVar}_`;
+        const vpPrefix = `${sk}m_`;
         const itemInvalidPathExpr = ppExpr;
         code += `    var ${itemVar} = ${varName}[${kVar}];\n`;
         code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
