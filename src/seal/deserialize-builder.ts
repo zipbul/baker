@@ -1020,11 +1020,12 @@ function emitEachRules(
     const miVar = `${GEN.mapIdx}${sk}`;
     const mvVar = `${GEN.mapVal}${sk}`;
     const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
-    const eachGuardOpen =
-      rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups)
-        ? `if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rd.groups)}) {\n`
-        : '';
-    const eachGuardClose = rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups) ? '}\n' : '';
+    // Cache the groups-guard predicate once — was previously evaluated twice (open + close)
+    const rdGroups = rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups) ? rd.groups : null;
+    const eachGuardOpen = rdGroups
+      ? `if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rdGroups)}) {\n`
+      : '';
+    const eachGuardClose = rdGroups ? '}\n' : '';
 
     // Collection descriptors: [idxVar, elemExpr, loopHeader, counterDecl, counterInc]
     const collections = [
@@ -1054,8 +1055,10 @@ function emitEachRules(
       },
     ];
 
+    // Single prefix var shared across all collection branches — only one branch executes
+    // at runtime, so reusing the same identifier avoids 3 hoisted-but-dead var declarations.
+    const prefixVar = `__bk$ep_${sanitizeKey(fieldKey)}`;
     const emitCollectionBlock = (col: (typeof collections)[number]): string => {
-      const prefixVar = `__bk$ep_${sanitizeKey(col.idxVar)}`;
       const failFn = (c: string) =>
         collectErrors
           ? `${GEN.errList}.push({path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}})`
@@ -1064,7 +1067,6 @@ function emitEachRules(
             : `return err([{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
       const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
       let block = '';
-      block += `  var ${prefixVar} = ${pathKey}+'[';\n`;
       block += `  ${col.counterDecl}`;
       block += `  ${col.loopHeader} {\n`;
       block += '    ' + rd.rule.emit(col.elemExpr, colEmitCtx) + '\n';
@@ -1076,10 +1078,12 @@ function emitEachRules(
     };
 
     // Compute collection kind once via integer dispatch — eliminates 2-3× repeated
-    // Array.isArray / instanceof Set / instanceof Map evaluation
+    // Array.isArray / instanceof Set / instanceof Map evaluation.
+    // prefixVar is declared once here and reused by all three branches.
     const kindVar = `__bk$ck${sanitizeKey(fieldKey)}`;
     code += eachGuardOpen;
     code += `var ${kindVar} = Array.isArray(${varName})?1:(${varName} instanceof Set?2:(${varName} instanceof Map?3:0));\n`;
+    code += `var ${prefixVar} = ${pathKey}+'[';\n`;
     if (collectErrors) {
       code += `if (${kindVar} === 1) {\n`;
       code += emitCollectionBlock(collections[0]!);

@@ -48,20 +48,23 @@ function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['e
 
 /** Determine expose groups for serialize direction — returns undefined (no restriction) if any unconditional expose entry exists */
 function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  const serEntries = exposeStack.filter(e => !e.deserializeOnly);
-  if (serEntries.length === 0) {
-    return undefined;
-  }
-  if (serEntries.some(e => !e.groups || e.groups.length === 0)) {
-    return undefined;
-  }
-  const all = new Set<string>();
-  for (const e of serEntries) {
-    for (const g of e.groups!) {
+  // Single-pass: scan once, build set of groups; bail out as soon as we see an unconditional entry.
+  let all: Set<string> | null = null;
+  for (const e of exposeStack) {
+    if (e.deserializeOnly) {
+      continue;
+    }
+    if (!e.groups || e.groups.length === 0) {
+      return undefined;
+    }
+    if (all === null) {
+      all = new Set<string>();
+    }
+    for (const g of e.groups) {
       all.add(g);
     }
   }
-  return [...all];
+  return all === null ? undefined : [...all];
 }
 
 /**
