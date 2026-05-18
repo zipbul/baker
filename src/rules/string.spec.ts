@@ -621,10 +621,13 @@ describe('isVariableWidth', () => {
     expect(isVariableWidth('')).toBe(false);
   });
 
-  it('should emit code that fails for empty string', () => {
+  it('should emit code that fails for empty string (via FULLWIDTH+HALFWIDTH regex returning false)', () => {
     const { ctx } = makeCtx(0);
     const code = isVariableWidth.emit('v', ctx);
-    expect(code).toContain('.length === 0');
+    // Both regexes return false on empty input, so the codegen relies on the regex semantics
+    // rather than an explicit `.length === 0` guard.
+    expect(code).toContain('!re[');
+    expect(code).toContain('.test(v)');
   });
 });
 

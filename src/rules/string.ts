@@ -213,12 +213,13 @@ function isDecimal(): EmittableRule {
 
 // Full-width characters (Unicode fullwidth forms)
 const FULLWIDTH_RE = /[^\u0020-\u007E\uFF61-\uFF9F]/;
+// Empty-string guard is redundant — non-anchored char-class regex returns false on empty input.
 const isFullWidth = makeStringRule(
   'isFullWidth',
-  v => v.length > 0 && FULLWIDTH_RE.test(v),
+  v => FULLWIDTH_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(FULLWIDTH_RE);
-    return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isFullWidth')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isFullWidth')};`;
   },
 );
 
@@ -226,21 +227,21 @@ const isFullWidth = makeStringRule(
 const HALFWIDTH_RE = /[\u0020-\u007E\uFF61-\uFF9F]/;
 const isHalfWidth = makeStringRule(
   'isHalfWidth',
-  v => v.length > 0 && HALFWIDTH_RE.test(v),
+  v => HALFWIDTH_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(HALFWIDTH_RE);
-    return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isHalfWidth')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHalfWidth')};`;
   },
 );
 
 // Variable-width: must contain both full-width AND half-width
 const isVariableWidth = makeStringRule(
   'isVariableWidth',
-  v => v.length > 0 && FULLWIDTH_RE.test(v) && HALFWIDTH_RE.test(v),
+  v => FULLWIDTH_RE.test(v) && HALFWIDTH_RE.test(v),
   (varName, ctx) => {
     const i1 = ctx.addRegex(FULLWIDTH_RE);
     const i2 = ctx.addRegex(HALFWIDTH_RE);
-    return `if (${varName}.length === 0 || !re[${i1}].test(${varName}) || !re[${i2}].test(${varName})) ${ctx.fail('isVariableWidth')};`;
+    return `if (!re[${i1}].test(${varName}) || !re[${i2}].test(${varName})) ${ctx.fail('isVariableWidth')};`;
   },
 );
 
@@ -248,10 +249,10 @@ const isVariableWidth = makeStringRule(
 const MULTIBYTE_RE = new RegExp(`[^${String.fromCharCode(0)}-${String.fromCharCode(0xff)}]`);
 const isMultibyte = makeStringRule(
   'isMultibyte',
-  v => v.length > 0 && MULTIBYTE_RE.test(v),
+  v => MULTIBYTE_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(MULTIBYTE_RE);
-    return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isMultibyte')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isMultibyte')};`;
   },
 );
 
@@ -259,10 +260,10 @@ const isMultibyte = makeStringRule(
 const SURROGATE_RE = /[\uD800-\uDBFF][\uDC00-\uDFFF]/;
 const isSurrogatePair = makeStringRule(
   'isSurrogatePair',
-  v => v.length > 0 && SURROGATE_RE.test(v),
+  v => SURROGATE_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(SURROGATE_RE);
-    return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isSurrogatePair')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isSurrogatePair')};`;
   },
 );
 
@@ -281,10 +282,10 @@ const isHexadecimal = makeStringRule(
 const OCTAL_RE = /^(0[oO])?[0-7]+$/;
 const isOctal = makeStringRule(
   'isOctal',
-  v => v.length > 0 && OCTAL_RE.test(v),
+  v => OCTAL_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(OCTAL_RE);
-    return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isOctal')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isOctal')};`;
   },
 );
 
@@ -576,26 +577,46 @@ function validateISINStr(v: string): boolean {
   if (!ISIN_RE.test(v)) {
     return false;
   }
-  // Luhn mod10 on expanded digits
-  const expanded = v
-    .split('')
-    .map(c => {
-      const code = c.charCodeAt(0);
-      return code >= 65 ? String(code - 55) : c;
-    })
-    .join('');
+  // Luhn mod10 on expanded digits — walk right-to-left, expanding letters as A=10..Z=35 on the fly.
+  // No intermediate string/array allocations.
   let sum = 0;
   let alternate = false;
-  for (let i = expanded.length - 1; i >= 0; i--) {
-    let n = parseInt(expanded[i]!, 10);
-    if (alternate) {
-      n *= 2;
-      if (n > 9) {
-        n -= 9;
+  for (let i = v.length - 1; i >= 0; i--) {
+    const code = v.charCodeAt(i);
+    if (code <= 57) {
+      // ASCII digit '0'..'9'
+      let n = code - 48;
+      if (alternate) {
+        n *= 2;
+        if (n > 9) {
+          n -= 9;
+        }
       }
+      sum += n;
+      alternate = !alternate;
+    } else {
+      // ASCII letter 'A'..'Z' → two-digit value, ones first when walking right-to-left
+      const value = code - 55;
+      const ones = value % 10;
+      let n = ones;
+      if (alternate) {
+        n *= 2;
+        if (n > 9) {
+          n -= 9;
+        }
+      }
+      sum += n;
+      alternate = !alternate;
+      n = (value - ones) / 10;
+      if (alternate) {
+        n *= 2;
+        if (n > 9) {
+          n -= 9;
+        }
+      }
+      sum += n;
+      alternate = !alternate;
     }
-    sum += n;
-    alternate = !alternate;
   }
   return sum % 10 === 0;
 }
@@ -604,8 +625,11 @@ const isISIN = makeStringRule('isISIN', validateISINStr, (varName, ctx) => {
   const i = ctx.addRegex(ISIN_RE);
   return (
     `if (!re[${i}].test(${varName})) ${ctx.fail('isISIN')};\n` +
-    `else { var isExp=${varName}.split('').map(function(c){var cd=c.charCodeAt(0);return cd>=65?String(cd-55):c;}).join('');\n` +
-    `var isSum=0,isAlt=false;for(var isI=isExp.length-1;isI>=0;isI--){var isN=parseInt(isExp[isI],10);if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}\n` +
+    `else { var isSum=0,isAlt=false;\n` +
+    `for(var isI=${varName}.length-1;isI>=0;isI--){var isCd=${varName}.charCodeAt(isI);` +
+    `if(isCd<=57){var isN=isCd-48;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}` +
+    `else{var isVal=isCd-55;var isO=isVal%10;var isN=isO;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;` +
+    `isN=(isVal-isO)/10;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}}\n` +
     `if(isSum%10!==0)${ctx.fail('isISIN')}; }`
   );
 });
@@ -896,14 +920,15 @@ function validateEAN(value: string): boolean {
   if (!/^\d{8}$/.test(value) && !/^\d{13}$/.test(value)) {
     return false;
   }
-  const digits = value.split('').map(Number);
-  const len = digits.length;
+  // Walk via charCodeAt — no split/map array allocations
+  const len = value.length;
   let sum = 0;
   for (let i = 0; i < len - 1; i++) {
-    sum += digits[i]! * (len === 8 ? (i % 2 === 0 ? 3 : 1) : i % 2 === 0 ? 1 : 3);
+    const d = value.charCodeAt(i) - 48;
+    sum += d * (len === 8 ? (i % 2 === 0 ? 3 : 1) : i % 2 === 0 ? 1 : 3);
   }
   const check = (10 - (sum % 10)) % 10;
-  return check === digits[len - 1]!;
+  return check === value.charCodeAt(len - 1) - 48;
 }
 
 const isEAN = makeStringRule('isEAN', validateEAN, (varName, ctx) => {
@@ -1448,14 +1473,14 @@ const isISO31661Alpha3 = makeRule({
   },
 });
 
-// BIC / SWIFT code
-const BIC_RE = /^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/;
+// BIC / SWIFT code — case-insensitive via /i flag avoids per-call .toUpperCase() string allocation
+const BIC_RE = /^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/i;
 const isBIC = makeStringRule(
   'isBIC',
-  v => BIC_RE.test(v.toUpperCase()),
+  v => BIC_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(BIC_RE);
-    return `if (!re[${i}].test(${varName}.toUpperCase())) ${ctx.fail('isBIC')};`;
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isBIC')};`;
   },
 );
 
@@ -1776,13 +1801,19 @@ function validateIBAN(value: string, options?: IsIBANOptions): boolean {
   }
   // Rearrange: move first 4 chars to end
   const rearranged = s.slice(4) + s.slice(0, 4);
-  // Convert letters to digits (A=10, B=11, ...)
-  const numeric = rearranged.replace(/[A-Z]/g, ch => String(ch.charCodeAt(0) - 55));
-  // Compute mod 97 on large number in chunks
+  // Walk char-by-char accumulating mod 97 — no .replace/closure, no String() coercion,
+  // no parseInt() allocations.
   let remainder = 0;
-  for (let i = 0; i < numeric.length; i += 7) {
-    const chunk = String(remainder) + numeric.slice(i, i + 7);
-    remainder = parseInt(chunk, 10) % 97;
+  for (let i = 0; i < rearranged.length; i++) {
+    const code = rearranged.charCodeAt(i);
+    if (code <= 57) {
+      // digit
+      remainder = (remainder * 10 + (code - 48)) % 97;
+    } else {
+      // letter A-Z → two digits (value = code - 55)
+      const value = code - 55;
+      remainder = (remainder * 100 + value) % 97;
+    }
   }
   return remainder === 1;
 }
@@ -1804,8 +1835,9 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
       code += `else{var ic=ib.slice(0,2),il=refs[${tableIdx}][ic];`;
       code += `if(il!==undefined&&ib.length!==il){${ctx.fail('isIBAN')}}`;
       code += `else{var ir=ib.slice(4)+ib.slice(0,4);`;
-      code += `var iban=ir.replace(/[A-Z]/g,function(c){return String(c.charCodeAt(0)-55);});`;
-      code += `var im=0;for(var ii=0;ii<iban.length;ii+=7){im=parseInt(String(im)+iban.slice(ii,ii+7),10)%97;}`;
+      // Walk char-by-char for mod 97 — no .replace closure, no parseInt allocation
+      code += `var im=0;for(var ii=0;ii<ir.length;ii++){var ic=ir.charCodeAt(ii);`;
+      code += `if(ic<=57){im=(im*10+(ic-48))%97;}else{im=(im*100+(ic-55))%97;}}`;
       code += `if(im!==1)${ctx.fail('isIBAN')};}}}`;
       return code;
     },
