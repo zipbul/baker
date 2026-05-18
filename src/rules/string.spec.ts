@@ -484,14 +484,13 @@ describe('isNumberString', () => {
     expect(isNumberString().ruleName).toBe('isNumberString');
   });
 
-  it('should emit inline Number+isNaN+isFinite check (no addRef)', () => {
+  it('should emit inline Number+isFinite check (no addRef; isFinite covers NaN)', () => {
     const { ctx, addRefMock } = makeCtx(0);
     const code = isNumberString().emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    // inline code checks empty length, then Number() + isNaN/isFinite
+    // inline code checks empty length, then Number() + isFinite (isFinite returns false for NaN)
     expect(code).toContain('v.length === 0');
     expect(code).toContain('Number(');
-    expect(code).toContain('isNaN');
     expect(code).toContain('isFinite');
   });
 });

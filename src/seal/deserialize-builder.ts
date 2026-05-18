@@ -619,10 +619,11 @@ function emitRuleList(
   }
 
   for (const rd of rules) {
+    const sg = sameGroups(rd.groups, fieldGroups); // cache once — was called 3× per rule
     const ruleEmitCtx = makeRuleEmitCtx(emitCtx, fieldKey, varName, rd, ctx);
     const gatedCtx = insideTypeGate ? { ...ruleEmitCtx, insideTypeGate: true } : ruleEmitCtx;
     let emitted: string;
-    if (sameGroups(rd.groups, fieldGroups) && rd.rule.plan && (lengthVar || timeVar)) {
+    if (sg && rd.rule.plan && (lengthVar || timeVar)) {
       const cache: { length?: string; time?: string } = {};
       if (rd.rule.plan.cacheKey === 'length' && lengthVar) {
         cache.length = lengthVar;
@@ -637,7 +638,7 @@ function emitRuleList(
     if (!emitted) {
       continue;
     } // empty emit (e.g., asserter fully subsumed by gate)
-    const ruleCode = sameGroups(rd.groups, fieldGroups) ? emitted : wrapGroupsGuard(rd, emitted);
+    const ruleCode = sg ? emitted : wrapGroupsGuard(rd, emitted);
     code += indent + ruleCode.replace(/\n/g, '\n' + indent) + '\n';
   }
 
@@ -1370,8 +1371,8 @@ function generateNestedCode(
     const execIdx = execs.length;
     execs.push(nestedSealed as SealedExecutors<unknown>);
 
-    // Check if validateNested each (array) — determined by flags.validateNestedEach or RuleDef.each
-    const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+    // Check if validateNested each (array) — meta.type is already proven non-null above
+    const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     if (hasEach) {
       const iVar = `${GEN.index}${sk}`;
@@ -1545,7 +1546,7 @@ function generateNestedCodeValidateOnly(
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
     const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
     const nestedMerged = nestedSealed.merged;
-    const hasEach = meta.type?.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+    const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
     // Decide: inline or function call
     const useInline = nestedMerged && canInlineDto(nestedCls, ctx.inlineNestedClasses);

@@ -70,7 +70,7 @@ function contains(seed: string): EmittableRule {
     validate: value => typeof value === 'string' && value.includes(seed),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(seed);
-      return `if (${varName}.indexOf(refs[${i}]) === -1) ${ctx.fail('contains')};`;
+      return `if (!${varName}.includes(refs[${i}])) ${ctx.fail('contains')};`;
     },
   });
 }
@@ -83,7 +83,7 @@ function notContains(seed: string): EmittableRule {
     validate: value => typeof value === 'string' && !value.includes(seed),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(seed);
-      return `if (${varName}.indexOf(refs[${i}]) !== -1) ${ctx.fail('notContains')};`;
+      return `if (${varName}.includes(refs[${i}])) ${ctx.fail('notContains')};`;
     },
   });
 }
@@ -180,8 +180,8 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
         if (s.length === 0) {
           return false;
         }
-        const n = Number(s);
-        return !isNaN(n) && isFinite(n);
+        // isFinite() returns false for NaN, so the !isNaN guard is redundant
+        return isFinite(Number(s));
       };
 
   return makeStringRule(
@@ -192,7 +192,7 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
         const i = ctx.addRegex(NO_SYMBOLS_RE);
         return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
       }
-      return `if (${varName}.length === 0) ${ctx.fail('isNumberString')};\nelse { var ns=Number(${varName}); if (isNaN(ns) || !isFinite(ns)) ${ctx.fail('isNumberString')}; }`;
+      return `if (${varName}.length === 0) ${ctx.fail('isNumberString')};\nelse { var ns=Number(${varName}); if (!isFinite(ns)) ${ctx.fail('isNumberString')}; }`;
     },
     'string',
     { no_symbols: noSymbols },
@@ -335,17 +335,17 @@ function isURL(options?: IsURLOptions): EmittableRule {
 }
 
 // UUID
-const UUID_RE: Record<string | number, RegExp> = {
+const UUID_RE = {
   all: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/,
   1: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-1[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
   2: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-2[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
   3: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-3[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
   4: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
   5: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-5[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
-};
+} as const;
 
 function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
-  const re = (version != null ? (UUID_RE[version] ?? UUID_RE.all) : UUID_RE.all)!;
+  const re = version != null ? UUID_RE[version] : UUID_RE.all;
   return makeStringRule(
     'isUUID',
     v => re.test(v),
@@ -851,6 +851,13 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
     emit: (varName: string, ctx: EmitContext): string => {
       const ri = ctx.addRegex(partRe);
       const tldRi = requireTld ? ctx.addRegex(/^[a-zA-Z]{2,}$/) : -1;
+      // Inline for-loop instead of fp.every(function(p){...}) — avoids per-call closure
+      // allocation inside the JIT executor.
+      const partCheck =
+        `if(p.length===0||p.length>63){fqOk=false;break;}` +
+        `if(!re[${ri}].test(p)){fqOk=false;break;}` +
+        (allowUnderscores ? '' : `if(p[0]==='-'||p[p.length-1]==='-'){fqOk=false;break;}`);
+      const loopBlock = `var fqOk=true;for(var fi=0;fi<fp.length;fi++){var p=fp[fi];${partCheck}}if(!fqOk)${ctx.fail('isFQDN')};`;
       let code = `{var fq=${varName};`;
       if (allowTrailingDot) {
         code += `if(fq.endsWith('.'))fq=fq.slice(0,-1);`;
@@ -861,20 +868,11 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
         code += `if(fp.length<2)${ctx.fail('isFQDN')};`;
         code += `else{var tld=fp[fp.length-1];`;
         code += `if(!tld||tld.length<2||!re[${tldRi}].test(tld))${ctx.fail('isFQDN')};`;
-        code += `else if(!fp.every(function(p){`;
+        code += `else{${loopBlock}}`; // close tld inner else block
+        code += '}'; // close tld outer else block
       } else {
-        code += `if(!fp.every(function(p){`;
+        code += loopBlock;
       }
-      code += `if(p.length===0||p.length>63)return false;`;
-      code += `if(!re[${ri}].test(p))return false;`;
-      if (!allowUnderscores) {
-        code += `if(p[0]==='-'||p[p.length-1]==='-')return false;`;
-      }
-      code += `return true;}))${ctx.fail('isFQDN')};`;
-      // close: requireTld adds else{ for tld block
-      if (requireTld) {
-        code += '}';
-      } // close tld else{
       code += '}'; // close split else{
       code += '}'; // close outer {
       return code;
@@ -1513,7 +1511,7 @@ const isJSON = makeRule({
   requiresType: 'string',
   constraints: {},
   validate: validateJsonString,
-  emit: (varName: string, ctx: EmitContext): string => `try { JSON.parse(${varName}); } catch(e) { ${ctx.fail('isJSON')}; }`,
+  emit: (varName: string, ctx: EmitContext): string => `try { JSON.parse(${varName}); } catch { ${ctx.fail('isJSON')}; }`,
 });
 
 // Base32
@@ -1926,8 +1924,8 @@ function checkLatitude(value: unknown): boolean {
     if (isNaN(n)) {
       return false;
     }
-    if (String(n) !== value && !/^-?\d+(\.\d+)?$/.test(value)) {
-      // extra chars check — parseFloat('90abc') = 90 but should fail
+    // parseFloat('90abc') = 90 — strict regex check rejects trailing garbage
+    if (!/^-?\d+(\.\d+)?$/.test(value)) {
       return false;
     }
     return n >= -90 && n <= 90;
