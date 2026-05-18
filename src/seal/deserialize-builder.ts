@@ -1571,25 +1571,25 @@ function generateNestedCodeValidateOnly(
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
 
       if (useInline) {
-        // INLINE: generate validation code directly in the loop body
+        // INLINE: generate validation code directly in the loop body.
+        // Emit the per-iteration path as a single local var — both the invalidInput error
+        // path and the nested block reference it, avoiding two identical 3-string concats.
         const itemVar = `__il$${sk}item`;
-        const ppExpr = ctx.pathPrefix
+        const ppVar = `__bk$pp${sk}`;
+        const ppExpr = ppVar;
+        const ppInit = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
         const vpPrefix = `${sk}i_`;
 
         code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
-        // Input type guard for the item
-        // invalidInput path must include trailing '.' to match deserialize error propagation
-        // (deserialize generates pathPrefix + errItem.path where invalidInput has path='')
-        const itemInvalidPathExpr = ctx.pathPrefix
-          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
-          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        code += `    var ${ppVar} = ${ppInit};\n`;
+        // Input type guard for the item — uses the cached prefix
         code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
         if (collectErrors) {
-          code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+          code += `${GEN.errList}.push({path:${ppVar},code:'invalidInput'});\n`;
         } else {
-          code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
+          code += `return [{path:${ppVar},code:'invalidInput'}];\n`;
         }
         code += `    else {\n`;
         code += emitInlineNestedBlock(nestedMerged!, nestedCls, itemVar, ppExpr, vpPrefix, ctx);
