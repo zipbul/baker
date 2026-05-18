@@ -88,22 +88,24 @@ function getDeserializeExtractKey(fieldKey: string, exposeStack: RawPropertyMeta
 
 /** Determine field expose groups — returns undefined (no restriction) if any unconditional expose entry exists */
 function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  const desEntries = exposeStack.filter(e => !e.serializeOnly);
-  if (desEntries.length === 0) {
-    return undefined;
-  }
-  // If any entry has no group restriction, always expose
-  if (desEntries.some(e => !e.groups || e.groups.length === 0)) {
-    return undefined;
-  }
-  // Merge groups from all entries
-  const all = new Set<string>();
-  for (const e of desEntries) {
-    for (const g of e.groups!) {
+  // Single-pass: scan once, bail out as soon as we see an unconditional entry,
+  // lazily allocate the result Set.
+  let all: Set<string> | null = null;
+  for (const e of exposeStack) {
+    if (e.serializeOnly) {
+      continue;
+    }
+    if (!e.groups || e.groups.length === 0) {
+      return undefined;
+    }
+    if (all === null) {
+      all = new Set<string>();
+    }
+    for (const g of e.groups) {
       all.add(g);
     }
   }
-  return [...all];
+  return all === null ? undefined : [...all];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -205,17 +207,28 @@ function buildDeserializeCode<T>(
     }
   }
 
-  // Groups variable — only when expose groups or validation rule groups exist (§4.9, §M4)
-  const hasGroupsField = Object.values(merged).some(meta => {
+  // Groups variable — only when expose groups or validation rule groups exist (§4.9, §M4).
+  // Single for-of with early break avoids Object.values alloc + closure allocations.
+  let hasGroupsField = false;
+  for (const fk in merged) {
+    const meta = merged[fk]!;
     const exposeGroups = getDeserializeExposeGroups(meta.expose);
     if (exposeGroups && exposeGroups.length > 0) {
-      return true;
+      hasGroupsField = true;
+      break;
     }
-    if (meta.validation.some(rd => rd.groups && rd.groups.length > 0)) {
-      return true;
+    let ruleHasGroups = false;
+    for (const rd of meta.validation) {
+      if (rd.groups && rd.groups.length > 0) {
+        ruleHasGroups = true;
+        break;
+      }
     }
-    return false;
-  });
+    if (ruleHasGroups) {
+      hasGroupsField = true;
+      break;
+    }
+  }
   if (hasGroupsField) {
     body += `var ${GEN.groups} = opts && opts.groups;\n`;
     body += `var ${GEN.group0} = ${GEN.groups} && ${GEN.groups}.length === 1 ? ${GEN.groups}[0] : null;\n`;
@@ -490,11 +503,13 @@ function generateValidationCode(
   // @Transform (deserialize direction) — before validation (§4.3 ⑤)
   const dsTransforms = meta.transform.filter(td => !td.options?.serializeOnly);
   if (dsTransforms.length > 0) {
+    const fkJson = JSON.stringify(fieldKey);
+    const objExpr = ctx.inputExpr || 'input';
     if (dsTransforms.length === 1) {
       const td = dsTransforms[0]!;
       const refIdx = ctx.refs.length;
       ctx.refs.push(td.fn);
-      const callExpr = `refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      const callExpr = `refs[${refIdx}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
       code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
     } else if (dsTransforms.length === 2) {
       const td0 = dsTransforms[0]!;
@@ -503,15 +518,15 @@ function generateValidationCode(
       ctx.refs.push(td0.fn);
       const refIdx1 = ctx.refs.length;
       ctx.refs.push(td1.fn);
-      const call0 = `refs[${refIdx0}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      const call0 = `refs[${refIdx0}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
       const expr0 = td0.isAsync ? `await ${call0}` : call0;
-      const call1 = `refs[${refIdx1}]({value:${expr0},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+      const call1 = `refs[${refIdx1}]({value:${expr0},key:${fkJson},obj:${objExpr}})`;
       code += `${varName} = ${td1.isAsync ? 'await ' : ''}${call1};\n`;
     } else {
       for (const td of dsTransforms) {
         const refIdx = ctx.refs.length;
         ctx.refs.push(td.fn);
-        const callExpr = `refs[${refIdx}]({value:${varName},key:${JSON.stringify(fieldKey)},obj:${ctx.inputExpr || 'input'}})`;
+        const callExpr = `refs[${refIdx}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
         code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
       }
     }
@@ -760,36 +775,54 @@ interface CategorizedRules {
 
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts */
 function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validation']): CategorizedRules {
-  const each = validation.filter(rd => rd.each);
-  const nonEach = validation.filter(rd => !rd.each);
-
-  // Separate by requiresType — 4-type gate support
-  const stringDeps = nonEach.filter(rd => rd.rule.requiresType === 'string');
-  const numberDeps = nonEach.filter(rd => rd.rule.requiresType === 'number');
-  const booleanDeps = nonEach.filter(rd => rd.rule.requiresType === 'boolean');
-  const dateDeps = nonEach.filter(rd => rd.rule.requiresType === 'date');
-  const arrayDeps = nonEach.filter(rd => rd.rule.requiresType === 'array');
-  const objectDeps = nonEach.filter(rd => rd.rule.requiresType === 'object');
-  const generalRules = nonEach.filter(rd => !rd.rule.requiresType);
-
-  // Mixed gate conflict detection
-  const allTyped = [
-    { type: 'string' as const, deps: stringDeps },
-    { type: 'number' as const, deps: numberDeps },
-    { type: 'boolean' as const, deps: booleanDeps },
-    { type: 'date' as const, deps: dateDeps },
-    { type: 'array' as const, deps: arrayDeps },
-    { type: 'object' as const, deps: objectDeps },
-  ].filter(d => d.deps.length > 0);
-  if (allTyped.length > 1) {
-    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${allTyped.map(d => d.type).join(', ')}`);
+  // Single-pass partition — was 9 separate .filter() passes over the same array, each allocating
+  // a fresh intermediate. For a field with N rules, runs at seal time only but adds up across DTOs.
+  const each: RuleDef[] = [];
+  const generalRules: RuleDef[] = [];
+  const typedBuckets: Record<string, RuleDef[]> = {
+    string: [],
+    number: [],
+    boolean: [],
+    date: [],
+    array: [],
+    object: [],
+  };
+  for (const rd of validation) {
+    if (rd.each) {
+      each.push(rd);
+      continue;
+    }
+    const reqType = rd.rule.requiresType;
+    if (reqType !== undefined) {
+      typedBuckets[reqType]!.push(rd);
+    } else {
+      generalRules.push(rd);
+    }
   }
 
-  return {
-    each,
-    generalRules,
-    typedDeps: allTyped.length > 0 ? allTyped[0] : undefined,
-  };
+  // Mixed gate conflict detection — at most one bucket should be non-empty
+  let chosen: CategorizedRules['typedDeps'] = undefined;
+  let activeTypes: string[] | null = null;
+  for (const t of ['string', 'number', 'boolean', 'date', 'array', 'object'] as const) {
+    const deps = typedBuckets[t]!;
+    if (deps.length === 0) {
+      continue;
+    }
+    if (chosen) {
+      // Late allocation: only build the array when we actually need to report a conflict
+      if (activeTypes === null) {
+        activeTypes = [chosen.type];
+      }
+      activeTypes.push(t);
+    } else {
+      chosen = { type: t, deps };
+    }
+  }
+  if (activeTypes) {
+    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${activeTypes.join(', ')}`);
+  }
+
+  return { each, generalRules, typedDeps: chosen };
 }
 
 /** Result of resolveTypeGate — effective gate type and related metadata */
@@ -1729,23 +1762,24 @@ function generateCollectionCodeValidateOnly(
       code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
 
       if (useInline) {
+        // Cache per-iteration path prefix into a single local var — itemInvalidPathExpr was
+        // identical to ppExpr (two copies of the same 3-string concat in the emitted body).
         const itemVar = `__il$${sk}ci`;
-        const ppExpr = ctx.pathPrefix
+        const ppVar = `__bk$pp${sk}`;
+        const ppInit = ctx.pathPrefix
           ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
           : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
         const vpPrefix = `${sk}c_`;
-        const itemInvalidPathExpr = ctx.pathPrefix
-          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
-          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
         code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
+        code += `    var ${ppVar} = ${ppInit};\n`;
         code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
         if (collectErrors) {
-          code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+          code += `${GEN.errList}.push({path:${ppVar},code:'invalidInput'});\n`;
         } else {
-          code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
+          code += `return [{path:${ppVar},code:'invalidInput'}];\n`;
         }
         code += `    else {\n`;
-        code += emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix, ctx);
+        code += emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppVar, vpPrefix, ctx);
         code += `    }\n`;
       } else {
         const execIdx = execs.length;
