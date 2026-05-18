@@ -195,10 +195,12 @@ function buildDeserializeCode<T>(
     const allowedIdx = refs.length;
     refs.push(allowedKeys);
 
+    // for-in with Object.hasOwn filter — equivalent to `for...of Object.keys(input)` but
+    // avoids the per-call Object.keys() array allocation.
     if (collectErrors) {
-      body += `for (var ${GEN.key} of Object.keys(input)) { if (!refs[${allowedIdx}].has(${GEN.key})) ${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'}); }\n`;
+      body += `for (var ${GEN.key} in input) { if (Object.hasOwn(input, ${GEN.key}) && !refs[${allowedIdx}].has(${GEN.key})) ${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'}); }\n`;
     } else {
-      body += `for (var ${GEN.key} of Object.keys(input)) { if (!refs[${allowedIdx}].has(${GEN.key})) return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)}; }\n`;
+      body += `for (var ${GEN.key} in input) { if (Object.hasOwn(input, ${GEN.key}) && !refs[${allowedIdx}].has(${GEN.key})) return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)}; }\n`;
     }
   }
 
