@@ -2302,10 +2302,18 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
       // Inline single-pass scan in the JIT executor — no regex match[] allocations
       const failExpr = ctx.fail('isStrongPassword');
       const checks: string[] = [];
-      if (minLower > 0) {checks.push(`spLo<${minLower}`);}
-      if (minUpper > 0) {checks.push(`spUp<${minUpper}`);}
-      if (minNums > 0) {checks.push(`spNum<${minNums}`);}
-      if (minSymbols > 0) {checks.push(`spSym<${minSymbols}`);}
+      if (minLower > 0) {
+        checks.push(`spLo<${minLower}`);
+      }
+      if (minUpper > 0) {
+        checks.push(`spUp<${minUpper}`);
+      }
+      if (minNums > 0) {
+        checks.push(`spNum<${minNums}`);
+      }
+      if (minSymbols > 0) {
+        checks.push(`spSym<${minSymbols}`);
+      }
       const guard = checks.length === 0 ? '' : `if(${checks.join('||')}){${failExpr}}`;
       return (
         `if(${varName}.length<${minLength}){${failExpr}}else{` +

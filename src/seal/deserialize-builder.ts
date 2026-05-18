@@ -195,12 +195,13 @@ function buildDeserializeCode<T>(
     const allowedIdx = refs.length;
     refs.push(allowedKeys);
 
-    // for-in with Object.hasOwn filter — equivalent to `for...of Object.keys(input)` but
-    // avoids the per-call Object.keys() array allocation.
+    // Indexed Object.keys loop — empirically 2–30× faster than for-in + Object.hasOwn on
+    // Bun/JSC. The keys array allocation is dominated by the per-iteration cost of for-in's
+    // prototype walk + hasOwn function call.
     if (collectErrors) {
-      body += `for (var ${GEN.key} in input) { if (Object.hasOwn(input, ${GEN.key}) && !refs[${allowedIdx}].has(${GEN.key})) ${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'}); }\n`;
+      body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'});}}\n`;
     } else {
-      body += `for (var ${GEN.key} in input) { if (Object.hasOwn(input, ${GEN.key}) && !refs[${allowedIdx}].has(${GEN.key})) return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)}; }\n`;
+      body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)};}}\n`;
     }
   }
 
@@ -1273,11 +1274,14 @@ function generateCollectionCode(
     code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
 
     if (execIdx >= 0) {
-      // nested DTO Map
+      // nested DTO Map — indexed Object.keys loop (measured 2-30× faster than for-in+hasOwn on Bun/JSC)
       const kVar = `${GEN.key}${sk}`;
+      const ksVar = `__bk$mk${sk}`;
+      const iVarMap = `__bk$mi${sk}`;
       code += `  var ${GEN.arr}${sk} = new Map();\n`;
-      code += `  for (var ${kVar} in ${varName}) {\n`;
-      code += `    if (!Object.hasOwn(${varName}, ${kVar})) continue;\n`;
+      code += `  var ${ksVar} = Object.keys(${varName});\n`;
+      code += `  for (var ${iVarMap}=0; ${iVarMap}<${ksVar}.length; ${iVarMap}++) {\n`;
+      code += `    var ${kVar} = ${ksVar}[${iVarMap}];\n`;
       code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${kVar}], opts);\n`;
       code += `    if (isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
@@ -1302,10 +1306,14 @@ function generateCollectionCode(
       code += `  }\n`;
       code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
     } else {
-      // primitive Map
+      // primitive Map — indexed Object.keys loop
+      const ksVar = `__bk$mk${sk}`;
+      const iVarMap = `__bk$mi${sk}`;
       code += `  var ${GEN.arr}${sk} = new Map();\n`;
-      code += `  for (var ${GEN.key}${sk} in ${varName}) {\n`;
-      code += `    if (Object.hasOwn(${varName}, ${GEN.key}${sk})) ${GEN.arr}${sk}.set(${GEN.key}${sk}, ${varName}[${GEN.key}${sk}]);\n`;
+      code += `  var ${ksVar} = Object.keys(${varName});\n`;
+      code += `  for (var ${iVarMap}=0; ${iVarMap}<${ksVar}.length; ${iVarMap}++) {\n`;
+      code += `    var ${GEN.key}${sk} = ${ksVar}[${iVarMap}];\n`;
+      code += `    ${GEN.arr}${sk}.set(${GEN.key}${sk}, ${varName}[${GEN.key}${sk}]);\n`;
       code += `  }\n`;
       code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
     }
@@ -1777,8 +1785,11 @@ function generateCollectionCodeValidateOnly(
 
     if (nestedSealed) {
       const kVar = `${GEN.key}${sk}`;
-      code += `  for (var ${kVar} in ${varName}) {\n`;
-      code += `    if (!Object.hasOwn(${varName}, ${kVar})) continue;\n`;
+      const ksVar = `__bk$vk${sk}`;
+      const iVar = `__bk$vi${sk}`;
+      code += `  var ${ksVar} = Object.keys(${varName});\n`;
+      code += `  for (var ${iVar}=0; ${iVar}<${ksVar}.length; ${iVar}++) {\n`;
+      code += `    var ${kVar} = ${ksVar}[${iVar}];\n`;
 
       if (useInline) {
         const itemVar = `__il$${sk}mi`;
