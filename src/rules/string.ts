@@ -135,20 +135,21 @@ const isAscii = makeStringRule(
 
 // Alpha — [a-zA-Z]+ singleton
 const ALPHA_DEFAULT_RE = /^[a-zA-Z]+$/;
+// length > 0 guard is dead — `+` quantifier requires ≥1 char so the regex returns false on empty.
 const isAlpha = makeStringRule(
   'isAlpha',
-  v => v.length > 0 && ALPHA_DEFAULT_RE.test(v),
+  v => ALPHA_DEFAULT_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(ALPHA_DEFAULT_RE);
     return `if (!re[${i}].test(${varName})) ${ctx.fail('isAlpha')};`;
   },
 );
 
-// Alphanumeric — [a-zA-Z0-9]+ singleton
+// Alphanumeric — [a-zA-Z0-9]+ singleton (same empty-input rationale as isAlpha)
 const ALNUM_DEFAULT_RE = /^[a-zA-Z0-9]+$/;
 const isAlphanumeric = makeStringRule(
   'isAlphanumeric',
-  v => v.length > 0 && ALNUM_DEFAULT_RE.test(v),
+  v => ALNUM_DEFAULT_RE.test(v),
   (varName, ctx) => {
     const i = ctx.addRegex(ALNUM_DEFAULT_RE);
     return `if (!re[${i}].test(${varName})) ${ctx.fail('isAlphanumeric')};`;
@@ -327,7 +328,7 @@ function isURL(options?: IsURLOptions): EmittableRule {
     name: 'isURL',
     requiresType: 'string',
     constraints: { format: 'uri', protocols },
-    validate: value => typeof value === 'string' && value.length > 0 && re.test(value),
+    validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isURL')};`;
@@ -1541,22 +1542,14 @@ const isJSON = makeRule({
 
 // Base32
 const BASE32_RE = /^[A-Z2-7]+=*$/i;
+// Empty-string fails the `+`-quantified regex anyway, so the explicit length===0 check is dead.
 function isBase32(): EmittableRule {
-  const re = BASE32_RE;
   return makeStringRule(
     'isBase32',
-    v => {
-      if (v.length === 0) {
-        return false;
-      }
-      if (v.length % 8 !== 0) {
-        return false;
-      }
-      return re.test(v);
-    },
+    v => v.length % 8 === 0 && BASE32_RE.test(v),
     (varName, ctx) => {
-      const i = ctx.addRegex(re);
-      return `if (${varName}.length === 0 || ${varName}.length % 8 !== 0 || !re[${i}].test(${varName})) ${ctx.fail('isBase32')};`;
+      const i = ctx.addRegex(BASE32_RE);
+      return `if (${varName}.length % 8 !== 0 || !re[${i}].test(${varName})) ${ctx.fail('isBase32')};`;
     },
   );
 }
@@ -1582,17 +1575,13 @@ interface IsBase64Options {
 
 function isBase64(options?: IsBase64Options): EmittableRule {
   const re = options?.urlSafe ? BASE64_URL_RE : BASE64_RE;
+  // Empty-string check is redundant — both base64 regexes require ≥1 char and fail on empty input.
   return makeStringRule(
     'isBase64',
-    v => {
-      if (v.length === 0) {
-        return false;
-      }
-      return re.test(v);
-    },
+    v => re.test(v),
     (varName, ctx) => {
       const i = ctx.addRegex(re);
-      return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
+      return `if (!re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
     },
     'string',
     { urlSafe: options?.urlSafe },
@@ -1640,17 +1629,13 @@ const isMimeType = makeStringRule(
 const CURRENCY_RE = /^[-+]?\$?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/;
 
 function isCurrency(): EmittableRule {
+  // Currency regex requires at least one digit; empty input fails the regex by itself.
   return makeStringRule(
     'isCurrency',
-    v => {
-      if (v.length === 0) {
-        return false;
-      }
-      return CURRENCY_RE.test(v);
-    },
+    v => CURRENCY_RE.test(v),
     (varName, ctx) => {
       const i = ctx.addRegex(CURRENCY_RE);
-      return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isCurrency')};`;
+      return `if (!re[${i}].test(${varName})) ${ctx.fail('isCurrency')};`;
     },
   );
 }
@@ -1973,8 +1958,10 @@ const isLatitude = makeRule({
     const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
     return (
       `if(typeof ${varName}==='number'){if(${varName}<-90||${varName}>90)${ctx.fail('isLatitude')};}` +
-      `else if(typeof ${varName}==='string'){var lt=parseFloat(${varName});` +
-      `if(isNaN(lt)||!re[${ri}].test(${varName})||lt<-90||lt>90)${ctx.fail('isLatitude')};}` +
+      `else if(typeof ${varName}==='string'){` +
+      // Regex catches non-numeric strings; if it matches, parseFloat is guaranteed valid (no isNaN check needed)
+      `if(!re[${ri}].test(${varName})){${ctx.fail('isLatitude')}}` +
+      `else{var lt=parseFloat(${varName});if(lt<-90||lt>90)${ctx.fail('isLatitude')};}}` +
       `else{${ctx.fail('isLatitude')};}`
     );
   },
@@ -2007,8 +1994,9 @@ const isLongitude = makeRule({
     const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
     return (
       `if(typeof ${varName}==='number'){if(${varName}<-180||${varName}>180)${ctx.fail('isLongitude')};}` +
-      `else if(typeof ${varName}==='string'){var ln=parseFloat(${varName});` +
-      `if(isNaN(ln)||!re[${ri}].test(${varName})||ln<-180||ln>180)${ctx.fail('isLongitude')};}` +
+      `else if(typeof ${varName}==='string'){` +
+      `if(!re[${ri}].test(${varName})){${ctx.fail('isLongitude')}}` +
+      `else{var ln=parseFloat(${varName});if(ln<-180||ln>180)${ctx.fail('isLongitude')};}}` +
       `else{${ctx.fail('isLongitude')};}`
     );
   },
