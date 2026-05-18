@@ -2268,35 +2268,29 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
   const minNums = options?.minNumbers ?? 1;
   const minSymbols = options?.minSymbols ?? 1;
 
+  // Single-pass character classification — counts all categories in one scan.
+  // Replaces 4× v.match(/.../g) which allocates 4 result arrays per call.
   const validate = (v: string): boolean => {
     if (v.length < minLength) {
       return false;
     }
-    if (minLower > 0) {
-      const cnt = (v.match(/[a-z]/g) || []).length;
-      if (cnt < minLower) {
-        return false;
+    let lower = 0;
+    let upper = 0;
+    let nums = 0;
+    let symbols = 0;
+    for (let i = 0; i < v.length; i++) {
+      const c = v.charCodeAt(i);
+      if (c >= 97 && c <= 122) {
+        lower++;
+      } else if (c >= 65 && c <= 90) {
+        upper++;
+      } else if (c >= 48 && c <= 57) {
+        nums++;
+      } else {
+        symbols++;
       }
     }
-    if (minUpper > 0) {
-      const cnt = (v.match(/[A-Z]/g) || []).length;
-      if (cnt < minUpper) {
-        return false;
-      }
-    }
-    if (minNums > 0) {
-      const cnt = (v.match(/[0-9]/g) || []).length;
-      if (cnt < minNums) {
-        return false;
-      }
-    }
-    if (minSymbols > 0) {
-      const cnt = (v.match(/[^a-zA-Z0-9]/g) || []).length;
-      if (cnt < minSymbols) {
-        return false;
-      }
-    }
-    return true;
+    return lower >= minLower && upper >= minUpper && nums >= minNums && symbols >= minSymbols;
   };
 
   return makeRule({
@@ -2305,21 +2299,22 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
     constraints: {},
     validate: value => typeof value === 'string' && validate(value),
     emit: (varName: string, ctx: EmitContext): string => {
-      let code = '';
-      code += `if(${varName}.length<${minLength})${ctx.fail('isStrongPassword')};`;
-      if (minLower > 0) {
-        code += `\nelse if((${varName}.match(/[a-z]/g)||[]).length<${minLower})${ctx.fail('isStrongPassword')};`;
-      }
-      if (minUpper > 0) {
-        code += `\nelse if((${varName}.match(/[A-Z]/g)||[]).length<${minUpper})${ctx.fail('isStrongPassword')};`;
-      }
-      if (minNums > 0) {
-        code += `\nelse if((${varName}.match(/[0-9]/g)||[]).length<${minNums})${ctx.fail('isStrongPassword')};`;
-      }
-      if (minSymbols > 0) {
-        code += `\nelse if((${varName}.match(/[^a-zA-Z0-9]/g)||[]).length<${minSymbols})${ctx.fail('isStrongPassword')};`;
-      }
-      return code;
+      // Inline single-pass scan in the JIT executor — no regex match[] allocations
+      const failExpr = ctx.fail('isStrongPassword');
+      const checks: string[] = [];
+      if (minLower > 0) {checks.push(`spLo<${minLower}`);}
+      if (minUpper > 0) {checks.push(`spUp<${minUpper}`);}
+      if (minNums > 0) {checks.push(`spNum<${minNums}`);}
+      if (minSymbols > 0) {checks.push(`spSym<${minSymbols}`);}
+      const guard = checks.length === 0 ? '' : `if(${checks.join('||')}){${failExpr}}`;
+      return (
+        `if(${varName}.length<${minLength}){${failExpr}}else{` +
+        `var spLo=0,spUp=0,spNum=0,spSym=0;` +
+        `for(var spI=0;spI<${varName}.length;spI++){var spC=${varName}.charCodeAt(spI);` +
+        `if(spC>=97&&spC<=122)spLo++;else if(spC>=65&&spC<=90)spUp++;else if(spC>=48&&spC<=57)spNum++;else spSym++;}` +
+        guard +
+        `}`
+      );
     },
   });
 }
