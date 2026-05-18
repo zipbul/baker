@@ -97,9 +97,10 @@ function buildSerializeTransformExpr(
     return td0.isAsync ? `(await ${call0})` : call0;
   }
 
-  const reversed = [...serTransforms].reverse();
+  // Walk serTransforms backwards in place — avoids [...arr].reverse() clone allocation
   let valueExpr = inputExpr;
-  for (const td of reversed) {
+  for (let k = serTransforms.length - 1; k >= 0; k -= 1) {
+    const td = serTransforms[k]!;
     const refIdx = refs.length;
     refs.push(td.fn);
     const callExpr = `refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
@@ -308,10 +309,10 @@ function generateSerializeFieldCode(
 
       // Sort most-specific-first (subclasses take priority in inheritance relationships)
       const sorted = [...subTypes].sort((a, b) => {
-        if ((a.value as { prototype: unknown }).prototype instanceof b.value) {
+        if ((a.value as Function).prototype instanceof b.value) {
           return -1;
         }
-        if ((b.value as { prototype: unknown }).prototype instanceof a.value) {
+        if ((b.value as Function).prototype instanceof a.value) {
           return 1;
         }
         return 0;

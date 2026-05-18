@@ -1,13 +1,20 @@
 import type { Transformer } from '../types';
 
-export interface LuxonTransformerOptions {
+interface LuxonTransformerOptions {
   format?: string;
   zone?: string;
 }
 
-export async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transformer> {
+interface LuxonLike {
+  toISO(): string;
+  toFormat(f: string): string;
+}
+
+async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transformer> {
   const { DateTime } = await import('luxon');
   const zone = opts?.zone ?? 'utc';
+  // Hoist format option once so the serialize closure doesn't re-read opts per call
+  const format = opts?.format;
 
   return {
     deserialize: ({ value }) => {
@@ -20,16 +27,14 @@ export async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<
       return value;
     },
     serialize: ({ value }) => {
-      if (
-        value &&
-        typeof value === 'object' &&
-        typeof (value as { toISO(): string; toFormat(f: string): string }).toISO === 'function'
-      ) {
-        return opts?.format
-          ? (value as { toISO(): string; toFormat(f: string): string }).toFormat(opts.format)
-          : (value as { toISO(): string; toFormat(f: string): string }).toISO();
+      if (value && typeof value === 'object' && typeof (value as LuxonLike).toISO === 'function') {
+        const v = value as LuxonLike;
+        return format ? v.toFormat(format) : v.toISO();
       }
       return value;
     },
   };
 }
+
+export type { LuxonTransformerOptions };
+export { luxonTransformer };

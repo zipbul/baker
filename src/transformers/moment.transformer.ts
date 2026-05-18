@@ -1,11 +1,18 @@
 import type { Transformer } from '../types';
 
-export interface MomentTransformerOptions {
+interface MomentTransformerOptions {
   format?: string;
 }
 
-export async function momentTransformer(opts?: MomentTransformerOptions): Promise<Transformer> {
+interface MomentLike {
+  toISOString(): string;
+  format(f: string): string;
+}
+
+async function momentTransformer(opts?: MomentTransformerOptions): Promise<Transformer> {
   const moment = (await import('moment')).default;
+  // Hoist format option once so the serialize closure doesn't re-read opts per call
+  const format = opts?.format;
 
   return {
     deserialize: ({ value }) => {
@@ -18,14 +25,16 @@ export async function momentTransformer(opts?: MomentTransformerOptions): Promis
       if (
         value &&
         typeof value === 'object' &&
-        typeof (value as { toISOString(): string; format(f: string): string }).toISOString === 'function' &&
-        typeof (value as { toISOString(): string; format(f: string): string }).format === 'function'
+        typeof (value as MomentLike).toISOString === 'function' &&
+        typeof (value as MomentLike).format === 'function'
       ) {
-        return opts?.format
-          ? (value as { toISOString(): string; format(f: string): string }).format(opts.format)
-          : (value as { toISOString(): string; format(f: string): string }).toISOString();
+        const v = value as MomentLike;
+        return format ? v.format(format) : v.toISOString();
       }
       return value;
     },
   };
 }
+
+export type { MomentTransformerOptions };
+export { momentTransformer };
