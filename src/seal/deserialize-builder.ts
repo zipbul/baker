@@ -171,9 +171,12 @@ function buildDeserializeCode<T>(
   // invisible to `Object.keys`/checkCallOptions, so this doesn't pollute the user's opts shape.
   // The previous shared-ref WeakSet caused concurrent async deserialize() to false-positive.
   if (needsCircularCheck) {
-    body += `var __SEEN_KEY = Symbol.for('baker:circular-seen');\n`;
-    body += `opts = (opts && opts[__SEEN_KEY]) ? opts : Object.assign({}, opts || {}, { [__SEEN_KEY]: new WeakSet() });\n`;
-    body += `var __seen = opts[__SEEN_KEY];\n`;
+    // __SEEN_KEY is hoisted out of the per-call body and captured via the closure
+    // arguments of `new Function(...)` below — eliminates Symbol.for() lookup on every call.
+    // Object literal spread is replaced with branched alloc — Bun/JSC optimizes literal-spread
+    // better than Object.assign({}, ...) (audit H4/H5).
+    body += `var __seen = (opts && opts[__SEEN_KEY]) || null;\n`;
+    body += `if (__seen === null) { __seen = new WeakSet(); opts = opts ? { ...opts, [__SEEN_KEY]: __seen } : { [__SEEN_KEY]: __seen }; }\n`;
     body += `if (__seen.has(input)) return ${wrapErr("[{path:'',code:'circular'}]")};\n`;
     body += `__seen.add(input);\n`;
     body += `try {\n`;
@@ -250,6 +253,7 @@ function buildDeserializeCode<T>(
   // ── Execute new Function ───────────────────────────────────────────────────
 
   const fnKeyword = isAsync ? 'async function' : 'function';
+  const seenKey = Symbol.for('baker:circular-seen');
   const executor = new Function(
     '_Cls',
     're',
@@ -257,8 +261,9 @@ function buildDeserializeCode<T>(
     'execs',
     'err',
     'isErr',
+    '__SEEN_KEY',
     `return ${fnKeyword}(input, opts) { ` + body + ' }',
-  )(Class, regexes, refs, execs, resultErr, resultIsErr) as (
+  )(Class, regexes, refs, execs, resultErr, resultIsErr, seenKey) as (
     input: unknown,
     opts?: RuntimeOptions,
   ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
@@ -1266,7 +1271,7 @@ function generateCollectionCode(
       const kVar = `${GEN.key}${sk}`;
       code += `  var ${GEN.arr}${sk} = new Map();\n`;
       code += `  for (var ${kVar} in ${varName}) {\n`;
-      code += `    if (!Object.prototype.hasOwnProperty.call(${varName}, ${kVar})) continue;\n`;
+      code += `    if (!Object.hasOwn(${varName}, ${kVar})) continue;\n`;
       code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${kVar}], opts);\n`;
       code += `    if (isErr(${GEN.result}${sk})) {\n`;
       if (collectErrors) {
@@ -1294,7 +1299,7 @@ function generateCollectionCode(
       // primitive Map
       code += `  var ${GEN.arr}${sk} = new Map();\n`;
       code += `  for (var ${GEN.key}${sk} in ${varName}) {\n`;
-      code += `    if (Object.prototype.hasOwnProperty.call(${varName}, ${GEN.key}${sk})) ${GEN.arr}${sk}.set(${GEN.key}${sk}, ${varName}[${GEN.key}${sk}]);\n`;
+      code += `    if (Object.hasOwn(${varName}, ${GEN.key}${sk})) ${GEN.arr}${sk}.set(${GEN.key}${sk}, ${varName}[${GEN.key}${sk}]);\n`;
       code += `  }\n`;
       code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
     }
@@ -1767,7 +1772,7 @@ function generateCollectionCodeValidateOnly(
     if (nestedSealed) {
       const kVar = `${GEN.key}${sk}`;
       code += `  for (var ${kVar} in ${varName}) {\n`;
-      code += `    if (!Object.prototype.hasOwnProperty.call(${varName}, ${kVar})) continue;\n`;
+      code += `    if (!Object.hasOwn(${varName}, ${kVar})) continue;\n`;
 
       if (useInline) {
         const itemVar = `__il$${sk}mi`;

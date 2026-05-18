@@ -1926,11 +1926,9 @@ function checkLatitude(value: unknown): boolean {
     if (isNaN(n)) {
       return false;
     }
-    if (String(n) !== value && value !== String(n)) {
+    if (String(n) !== value && !/^-?\d+(\.\d+)?$/.test(value)) {
       // extra chars check — parseFloat('90abc') = 90 but should fail
-      if (!/^-?\d+(\.\d+)?$/.test(value)) {
-        return false;
-      }
+      return false;
     }
     return n >= -90 && n <= 90;
   }

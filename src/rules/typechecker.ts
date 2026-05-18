@@ -104,7 +104,7 @@ export const isBoolean = makeRule({
 export const isDate = makeRule({
   name: 'isDate',
   constraints: {},
-  validate: value => value instanceof Date && !isNaN((value as Date).getTime()),
+  validate: value => value instanceof Date && !isNaN(value.getTime()),
   emit: (varName: string, ctx: EmitContext): string =>
     `if (!(${varName} instanceof Date) || isNaN(${varName}.getTime())) ${ctx.fail('isDate')};`,
 });

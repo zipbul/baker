@@ -22,9 +22,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
     requiresType: 'number',
     constraints: exclusive ? { min: n, exclusive: true } : { min: n },
     plan,
-    validate: exclusive
-      ? value => typeof value === 'number' && !isNaN(value) && value > n
-      : value => typeof value === 'number' && !isNaN(value) && value >= n,
+    validate: exclusive ? value => typeof value === 'number' && value > n : value => typeof value === 'number' && value >= n,
   });
 }
 
@@ -48,9 +46,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
     requiresType: 'number',
     constraints: exclusive ? { max: n, exclusive: true } : { max: n },
     plan,
-    validate: exclusive
-      ? value => typeof value === 'number' && !isNaN(value) && value < n
-      : value => typeof value === 'number' && !isNaN(value) && value <= n,
+    validate: exclusive ? value => typeof value === 'number' && value < n : value => typeof value === 'number' && value <= n,
   });
 }
 
@@ -65,7 +61,7 @@ export const isPositive = makePlannedRule({
   plan: {
     failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '<=', planLiteral(0))),
   },
-  validate: value => typeof value === 'number' && !isNaN(value) && value > 0,
+  validate: value => typeof value === 'number' && value > 0,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,7 +75,7 @@ export const isNegative = makePlannedRule({
   plan: {
     failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '>=', planLiteral(0))),
   },
-  validate: value => typeof value === 'number' && !isNaN(value) && value < 0,
+  validate: value => typeof value === 'number' && value < 0,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -94,7 +90,7 @@ export function isDivisibleBy(n: number): EmittableRule {
     name: 'isDivisibleBy',
     requiresType: 'number',
     constraints: { divisor: n },
-    validate: value => typeof value === 'number' && !isNaN(value) && value % n === 0,
+    validate: value => typeof value === 'number' && value % n === 0,
     emit: (varName: string, ctx: EmitContext): string => `if (${varName} % ${n} !== 0) ${ctx.fail('isDivisibleBy')};`,
   });
 }

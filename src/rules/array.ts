@@ -11,10 +11,10 @@ function arrayContains(values: unknown[]): EmittableRule {
     name: 'arrayContains',
     requiresType: 'array',
     constraints: { values },
-    validate: value => Array.isArray(value) && values.every(v => value.indexOf(v) !== -1),
+    validate: value => Array.isArray(value) && values.every(v => value.includes(v)),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
-      return `if (!refs[${i}].every(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayContains')};`;
+      return `if (!refs[${i}].every(function(v){return ${varName}.includes(v);})) ${ctx.fail('arrayContains')};`;
     },
   });
 }
@@ -31,7 +31,7 @@ function arrayNotContains(values: unknown[]): EmittableRule {
     validate: value => Array.isArray(value) && values.every(v => !value.includes(v)),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRef(values);
-      return `if (refs[${i}].some(function(v){return ${varName}.indexOf(v)!==-1;})) ${ctx.fail('arrayNotContains')};`;
+      return `if (refs[${i}].some(function(v){return ${varName}.includes(v);})) ${ctx.fail('arrayNotContains')};`;
     },
   });
 }

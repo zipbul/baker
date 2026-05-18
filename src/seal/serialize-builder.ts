@@ -245,7 +245,7 @@ function generateSerializeFieldCode(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
-          nestedCode = `${outputTarget} = await Promise.all(Array.from(${fieldVal}).map(async function(__ser_item) { return __ser_item == null ? __ser_item : await execs[${execIdx}].serialize(__ser_item, opts); }));`;
+          nestedCode = `{ var __ser_ps = []; for (var __ser_item of ${fieldVal}) { __ser_ps.push(__ser_item == null ? __ser_item : execs[${execIdx}].serialize(__ser_item, opts)); } ${outputTarget} = await Promise.all(__ser_ps); }`;
         } else {
           nestedCode = `var ${GEN.setArr} = [];\n`;
           nestedCode += `  for (var ${GEN.setItem} of ${fieldVal}) {\n`;
@@ -254,7 +254,7 @@ function generateSerializeFieldCode(
           nestedCode += `  ${outputTarget} = ${GEN.setArr};`;
         }
       } else {
-        nestedCode = `${outputTarget} = Array.from(${fieldVal});`;
+        nestedCode = `${outputTarget} = [...${fieldVal}];`;
       }
     } else {
       // Map → plain object (W8: keys must be strings — throw otherwise)
