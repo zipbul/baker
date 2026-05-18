@@ -608,11 +608,22 @@ function emitRuleList(
   insideTypeGate?: boolean,
 ): string {
   let code = '';
-  const cacheable = rules.filter(rd => sameGroups(rd.groups, fieldGroups));
-  const lengthCount = cacheable.filter(rd => rd.rule.plan?.cacheKey === 'length').length;
-  const timeCount = cacheable.filter(rd => rd.rule.plan?.cacheKey === 'time').length;
-  const lengthVar = lengthCount > 1 ? `${GEN.arr}${sanitizeKey(fieldKey)}len` : null;
-  const timeVar = timeCount > 1 ? `${GEN.arr}${sanitizeKey(fieldKey)}time` : null;
+  // Single-pass partition over rules, counting both cacheable categories without a filter[] alloc.
+  let lengthCount = 0;
+  let timeCount = 0;
+  for (const rd of rules) {
+    if (!sameGroups(rd.groups, fieldGroups)) {
+      continue;
+    }
+    if (rd.rule.plan?.cacheKey === 'length') {
+      lengthCount += 1;
+    } else if (rd.rule.plan?.cacheKey === 'time') {
+      timeCount += 1;
+    }
+  }
+  const sk = sanitizeKey(fieldKey);
+  const lengthVar = lengthCount > 1 ? `${GEN.arr}${sk}len` : null;
+  const timeVar = timeCount > 1 ? `${GEN.arr}${sk}time` : null;
 
   if (lengthVar) {
     code += `${indent}var ${lengthVar} = ${varName}.length;\n`;
@@ -881,6 +892,7 @@ function emitTypedRules(
   fieldGroups?: string[],
 ): string {
   let code = '';
+  const sk = sanitizeKey(fieldKey); // cached — was called up to 4× in this function before
 
   const { effectiveGateType, gateCondition, gateErrorCode, gateEmitCtx, otherGeneral, gateDeps, typeAsserter, enableConversion } =
     config;
@@ -906,7 +918,7 @@ function emitTypedRules(
 
     if (canConvert) {
       // Conversion mode: try convert on gate failure, skip field if conversion fails
-      const skipVar = `${GEN.skip}${sanitizeKey(fieldKey)}`;
+      const skipVar = `${GEN.skip}${sk}`;
       code += `var ${skipVar} = false;\n`;
       code += `if (${gateCondition}) {\n`;
       code += generateConversionCode(effectiveGateType, varName, fieldKey, skipVar, true, emitCtx);
@@ -915,7 +927,7 @@ function emitTypedRules(
       if (ctx.validateOnly) {
         code += emitInnerRules('  ');
       } else {
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        const markVar = `${GEN.mark}${sk}`;
         code += `  var ${markVar} = ${GEN.errList}.length;\n`;
         code += emitInnerRules('  ');
         code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
@@ -927,7 +939,7 @@ function emitTypedRules(
       if (ctx.validateOnly) {
         code += emitInnerRules('  ');
       } else {
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        const markVar = `${GEN.mark}${sk}`;
         code += `  var ${markVar} = ${GEN.errList}.length;\n`;
         code += emitInnerRules('  ');
         code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
@@ -1057,7 +1069,7 @@ function emitEachRules(
 
     // Single prefix var shared across all collection branches — only one branch executes
     // at runtime, so reusing the same identifier avoids 3 hoisted-but-dead var declarations.
-    const prefixVar = `__bk$ep_${sanitizeKey(fieldKey)}`;
+    const prefixVar = `__bk$ep_${sk}`;
     const emitCollectionBlock = (col: (typeof collections)[number]): string => {
       const failFn = (c: string) =>
         collectErrors
@@ -1080,7 +1092,7 @@ function emitEachRules(
     // Compute collection kind once via integer dispatch — eliminates 2-3× repeated
     // Array.isArray / instanceof Set / instanceof Map evaluation.
     // prefixVar is declared once here and reused by all three branches.
-    const kindVar = `__bk$ck${sanitizeKey(fieldKey)}`;
+    const kindVar = `__bk$ck${sk}`;
     code += eachGuardOpen;
     code += `var ${kindVar} = Array.isArray(${varName})?1:(${varName} instanceof Set?2:(${varName} instanceof Map?3:0));\n`;
     code += `var ${prefixVar} = ${pathKey}+'[';\n`;
