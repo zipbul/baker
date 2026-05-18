@@ -45,13 +45,14 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
     if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {
       return true;
     }
-    // 2. @Transform async
-    const transforms =
-      direction === 'deserialize'
-        ? meta.transform.filter(td => !td.options?.serializeOnly)
-        : meta.transform.filter(td => !td.options?.deserializeOnly);
-    if (transforms.some(td => td.isAsync ?? isAsyncFunction(td.fn))) {
-      return true;
+    // 2. @Transform async — single-pass scan, avoids intermediate filter[] allocation
+    for (const td of meta.transform) {
+      if (direction === 'deserialize' ? td.options?.serializeOnly : td.options?.deserializeOnly) {
+        continue;
+      }
+      if (td.isAsync ?? isAsyncFunction(td.fn)) {
+        return true;
+      }
     }
     // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
     if (meta.type?.resolvedClass) {
@@ -357,20 +358,25 @@ function mergeInheritance(Class: Function): RawClassMeta {
 
   // child-first merge
   const merged: RawClassMeta = Object.create(null) as RawClassMeta;
+  // When the prototype chain has only the class itself (no decorated parent), no merging happens
+  // and we never mutate the metadata arrays — skip the shallow copy entirely.
+  const needsCopy = chain.length > 1;
 
   for (const ctor of chain) {
     const raw = getRaw(ctor)!;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
-        // First occurrence of field → shallow copy
-        merged[key] = {
-          validation: [...meta.validation],
-          transform: [...meta.transform],
-          expose: [...meta.expose],
-          exclude: meta.exclude,
-          type: meta.type,
-          flags: { ...meta.flags },
-        };
+        // First occurrence of field → copy only when subsequent ancestors might mutate
+        merged[key] = needsCopy
+          ? {
+              validation: [...meta.validation],
+              transform: [...meta.transform],
+              expose: [...meta.expose],
+              exclude: meta.exclude,
+              type: meta.type,
+              flags: { ...meta.flags },
+            }
+          : meta;
       } else {
         // Already exists in child → independent merge per category (§4.2)
         const m = merged[key];

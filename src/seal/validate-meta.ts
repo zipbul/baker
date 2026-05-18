@@ -1,7 +1,7 @@
 import type { RawClassMeta } from '../types';
 
 import { SealError } from '../errors';
-import { RAW } from '../symbols';
+import { hasRawOwn } from '../meta-access';
 
 /**
  * @internal — seal-time invariant checks invoked from sealOne after merge + type normalization,
@@ -45,7 +45,7 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
         }
         seenNames.add(sub.name);
         // subType class must have @Field metadata (RAW) — otherwise codegen will fail with a less clear error
-        if (!Object.hasOwn(sub.value as object, RAW)) {
+        if (!hasRawOwn(sub.value)) {
           throw new SealError(
             `${className}.${key}: discriminator.subTypes[${i}].value (${(sub.value as Function).name}) has no @Field decorators.`,
           );
@@ -53,21 +53,13 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
       }
     }
 
-    // ─── Set/Map collection pairing ───────────────────────────────────────
-    if (meta.type?.collection === 'Set') {
-      if (meta.type.resolvedCollectionValue) {
-        const target = meta.type.resolvedCollectionValue;
-        if (!Object.hasOwn(target as object, RAW)) {
-          throw new SealError(`${className}.${key}: setValue target (${target.name}) has no @Field decorators.`);
-        }
-      }
-    }
-    if (meta.type?.collection === 'Map') {
-      if (meta.type.resolvedCollectionValue) {
-        const target = meta.type.resolvedCollectionValue;
-        if (!Object.hasOwn(target as object, RAW)) {
-          throw new SealError(`${className}.${key}: mapValue target (${target.name}) has no @Field decorators.`);
-        }
+    // ─── Set/Map collection pairing — unified single-pass check ──────────
+    const collection = meta.type?.collection;
+    if (collection !== undefined && meta.type?.resolvedCollectionValue) {
+      const target = meta.type.resolvedCollectionValue;
+      if (!hasRawOwn(target)) {
+        const accessor = collection === 'Set' ? 'setValue' : 'mapValue';
+        throw new SealError(`${className}.${key}: ${accessor} target (${target.name}) has no @Field decorators.`);
       }
     }
   }

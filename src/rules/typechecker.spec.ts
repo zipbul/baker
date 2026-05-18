@@ -301,16 +301,28 @@ describe('isEnum', () => {
     expect(rule1).not.toBe(rule2);
   });
 
-  it('should call ctx.addRef and generate indexOf check code when calling emit()', () => {
-    // Arrange
+  it('should call ctx.addRef and generate includes check code (small enum) when calling emit()', () => {
+    // Arrange — Direction has 2 entries (under Set threshold 8)
     const rule = isEnum(Direction);
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
     const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('indexOf(v)');
-    expect(code).toContain('=== -1');
+    expect(code).toContain('.includes(v)');
+    expect(failMock).toHaveBeenCalledWith('isEnum');
+  });
+
+  it('should generate set.has check code when enum has 8+ entries (factory promotes to Set)', () => {
+    // Arrange
+    const Big = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`K${i}`, `V${i}`]));
+    const rule = isEnum(Big);
+    const { ctx, addRefMock, failMock } = makeCtx(0);
+    // Act
+    const code = rule.emit('v', ctx);
+    // Assert
+    expect(addRefMock).toHaveBeenCalledTimes(1);
+    expect(code).toContain('.has(v)');
     expect(failMock).toHaveBeenCalledWith('isEnum');
   });
 

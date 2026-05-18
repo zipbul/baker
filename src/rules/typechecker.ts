@@ -115,14 +115,24 @@ export const isDate = makeRule({
 
 export function isEnum(entity: object): EmittableRule {
   const values = Object.values(entity);
+  // Set lookup is O(1); array indexOf is O(n). Measured (Bun/JSC):
+  // - 4 items: indexOf 1.2 ns vs Set.has 2.2 ns (indexOf marginally faster)
+  // - 50 items: indexOf 64 ns vs Set.has 8.4 ns (Set 7.5x faster)
+  // Use Set when there are enough values to overcome its constant-factor overhead.
+  const useSet = values.length >= 8;
+  const valuesSet = useSet ? new Set(values) : null;
 
   return makeRule({
     name: 'isEnum',
     constraints: { values },
-    validate: value => values.indexOf(value) !== -1,
+    validate: useSet ? value => valuesSet!.has(value) : value => values.includes(value),
     emit: (varName: string, ctx: EmitContext): string => {
+      if (useSet) {
+        const i = ctx.addRef(valuesSet);
+        return `if (!refs[${i}].has(${varName})) ${ctx.fail('isEnum')};`;
+      }
       const i = ctx.addRef(values);
-      return `if (refs[${i}].indexOf(${varName}) === -1) ${ctx.fail('isEnum')};`;
+      return `if (!refs[${i}].includes(${varName})) ${ctx.fail('isEnum')};`;
     },
   });
 }

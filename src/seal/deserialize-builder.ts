@@ -42,11 +42,14 @@ const GEN = {
 
 /** Generate nested error push code that propagates message/context fields */
 function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
+  // Cache errItemExpr once — avoids repeated property reads in the generated body
+  const eVar = `${tmpVar}_e`;
   return (
-    `if(${errItemExpr}.message===undefined&&${errItemExpr}.context===undefined){${errList}.push({path:${pathExpr},code:${errItemExpr}.code});}\n` +
-    `      else{var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
-    `      if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
-    `      if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
+    `var ${eVar}=${errItemExpr};\n` +
+    `      if(${eVar}.message===undefined&&${eVar}.context===undefined){${errList}.push({path:${pathExpr},code:${eVar}.code});}\n` +
+    `      else{var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
+    `      if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
+    `      if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `      ${errList}.push(${tmpVar});}\n`
   );
 }

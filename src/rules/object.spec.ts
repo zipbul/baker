@@ -54,12 +54,11 @@ describe('isNotEmptyObject', () => {
     expect(isNotEmptyObject().ruleName).toBe('isNotEmptyObject');
   });
 
-  it('should generate inline Object.keys().some() code when emit() is called with nullable:true', () => {
+  it('should generate inline for-in code when emit() is called with nullable:true', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
     const code = isNotEmptyObject({ nullable: true }).emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('Object.keys');
-    expect(code).toContain('.some(');
+    expect(code).toContain('for(var __k in v)');
     expect(code).toContain('!=null');
     expect(failMock).toHaveBeenCalledWith('isNotEmptyObject');
   });
