@@ -4,17 +4,19 @@
  *
  * Usage: bun run scripts/check-memory.ts
  */
-import { deserialize, validate, Field } from '../index';
+import { deserialize, validate, Field, Recipe, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 
 // ── DTO setup ────────────────────────────────────────────────────────────────
 
+@Recipe
 class MemDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0)) age!: number;
 }
 
 // Seal
+seal();
 deserialize(MemDto, { name: 'Alice', age: 30 });
 
 // ── JIT warmup ───────────────────────────────────────────────────────────────
@@ -23,7 +25,6 @@ for (let i = 0; i < 100_000; i++) {
   deserialize(MemDto, { name: 'Alice', age: 30 });
   deserialize(MemDto, { name: 'A', age: -1 });
   validate(MemDto, { name: 'Alice', age: 30 });
-  validate('hello', isString, minLength(3));
 }
 
 // ── Measurement ──────────────────────────────────────────────────────────────
@@ -59,18 +60,6 @@ const cases: TestCase[] = [
     label: 'validate DTO invalid',
     fn: () => {
       validate(MemDto, { name: 'A', age: -1 });
-    },
-  },
-  {
-    label: 'validate ad-hoc valid',
-    fn: () => {
-      validate('test@a.com', isString, minLength(3));
-    },
-  },
-  {
-    label: 'validate ad-hoc invalid',
-    fn: () => {
-      validate(123, isString, minLength(3));
     },
   },
 ];

@@ -6,22 +6,25 @@ import Ajv from 'ajv';
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
 
-import { Field, deserialize, seal, validate } from '../index';
+import { Field, Recipe, deserialize, seal, validate } from '../index';
 import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class BkAddr {
   @Field(isString, minLength(1)) street!: string;
   @Field(isString, minLength(1)) city!: string;
   @Field(isString, minLength(1)) zip!: string;
 }
+@Recipe
 class BkCust {
   @Field(isString, minLength(1)) name!: string;
   @Field(isString) email!: string;
   @Field({ type: () => BkAddr }) address!: BkAddr;
 }
+@Recipe
 class BkOrder {
   @Field(isString, minLength(1)) title!: string;
   @Field({ type: () => BkCust }) customer!: BkCust;
@@ -29,10 +32,12 @@ class BkOrder {
 }
 
 // Array benchmark DTO
+@Recipe
 class BkItem {
   @Field(isString, minLength(1)) name!: string;
   @Field(isNumber(), min(0)) price!: number;
 }
+@Recipe
 class BkCart {
   @Field(arrayMinSize(1), { type: () => [BkItem] }) items!: BkItem[];
 }

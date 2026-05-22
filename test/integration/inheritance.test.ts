@@ -1,21 +1,24 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs: inheritance chain ──────────────────────────────────────────────────
 
+@Recipe
 class BaseDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class ChildDto extends BaseDto {
   @Field(isNumber())
   age!: number;
 }
 
+@Recipe
 class GrandChildDto extends ChildDto {
   @Field(isBoolean)
   active!: boolean;

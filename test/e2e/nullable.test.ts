@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -12,6 +12,7 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class NullableStringDto {
   @Field(isString, { nullable: true })
   nickname!: string | null;
@@ -20,11 +21,13 @@ class NullableStringDto {
   name!: string;
 }
 
+@Recipe
 class NullableOptionalDto {
   @Field(isString, { nullable: true, optional: true })
   bio!: string | null | undefined;
 }
 
+@Recipe
 class NullableNumberDto {
   @Field(isNumber(), min(0), max(200), { nullable: true })
   age!: number | null;

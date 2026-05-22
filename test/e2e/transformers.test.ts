@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber, isDate } from '../../src/rules/index';
 import {
   trimTransformer,
@@ -21,6 +21,7 @@ afterEach(() => unseal());
 // ─── 1. trimTransformer ─────────────────────────────────────────────────────
 
 describe('trimTransformer', () => {
+  @Recipe
   class TrimDto {
     @Field(isString, { transform: trimTransformer })
     value!: string;
@@ -47,6 +48,7 @@ describe('trimTransformer', () => {
 // ─── 2. toLowerCaseTransformer ──────────────────────────────────────────────
 
 describe('toLowerCaseTransformer', () => {
+  @Recipe
   class LowerDto {
     @Field(isString, { transform: toLowerCaseTransformer })
     value!: string;
@@ -67,6 +69,7 @@ describe('toLowerCaseTransformer', () => {
 // ─── 3. toUpperCaseTransformer ──────────────────────────────────────────────
 
 describe('toUpperCaseTransformer', () => {
+  @Recipe
   class UpperDto {
     @Field(isString, { transform: toUpperCaseTransformer })
     value!: string;
@@ -87,6 +90,7 @@ describe('toUpperCaseTransformer', () => {
 // ─── 4. roundTransformer ────────────────────────────────────────────────────
 
 describe('roundTransformer(2)', () => {
+  @Recipe
   class RoundDto {
     @Field(isNumber(), { transform: roundTransformer(2) })
     value!: number;
@@ -107,6 +111,7 @@ describe('roundTransformer(2)', () => {
 // ─── 5. unixSecondsTransformer ──────────────────────────────────────────────
 
 describe('unixSecondsTransformer', () => {
+  @Recipe
   class UnixSecDto {
     @Field(isDate, { transform: unixSecondsTransformer })
     value!: Date;
@@ -131,6 +136,7 @@ describe('unixSecondsTransformer', () => {
 // ─── 6. unixMillisTransformer ───────────────────────────────────────────────
 
 describe('unixMillisTransformer', () => {
+  @Recipe
   class UnixMillisDto {
     @Field(isDate, { transform: unixMillisTransformer })
     value!: Date;
@@ -155,6 +161,7 @@ describe('unixMillisTransformer', () => {
 // ─── 7. isoStringTransformer ────────────────────────────────────────────────
 
 describe('isoStringTransformer', () => {
+  @Recipe
   class IsoDto {
     @Field(isDate, { transform: isoStringTransformer })
     value!: Date;
@@ -178,6 +185,7 @@ describe('isoStringTransformer', () => {
 // ─── 8. csvTransformer ──────────────────────────────────────────────────────
 
 describe('csvTransformer', () => {
+  @Recipe
   class CsvDto {
     @Field({ transform: csvTransformer(',') })
     value!: string[];
@@ -198,6 +206,7 @@ describe('csvTransformer', () => {
 // ─── 9. jsonTransformer ─────────────────────────────────────────────────────
 
 describe('jsonTransformer', () => {
+  @Recipe
   class JsonDto {
     @Field({ transform: jsonTransformer })
     value!: Record<string, unknown>;
@@ -228,6 +237,7 @@ describe('jsonTransformer', () => {
 // ─── transform array ────────────────────────────────────────────────────────
 
 describe('transform array (pipeline)', () => {
+  @Recipe
   class PipeDto {
     @Field({ transform: [trimTransformer, toLowerCaseTransformer] })
     value!: string;
@@ -248,11 +258,13 @@ describe('transform array (pipeline)', () => {
 // ─── type + transform combo ─────────────────────────────────────────────────
 
 describe('type + transform combo (jsonTransformer + nested DTO)', () => {
+  @Recipe
   class NestedDto {
     @Field(isString)
     name!: string;
   }
 
+  @Recipe
   class WrapperDto {
     @Field({ transform: jsonTransformer, type: () => NestedDto })
     nested!: NestedDto;

@@ -28,7 +28,7 @@ const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
   'debug',
 ]);
 
-let globalOptionsState: SealOptions = {};
+let globalOptionsState: SealOptions = Object.freeze({});
 
 /**
  * Baker global configuration. Call before `seal()`.
@@ -50,23 +50,23 @@ function configure(config: BakerConfig): void {
       throw new SealError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
     }
   }
-  globalOptionsState = {
+  globalOptionsState = Object.freeze({
     enableImplicitConversion: config.autoConvert ?? false,
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
     whitelist: config.forbidUnknown ?? false,
     debug: config.debug ?? false,
-  };
+  });
 }
 
-/** @internal — used by seal. Returns a frozen snapshot so internal mutations are visible only via configure(). */
+/** @internal — used by seal. Returns the frozen global options; the only way to change them is configure(). */
 function getGlobalOptions(): SealOptions {
   return globalOptionsState;
 }
 
 /** @internal — reset to defaults on unseal */
 function resetConfigForTesting(): void {
-  globalOptionsState = {};
+  globalOptionsState = Object.freeze({});
 }
 export { configure, getGlobalOptions, resetConfigForTesting };
 export type { BakerConfig };

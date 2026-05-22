@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -13,6 +13,7 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class GroupDto {
   @Field(isString)
   name!: string;
@@ -100,6 +101,7 @@ describe('groups — serialize', () => {
 // ─── E-22: groups + directional exclude combo ───────────────────────────────
 
 describe('E-22: groups + directional exclude combo', () => {
+  @Recipe
   class AdminExcludeDto {
     @Field(isString)
     name!: string;

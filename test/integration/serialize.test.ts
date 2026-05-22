@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { serialize, Field, seal } from '../../index';
+import { serialize, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SimpleSerializeDto {
   @Field(isString)
   name!: string;
@@ -14,6 +15,7 @@ class SimpleSerializeDto {
   age!: number;
 }
 
+@Recipe
 class ExposedDto {
   @Field(isString, { name: 'full_name' })
   name!: string;
@@ -22,6 +24,7 @@ class ExposedDto {
   age!: number;
 }
 
+@Recipe
 class ExcludedDto {
   @Field(isString)
   public!: string;

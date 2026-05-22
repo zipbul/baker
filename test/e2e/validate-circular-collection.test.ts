@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { validate, Field, configure, seal } from '../../index';
+import { validate, Field, Recipe, configure, seal } from '../../index';
 import { isString, minLength } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -20,6 +20,7 @@ afterEach(() => {
 // i.e., self-referencing collections reached from within an inline block.
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SetNode {
   @Field(isString, minLength(1)) value!: string;
   @Field({
@@ -30,6 +31,7 @@ class SetNode {
   children?: Set<SetNode>;
 }
 
+@Recipe
 class MapNode {
   @Field(isString, minLength(1)) value!: string;
   @Field({

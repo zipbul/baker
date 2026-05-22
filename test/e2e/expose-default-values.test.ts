@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, configure, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -12,6 +12,7 @@ afterEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class DefaultsDto {
   @Field(isString)
   name: string = 'anonymous';

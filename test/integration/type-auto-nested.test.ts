@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerError } from './helpers/assert';
+import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => seal());
@@ -12,15 +13,17 @@ afterEach(() => unseal());
 
 describe('@Type auto-nested', () => {
   it('should deserialize nested DTO with @Type alone', async () => {
+    @Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
-    seal(InnerDto);
+    sealClass(InnerDto);
+    @Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    seal(OuterDto);
+    sealClass(OuterDto);
     const result = (await deserialize<OuterDto>(OuterDto, {
       inner: { value: 'hello' },
     })) as OuterDto;
@@ -30,15 +33,17 @@ describe('@Type auto-nested', () => {
   });
 
   it('should serialize nested DTO with @Type alone', async () => {
+    @Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
-    seal(InnerDto);
+    sealClass(InnerDto);
+    @Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    seal(OuterDto);
+    sealClass(OuterDto);
     const dto = Object.assign(new OuterDto(), {
       inner: Object.assign(new InnerDto(), { value: 'world' }),
     });
@@ -47,15 +52,17 @@ describe('@Type auto-nested', () => {
   });
 
   it('should return BakerErrors for invalid nested field with @Type alone', async () => {
+    @Recipe
     class InnerDto {
       @Field(isNumber()) num!: number;
     }
-    seal(InnerDto);
+    sealClass(InnerDto);
+    @Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    seal(OuterDto);
+    sealClass(OuterDto);
     const result = await deserialize(OuterDto, {
       inner: { num: 'not a number' },
     });
@@ -67,15 +74,17 @@ describe('@Type auto-nested', () => {
 
 describe('@Type(() => [Dto]) — array auto nested', () => {
   it('should deserialize array of nested DTOs', async () => {
+    @Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    seal(ItemDto);
+    sealClass(ItemDto);
+    @Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    seal(OrderDto);
+    sealClass(OrderDto);
     const result = (await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
     })) as OrderDto;
@@ -86,15 +95,17 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should serialize array of nested DTOs', async () => {
+    @Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    seal(ItemDto);
+    sealClass(ItemDto);
+    @Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    seal(OrderDto);
+    sealClass(OrderDto);
     const dto = Object.assign(new OrderDto(), {
       items: [Object.assign(new ItemDto(), { name: 'X' }), Object.assign(new ItemDto(), { name: 'Y' })],
     });
@@ -106,30 +117,34 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should return BakerErrors with isArray error when non-array passed to @Type(() => [Dto])', async () => {
+    @Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    seal(ItemDto);
+    sealClass(ItemDto);
+    @Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    seal(OrderDto);
+    sealClass(OrderDto);
     const result = await deserialize(OrderDto, { items: 'not an array' });
     assertBakerError(result);
     expect(result.errors[0]!.code).toBe('isArray');
   });
 
   it('should validate each element in the array', async () => {
+    @Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    seal(ItemDto);
+    sealClass(ItemDto);
+    @Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    seal(OrderDto);
+    sealClass(OrderDto);
     const result = await deserialize(OrderDto, {
       items: [{ name: 'valid' }, { name: 123 }],
     });
@@ -138,15 +153,17 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should handle empty array', async () => {
+    @Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    seal(ItemDto);
+    sealClass(ItemDto);
+    @Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    seal(OrderDto);
+    sealClass(OrderDto);
     const result = (await deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
@@ -156,21 +173,23 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
 
 describe('primitive @Type — no auto nested', () => {
   it('@Type(() => Number) should not trigger nested validation', async () => {
+    @Recipe
     class PrimDto {
       @Field(isNumber(), { type: () => Number })
       value!: number;
     }
-    seal(PrimDto);
+    sealClass(PrimDto);
     const result = (await deserialize<PrimDto>(PrimDto, { value: 42 })) as PrimDto;
     expect(result.value).toBe(42);
   });
 
   it('@Type(() => String) should not trigger nested validation', async () => {
+    @Recipe
     class PrimDto {
       @Field(isString, { type: () => String })
       value!: string;
     }
-    seal(PrimDto);
+    sealClass(PrimDto);
     const result = (await deserialize<PrimDto>(PrimDto, { value: 'hello' })) as PrimDto;
     expect(result.value).toBe('hello');
   });
@@ -180,15 +199,17 @@ describe('primitive @Type — no auto nested', () => {
 
 describe('unseal + re-seal with @Type auto-nested', () => {
   it('should work correctly after unseal and re-deserialize', async () => {
+    @Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
-    seal(InnerDto);
+    sealClass(InnerDto);
+    @Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    seal(OuterDto);
+    sealClass(OuterDto);
     const result1 = (await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } })) as OuterDto;
     expect(result1.inner.value).toBe('first');
 

@@ -10,7 +10,12 @@ interface MomentLike {
 }
 
 async function momentTransformer(opts?: MomentTransformerOptions): Promise<Transformer> {
-  const moment = (await import('moment')).default;
+  let moment: typeof import('moment');
+  try {
+    moment = (await import('moment')).default;
+  } catch {
+    throw new Error("momentTransformer requires the optional peer dependency 'moment'. Install it with: bun add moment");
+  }
   // Hoist format option once so the serialize closure doesn't re-read opts per call
   const format = opts?.format;
 

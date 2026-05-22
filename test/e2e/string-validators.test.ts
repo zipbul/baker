@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import {
   isString,
   isEmail,
@@ -20,37 +20,53 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class EmailDto {
   @Field(isEmail()) email!: string;
 }
+@Recipe
 class UUIDDto {
   @Field(isUUID()) id!: string;
 }
+@Recipe
 class IPv4Dto {
   @Field(isIP(4)) ip!: string;
 }
+@Recipe
 class IPv6Dto {
   @Field(isIP(6)) ip!: string;
 }
+@Recipe
 class URLDto {
   @Field(isURL()) url!: string;
 }
+@Recipe
 class ISO8601Dto {
   @Field(isISO8601()) ts!: string;
 }
 
+@Recipe
+class ISO8601StrictDto {
+  @Field(isISO8601({ strict: true })) ts!: string;
+}
+
+@Recipe
 class MinLenDto {
   @Field(isString, minLength(3)) name!: string;
 }
+@Recipe
 class MaxLenDto {
   @Field(isString, maxLength(5)) code!: string;
 }
+@Recipe
 class LengthDto {
   @Field(isString, length(2, 10)) tag!: string;
 }
+@Recipe
 class MatchesDto {
   @Field(isString, matches(/^[a-z]+$/)) slug!: string;
 }
+@Recipe
 class ContainsDto {
   @Field(isString, contains('hello')) greeting!: string;
 }
@@ -130,6 +146,25 @@ describe('isISO8601', () => {
   });
 });
 
+// Exercises the strict-mode codegen branch (month range always, day range when present),
+// which the JS validate path tests cover but the emitted executor did not until now.
+describe('isISO8601 strict — codegen executor', () => {
+  const accept = async (ts: string) => expect(isBakerError(await deserialize(ISO8601StrictDto, { ts }))).toBe(false);
+  const reject = async (ts: string) => expect(isBakerError(await deserialize(ISO8601StrictDto, { ts }))).toBe(true);
+
+  it('accepts valid year-month and full date', async () => {
+    await accept('2021-12');
+    await accept('2021-12-31');
+  });
+  it('rejects out-of-range month', async () => {
+    await reject('2021-13');
+    await reject('2021-00');
+  });
+  it('rejects out-of-range day', async () => {
+    await reject('2021-02-30');
+  });
+});
+
 describe('minLength / maxLength', () => {
   it('MinLength passes', async () => {
     const r = (await deserialize(MinLenDto, { name: 'abc' })) as MinLenDto;
@@ -158,6 +193,7 @@ describe('length', () => {
   // Multi-length-rule field exercises insideTypeGate=true codegen path where
   // stripSelfComparison keeps 2+ non-self-comparison checks on length(min,max).
   it('length(2,10) + minLength(1) on same field — codegen shares length var', async () => {
+    @Recipe
     class MultiLenDto {
       @Field(isString, length(2, 10), minLength(1)) v!: string;
     }

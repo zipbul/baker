@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import { arrayOf, configure, deserialize, Field, isBakerError, serialize, seal } from '../../index';
+import { arrayOf, configure, deserialize, Field, Recipe, isBakerError, serialize, seal } from '../../index';
 import { isNumber, isString, min, minLength } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -13,6 +14,7 @@ afterEach(() => {
 
 describe('option combinations meta', () => {
   it('optional + autoConvert: missing value skips, present value converts and validates', async () => {
+    @Recipe
     class Dto {
       @Field(isNumber(), min(0), { optional: true })
       count?: number;
@@ -29,6 +31,7 @@ describe('option combinations meta', () => {
   });
 
   it('nullable + autoConvert: null passes, invalid string still fails', async () => {
+    @Recipe
     class Dto {
       @Field(isNumber(), { nullable: true })
       count!: number | null;
@@ -45,6 +48,7 @@ describe('option combinations meta', () => {
 
   it('when + transform: skipped fields are not assigned, active fields are transformed and validated', async () => {
     seal();
+    @Recipe
     class Dto {
       enabled!: boolean;
 
@@ -57,7 +61,7 @@ describe('option combinations meta', () => {
       })
       code!: string;
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const skipped = (await deserialize<Dto>(Dto, { enabled: false, code: ' x ' })) as Dto;
     expect('code' in skipped).toBe(false);
@@ -67,6 +71,7 @@ describe('option combinations meta', () => {
   });
 
   it('whitelist + directional name mapping only allows mapped input keys', async () => {
+    @Recipe
     class Dto {
       @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
       name!: string;
@@ -85,6 +90,7 @@ describe('option combinations meta', () => {
 
   it('groups affect deserialize visibility and serialize output consistently', async () => {
     seal();
+    @Recipe
     class Dto {
       @Field(isString)
       publicName!: string;
@@ -92,7 +98,7 @@ describe('option combinations meta', () => {
       @Field(isString, { groups: ['admin'] })
       secret!: string;
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const publicParsed = (await deserialize<Dto>(Dto, {
       publicName: 'alice',
@@ -120,11 +126,12 @@ describe('option combinations meta', () => {
 
   it('arrayOf + optional validates only when present', async () => {
     seal();
+    @Recipe
     class Dto {
       @Field(arrayOf(isString, minLength(2)), { optional: true })
       tags?: string[];
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const missing = (await deserialize<Dto>(Dto, {})) as Dto;
     expect(missing.tags).toBeUndefined();

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isNumber, isInt, isPositive, isNegative, isDivisibleBy } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -9,19 +9,24 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class PositiveDto {
   @Field(isPositive) val!: number;
 }
+@Recipe
 class NegativeDto {
   @Field(isNegative) val!: number;
 }
+@Recipe
 class DivisibleDto {
   @Field(isDivisibleBy(3)) val!: number;
 }
+@Recipe
 class IntDto {
   @Field(isInt) val!: number;
 }
 
+@Recipe
 class NumberOptsDto {
   @Field(isNumber({ allowNaN: true }))
   nanOk!: number;

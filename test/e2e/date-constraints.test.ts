@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import { isDate, minDate, maxDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -12,11 +12,13 @@ afterEach(() => unseal());
 const MIN = new Date('2020-01-01T00:00:00.000Z');
 const MAX = new Date('2025-12-31T23:59:59.999Z');
 
+@Recipe
 class DateRangeDto {
   @Field(isDate, minDate(MIN), maxDate(MAX))
   eventDate!: Date;
 }
 
+@Recipe
 class DateOnlyMinDto {
   @Field(isDate, minDate(MIN))
   start!: Date;

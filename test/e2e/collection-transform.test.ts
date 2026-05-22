@@ -1,9 +1,10 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, configure, isBakerError, seal } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, isNumber, minLength } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -12,51 +13,60 @@ afterEach(() => unseal());
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 // Set<primitive>
+@Recipe
 class PrimitiveSetDto {
   @Field({ type: () => Set })
   tags!: Set<string>;
 }
 
 // Set<DTO>
+@Recipe
 class TagDto {
   @Field(isString, minLength(1))
   name!: string;
 }
 
+@Recipe
 class NestedSetDto {
   @Field({ type: () => Set, setValue: () => TagDto })
   tags!: Set<TagDto>;
 }
 
 // Map<string, primitive>
+@Recipe
 class PrimitiveMapDto {
   @Field({ type: () => Map })
   config!: Map<string, unknown>;
 }
 
 // Map<string, DTO>
+@Recipe
 class PriceDto {
   @Field(isNumber())
   amount!: number;
 }
 
+@Recipe
 class NestedMapDto {
   @Field({ type: () => Map, mapValue: () => PriceDto })
   prices!: Map<string, PriceDto>;
 }
 
 // Set with validation rules
+@Recipe
 class ValidatedSetDto {
   @Field(arrayOf(isString, minLength(2)), { type: () => Set })
   items!: Set<string>;
 }
 
 // Optional/nullable collection
+@Recipe
 class OptionalSetDto {
   @Field({ type: () => Set, optional: true })
   tags?: Set<string>;
 }
 
+@Recipe
 class NullableMapDto {
   @Field({ type: () => Map, nullable: true })
   data!: Map<string, unknown> | null;
@@ -345,11 +355,12 @@ describe('stopAtFirstError — collection', () => {
   it('Set<DTO> stopAtFirstError → only first error returned', async () => {
     configure({ stopAtFirstError: true });
 
+    @Recipe
     class StopSetDto {
       @Field({ type: () => Set, setValue: () => TagDto })
       items!: Set<TagDto>;
     }
-    seal(StopSetDto);
+    sealClass(StopSetDto);
 
     const result = await deserialize(StopSetDto, {
       items: [{ name: '' }, { name: '' }, { name: '' }],
@@ -363,11 +374,12 @@ describe('stopAtFirstError — collection', () => {
     configure({ stopAtFirstError: true });
     seal();
 
+    @Recipe
     class StopMapDto {
       @Field({ type: () => Map, mapValue: () => PriceDto })
       data!: Map<string, PriceDto>;
     }
-    seal(StopMapDto);
+    sealClass(StopMapDto);
 
     const result = await deserialize(StopMapDto, {
       data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
@@ -405,9 +417,11 @@ describe('collectErrors — collection', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Map non-string key throws at serialize', () => {
+  @Recipe
   class MapItemDto {
     @Field(isString) v!: string;
   }
+  @Recipe
   class NonStringKeyMapDto {
     @Field({ type: () => Map, setValue: () => MapItemDto })
     entries!: Map<unknown, MapItemDto>;
@@ -431,6 +445,7 @@ describe('Map non-string key throws at serialize', () => {
 });
 
 describe('primitive Map non-string key throws at serialize', () => {
+  @Recipe
   class PrimMapDto {
     @Field({ type: () => Map })
     m!: Map<unknown, string>;

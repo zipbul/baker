@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, seal } from '../../index';
+import { Field, Recipe, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -10,6 +10,7 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SimpleDto {
   @Field(isString)
   name!: string;

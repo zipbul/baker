@@ -163,7 +163,7 @@ export interface PropertyFlags {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RawPropertyMeta — Collection data stored in Class[RAW][propertyKey] (§2.1)
+// RawPropertyMeta — Collection data stored in Class[Symbol.metadata][RAW][propertyKey] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface RawPropertyMeta {

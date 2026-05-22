@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, validate, Field, isBakerError, configure, seal } from '../../index';
+import { deserialize, validate, Field, Recipe, isBakerError, configure, seal } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -36,6 +36,7 @@ function expectSameErrors(desResult: unknown, valResult: unknown, _label: string
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — flat DTO', () => {
+  @Recipe
   class Flat {
     @Field(isString, minLength(1)) name!: string;
     @Field(isNumber(), min(0)) age!: number;
@@ -66,10 +67,12 @@ describe('validate inline parity — flat DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — single nested', () => {
+  @Recipe
   class Address {
     @Field(isString) street!: string;
     @Field(isString) city!: string;
   }
+  @Recipe
   class Person {
     @Field(isString) name!: string;
     @Field({ type: () => Address }) address!: Address;
@@ -111,10 +114,12 @@ describe('validate inline parity — single nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — array of nested', () => {
+  @Recipe
   class Item {
     @Field(isString, minLength(1)) name!: string;
     @Field(isNumber(), min(0)) price!: number;
   }
+  @Recipe
   class Cart {
     @Field(arrayMinSize(1), { type: () => [Item] }) items!: Item[];
   }
@@ -171,18 +176,23 @@ describe('validate inline parity — array of nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — deep nesting (5 levels)', () => {
+  @Recipe
   class L4 {
     @Field(isString) v!: string;
   }
+  @Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
+  @Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
+  @Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
+  @Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
@@ -217,36 +227,47 @@ describe('validate inline parity — deep nesting (5 levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — very deep nesting (11 levels)', () => {
+  @Recipe
   class L10 {
     @Field(isString) v!: string;
   }
+  @Recipe
   class L9 {
     @Field({ type: () => L10 }) c!: L10;
   }
+  @Recipe
   class L8 {
     @Field({ type: () => L9 }) c!: L9;
   }
+  @Recipe
   class L7 {
     @Field({ type: () => L8 }) c!: L8;
   }
+  @Recipe
   class L6 {
     @Field({ type: () => L7 }) c!: L7;
   }
+  @Recipe
   class L5 {
     @Field({ type: () => L6 }) c!: L6;
   }
+  @Recipe
   class L4 {
     @Field({ type: () => L5 }) c!: L5;
   }
+  @Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
+  @Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
+  @Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
+  @Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
@@ -277,13 +298,16 @@ describe('validate inline parity — very deep nesting (11 levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — nested array within nested object', () => {
+  @Recipe
   class Tag {
     @Field(isString) label!: string;
   }
+  @Recipe
   class Product {
     @Field(isString) name!: string;
     @Field({ type: () => [Tag] }) tags!: Tag[];
   }
+  @Recipe
   class Store {
     @Field(isString) storeName!: string;
     @Field({ type: () => [Product] }) products!: Product[];
@@ -319,9 +343,11 @@ describe('validate inline parity — nested array within nested object', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — optional/nullable nested', () => {
+  @Recipe
   class Inner {
     @Field(isString) val!: string;
   }
+  @Recipe
   class Outer {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => Inner }) opt?: Inner;
@@ -358,13 +384,16 @@ describe('validate inline parity — optional/nullable nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — mixed DTO', () => {
+  @Recipe
   class Coord {
     @Field(isNumber()) lat!: number;
     @Field(isNumber()) lng!: number;
   }
+  @Recipe
   class Label {
     @Field(isString) text!: string;
   }
+  @Recipe
   class Marker {
     @Field(isString, minLength(1)) title!: string;
     @Field(isNumber(), min(0), max(100)) priority!: number;
@@ -400,9 +429,11 @@ describe('validate inline parity — mixed DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — stopAtFirstError', () => {
+  @Recipe
   class Inner {
     @Field(isString) v!: string;
   }
+  @Recipe
   class Root {
     @Field({ type: () => [Inner] }) items!: Inner[];
   }
@@ -430,6 +461,7 @@ describe('validate inline parity — stopAtFirstError', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — invalidInput', () => {
+  @Recipe
   class Dto {
     @Field(isString) x!: string;
   }
@@ -461,12 +493,15 @@ describe('validate inline parity — invalidInput', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator', () => {
+  @Recipe
   class Dog {
     @Field(isString) breed!: string;
   }
+  @Recipe
   class Cat {
     @Field(isString) color!: string;
   }
+  @Recipe
   class Owner {
     @Field(isString) name!: string;
     @Field({
@@ -518,9 +553,11 @@ describe('validate inline parity — discriminator', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — transform + nested', () => {
+  @Recipe
   class Inner {
     @Field(isNumber()) val!: number;
   }
+  @Recipe
   class Outer {
     @Field(isString, {
       transform: {
@@ -550,9 +587,11 @@ describe('validate inline parity — transform + nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — @Field name mapping', () => {
+  @Recipe
   class Inner {
     @Field(isString) v!: string;
   }
+  @Recipe
   class Outer {
     @Field(isString, { name: 'user_name' }) userName!: string;
     @Field({ type: () => Inner, name: 'nested_obj' }) nested!: Inner;
@@ -576,9 +615,11 @@ describe('validate inline parity — @Field name mapping', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — groups', () => {
+  @Recipe
   class Inner {
     @Field(isString) v!: string;
   }
+  @Recipe
   class Outer {
     @Field(isString) name!: string;
     @Field(isString, { groups: ['admin'] }) secret!: string;
@@ -617,9 +658,11 @@ describe('validate inline parity — groups', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — autoConvert', () => {
+  @Recipe
   class Inner {
     @Field(isNumber()) val!: number;
   }
+  @Recipe
   class Outer {
     @Field(isNumber()) age!: number;
     @Field({ type: () => Inner }) nested!: Inner;
@@ -645,6 +688,7 @@ describe('validate inline parity — autoConvert', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — circular reference', () => {
+  @Recipe
   class TreeNode {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => TreeNode }) child?: TreeNode;
@@ -674,6 +718,7 @@ describe('validate inline parity — circular reference', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — circular array of self', () => {
+  @Recipe
   class TreeNode {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => [TreeNode] }) children?: TreeNode[];
@@ -703,12 +748,15 @@ describe('validate inline parity — circular array of self', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator array', () => {
+  @Recipe
   class Dog {
     @Field(isString) breed!: string;
   }
+  @Recipe
   class Cat {
     @Field(isString) color!: string;
   }
+  @Recipe
   class Shelter {
     @Field({
       type: () => [Object],

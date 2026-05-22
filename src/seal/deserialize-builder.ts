@@ -405,7 +405,7 @@ function generateFieldCode(fieldKey: string, meta: RawPropertyMeta, ctx: FieldCo
     if (!meta.exclude.serializeOnly) {
       if (ctx.options?.debug) {
         const reason = meta.exclude.deserializeOnly ? 'deserializeOnly' : 'bidirectional';
-        return `// [baker] field "${fieldKey}" excluded (${reason} @Exclude)\n`;
+        return `// [baker] field ${JSON.stringify(fieldKey)} excluded (${reason} @Exclude)\n`;
       }
       return '';
     }
@@ -415,7 +415,7 @@ function generateFieldCode(fieldKey: string, meta: RawPropertyMeta, ctx: FieldCo
   // If all @Expose entries are serializeOnly, skip field
   if (meta.expose.length > 0 && meta.expose.every(e => e.serializeOnly)) {
     if (ctx.options?.debug) {
-      return `// [baker] field "${fieldKey}" excluded (all @Expose entries are serializeOnly)\n`;
+      return `// [baker] field ${JSON.stringify(fieldKey)} excluded (all @Expose entries are serializeOnly)\n`;
     }
     return '';
   }
@@ -446,10 +446,13 @@ function generateFieldCode(fieldKey: string, meta: RawPropertyMeta, ctx: FieldCo
     const defaultsSource = ctx.validateOnly ? '__bk$defs' : GEN.out;
     extractCode = `var ${varName} = Object.hasOwn(${inputObj}, ${extractKeyJson}) ? ${inputObj}[${extractKeyJson}] : ${defaultsSource}[${JSON.stringify(fieldKey)}];\n`;
   } else {
-    // Direct property access — prototype-pollution defense is delegated to the entry-level
-    // input gate (typeof === 'object' && !Array.isArray && constructor check) plus the per-rule
-    // typeof / instanceof checks. Removing the per-field Object.hasOwn ternary measured ~10 ns
-    // savings on 5-field DTOs (Bun 1.3.13 / i7-13700K).
+    // Direct property access (own or inherited), matching the fast-validator norm (e.g. ajv).
+    // A per-field `Object.hasOwn` guard would read own-only but cost ~10 ns per 5-field DTO
+    // (Bun 1.3.13 / i7-13700K) — a ~30% regression on the hot path. The only case it would change
+    // is an input whose prototype chain carries a declared field name, which requires a global
+    // `Object.prototype` pollution introduced elsewhere (a separate, pre-existing app vulnerability
+    // — baker's own input gate rejects `__proto__` payloads). Normal inputs (JSON.parse, framework
+    // request bodies) are always own-keyed, so this never triggers in practice.
     extractCode = `var ${varName} = ${inputObj}[${extractKeyJson}];\n`;
   }
 
@@ -1409,7 +1412,7 @@ function generateNestedCode(
       const awaitKwD = ctx.isAsync ? 'await ' : '';
       code += `  case ${JSON.stringify(sub.name)}:\n`;
       code += `    var ${GEN.result}${sk} = ${awaitKwD}execs[${execIdx}].deserialize(${varName}, opts);\n`;
-      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
+      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors, ctx.pathPrefix);
       code += `    break;\n`;
     }
     const validSubTypeNamesJson = JSON.stringify(meta.type.discriminator.subTypes.map(s => s.name));
@@ -1475,9 +1478,9 @@ function generateNestedCode(
       code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
       const awaitKwS = ctx.isAsync ? 'await ' : '';
-      code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
+      code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
       code += `  var ${GEN.result}${sk} = ${awaitKwS}execs[${execIdx}].deserialize(${varName}, opts);\n`;
-      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors);
+      code += generateNestedResultCode(fieldKey, `${GEN.result}${sk}`, collectErrors, ctx.pathPrefix);
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
   }
@@ -1485,14 +1488,17 @@ function generateNestedCode(
   return code;
 }
 
-function generateNestedResultCode(fieldKey: string, resultVar: string, collectErrors: boolean): string {
+function generateNestedResultCode(fieldKey: string, resultVar: string, collectErrors: boolean, pathPrefix?: string): string {
   const sk = sanitizeKey(fieldKey);
+  // Prepend the current scope's path prefix so an executor reached from inside an inlined block
+  // (e.g. a circular nested DTO) keeps the full path, not just `fieldKey.`.
+  const ppValue = pathPrefix ? `${pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
   if (collectErrors) {
     const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
     return (
       `  if (isErr(${resultVar})) {\n` +
       `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
-      `    var __bk$pp${sk} = ${JSON.stringify(fieldKey + '.')};\n` +
+      `    var __bk$pp${sk} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
       nestedErrPush(GEN.errList, `__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
@@ -1504,7 +1510,7 @@ function generateNestedResultCode(fieldKey: string, resultVar: string, collectEr
   return (
     `  if (isErr(${resultVar})) {\n` +
     `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
-    `    var __bk$pp${sk} = ${JSON.stringify(fieldKey + '.')};\n` +
+    `    var __bk$pp${sk} = ${ppValue};\n` +
     `    ` +
     nestedErrReturn(`__bk$pp${sk}+${errFirst}.path`, errFirst, `__ne${sk}`) +
     `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`
@@ -1589,7 +1595,7 @@ function generateNestedCodeValidateOnly(
         execs.push(subSealed);
         const awaitKw = ctx.isAsync ? 'await ' : '';
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}, opts);\n`;
-        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
+        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors, ctx.pathPrefix);
       }
       code += `    break;\n`;
     }
@@ -1651,7 +1657,10 @@ function generateNestedCodeValidateOnly(
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
-        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        const ppInit = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        code += `      var ${ppVar} = ${ppInit};\n`;
         if (collectErrors) {
           code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
           code +=
@@ -1672,8 +1681,9 @@ function generateNestedCodeValidateOnly(
       code += `  }\n`;
       code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
-      // Single nested object
-      code += `if (${varName} != null && typeof ${varName} === 'object') {\n`;
+      // Single nested object — arrays are objects by `typeof` but are not valid nested DTOs;
+      // reject them here (matching the deserialize path) instead of descending into their fields.
+      code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
 
       if (useInline) {
         const ppExpr = ctx.pathPrefix ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
@@ -1684,7 +1694,7 @@ function generateNestedCodeValidateOnly(
         execs.push(nestedSealed);
         const awaitKw = ctx.isAsync ? 'await ' : '';
         code += `  var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}, opts);\n`;
-        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors);
+        code += generateValidateNestedResult(fieldKey, `${GEN.result}${sk}`, collectErrors, ctx.pathPrefix);
       }
 
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
@@ -1694,14 +1704,16 @@ function generateNestedCodeValidateOnly(
 }
 
 /** Generate validate-mode nested result handling (null check instead of isErr) */
-function generateValidateNestedResult(fieldKey: string, resultVar: string, collectErrors: boolean): string {
+function generateValidateNestedResult(fieldKey: string, resultVar: string, collectErrors: boolean, pathPrefix?: string): string {
   const sk = sanitizeKey(fieldKey);
   const ppVar = `__bk$pp${sk}`;
+  // Prepend the current scope's path prefix (see generateNestedResultCode).
+  const ppValue = pathPrefix ? `${pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
   if (collectErrors) {
     const errItem = `${resultVar}[${GEN.nestedIdx}${sk}]`;
     return (
       `  if (${resultVar} !== null) {\n` +
-      `    var ${ppVar} = ${JSON.stringify(fieldKey + '.')};\n` +
+      `    var ${ppVar} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${resultVar}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
       nestedErrPush(GEN.errList, `${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
@@ -1712,7 +1724,7 @@ function generateValidateNestedResult(fieldKey: string, resultVar: string, colle
   const errFirst = `${resultVar}[0]`;
   return (
     `  if (${resultVar} !== null) {\n` +
-    `    var ${ppVar} = ${JSON.stringify(fieldKey + '.')};\n` +
+    `    var ${ppVar} = ${ppValue};\n` +
     `    ` +
     nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`, true) +
     `  }\n`
@@ -1787,7 +1799,10 @@ function generateCollectionCodeValidateOnly(
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
-        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
+        const ppInit = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
+        code += `      var ${ppVar} = ${ppInit};\n`;
         if (collectErrors) {
           code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
           code +=
@@ -1822,7 +1837,10 @@ function generateCollectionCodeValidateOnly(
             : `return [{path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}}]`;
         const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
         if (!code.includes(`var ${prefixVar}`)) {
-          code += `  var ${prefixVar} = ${JSON.stringify(fieldKey)}+'[';\n`;
+          const prefixInit = ctx.pathPrefix
+            ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['`
+            : `${JSON.stringify(fieldKey)}+'['`;
+          code += `  var ${prefixVar} = ${prefixInit};\n`;
         }
         code += `    ${rd.rule.emit(`${varName}[${eiVar}]`, colEmitCtx)}\n`;
       }
@@ -1865,7 +1883,10 @@ function generateCollectionCodeValidateOnly(
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${kVar}], opts);\n`;
         code += `    if (${GEN.result}${sk} !== null) {\n`;
         const ppVar = `__bk$pp${sk}`;
-        code += `      var ${ppVar} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
+        const ppInit = ctx.pathPrefix
+          ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`
+          : `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`;
+        code += `      var ${ppVar} = ${ppInit};\n`;
         if (collectErrors) {
           code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
           code +=

@@ -1,6 +1,6 @@
 import { bench, group, run } from 'mitata';
 
-import { createRule, deserialize, Field } from '../index';
+import { createRule, deserialize, Field, Recipe, seal } from '../index';
 import { isString } from '../src/rules/index';
 
 const directRule = (value: unknown) => typeof value === 'string';
@@ -9,16 +9,19 @@ const wrappedRule = createRule({
   validate: directRule,
 });
 
+@Recipe
 class BuiltinDto {
   @Field(isString)
   value!: string;
 }
 
+@Recipe
 class CustomRuleDto {
   @Field(wrappedRule)
   value!: string;
 }
 
+@Recipe
 class TransformDto {
   @Field(isString, {
     transform: {
@@ -30,6 +33,7 @@ class TransformDto {
 }
 
 // Warm seal
+seal();
 deserialize(BuiltinDto, { value: 'x' });
 deserialize(CustomRuleDto, { value: 'x' });
 deserialize(TransformDto, { value: 'x' });

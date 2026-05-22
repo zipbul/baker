@@ -81,9 +81,9 @@ Returns `Record<string, unknown>` for sync DTOs, `Promise<Record<string, unknown
 
 Strict variants. `serializeSync` throws `SealError` if the DTO is async on the serialize side.
 
-### `validate(Class, input, options?)` / `validate(input, ...rules)`
+### `validate(Class, input, options?)`
 
-DTO-level or ad-hoc single-value validation. Returns `true | BakerErrors` for sync paths, `Promise<true | BakerErrors>` for async paths.
+Validates `input` against a decorated class's schema. Returns `true | BakerErrors` for sync paths, `Promise<true | BakerErrors>` for async paths. To validate a single primitive without a DTO, call the rule directly (e.g. `isEmail()(value)`).
 
 ### `validateSync` / `validateAsync`
 

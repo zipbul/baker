@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -20,6 +20,7 @@ import {
   arrayMinSize,
   arrayMaxSize,
 } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -46,6 +47,7 @@ async function ok<T extends { v: unknown }>(cls: new (...args: never[]) => T, in
 // ─── @IsNumber boundary values ──────────────────────────────────────────────
 
 describe('@IsNumber boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isNumber()) v!: number;
   }
@@ -74,6 +76,7 @@ describe('@IsNumber boundary values', () => {
 });
 
 describe('@IsNumber({ allowNaN: true }) NaN allowed', () => {
+  @Recipe
   class Dto {
     @Field(isNumber({ allowNaN: true })) v!: number;
   }
@@ -84,6 +87,7 @@ describe('@IsNumber({ allowNaN: true }) NaN allowed', () => {
 });
 
 describe('@IsNumber({ allowInfinity: true }) Infinity allowed', () => {
+  @Recipe
   class Dto {
     @Field(isNumber({ allowInfinity: true })) v!: number;
   }
@@ -96,6 +100,7 @@ describe('@IsNumber({ allowInfinity: true }) Infinity allowed', () => {
 });
 
 describe('@IsNumber({ maxDecimalPlaces: 2 }) decimal limit', () => {
+  @Recipe
   class Dto {
     @Field(isNumber({ maxDecimalPlaces: 2 })) v!: number;
   }
@@ -116,6 +121,7 @@ describe('@IsNumber({ maxDecimalPlaces: 2 }) decimal limit', () => {
 // ─── @IsPositive / @IsNegative boundary values ──────────────────────────────
 
 describe('@IsPositive boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isPositive) v!: number;
   }
@@ -128,6 +134,7 @@ describe('@IsPositive boundary values', () => {
 });
 
 describe('@IsNegative boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isNegative) v!: number;
   }
@@ -142,6 +149,7 @@ describe('@IsNegative boundary values', () => {
 // ─── @IsInt boundary values ──────────────────────────────────────────────────
 
 describe('@IsInt boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isInt) v!: number;
   }
@@ -162,6 +170,7 @@ describe('@IsInt boundary values', () => {
 // ─── @Min / @Max boundary values ────────────────────────────────────────────
 
 describe('@Min boundary values', () => {
+  @Recipe
   class Dto {
     @Field(min(5)) v!: number;
   }
@@ -177,6 +186,7 @@ describe('@Min boundary values', () => {
 });
 
 describe('@Max boundary values', () => {
+  @Recipe
   class Dto {
     @Field(max(10)) v!: number;
   }
@@ -194,6 +204,7 @@ describe('@Max boundary values', () => {
 // ─── @MinLength / @MaxLength boundary values ────────────────────────────────
 
 describe('@MinLength boundary values', () => {
+  @Recipe
   class Dto {
     @Field(minLength(3)) v!: string;
   }
@@ -209,6 +220,7 @@ describe('@MinLength boundary values', () => {
 });
 
 describe('@MaxLength boundary values', () => {
+  @Recipe
   class Dto {
     @Field(maxLength(5)) v!: string;
   }
@@ -223,6 +235,7 @@ describe('@MaxLength boundary values', () => {
 // ─── @IsPort boundary values ────────────────────────────────────────────────
 
 describe('@IsPort boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isPort) v!: string;
   }
@@ -246,6 +259,7 @@ describe('@IsPort boundary values', () => {
 // ─── @IsLatitude / @IsLongitude boundary values ──────────────────────────────
 
 describe('@IsLatitude boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isLatitude) v!: string;
   }
@@ -264,6 +278,7 @@ describe('@IsLatitude boundary values', () => {
 });
 
 describe('@IsLongitude boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isLongitude) v!: string;
   }
@@ -281,6 +296,7 @@ describe('@IsLongitude boundary values', () => {
 // ─── @IsMilitaryTime boundary values ────────────────────────────────────────
 
 describe('@IsMilitaryTime boundary values', () => {
+  @Recipe
   class Dto {
     @Field(isMilitaryTime) v!: string;
   }
@@ -301,6 +317,7 @@ describe('@IsMilitaryTime boundary values', () => {
 // ─── @ArrayMinSize / @ArrayMaxSize boundary values ──────────────────────────
 
 describe('@ArrayMinSize boundary values', () => {
+  @Recipe
   class Dto {
     @Field(arrayMinSize(2)) v!: number[];
   }
@@ -316,6 +333,7 @@ describe('@ArrayMinSize boundary values', () => {
 });
 
 describe('@ArrayMaxSize boundary values', () => {
+  @Recipe
   class Dto {
     @Field(arrayMaxSize(3)) v!: number[];
   }
@@ -330,6 +348,7 @@ describe('@ArrayMaxSize boundary values', () => {
 // ─── @IsString with various types ───────────────────────────────────────────
 
 describe('@IsString with non-string types', () => {
+  @Recipe
   class Dto {
     @Field(isString) v!: string;
   }
@@ -353,6 +372,7 @@ describe('@IsString with non-string types', () => {
 // ─── @IsBoolean with similar values ─────────────────────────────────────────
 
 describe('@IsBoolean with similar values', () => {
+  @Recipe
   class Dto {
     @Field(isBoolean) v!: boolean;
   }
@@ -374,27 +394,30 @@ describe('@IsBoolean with similar values', () => {
 
 describe('E-13: -0, NaN, Infinity edge cases', () => {
   it('isNegative(-0) → false (0 is not negative)', async () => {
+    @Recipe
     class Dto {
       @Field(isNegative) v!: number;
     }
-    seal(Dto);
+    sealClass(Dto);
     expect(await failCode(Dto, { v: -0 })).toBe('isNegative');
   });
 
   it('isPositive(NaN) rejected to match runtime rule semantics', async () => {
+    @Recipe
     class Dto {
       @Field(isPositive) v!: number;
     }
-    seal(Dto);
+    sealClass(Dto);
     expect(isPositive(NaN)).toBe(false);
     expect(isBakerError(await deserialize(Dto, { v: NaN }))).toBe(true);
   });
 
   it('@Field(isNumber(), isPositive) rejects NaN via isNumber gate', async () => {
+    @Recipe
     class Dto {
       @Field(isNumber(), isPositive) v!: number;
     }
-    seal(Dto);
+    sealClass(Dto);
     expect(isBakerError(await deserialize(Dto, { v: NaN }))).toBe(true);
   });
 

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import type { SealedExecutors } from '../../src/types';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
 import { getSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -12,6 +12,7 @@ afterEach(() => unseal());
 
 // ─── sync DTO (no async transform) ──────────────────────────────────────────
 
+@Recipe
 class SyncDto {
   @Field(isString)
   name!: string;
@@ -22,6 +23,7 @@ class SyncDto {
 
 // ─── async DTO (has async transform) ────────────────────────────────────────
 
+@Recipe
 class AsyncDto {
   @Field(isString, {
     transform: {

@@ -7,7 +7,7 @@ export { createRule } from './src/create-rule';
 export { seal } from './src/seal/seal';
 
 // Decorators
-export { Field, arrayOf } from './src/decorators/index';
+export { Field, arrayOf, Recipe } from './src/decorators/index';
 export type { FieldOptions, ArrayOfMarker } from './src/decorators/index';
 
 // Errors

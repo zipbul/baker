@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import {
   Field,
+  Recipe,
   deserializeSync,
   deserializeAsync,
   validateSync,
@@ -15,10 +16,12 @@ import {
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
+@Recipe
 class SyncDto {
   @Field(isString) name!: string;
 }
 
+@Recipe
 class AsyncDeserDto {
   @Field(isString, {
     transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
@@ -26,6 +29,7 @@ class AsyncDeserDto {
   name!: string;
 }
 
+@Recipe
 class AsyncSerDto {
   @Field(isNumber(), {
     transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },

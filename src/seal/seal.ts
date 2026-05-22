@@ -1,5 +1,5 @@
 import type { SealOptions } from '../interfaces';
-import type { ClassCtor, RawClassMeta, SealedExecutors } from '../types';
+import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 
 import { getGlobalOptions } from '../configure';
 import { SealError } from '../errors';
@@ -39,9 +39,29 @@ function circularPlaceholder(className: string): SealedExecutors<unknown> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serialize', visited?: Set<Function>): boolean {
-  const v = visited ?? new Set<Function>();
+  const flag = direction === 'deserialize' ? 'isAsync' : 'isSerializeAsync';
+  const seen = visited ?? new Set<Function>();
+
+  // sealOne seals every nested DTO (step 4) before this runs (step 5). For a fully-sealed nested
+  // class its `isAsync`/`isSerializeAsync` flag is authoritative and already accounts for ITS nested
+  // classes — so trusting the flag propagates async through any nesting depth (re-deriving from
+  // metadata would lose `resolvedClass` past depth 1). A class still being sealed carries a
+  // placeholder executor (no `merged`); that only happens on a circular back-edge, where the flag
+  // is not yet known — there we recurse into the class's own metadata, guarded by `seen`.
+  const nestedIsAsync = (cls: Function): boolean => {
+    if (seen.has(cls)) {
+      return false;
+    }
+    seen.add(cls);
+    const sealed = getSealed(cls);
+    if (sealed?.merged) {
+      return sealed[flag] === true;
+    }
+    return analyzeAsync(mergeInheritance(cls), direction, seen);
+  };
+
   for (const meta of Object.values(merged)) {
-    // 1. createRule may return Promise<boolean> even without `async` syntax.
+    // 1. createRule may return Promise<boolean> even without `async` syntax (deserialize only).
     if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {
       return true;
     }
@@ -54,42 +74,51 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
         return true;
       }
     }
-    // 3. nested DTO async — use resolvedClass (post-normalization), fallback to fn() if not normalized
-    if (meta.type?.resolvedClass) {
-      const nestedClass = meta.type.resolvedClass;
-      if (!v.has(nestedClass)) {
-        v.add(nestedClass);
-        const nestedMerged = mergeInheritance(nestedClass);
-        if (analyzeAsync(nestedMerged, direction, v)) {
-          return true;
-        }
-      }
-    }
-    // discriminator subTypes
-    if (meta.type?.discriminator) {
-      for (const sub of meta.type.discriminator.subTypes) {
-        if (!v.has(sub.value)) {
-          v.add(sub.value);
-          const subMerged = mergeInheritance(sub.value);
-          if (analyzeAsync(subMerged, direction, v)) {
-            return true;
-          }
-        }
-      }
-    }
-    // Set/Map nested DTO (collectionValue) — propagate async from value DTO to parent
-    if (meta.type?.resolvedCollectionValue) {
-      const valueClass = meta.type.resolvedCollectionValue;
-      if (!v.has(valueClass)) {
-        v.add(valueClass);
-        const valueMerged = mergeInheritance(valueClass);
-        if (analyzeAsync(valueMerged, direction, v)) {
-          return true;
-        }
-      }
+    // 3. nested DTOs (direct, Set/Map value, discriminator subtypes)
+    if (nestedClassesOf(meta).some(nestedIsAsync)) {
+      return true;
     }
   }
   return false;
+}
+
+/**
+ * Nested DTO classes referenced by a field's type. Prefers normalized `resolved*` slots, but
+ * falls back to resolving the raw `type.fn()` thunk — needed when `analyzeAsync` recurses into a
+ * still-being-sealed class on a circular back-edge whose metadata was never normalized.
+ */
+function nestedClassesOf(meta: RawPropertyMeta): Function[] {
+  const t = meta.type;
+  if (!t) {
+    return [];
+  }
+  const out: Function[] = [];
+  if (t.resolvedClass) {
+    out.push(t.resolvedClass);
+  }
+  if (t.resolvedCollectionValue) {
+    out.push(t.resolvedCollectionValue);
+  }
+  if (t.discriminator) {
+    for (const sub of t.discriminator.subTypes) {
+      out.push(sub.value);
+    }
+  }
+  if (out.length === 0 && t.fn) {
+    const result = t.fn();
+    if (result === Map || result === Set) {
+      const cv = t.collectionValue?.();
+      if (typeof cv === 'function' && !PRIMITIVE_CTORS.has(cv)) {
+        out.push(cv);
+      }
+    } else {
+      const resolved = Array.isArray(result) ? (result as unknown[])[0] : result;
+      if (typeof resolved === 'function' && !PRIMITIVE_CTORS.has(resolved)) {
+        out.push(resolved as Function);
+      }
+    }
+  }
+  return out;
 }
 
 // Seal state lives in ./seal-state so `configure.ts` can read it without importing this file
@@ -119,22 +148,22 @@ function sealAllRegistered(): void {
     return;
   }
   const options = getGlobalOptions();
+  const sealed = new Set<Function>();
 
   try {
     for (const Class of globalRegistry) {
-      sealOne(Class, options);
+      sealOne(Class, options, sealed);
     }
   } catch (e) {
-    // On failure, clean up stale placeholders — prevent partial seal state
-    for (const Class of globalRegistry) {
-      if (hasSealedOwn(Class)) {
-        deleteSealed(Class);
-      }
+    // On failure, roll back every class sealed so far (including nested DTOs) — prevent
+    // partial seal state. The failed class self-cleaned its own placeholder in sealOne.
+    for (const Class of sealed) {
+      deleteSealed(Class);
     }
     throw e;
   }
 
-  for (const Class of globalRegistry) {
+  for (const Class of sealed) {
     sealedClasses.add(Class);
     freezeRaw(Class);
   }
@@ -143,47 +172,31 @@ function sealAllRegistered(): void {
 }
 
 /**
- * Seal a single late-registered class (e.g. dynamic import after the main `seal()`).
- * Class[RAW] must exist; Class[SEALED] must not.
- * Transactional: on failure, any placeholder installed by sealOne is removed so a future
- * seal(Class) call can re-attempt cleanly.
+ * Seal a single class (and its nested DTOs). Not part of the public API — `seal()` (argless)
+ * is the only public entry. Exposed via `__testing__.sealClass` so tests can seal one class in
+ * isolation. Class[Symbol.metadata][RAW] must exist; Class[SEALED] must not.
+ * Transactional: on failure, every placeholder installed by this call (the class and any
+ * nested DTO reached by recursion) is removed so a future seal attempt can re-run cleanly.
  */
 function sealOneClass(Class: Function): void {
   if (hasSealedOwn(Class)) {
     return;
   }
-  if (!hasRawOwn(Class)) {
-    throw new SealError(
-      `${Class.name}: cannot seal a class that has no @Field decorators. ` +
-        `seal(${Class.name}) is a no-op unless ${Class.name} has at least one @Field.`,
-    );
-  }
 
-  const before = new Set(sealedClasses);
-  const beforeSealed = new Set<Function>([...globalRegistry].filter(C => hasSealedOwn(C)));
   const options = getGlobalOptions();
+  const sealed = new Set<Function>();
   try {
-    sealOne(Class, options);
+    sealOne(Class, options, sealed);
   } catch (e) {
-    // Remove placeholder SEALED markers left on this class and any nested class touched during the failed seal
-    if (hasSealedOwn(Class) && !beforeSealed.has(Class)) {
-      deleteSealed(Class);
-    }
-    for (const C of globalRegistry) {
-      if (hasSealedOwn(C) && !beforeSealed.has(C)) {
-        deleteSealed(C);
-      }
+    // Roll back every class sealed during this call (the failed class self-cleaned in sealOne).
+    for (const C of sealed) {
+      deleteSealed(C);
     }
     throw e;
   }
 
-  sealedClasses.add(Class);
-  freezeRaw(Class);
-  globalRegistry.delete(Class);
-
-  // Nested DTOs sealed recursively by sealOne — freeze + drop from registry too
-  const newlySealed = [...globalRegistry].filter(C => hasSealedOwn(C) && !before.has(C));
-  for (const C of newlySealed) {
+  // Freeze + track + drop from the registry every class sealed by this call (incl. nested).
+  for (const C of sealed) {
     sealedClasses.add(C);
     freezeRaw(C);
     globalRegistry.delete(C);
@@ -191,27 +204,21 @@ function sealOneClass(Class: Function): void {
 }
 
 /**
- * Public — explicit seal at app startup. With no args, seals every class currently in the
- * decorator registry. With args, seals each given class (and its nested DTOs) on demand.
- * Idempotent: already-sealed classes are skipped.
+ * Public — call once at app startup. Seals every @Recipe-decorated class (and its nested DTOs)
+ * and clears the registry. Idempotent: a second call is a no-op.
  *
  * Baker requires this call before any deserialize/serialize/validate. There is no implicit seal.
+ * All DTOs must be imported before this call — baker has no lazy/on-demand sealing.
  */
-function seal(...classes: Function[]): void {
-  if (classes.length === 0) {
-    sealAllRegistered();
-    return;
-  }
-  for (const Class of classes) {
-    sealOneClass(Class);
-  }
+function seal(): void {
+  sealAllRegistered();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // sealOne() — seal an individual class (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sealOne(Class: Function, options?: SealOptions): void {
+function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Function>): void {
   if (hasSealedOwn(Class)) {
     return;
   } // already sealed (prevent recursion during circular references)
@@ -220,113 +227,127 @@ function sealOne(Class: Function, options?: SealOptions): void {
   const placeholder = circularPlaceholder(Class.name);
   setSealed(Class, placeholder);
 
-  // 1. Merge inheritance metadata
-  const merged = mergeInheritance(Class);
+  try {
+    // 1. Merge inheritance metadata
+    const merged = mergeInheritance(Class);
 
-  // 1a. Banned field name check — prevent prototype pollution (C5)
-  for (const key of Object.keys(merged)) {
-    if (BANNED_FIELD_NAMES.has(key)) {
-      throw new SealError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
+    // 1a. Banned field name check — prevent prototype pollution (C5)
+    for (const key of Object.keys(merged)) {
+      if (BANNED_FIELD_NAMES.has(key)) {
+        throw new SealError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
+      }
     }
-  }
 
-  // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
-  //     Prevent original RAW mutation: copy type/flags before mutating (C-16 root fix)
-  for (const [key, meta] of Object.entries(merged)) {
-    if (!meta.type?.fn) {
-      continue;
-    }
-    const typeResult = meta.type.fn();
+    // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
+    //     Prevent original RAW mutation: copy type/flags before mutating (C-16 root fix)
+    for (const [key, meta] of Object.entries(merged)) {
+      if (!meta.type?.fn) {
+        continue;
+      }
+      const typeResult = meta.type.fn();
 
-    // Detect Map/Set collection
-    if (typeResult === Map || typeResult === Set) {
-      const collection = typeResult === Map ? ('Map' as const) : ('Set' as const);
-      const typeCopy = { ...meta.type, collection, isArray: false };
-      // collectionValue thunk → cache resolvedCollectionValue
-      if (meta.type.collectionValue) {
-        let valCls: unknown;
-        try {
-          valCls = meta.type.collectionValue();
-        } catch (e) {
-          throw new SealError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`);
+      // Detect Map/Set collection
+      if (typeResult === Map || typeResult === Set) {
+        const collection = typeResult === Map ? ('Map' as const) : ('Set' as const);
+        const typeCopy = { ...meta.type, collection, isArray: false };
+        // collectionValue thunk → cache resolvedCollectionValue
+        if (meta.type.collectionValue) {
+          let valCls: unknown;
+          try {
+            valCls = meta.type.collectionValue();
+          } catch (e) {
+            throw new SealError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`);
+          }
+          if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
+            typeCopy.resolvedCollectionValue = valCls as ClassCtor;
+          }
         }
-        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
-          typeCopy.resolvedCollectionValue = valCls as ClassCtor;
+        merged[key] = { ...meta, type: typeCopy };
+        continue;
+      }
+
+      const isArray = Array.isArray(typeResult);
+      const resolved = isArray ? (typeResult as unknown[])[0] : typeResult;
+      if (resolved == null || typeof resolved !== 'function') {
+        throw new SealError(
+          `${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`,
+        );
+      }
+      // Copy type object before mutating — preserve original RAW type reference
+      const typeCopy = { ...meta.type, isArray };
+      if (!PRIMITIVE_CTORS.has(resolved)) {
+        typeCopy.resolvedClass = resolved as ClassCtor;
+        // Automatically set validateNested flags for DTO classes
+        if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
+          meta.flags = { ...meta.flags };
+          if (!meta.flags.validateNested) {
+            meta.flags.validateNested = true;
+          }
+          if (isArray && !meta.flags.validateNestedEach) {
+            meta.flags.validateNestedEach = true;
+          }
         }
       }
       merged[key] = { ...meta, type: typeCopy };
-      continue;
     }
 
-    const isArray = Array.isArray(typeResult);
-    const resolved = isArray ? (typeResult as unknown[])[0] : typeResult;
-    if (resolved == null || typeof resolved !== 'function') {
-      throw new SealError(`${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`);
-    }
-    // Copy type object before mutating — preserve original RAW type reference
-    const typeCopy = { ...meta.type, isArray };
-    if (!PRIMITIVE_CTORS.has(resolved)) {
-      typeCopy.resolvedClass = resolved as ClassCtor;
-      // Automatically set validateNested flags for DTO classes
-      if (!meta.flags.validateNested || !meta.flags.validateNestedEach) {
-        meta.flags = { ...meta.flags };
-        if (!meta.flags.validateNested) {
-          meta.flags.validateNested = true;
-        }
-        if (isArray && !meta.flags.validateNestedEach) {
-          meta.flags.validateNestedEach = true;
+    // 2. Static validation of @Expose stacks (throws SealError on failure)
+    validateExposeStacks(merged, Class.name);
+
+    // 2b. W2: seal-time invariant checks (D7 discriminator/Set·Map + D9 async-in-sync)
+    validateMeta(Class, merged);
+
+    // 3. Static analysis for circular references
+    const needsCircularCheck = analyzeCircular(Class);
+
+    // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
+    for (const meta of Object.values(merged)) {
+      if (meta.type?.resolvedClass) {
+        sealOne(meta.type.resolvedClass, options, sealedAcc);
+      }
+      if (meta.type?.resolvedCollectionValue) {
+        sealOne(meta.type.resolvedCollectionValue, options, sealedAcc);
+      }
+      if (meta.type?.discriminator) {
+        for (const sub of meta.type.discriminator.subTypes) {
+          sealOne(sub.value, options, sealedAcc);
         }
       }
     }
-    merged[key] = { ...meta, type: typeCopy };
+
+    // 5. Async analysis
+    const isAsync = analyzeAsync(merged, 'deserialize');
+    const isSerializeAsync = analyzeAsync(merged, 'serialize');
+
+    // 6. Generate deserialize executor code
+    const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
+
+    // 6b. Generate validate-only executor code (no Object.create, no assignments)
+    const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync);
+
+    // 7. Generate serialize executor code
+    const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
+
+    // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
+    Object.assign(placeholder, {
+      deserialize: deserializeExecutor,
+      serialize: serializeExecutor,
+      validate: validateExecutor,
+      isAsync: isAsync,
+      isSerializeAsync: isSerializeAsync,
+      merged: merged,
+    });
+  } catch (e) {
+    // Self-clean this class's placeholder so a failed seal leaves no broken state —
+    // including nested DTOs reached by recursion that are not in the registry.
+    deleteSealed(Class);
+    throw e;
   }
 
-  // 2. Static validation of @Expose stacks (throws SealError on failure)
-  validateExposeStacks(merged, Class.name);
-
-  // 2b. W2: seal-time invariant checks (D7 discriminator/Set·Map + D9 async-in-sync)
-  validateMeta(Class, merged);
-
-  // 3. Static analysis for circular references
-  const needsCircularCheck = analyzeCircular(Class);
-
-  // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
-  for (const meta of Object.values(merged)) {
-    if (meta.type?.resolvedClass) {
-      sealOne(meta.type.resolvedClass, options);
-    }
-    if (meta.type?.resolvedCollectionValue) {
-      sealOne(meta.type.resolvedCollectionValue, options);
-    }
-    if (meta.type?.discriminator) {
-      for (const sub of meta.type.discriminator.subTypes) {
-        sealOne(sub.value, options);
-      }
-    }
-  }
-
-  // 5. Async analysis
-  const isAsync = analyzeAsync(merged, 'deserialize');
-  const isSerializeAsync = analyzeAsync(merged, 'serialize');
-
-  // 6. Generate deserialize executor code
-  const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
-
-  // 6b. Generate validate-only executor code (no Object.create, no assignments)
-  const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync);
-
-  // 7. Generate serialize executor code
-  const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
-
-  // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
-  Object.assign(placeholder, {
-    deserialize: deserializeExecutor,
-    serialize: serializeExecutor,
-    validate: validateExecutor,
-    isAsync: isAsync,
-    isSerializeAsync: isSerializeAsync,
-    merged: merged,
-  });
+  // Record success so the caller can freeze + track every sealed class (including nested
+  // DTOs reached by recursion) once the whole operation succeeds. Freezing here would be
+  // premature: a later failure must roll back, and a frozen RAW cannot be re-sealed.
+  sealedAcc?.add(Class);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -444,6 +465,9 @@ function mergeInheritance(Class: Function): RawClassMeta {
 const __testing__ = {
   mergeInheritance,
   circularPlaceholder,
+  // Targeted single-class seal — test-only. Production code uses argless seal() exclusively;
+  // this exists so tests can seal one class in isolation (e.g. error-path assertions).
+  sealClass: sealOneClass,
 };
 
 export { ensureSealed, seal, mergeInheritance, __testing__ };

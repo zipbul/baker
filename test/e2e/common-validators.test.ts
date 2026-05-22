@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import { equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty, isEnum } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -9,21 +9,27 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class EqualsDto {
   @Field(equals('yes')) answer!: string;
 }
+@Recipe
 class NotEqualsDto {
   @Field(notEquals('no')) answer!: string;
 }
+@Recipe
 class IsInDto {
   @Field(isIn(['a', 'b', 'c'])) choice!: string;
 }
+@Recipe
 class IsNotInDto {
   @Field(isNotIn([1, 2, 3])) val!: number;
 }
+@Recipe
 class IsEmptyDto {
   @Field(isEmpty) field!: unknown;
 }
+@Recipe
 class IsNotEmptyDto {
   @Field(isNotEmpty) field!: unknown;
 }
@@ -33,6 +39,7 @@ enum Color {
   Green = 'green',
   Blue = 'blue',
 }
+@Recipe
 class EnumDto {
   @Field(isEnum(Color)) color!: Color;
 }

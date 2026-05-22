@@ -2,22 +2,22 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import Ajv from 'ajv';
 import { type } from 'arktype';
-import { plainToInstance } from 'class-transformer';
-import { IsString, IsEmail, IsNumber, IsBoolean, Min, Max, MinLength, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Simple flat object (5 fields) — valid + invalid
+// (class-validator / class-transformer comparison lives in bench/class-validator — it requires
+//  legacy decorators, which cannot coexist with baker's modern decorators in one process.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class BakerSimple {
   @Field(isString, minLength(2)) name!: string;
   @Field(isString, isEmail()) email!: string;
@@ -26,17 +26,6 @@ class BakerSimple {
   @Field(isString) tag!: string;
 }
 seal();
-
-// ── class-validator ──────────────────────────────────────────────────────────
-void reflectMetadata;
-
-class CvSimple {
-  @IsString() @MinLength(2) name!: string;
-  @IsString() @IsEmail() email!: string;
-  @IsNumber() @Min(0) @Max(150) age!: number;
-  @IsBoolean() active!: boolean;
-  @IsString() tag!: string;
-}
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -117,11 +106,6 @@ group('simple object — valid input', () => {
     const r = deserialize(BakerSimple, SIMPLE_VALID) as BakerSimple;
     sinkNum += r.tag.length;
   });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvSimple, SIMPLE_VALID);
-    const errs = validateSync(inst);
-    sinkNum += errs.length;
-  });
   bench('zod', () => {
     const r = zodSimple.safeParse(SIMPLE_VALID);
     sinkNum += r.success ? r.data.tag.length : r.error.issues.length;
@@ -158,11 +142,6 @@ group('simple object — invalid input', () => {
     } else {
       sinkNum += 1;
     }
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvSimple, SIMPLE_INVALID);
-    const errs = validateSync(inst);
-    sinkNum += errs.length;
   });
   bench('zod', () => {
     const r = zodSimple.safeParse(SIMPLE_INVALID);

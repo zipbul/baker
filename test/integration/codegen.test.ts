@@ -1,13 +1,14 @@
 import { isErr } from '@zipbul/result';
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, seal } from '../../index';
+import { Field, Recipe, deserialize, seal } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class CodegenSimpleDto {
   @Field(isString)
   name!: string;
@@ -16,6 +17,7 @@ class CodegenSimpleDto {
   value!: number;
 }
 
+@Recipe
 class CodegenOptionalDto {
   @Field(isString)
   required!: string;
@@ -24,6 +26,7 @@ class CodegenOptionalDto {
   flag?: boolean;
 }
 
+@Recipe
 class CodegenTransformDto {
   @Field(isString, {
     transform: {

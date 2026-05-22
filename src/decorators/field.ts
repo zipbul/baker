@@ -126,8 +126,8 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 type RuleArg = EmittableRule | ArrayOfMarker;
 
 /** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
-function assertRule(value: unknown, className: string, fieldKey: string, slot?: string): void {
-  const loc = slot ? `${className}.${fieldKey} ${slot}` : `${className}.${fieldKey}`;
+function assertRule(value: unknown, fieldKey: string, slot?: string): void {
+  const loc = slot ? `${fieldKey} ${slot}` : fieldKey;
   const validForms = ` Valid @Field forms: @Field(), @Field(rule, ...), @Field(options), @Field(rule, ..., options).`;
   if (typeof value === 'function') {
     const fn = value as { emit?: unknown; ruleName?: unknown; name?: string };
@@ -272,24 +272,40 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 // @Field — Field decorator (4 overloads)
 // ─────────────────────────────────────────────────────────────────────────────
 
+type FieldDecorator = (value: undefined, context: ClassFieldDecoratorContext) => void;
+
 /** `@Field`() — empty field registration */
-function Field(): PropertyDecorator;
+function Field(): FieldDecorator;
 /** `@Field`(isString(), email()) — variadic rules */
-function Field(...rules: RuleArg[]): PropertyDecorator;
+function Field(...rules: RuleArg[]): FieldDecorator;
 /** `@Field`({ type: () => Dto }) — options object */
-function Field(options: FieldOptions): PropertyDecorator;
+function Field(options: FieldOptions): FieldDecorator;
 /** `@Field`(isString(), { optional: true }) — rules + options mixed */
-function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): PropertyDecorator;
-function Field(...args: unknown[]): PropertyDecorator {
-  return (target, key) => {
-    const ctor = (target as { constructor: Function }).constructor;
-    if (typeof key === 'symbol') {
-      throw new SealError(`@Field on ${ctor.name}: symbol property keys are not supported. ` + `Use a string property name.`);
+function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): FieldDecorator;
+function Field(...args: unknown[]): FieldDecorator {
+  return (_value, context) => {
+    if (context.static) {
+      throw new SealError(`@Field cannot decorate static fields.`);
     }
-    const propertyKey = key;
-    const meta = ensureMeta(ctor, propertyKey);
+    if (context.private) {
+      throw new SealError(`@Field cannot decorate private fields.`);
+    }
+    if (typeof context.name === 'symbol') {
+      throw new SealError(`@Field: symbol property keys are not supported. Use a string property name.`);
+    }
+    const propertyKey = context.name;
+    const meta = ensureMeta(context.metadata, propertyKey);
 
     const { rules, options } = parseFieldArgs(args);
+
+    // `name` is bidirectional; `deserializeName`/`serializeName` are per-direction. Combining them
+    // is contradictory — reject it instead of silently dropping the per-direction names. Truthiness
+    // matches applyExpose: an empty-string name is treated as "no name" consistently throughout.
+    if (options.name && (options.deserializeName || options.serializeName)) {
+      throw new SealError(
+        `@Field on ${propertyKey}: 'name' cannot be combined with 'deserializeName'/'serializeName'. Use one or the other.`,
+      );
+    }
 
     // W5: validate each rule shape — `.emit` function + `.ruleName` string required.
     // Catches D2/D4: `@Field(isString())` (boolean), `@Field(isNumber)` (factory unstamped), `@Field(() => true)`.
@@ -297,10 +313,10 @@ function Field(...args: unknown[]): PropertyDecorator {
       const r = rules[i];
       if (isArrayOfMarker(r)) {
         for (let j = 0; j < r.rules.length; j++) {
-          assertRule(r.rules[j], ctor.name, propertyKey, `arrayOf[${j}]`);
+          assertRule(r.rules[j], propertyKey, `arrayOf[${j}]`);
         }
       } else {
-        assertRule(r, ctor.name, propertyKey);
+        assertRule(r, propertyKey);
       }
     }
 

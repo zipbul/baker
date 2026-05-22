@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -15,6 +16,7 @@ const matchPathCode =
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class AddressDto {
   @Field(isString)
   city!: string;
@@ -23,6 +25,7 @@ class AddressDto {
   street!: string;
 }
 
+@Recipe
 class UserDto {
   @Field(isString)
   name!: string;
@@ -31,26 +34,31 @@ class UserDto {
   address!: AddressDto;
 }
 
+@Recipe
 class ItemDto {
   @Field(isString)
   label!: string;
 }
 
+@Recipe
 class ListDto {
   @Field(arrayMinSize(1), { type: () => [ItemDto] })
   items!: ItemDto[];
 }
 
+@Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
+@Recipe
 class PetOwnerDto {
   @Field({
     type: () => DogDto,
@@ -140,22 +148,24 @@ describe('@Nested edge cases', () => {
   });
 
   it('@Nested + optional → missing nested field allowed', async () => {
+    @Recipe
     class OptNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
     }
-    seal(OptNested);
+    sealClass(OptNested);
     const r = (await deserialize(OptNested, { name: 'Alice' })) as OptNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeUndefined();
   });
 
   it('@Nested + nullable → null nested allowed', async () => {
+    @Recipe
     class NullNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;
     }
-    seal(NullNested);
+    sealClass(NullNested);
     const r = (await deserialize(NullNested, { name: 'Alice', address: null })) as NullNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeNull();

@@ -4,6 +4,7 @@ import type { BakerError } from '../errors';
 import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
 
 import { assertIsErr } from '../../test/integration/helpers/assert';
+import { sealClass } from '../../test/integration/helpers/seal';
 import { SealError } from '../errors';
 import { getSealed, setSealed, deleteSealed, getRaw, setRaw, deleteRaw, requireSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
@@ -199,7 +200,7 @@ describe('seal', () => {
     seal();
     expect(getSealed(LateDto)).toBeUndefined();
     // seal seals it individually
-    seal(LateDto);
+    sealClass(LateDto);
     expect(getSealed(LateDto)).toBeDefined();
   });
 
@@ -409,7 +410,7 @@ describe('seal', () => {
     freeClasses.push(ParentLate);
 
     // Act — seal should seal ParentLate AND recursively seal NestedLate
-    seal(ParentLate);
+    sealClass(ParentLate);
 
     // Assert — both sealed, RAW frozen, removed from registry
     expect(getSealed(ParentLate)).toBeDefined();

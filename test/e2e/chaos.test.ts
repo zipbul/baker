@@ -1,22 +1,21 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, validate, configure, Field, isBakerError, createRule, seal } from '../../index';
+import { deserialize, serialize, configure, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
 import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
+import { applyField, applyRecipe } from '../integration/helpers/modern-decorator';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
 afterEach(() => unseal());
-
-const isStringPredicate = (v: unknown): boolean => typeof v === 'string';
-const alwaysFalse = (_v: unknown): boolean => false;
-const makeStringRuleBelow50 = (i: number): ((v: unknown) => boolean) => (i < 50 ? isStringPredicate : alwaysFalse);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Empty object to DTO with many required fields
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — empty object to DTO with many required fields', () => {
+  @Recipe
   class ManyFieldsDto {
     @Field(isString) a!: string;
     @Field(isString) b!: string;
@@ -53,36 +52,47 @@ describe('chaos — empty object to DTO with many required fields', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deeply nested DTO (10+ levels)', () => {
+  @Recipe
   class L10 {
     @Field(isString) v!: string;
   }
+  @Recipe
   class L9 {
     @Field({ type: () => L10 }) c!: L10;
   }
+  @Recipe
   class L8 {
     @Field({ type: () => L9 }) c!: L9;
   }
+  @Recipe
   class L7 {
     @Field({ type: () => L8 }) c!: L8;
   }
+  @Recipe
   class L6 {
     @Field({ type: () => L7 }) c!: L7;
   }
+  @Recipe
   class L5 {
     @Field({ type: () => L6 }) c!: L6;
   }
+  @Recipe
   class L4 {
     @Field({ type: () => L5 }) c!: L5;
   }
+  @Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
+  @Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
+  @Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
+  @Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
@@ -110,8 +120,9 @@ describe('chaos — deeply nested DTO (10+ levels)', () => {
 describe('chaos — 1000+ fields DTO', () => {
   class BigDto {}
   for (let i = 0; i < 1000; i++) {
-    Field(isNumber())(BigDto.prototype, `f${i}`);
+    applyField(Field(isNumber()), BigDto, `f${i}`);
   }
+  applyRecipe(BigDto);
 
   it('all 1000 fields validate correctly', async () => {
     seal();
@@ -142,6 +153,7 @@ describe('chaos — 1000+ fields DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — circular reference detection', () => {
+  @Recipe
   class TreeNode {
     @Field(isString) value!: string;
     @Field({ optional: true, type: () => TreeNode }) child?: TreeNode;
@@ -162,6 +174,7 @@ describe('chaos — circular reference detection', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — 10000 deserializations', () => {
+  @Recipe
   class SimpleDto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
@@ -183,6 +196,7 @@ describe('chaos — 10000 deserializations', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — concurrent deserialize calls', () => {
+  @Recipe
   class ConcurrentDto {
     @Field(isString) id!: string;
     @Field(isNumber()) val!: number;
@@ -208,6 +222,7 @@ describe('chaos — concurrent deserialize calls', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — every rule type on one field', () => {
+  @Recipe
   class KitchenSinkDto {
     @Field(isString, minLength(5), maxLength(100), matches(/\w+/), contains('@'), isEmail())
     email!: string;
@@ -232,6 +247,7 @@ describe('chaos — every rule type on one field', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — extremely long string (100KB)', () => {
+  @Recipe
   class LongStringDto {
     @Field(isString) content!: string;
   }
@@ -245,10 +261,11 @@ describe('chaos — extremely long string (100KB)', () => {
 
   it('100KB string fails minLength if too short constraint not met', async () => {
     seal();
+    @Recipe
     class D {
       @Field(isString, minLength(200_000)) v!: string;
     }
-    seal(D);
+    sealClass(D);
     const result = await deserialize(D, { v: 'x'.repeat(100_000) });
     assertBakerError(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
@@ -260,6 +277,7 @@ describe('chaos — extremely long string (100KB)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — extremely large number', () => {
+  @Recipe
   class NumberDto {
     @Field(isNumber()) val!: number;
   }
@@ -300,6 +318,7 @@ describe('chaos — extremely large number', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — special values as top-level input', () => {
+  @Recipe
   class Dto {
     @Field(isString) v!: string;
   }
@@ -358,6 +377,7 @@ describe('chaos — special values as top-level input', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — prototype pollution attempt', () => {
+  @Recipe
   class SafeDto {
     @Field(isString) name!: string;
   }
@@ -396,6 +416,7 @@ describe('chaos — prototype pollution attempt', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — async transform with delay', () => {
+  @Recipe
   class AsyncDelayDto {
     @Field(isString, {
       transform: {
@@ -417,36 +438,17 @@ describe('chaos — async transform with delay', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 13. validate with 100 rules on single value
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('chaos — validate with 100 rules on single value', () => {
-  it('all 100 rules checked', async () => {
-    seal();
-    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, v => typeof v === 'string'));
-    const result = await validate('hello', ...rules);
-    expect(result).toBe(true);
-  });
-
-  it('failing rules among 100 all reported', async () => {
-    seal();
-    const rules = Array.from({ length: 100 }, (_, i) => createRule(`rule${i}`, makeStringRuleBelow50(i)));
-    const result = await validate('hello', ...rules);
-    assertBakerError(result);
-    expect(result.errors.length).toBe(50);
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // 14. Deserialize then serialize roundtrip
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deserialize then serialize roundtrip', () => {
+  @Recipe
   class AddressDto {
     @Field(isString) city!: string;
     @Field(isString) zip!: string;
   }
 
+  @Recipe
   class ProfileDto {
     @Field(isString, { name: 'full_name' }) fullName!: string;
     @Field(isNumber(), min(0)) age!: number;

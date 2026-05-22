@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, configure, isBakerError, seal } from '../../index';
-import { collectValidation } from '../../src/collect';
+import { Field, Recipe, deserialize, configure, isBakerError, seal } from '../../index';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -14,6 +13,7 @@ afterEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class MultiDto {
   @Field(isString)
   a!: string;
@@ -25,34 +25,25 @@ class MultiDto {
   c!: string;
 }
 
+@Recipe
 class MessageDto {
-  @Field()
+  @Field(isString, { message: 'name must be a string' })
   name!: string;
 }
-// Attach isString rule with custom message via collectValidation
-collectValidation(MessageDto.prototype, 'name', {
-  rule: isString,
-  message: 'name must be a string',
-});
 
+@Recipe
 class MessageFnDto {
-  @Field()
+  @Field(isNumber(), { message: ({ property, value }) => `${property}(${value}) is not a number` })
   score!: number;
 }
-collectValidation(MessageFnDto.prototype, 'score', {
-  rule: isNumber(),
-  message: ({ property, value }) => `${property}(${value}) is not a number`,
-});
 
+@Recipe
 class ContextDto {
-  @Field()
+  @Field(isEmail(), { context: { severity: 'critical' } })
   email!: string;
 }
-collectValidation(ContextDto.prototype, 'email', {
-  rule: isEmail(),
-  context: { severity: 'critical' },
-});
 
+@Recipe
 class ClassNameDto {
   @Field(isString)
   field!: string;

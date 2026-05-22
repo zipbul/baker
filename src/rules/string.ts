@@ -171,29 +171,21 @@ interface IsNumberStringOptions {
 }
 
 const NO_SYMBOLS_RE = /^[0-9]+$/;
+// A numeric string: optional sign, integer/decimal/leading-dot form. No whitespace, hex, or
+// exponent — `Number()` coercion accepted all of those (e.g. "   ", "0x1A", "1e5"), which is far
+// looser than "is this string a number". Matches validator.js's default isNumeric behavior.
+const NUMERIC_STRING_RE = /^[+-]?(?:[0-9]*\.)?[0-9]+$/;
 
 function isNumberString(options?: IsNumberStringOptions): EmittableRule {
   const noSymbols = options?.no_symbols ?? false;
-
-  const checkFn = noSymbols
-    ? (s: string): boolean => s.length > 0 && NO_SYMBOLS_RE.test(s)
-    : (s: string): boolean => {
-        if (s.length === 0) {
-          return false;
-        }
-        // isFinite() returns false for NaN, so the !isNaN guard is redundant
-        return isFinite(Number(s));
-      };
+  const re = noSymbols ? NO_SYMBOLS_RE : NUMERIC_STRING_RE;
 
   return makeStringRule(
     'isNumberString',
-    checkFn,
+    (s: string): boolean => re.test(s),
     (varName, ctx) => {
-      if (noSymbols) {
-        const i = ctx.addRegex(NO_SYMBOLS_RE);
-        return `if (${varName}.length === 0 || !re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
-      }
-      return `if (${varName}.length === 0) ${ctx.fail('isNumberString')};\nelse { var ns=Number(${varName}); if (!isFinite(ns)) ${ctx.fail('isNumberString')}; }`;
+      const i = ctx.addRegex(re);
+      return `if (!re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
     },
     'string',
     { no_symbols: noSymbols },
@@ -201,7 +193,8 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
 }
 
 function isDecimal(): EmittableRule {
-  const decimalRe = /^[-+]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+  // Require a digit after the dot — `\d+(?:\.\d*)?` accepted a dangling "5.".
+  const decimalRe = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)$/;
   return makeStringRule(
     'isDecimal',
     v => decimalRe.test(v),
@@ -449,8 +442,9 @@ function isRgbColor(includePercentValues: boolean = false): EmittableRule {
 }
 
 // HSL: hsl(H, S%, L%) or hsla(H, S%, L%, A)
+// Alpha belongs to hsla() only — `hsla?(...)?` previously let hsl() carry alpha and hsla() omit it.
 const HSL_RE =
-  /^hsla?\(\s*(360|3[0-5]\d|[12]\d{2}|[1-9]\d|\d)\s*,\s*(100|[1-9]\d|\d)%\s*,\s*(100|[1-9]\d|\d)%(?:\s*,\s*(0|0?\.\d+|1(?:\.0+)?))?\s*\)$/;
+  /^(?:hsl\(\s*(?:360|3[0-5]\d|[12]\d{2}|[1-9]\d|\d)\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:100|[1-9]\d|\d)%\s*\)|hsla\(\s*(?:360|3[0-5]\d|[12]\d{2}|[1-9]\d|\d)\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:0|0?\.\d+|1(?:\.0+)?)\s*\))$/;
 const isHSL = makeStringRule(
   'isHSL',
   v => HSL_RE.test(v),
@@ -647,18 +641,20 @@ function validateISO8601Strict(v: string): boolean {
   if (!ISO8601_RE.test(v)) {
     return false;
   }
-  const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  const m = v.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);
   if (!m) {
     return true;
-  } // year-only or year-month partial — still ok per regex
+  } // year-only — no month/day to range-check
   const month = Number(m[2]);
-  const day = Number(m[3]);
   if (month < 1 || month > 12) {
     return false;
   }
-  const maxDay = new Date(Number(m[1]), month, 0).getDate();
-  if (day < 1 || day > maxDay) {
-    return false;
+  if (m[3] !== undefined) {
+    const day = Number(m[3]);
+    const maxDay = new Date(Number(m[1]), month, 0).getDate();
+    if (day < 1 || day > maxDay) {
+      return false;
+    }
   }
   // Time component check: hour 0-23, minute 0-59, second 0-60 (leap second).
   const tm = v.match(/T(\d{2}):(\d{2}):(\d{2})/);
@@ -683,10 +679,10 @@ function isISO8601(options?: IsISO8601Options): EmittableRule {
         const i = ctx.addRegex(ISO8601_RE);
         return (
           `if (!re[${i}].test(${varName})) ${ctx.fail('isISO8601')};\n` +
-          `else { var dm=${varName}.match(/^(\\d{4})-(\\d{2})-(\\d{2})/);` +
-          `if(dm){var mo=Number(dm[2]),da=Number(dm[3]);` +
+          `else { var dm=${varName}.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);` +
+          `if(dm){var mo=Number(dm[2]);` +
           `if(mo<1||mo>12){${ctx.fail('isISO8601')}}` +
-          `else{var md=new Date(Number(dm[1]),mo,0).getDate();` +
+          `else if(dm[3]!==undefined){var da=Number(dm[3]),md=new Date(Number(dm[1]),mo,0).getDate();` +
           `if(da<1||da>md){${ctx.fail('isISO8601')}}}}` +
           `var tm=${varName}.match(/T(\\d{2}):(\\d{2}):(\\d{2})/);` +
           `if(tm){var hh=Number(tm[1]),mm=Number(tm[2]),ss=Number(tm[3]);` +
@@ -1626,7 +1622,9 @@ const isMimeType = makeStringRule(
 );
 
 // Currency
-const CURRENCY_RE = /^[-+]?\$?-?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/;
+// A single optional sign, either before the `$` (`-$5`, `+5`) or after it (`$-5`, `$+5`) — never
+// both. The previous `[-+]?\$?-?` allowed two signs (e.g. `+-5`, `-$-5`).
+const CURRENCY_RE = /^(?:[-+]?\$?|\$[-+]?)(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/;
 
 function isCurrency(): EmittableRule {
   // Currency regex requires at least one digit; empty input fails the regex by itself.
@@ -1821,8 +1819,8 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
       code += `if(il!==undefined&&ib.length!==il){${ctx.fail('isIBAN')}}`;
       code += `else{var ir=ib.slice(4)+ib.slice(0,4);`;
       // Walk char-by-char for mod 97 — no .replace closure, no parseInt allocation
-      code += `var im=0;for(var ii=0;ii<ir.length;ii++){var ic=ir.charCodeAt(ii);`;
-      code += `if(ic<=57){im=(im*10+(ic-48))%97;}else{im=(im*100+(ic-55))%97;}}`;
+      code += `var im=0;for(var ii=0;ii<ir.length;ii++){var cc=ir.charCodeAt(ii);`;
+      code += `if(cc<=57){im=(im*10+(cc-48))%97;}else{im=(im*100+(cc-55))%97;}}`;
       code += `if(im!==1)${ctx.fail('isIBAN')};}}}`;
       return code;
     },

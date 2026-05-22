@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, configure, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -9,6 +9,7 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class DirectionDto {
   @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
@@ -154,6 +155,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
 });
 
 describe('@Expose serializeOnly — debug mode deserialize skip', () => {
+  @Recipe
   class SerializeOnlyExposeDto {
     @Field(isString)
     name!: string;
@@ -174,6 +176,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
   });
 
   it('field with only deserializeOnly @Expose is excluded from serialize with debug', async () => {
+    @Recipe
     class DeserializeOnlyExposeDto {
       @Field(isString)
       name!: string;

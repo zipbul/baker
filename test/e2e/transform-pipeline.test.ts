@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isString, minLength, maxLength, matches } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -30,6 +31,7 @@ const upperIfString = ({ value }: { value: unknown }): unknown => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class TrimLowerDto {
   @Field(isString, {
     transform: {
@@ -48,6 +50,7 @@ class TrimLowerDto {
   email!: string;
 }
 
+@Recipe
 class DirectionTransformDto {
   @Field(isString, {
     transform: {
@@ -58,6 +61,7 @@ class DirectionTransformDto {
   tag!: string;
 }
 
+@Recipe
 class TypeAwareDto {
   @Field(isString, {
     transform: {
@@ -111,6 +115,7 @@ describe('@Transform — stacking serialize', () => {
 // ─── @Transform additional edge cases ────────────────────────────────────────
 
 describe('@Transform callback parameters', () => {
+  @Recipe
   class CallbackDto {
     @Field(isString, {
       transform: {
@@ -134,6 +139,7 @@ describe('@Transform callback parameters', () => {
 
 describe('E-24: async transform failure error path', () => {
   it('async transform returns invalid value → subsequent validation error has correct path/code', async () => {
+    @Recipe
     class AsyncInvalidDto {
       @Field(isString, {
         transform: {
@@ -143,7 +149,7 @@ describe('E-24: async transform failure error path', () => {
       })
       name!: string;
     }
-    seal(AsyncInvalidDto);
+    sealClass(AsyncInvalidDto);
     const result = await deserialize(AsyncInvalidDto, { name: 'hello' });
     assertBakerError(result);
     const err = result.errors.find(x => x.code === 'isString');
@@ -152,6 +158,7 @@ describe('E-24: async transform failure error path', () => {
   });
 
   it('async transform throws → error propagated', async () => {
+    @Recipe
     class AsyncThrowDto {
       @Field(isString, {
         transform: {
@@ -163,7 +170,7 @@ describe('E-24: async transform failure error path', () => {
       })
       value!: string;
     }
-    seal(AsyncThrowDto);
+    sealClass(AsyncThrowDto);
     await expect(deserialize(AsyncThrowDto, { value: 'test' })).rejects.toThrow('transform boom');
   });
 });
@@ -174,6 +181,7 @@ describe('@Transform null return behavior', () => {
   // Therefore if Transform returns null, the subsequent type check will fail
 
   it('Transform → null return causes isString failure (guard runs on original input)', async () => {
+    @Recipe
     class NullTransformDto {
       @Field(isString, {
         transform: {
@@ -183,12 +191,13 @@ describe('@Transform null return behavior', () => {
       })
       v!: string;
     }
-    seal(NullTransformDto);
+    sealClass(NullTransformDto);
     // original 'EMPTY' is a string → guard passes → Transform → null → isString fails
     expect(isBakerError(await deserialize(NullTransformDto, { v: 'EMPTY' }))).toBe(true);
   });
 
   it('Transform returning valid value → validation passes', async () => {
+    @Recipe
     class TransformDto {
       @Field(isString, {
         transform: {
@@ -198,12 +207,13 @@ describe('@Transform null return behavior', () => {
       })
       v!: string;
     }
-    seal(TransformDto);
+    sealClass(TransformDto);
     const r = (await deserialize(TransformDto, { v: 'hello' })) as TransformDto;
     expect(r.v).toBe('HELLO');
   });
 
   it('original is null + nullable → guard skips null → Transform not executed', async () => {
+    @Recipe
     class NullableDto {
       @Field(isString, {
         nullable: true,
@@ -214,7 +224,7 @@ describe('@Transform null return behavior', () => {
       })
       v!: string | null;
     }
-    seal(NullableDto);
+    sealClass(NullableDto);
     const r = (await deserialize(NullableDto, { v: null })) as NullableDto;
     // null is skipped by nullable guard → Transform/validation both skipped
     expect(r.v).toBeNull();
@@ -226,6 +236,7 @@ describe('@Transform null return behavior', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('field with 3+ rules and 3+ transforms (codec stack)', () => {
+  @Recipe
   class TripleDto {
     @Field(isString, minLength(2), maxLength(20), matches(/^[a-z]+$/), {
       transform: [

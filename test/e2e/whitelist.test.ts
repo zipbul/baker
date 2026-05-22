@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, configure, Field, seal } from '../../index';
+import { deserialize, configure, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -10,6 +10,7 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class ProfileDto {
   @Field(isString)
   name!: string;
@@ -18,6 +19,7 @@ class ProfileDto {
   age!: number;
 }
 
+@Recipe
 class ExposedDto {
   @Field(isString, { name: 'user_name' })
   name!: string;

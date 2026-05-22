@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isString, isNumber, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -8,6 +8,7 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class ConditionalDto {
   @Field(isString)
   type!: string;
@@ -16,6 +17,7 @@ class ConditionalDto {
   companyName!: string;
 }
 
+@Recipe
 class ConditionalWithMinDto {
   @Field(isNumber())
   role!: number;

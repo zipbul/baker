@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, seal } from '../../index';
+import { Field, Recipe, seal } from '../../index';
 import { globalRegistry } from '../../src/registry';
 import { isString } from '../../src/rules/index';
+import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => seal());
@@ -19,50 +20,59 @@ afterEach(() => {
 
 describe('validateMeta — discriminator invariants', () => {
   it('empty property string throws SealError', () => {
+    @Recipe
     class ChildA {
       @Field(isString) k!: string;
     }
+    @Recipe
     class BadDisc {
       @Field({ type: () => ChildA, discriminator: { property: '', subTypes: [{ value: ChildA, name: 'a' }] } })
       v!: ChildA;
     }
-    expect(() => seal(BadDisc)).toThrow(/discriminator\.property must be a non-empty string/);
+    expect(() => sealClass(BadDisc)).toThrow(/discriminator\.property must be a non-empty string/);
   });
 
   it('empty subTypes throws SealError', () => {
+    @Recipe
     class EmptyDisc {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [] } })
       v!: unknown;
     }
-    expect(() => seal(EmptyDisc)).toThrow(/discriminator\.subTypes must be a non-empty array/);
+    expect(() => sealClass(EmptyDisc)).toThrow(/discriminator\.subTypes must be a non-empty array/);
   });
 
   it('subTypes entry with empty name throws SealError', () => {
+    @Recipe
     class C1 {
       @Field(isString) k!: string;
     }
+    @Recipe
     class BadName {
       @Field({ type: () => C1, discriminator: { property: 'k', subTypes: [{ value: C1, name: '' }] } })
       v!: C1;
     }
-    expect(() => seal(BadName)).toThrow(/subTypes\[0\]\.name must be a non-empty string/);
+    expect(() => sealClass(BadName)).toThrow(/subTypes\[0\]\.name must be a non-empty string/);
   });
 
   it('subTypes entry with non-class value throws SealError', () => {
+    @Recipe
     class BadValue {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [{ value: 'NotAClass' as never, name: 'a' }] } })
       v!: unknown;
     }
-    expect(() => seal(BadValue)).toThrow(/must be a class constructor/);
+    expect(() => sealClass(BadValue)).toThrow(/must be a class constructor/);
   });
 
   it('duplicate subType names throw SealError', () => {
+    @Recipe
     class D1 {
       @Field(isString) k!: string;
     }
+    @Recipe
     class D2 {
       @Field(isString) k!: string;
     }
+    @Recipe
     class DupNames {
       @Field({
         type: () => D1,
@@ -76,35 +86,38 @@ describe('validateMeta — discriminator invariants', () => {
       })
       v!: D1 | D2;
     }
-    expect(() => seal(DupNames)).toThrow(/duplicate name 'x'/);
+    expect(() => sealClass(DupNames)).toThrow(/duplicate name 'x'/);
   });
 
   it('subType value without @Field decorators throws SealError', () => {
     class NoFields {}
+    @Recipe
     class HasUndecoratedSub {
       @Field({ type: () => NoFields, discriminator: { property: 'k', subTypes: [{ value: NoFields, name: 'a' }] } })
       v!: NoFields;
     }
-    expect(() => seal(HasUndecoratedSub)).toThrow(/has no @Field decorators/);
+    expect(() => sealClass(HasUndecoratedSub)).toThrow(/has no @Field decorators/);
   });
 });
 
 describe('validateMeta — Set/Map collection invariants', () => {
   it('setValue target without @Field throws SealError', () => {
     class NoFieldsItem {}
+    @Recipe
     class SetParent {
       @Field({ type: () => Set, setValue: () => NoFieldsItem })
       items!: Set<NoFieldsItem>;
     }
-    expect(() => seal(SetParent)).toThrow(/setValue target.*has no @Field decorators/);
+    expect(() => sealClass(SetParent)).toThrow(/setValue target.*has no @Field decorators/);
   });
 
   it('mapValue target without @Field throws SealError', () => {
     class NoFieldsVal {}
+    @Recipe
     class MapParent {
       @Field({ type: () => Map, mapValue: () => NoFieldsVal })
       m!: Map<string, NoFieldsVal>;
     }
-    expect(() => seal(MapParent)).toThrow(/mapValue target.*has no @Field decorators/);
+    expect(() => sealClass(MapParent)).toThrow(/mapValue target.*has no @Field decorators/);
   });
 });

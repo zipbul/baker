@@ -175,6 +175,14 @@ describe('isIdentityCard', () => {
     expect(isIdentityCard('US')('12-345-6789')).toBe(false);
   });
 
+  it('should return false for a DE identity card containing a space', () => {
+    expect(isIdentityCard('DE')('LI TOUAEV')).toBe(false);
+  });
+
+  it('should return true for a valid DE identity card (9 letters, no space)', () => {
+    expect(isIdentityCard('DE')('LITOUAEVB')).toBe(true);
+  });
+
   it('should throw for unsupported locale', () => {
     expect(() => isIdentityCard('XX')).toThrow('Unsupported locale');
   });

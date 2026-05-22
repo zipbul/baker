@@ -2,17 +2,15 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import Ajv from 'ajv';
 import { type } from 'arktype';
-import { plainToInstance } from 'class-transformer';
-import { IsNumber, Min, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Error collection — 10 fields, all invalid
+// (class-validator comparison lives in bench/class-validator — legacy decorators only.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, deserialize, configure, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, configure, isBakerError, seal } from '../index';
 import { isNumber, min } from '../src/rules/index';
 import { ERROR_ALL_FAIL } from './data';
 
@@ -20,6 +18,7 @@ import { ERROR_ALL_FAIL } from './data';
 
 configure({ stopAtFirstError: false });
 
+@Recipe
 class BakerErrors {
   @Field(isNumber(), min(1)) f0!: number;
   @Field(isNumber(), min(1)) f1!: number;
@@ -35,22 +34,6 @@ class BakerErrors {
 // warm seal
 seal();
 await deserialize(BakerErrors, ERROR_ALL_FAIL);
-
-// ── class-validator ──────────────────────────────────────────────────────────
-void reflectMetadata;
-
-class CvErrors {
-  @IsNumber() @Min(1) f0!: number;
-  @IsNumber() @Min(1) f1!: number;
-  @IsNumber() @Min(1) f2!: number;
-  @IsNumber() @Min(1) f3!: number;
-  @IsNumber() @Min(1) f4!: number;
-  @IsNumber() @Min(1) f5!: number;
-  @IsNumber() @Min(1) f6!: number;
-  @IsNumber() @Min(1) f7!: number;
-  @IsNumber() @Min(1) f8!: number;
-  @IsNumber() @Min(1) f9!: number;
-}
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -134,10 +117,6 @@ group('error collection — 10 fields all invalid', () => {
   bench('baker', () => {
     const r = deserialize(BakerErrors, ERROR_ALL_FAIL);
     sinkNum += isBakerError(r) ? (r as unknown as { errors: unknown[] }).errors.length : 1;
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvErrors, ERROR_ALL_FAIL);
-    sinkNum += validateSync(inst).length;
   });
   bench('zod', () => {
     const r = zodErrors.safeParse(ERROR_ALL_FAIL);

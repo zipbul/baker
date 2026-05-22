@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => {
@@ -13,10 +14,12 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class Address {
   @Field(isString) city!: string;
 }
 
+@Recipe
 class TypeDto {
   @Field({ type: () => Address })
   address!: Address;
@@ -36,16 +39,19 @@ describe('@Type / @Field({ type })', () => {
   });
 
   it('discriminator polymorphism', async () => {
+    @Recipe
     class Cat {
       @Field(isString) name!: string;
     }
-    seal(Cat);
+    sealClass(Cat);
+    @Recipe
     class Dog {
       @Field(isString) name!: string;
       @Field(isNumber()) age!: number;
     }
-    seal(Dog);
+    sealClass(Dog);
 
+    @Recipe
     class PetDto {
       @Field({
         type: () => Object,
@@ -60,7 +66,7 @@ describe('@Type / @Field({ type })', () => {
       })
       pet!: Cat | Dog;
     }
-    seal(PetDto);
+    sealClass(PetDto);
 
     const catResult = (await deserialize(PetDto, { pet: { type: 'cat', name: 'Whiskers' } })) as PetDto;
     expect(catResult.pet).toBeInstanceOf(Cat);

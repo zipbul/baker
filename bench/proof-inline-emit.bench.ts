@@ -1,6 +1,6 @@
 import { bench, group, run } from 'mitata';
 
-import { Field, deserialize } from '../index';
+import { Field, Recipe, deserialize, seal } from '../index';
 import {
   isNumberString,
   isISBN,
@@ -20,50 +20,65 @@ import { isNotEmptyObject } from '../src/rules/object';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class NumberStringDto {
   @Field(isNumberString()) value!: string;
 }
+@Recipe
 class ISBNDto {
   @Field(isISBN(13)) value!: string;
 }
+@Recipe
 class ISINDto {
   @Field(isISIN) value!: string;
 }
+@Recipe
 class ISO8601StrictDto {
   @Field(isISO8601({ strict: true })) value!: string;
 }
+@Recipe
 class ISSNDto {
   @Field(isISSN()) value!: string;
 }
+@Recipe
 class FQDNDto {
   @Field(isFQDN()) value!: string;
 }
+@Recipe
 class EANDto {
   @Field(isEAN) value!: string;
 }
+@Recipe
 class JSONDto {
   @Field(isJSON) value!: string;
 }
+@Recipe
 class IBANDto {
   @Field(isIBAN()) value!: string;
 }
+@Recipe
 class ByteLengthDto {
   @Field(isByteLength(1, 100)) value!: string;
 }
+@Recipe
 class LatitudeDto {
   @Field(isLatitude) value!: number;
 }
+@Recipe
 class LongitudeDto {
   @Field(isLongitude) value!: number;
 }
+@Recipe
 class StrongPasswordDto {
   @Field(isStrongPassword()) value!: string;
 }
+@Recipe
 class NotEmptyObjDto {
   @Field(isNotEmptyObject({ nullable: true })) value!: object;
 }
 
 // Warm seal
+seal();
 deserialize(NumberStringDto, { value: '123' });
 deserialize(ISBNDto, { value: '9780306406157' });
 deserialize(ISINDto, { value: 'US0378331005' });

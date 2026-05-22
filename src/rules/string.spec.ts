@@ -476,6 +476,30 @@ describe('isNumberString', () => {
     expect(isNumberString()('')).toBe(false);
   });
 
+  it('should return false for whitespace-only string', () => {
+    expect(isNumberString()('   ')).toBe(false);
+  });
+
+  it('should return false for a hex literal string', () => {
+    expect(isNumberString()('0x1A')).toBe(false);
+  });
+
+  it('should return false for a numeric value padded with whitespace', () => {
+    expect(isNumberString()('  12  ')).toBe(false);
+  });
+
+  it('should return false for scientific notation', () => {
+    expect(isNumberString()('1e5')).toBe(false);
+  });
+
+  it('should return true for a leading-dot decimal', () => {
+    expect(isNumberString()('.5')).toBe(true);
+  });
+
+  it('should return false for a trailing-dot number', () => {
+    expect(isNumberString()('5.')).toBe(false);
+  });
+
   it('should generate number check code when calling emit() and have ruleName isNumberString', () => {
     const { ctx, failMock } = makeCtx();
     const code = isNumberString().emit('v', ctx);
@@ -484,14 +508,12 @@ describe('isNumberString', () => {
     expect(isNumberString().ruleName).toBe('isNumberString');
   });
 
-  it('should emit inline Number+isFinite check (no addRef; isFinite covers NaN)', () => {
-    const { ctx, addRefMock } = makeCtx(0);
+  it('should emit a regex test (not Number coercion)', () => {
+    const { ctx } = makeCtx();
     const code = isNumberString().emit('v', ctx);
-    expect(addRefMock).not.toHaveBeenCalled();
-    // inline code checks empty length, then Number() + isFinite (isFinite returns false for NaN)
-    expect(code).toContain('v.length === 0');
-    expect(code).toContain('Number(');
-    expect(code).toContain('isFinite');
+    expect(code).toContain('re[');
+    expect(code).not.toContain('Number(');
+    expect(code).not.toContain('isFinite');
   });
 });
 
@@ -540,6 +562,14 @@ describe('isDecimal', () => {
 
   it('should return false for non-numeric string', () => {
     expect(isDecimal()('hello')).toBe(false);
+  });
+
+  it('should return false for a trailing-dot number', () => {
+    expect(isDecimal()('5.')).toBe(false);
+  });
+
+  it('should return true for a leading-dot decimal', () => {
+    expect(isDecimal()('.5')).toBe(true);
   });
 
   it('should generate regex check code when calling emit() and have ruleName isDecimal', () => {
@@ -968,6 +998,14 @@ describe('isHSL', () => {
     expect(isHSL('hsl(400,100%,50%)')).toBe(false);
   });
 
+  it('should return false for hsl() carrying an alpha channel (alpha is only valid on hsla())', () => {
+    expect(isHSL('hsl(120,50%,50%,0.5)')).toBe(false);
+  });
+
+  it('should return false for hsla() missing the alpha channel', () => {
+    expect(isHSL('hsla(120,50%,50%)')).toBe(false);
+  });
+
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isHSL', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
     isHSL.emit('v', ctx);
@@ -1094,6 +1132,15 @@ describe('isISO8601', () => {
 
   it('should return false for invalid day with strict: true', () => {
     expect(isISO8601({ strict: true })('2023-02-30')).toBe(false);
+  });
+
+  it('should reject an out-of-range month in a year-month string with strict: true', () => {
+    expect(isISO8601({ strict: true })('2021-13')).toBe(false);
+    expect(isISO8601({ strict: true })('2021-00')).toBe(false);
+  });
+
+  it('should accept a valid year-month string with strict: true', () => {
+    expect(isISO8601({ strict: true })('2021-12')).toBe(true);
   });
 
   it('strict: true emit uses inline regex + date validation (no addRef)', () => {
@@ -1594,6 +1641,20 @@ describe('isCurrency', () => {
 
   it('should return false for invalid currency format', () => {
     expect(isCurrency()('abc')).toBe(false);
+  });
+
+  it('should return false for double sign', () => {
+    expect(isCurrency()('+-5')).toBe(false);
+    expect(isCurrency()('-$-5')).toBe(false);
+    expect(isCurrency()('+$-5')).toBe(false);
+  });
+
+  it('should return true for a single sign before or after the currency symbol', () => {
+    expect(isCurrency()('-5')).toBe(true);
+    expect(isCurrency()('-$5')).toBe(true);
+    expect(isCurrency()('$-5')).toBe(true);
+    expect(isCurrency()('+$5')).toBe(true);
+    expect(isCurrency()('$5')).toBe(true);
   });
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isCurrency', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, configure, isBakerError, Field, seal } from '../../index';
+import { deserialize, configure, isBakerError, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -25,6 +25,7 @@ function expectProtoPollutionPrevented(result: unknown, expectedCode: string): v
 // ─── __proto__, constructor key injection (forbidUnknown mode) ───────────────
 
 describe('prototype pollution defense (forbidUnknown)', () => {
+  @Recipe
   class SafeDto {
     @Field(isString) name!: string;
   }
@@ -56,6 +57,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
 // ─── extra keys ignored without forbidUnknown ──────────────────────────────
 
 describe('extra keys ignored without forbidUnknown', () => {
+  @Recipe
   class Dto {
     @Field(isString) name!: string;
   }
@@ -72,22 +74,28 @@ describe('extra keys ignored without forbidUnknown', () => {
 // ─── deeply nested objects (stack safety) ──────────────────────────────────
 
 describe('deeply nested objects stack safety', () => {
+  @Recipe
   class Leaf {
     @Field(isString) value!: string;
   }
 
+  @Recipe
   class Level5 {
     @Field({ type: () => Leaf }) leaf!: Leaf;
   }
+  @Recipe
   class Level4 {
     @Field({ type: () => Level5 }) child!: Level5;
   }
+  @Recipe
   class Level3 {
     @Field({ type: () => Level4 }) child!: Level4;
   }
+  @Recipe
   class Level2 {
     @Field({ type: () => Level3 }) child!: Level3;
   }
+  @Recipe
   class Level1 {
     @Field({ type: () => Level2 }) child!: Level2;
   }
@@ -116,10 +124,12 @@ describe('deeply nested objects stack safety', () => {
 // ─── large array input handling ─────────────────────────────────────────────
 
 describe('large array input handling', () => {
+  @Recipe
   class ItemDto {
     @Field(isNumber()) id!: number;
   }
 
+  @Recipe
   class ListDto {
     @Field({ type: () => [ItemDto] })
     items!: ItemDto[];
@@ -152,6 +162,7 @@ describe('large array input handling', () => {
 // ─── E-26: frozen / null-prototype input ────────────────────────────────────
 
 describe('E-26: frozen / null-prototype input', () => {
+  @Recipe
   class FrozenDto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
@@ -186,6 +197,7 @@ describe('E-26: frozen / null-prototype input', () => {
 });
 
 describe('special string value handling', () => {
+  @Recipe
   class Dto {
     @Field(isString) v!: string;
   }

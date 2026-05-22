@@ -199,7 +199,7 @@ function generateSerializeFieldCode(
     if (!meta.exclude.deserializeOnly) {
       if (options?.debug) {
         const reason = meta.exclude.serializeOnly ? 'serializeOnly' : 'bidirectional';
-        return `// [baker] field "${fieldKey}" excluded (${reason} @Exclude)\n`;
+        return `// [baker] field ${JSON.stringify(fieldKey)} excluded (${reason} @Exclude)\n`;
       }
       return '';
     }
@@ -208,7 +208,7 @@ function generateSerializeFieldCode(
   // Expose: if all @Expose entries are deserializeOnly, skip for serialize
   if (meta.expose.length > 0 && meta.expose.every(e => e.deserializeOnly)) {
     if (options?.debug) {
-      return `// [baker] field "${fieldKey}" excluded (all @Expose entries are deserializeOnly)\n`;
+      return `// [baker] field ${JSON.stringify(fieldKey)} excluded (all @Expose entries are deserializeOnly)\n`;
     }
     return '';
   }
@@ -268,14 +268,14 @@ function generateSerializeFieldCode(
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = isAsync ? 'await ' : '';
-        nestedCode = `var ${GEN.mapObj} = {};\n`;
+        nestedCode = `var ${GEN.mapObj} = Object.create(null);\n`;
         nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
         nestedCode += `    ${keyCheck}`;
         nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1] == null ? ${GEN.mapEntry}[1] : ${awaitKw}execs[${execIdx}].serialize(${GEN.mapEntry}[1], opts);\n`;
         nestedCode += `  }\n`;
         nestedCode += `  ${outputTarget} = ${GEN.mapObj};`;
       } else {
-        nestedCode = `var ${GEN.mapObj} = {};\n`;
+        nestedCode = `var ${GEN.mapObj} = Object.create(null);\n`;
         nestedCode += `  for (var ${GEN.mapEntry} of ${fieldVal}) {\n`;
         nestedCode += `    ${keyCheck}`;
         nestedCode += `${GEN.mapObj}[${GEN.mapEntry}[0]] = ${GEN.mapEntry}[1];\n`;

@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
-import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
+import { Field, Recipe, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
+import { getRaw, getSealed, setRaw, requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerError } from './helpers/assert';
+import { sealClass } from './helpers/seal';
 import { unseal, purgePoisonClasses } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SealTestDto {
   @Field(isString)
   name!: string;
@@ -77,11 +79,13 @@ describe('seal() — error when not sealed', () => {
 // C1: async architecture — isAsync / isSerializeAsync flags
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SyncDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class AsyncTransformDeserializeDto {
   @Field(isString, {
     transform: {
@@ -97,11 +101,13 @@ const asyncRule = createRule({
   validate: async v => typeof v === 'string',
 });
 
+@Recipe
 class AsyncRuleDto {
   @Field({ rules: [asyncRule] })
   name!: string;
 }
 
+@Recipe
 class AsyncTransformSerializeDto {
   @Field(isNumber(), {
     transform: {
@@ -112,6 +118,7 @@ class AsyncTransformSerializeDto {
   price!: number;
 }
 
+@Recipe
 class ParentWithAsyncNestedDto {
   @Field({ type: () => AsyncTransformDeserializeDto })
   child!: AsyncTransformDeserializeDto;
@@ -155,11 +162,11 @@ describe('C1 — async architecture (isAsync / isSerializeAsync)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// seal(Class) — on-demand seal for late-registered classes
+// sealClass(Class) — on-demand seal for late-registered classes
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('seal(Class) — on-demand', () => {
-  it('seal(LateDto) seals a late-registered class', async () => {
+describe('sealClass(Class) — on-demand', () => {
+  it('sealClass(LateDto) seals a late-registered class', async () => {
     class LateDto {}
     setRaw(LateDto, {
       value: {
@@ -172,7 +179,7 @@ describe('seal(Class) — on-demand', () => {
       },
     });
 
-    seal(LateDto);
+    sealClass(LateDto);
     expect(getSealed(LateDto)).toBeDefined();
 
     const instance = Object.assign(new LateDto(), { value: 'hello' });
@@ -186,16 +193,19 @@ describe('seal(Class) — on-demand', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('E-25: concurrent deserialize on pre-sealed classes', () => {
+  @Recipe
   class ConcurrentA {
     @Field(isString)
     a!: string;
   }
 
+  @Recipe
   class ConcurrentB {
     @Field(isNumber())
     b!: number;
   }
 
+  @Recipe
   class ConcurrentC {
     @Field(isString)
     c!: string;
@@ -293,6 +303,7 @@ describe('seal() — transactional failure cleanup', () => {
   });
 
   it('nested setValue thunk thrown during analyzeCircular wraps in SealError', () => {
+    @Recipe
     class NestedBad {
       @Field({
         type: () => Set,
@@ -302,29 +313,33 @@ describe('seal() — transactional failure cleanup', () => {
       })
       items!: Set<unknown>;
     }
+    @Recipe
     class ParentRef {
       @Field({ type: () => NestedBad })
       child!: NestedBad;
     }
-    expect(() => seal(ParentRef)).toThrow(/nested-boom/);
+    expect(() => sealClass(ParentRef)).toThrow(/nested-boom/);
   });
 
   it('failed nested seal cleans up both parent and nested placeholders', () => {
     // Nested has conflicting requiresType — fails inside buildDeserializeCode
     // AFTER placeholder is installed. Parent's recursive sealOne(Nested) propagates
     // the throw; cleanup loop must delete BOTH placeholders.
+    @Recipe
     class NestedConflict {
       @Field(isEmail(), min(5)) v!: unknown;
     }
+    @Recipe
     class ParentWrap {
       @Field({ type: () => NestedConflict }) child!: NestedConflict;
     }
-    expect(() => seal(ParentWrap)).toThrow(/conflicting requiresType/);
+    expect(() => sealClass(ParentWrap)).toThrow(/conflicting requiresType/);
     expect(getSealed(ParentWrap)).toBeUndefined();
     expect(getSealed(NestedConflict)).toBeUndefined();
   });
 
-  it('seal(Class) with throwing @Type thunk leaves no SEALED placeholder', () => {
+  it('sealClass(Class) with throwing @Type thunk leaves no SEALED placeholder', () => {
+    @Recipe
     class BadType {
       @Field({
         type: () => {
@@ -333,11 +348,12 @@ describe('seal() — transactional failure cleanup', () => {
       })
       v!: unknown;
     }
-    expect(() => seal(BadType)).toThrow('boom');
+    expect(() => sealClass(BadType)).toThrow('boom');
     expect(getSealed(BadType)).toBeUndefined();
   });
 
-  it('seal(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
+  it('sealClass(Class) with throwing collectionValue thunk leaves no SEALED placeholder', () => {
+    @Recipe
     class BadColl {
       @Field({
         type: () => Set,
@@ -347,21 +363,73 @@ describe('seal() — transactional failure cleanup', () => {
       })
       items!: Set<unknown>;
     }
-    expect(() => seal(BadColl)).toThrow(/collectionValue function threw: coll-boom/);
+    expect(() => sealClass(BadColl)).toThrow(/collectionValue function threw: coll-boom/);
     expect(getSealed(BadColl)).toBeUndefined();
   });
 
-  it('seal(Class) with conflicting requiresType leaves no SEALED placeholder', () => {
+  it('sealClass(Class) with conflicting requiresType leaves no SEALED placeholder', () => {
+    @Recipe
     class ConflictReq {
       @Field(isEmail(), min(5)) v!: unknown;
     }
     let caught: unknown;
     try {
-      seal(ConflictReq);
+      sealClass(ConflictReq);
     } catch (e) {
       caught = e;
     }
     expect(caught).toBeInstanceOf(SealError);
     expect(getSealed(ConflictReq)).toBeUndefined();
+  });
+
+  it('retry succeeds after a failed seal leaves no poisoned state', () => {
+    @Recipe
+    class BadRetry {
+      @Field(isEmail(), min(5)) v!: unknown;
+    }
+    expect(() => sealClass(BadRetry)).toThrow(SealError);
+    expect(getSealed(BadRetry)).toBeUndefined();
+    // A subsequent unrelated seal must work — the failed attempt left nothing behind.
+    @Recipe
+    class GoodRetry {
+      @Field(isString) name!: string;
+    }
+    expect(() => sealClass(GoodRetry)).not.toThrow();
+    expect(getSealed(GoodRetry)).toBeDefined();
+  });
+});
+
+describe('seal() — @Recipe discovery', () => {
+  beforeEach(() => {
+    purgePoisonClasses();
+    unseal();
+  });
+  afterEach(() => {
+    purgePoisonClasses();
+    unseal();
+  });
+
+  it('argless seal() does NOT seal a class that has @Field but no @Recipe', () => {
+    class FieldOnly {
+      @Field(isString) name!: string;
+    }
+    seal();
+    expect(getSealed(FieldOnly)).toBeUndefined();
+    expect(() => deserialize(FieldOnly, { name: 'x' })).toThrow(SealError);
+  });
+
+  it('argless seal() seals and freezes a nested DTO reachable via @Field type even without its own @Recipe', () => {
+    class NestedNoRecipe {
+      @Field(isString) v!: string;
+    }
+    @Recipe
+    class ParentWithNested {
+      @Field({ type: () => NestedNoRecipe }) child!: NestedNoRecipe;
+    }
+    seal();
+    expect(getSealed(NestedNoRecipe)).toBeDefined();
+    expect(Object.isFrozen(getRaw(NestedNoRecipe))).toBe(true);
+    const out = deserialize(ParentWithNested, { child: { v: 'ok' } });
+    expect(isBakerError(out)).toBe(false);
   });
 });

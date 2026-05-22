@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import { isULID, isCUID2 } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -24,6 +25,7 @@ async function failCode(cls: new (...args: never[]) => unknown, input: unknown):
 // ─── isULID ─────────────────────────────────────────────────────────────────
 
 describe('isULID', () => {
+  @Recipe
   class Dto {
     @Field(isULID()) v!: string;
   }
@@ -52,10 +54,11 @@ describe('isULID', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
+    @Recipe
     class UlidDto {
       @Field(isULID()) id!: string;
     }
-    seal(UlidDto);
+    sealClass(UlidDto);
     const ok = await pass(UlidDto, { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV' });
     expect(ok.id).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
 
@@ -67,6 +70,7 @@ describe('isULID', () => {
 // ─── isCUID2 ────────────────────────────────────────────────────────────────
 
 describe('isCUID2', () => {
+  @Recipe
   class Dto {
     @Field(isCUID2()) v!: string;
   }
@@ -92,10 +96,11 @@ describe('isCUID2', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
+    @Recipe
     class Cuid2Dto {
       @Field(isCUID2()) id!: string;
     }
-    seal(Cuid2Dto);
+    sealClass(Cuid2Dto);
     const ok = await pass(Cuid2Dto, { id: 'clh3am6660002q2bfx5y9z0rn' });
     expect(ok.id).toBe('clh3am6660002q2bfx5y9z0rn');
 

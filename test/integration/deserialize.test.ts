@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
 import { assertBakerError } from './helpers/assert';
 import { unseal } from './helpers/unseal';
@@ -14,6 +14,7 @@ afterEach(() => unseal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SimpleDto {
   @Field(isString)
   name!: string;
@@ -22,6 +23,7 @@ class SimpleDto {
   age!: number;
 }
 
+@Recipe
 class OptionalFieldDto {
   @Field(isString)
   required!: string;
@@ -30,16 +32,19 @@ class OptionalFieldDto {
   optional?: string;
 }
 
+@Recipe
 class BooleanDto {
   @Field(isBoolean)
   active!: boolean;
 }
 
+@Recipe
 class IsinDto {
   @Field(isISIN)
   isin!: string;
 }
 
+@Recipe
 class IssnDto {
   @Field(isISSN())
   issn!: string;
@@ -47,16 +52,19 @@ class IssnDto {
 
 // ── H1: Internal variable name collision DTOs ────────────────────────────
 
+@Recipe
 class CollisionOutDto {
   @Field(isString)
   out!: string;
 }
 
+@Recipe
 class CollisionErrorsDto {
   @Field(isString)
   errors!: string;
 }
 
+@Recipe
 class CollisionGroupsDto {
   @Field(isString)
   groups!: string;
@@ -64,17 +72,20 @@ class CollisionGroupsDto {
 
 // ── C2: @IsDefined DTOs ───────────────────────────────────────────────────────
 
+@Recipe
 class IsDefinedStringDto {
   @Field(isString)
   value!: string;
 }
 
+@Recipe
 class IsDefinedNumberDto {
   @Field(isNumber())
   value!: number;
 }
 
 /** `@Field` alone — no other validation */
+@Recipe
 class IsDefinedOnlyDto {
   @Field()
   value!: unknown;
@@ -82,26 +93,31 @@ class IsDefinedOnlyDto {
 
 // ── C4: NaN/Infinity gate DTOs ───────────────────────────────────────────────
 
+@Recipe
 class IsNumberOnlyDto {
   @Field(isNumber())
   value!: number;
 }
 
+@Recipe
 class IsNumberAllowNaNDto {
   @Field(isNumber({ allowNaN: true }))
   value!: number;
 }
 
+@Recipe
 class IsNumberAllowInfinityDto {
   @Field(isNumber({ allowInfinity: true }))
   value!: number;
 }
 
+@Recipe
 class MinOnlyDto {
   @Field(min(0))
   value!: number;
 }
 
+@Recipe
 class IsNumberAndMinDto {
   @Field(isNumber(), min(0))
   value!: number;
@@ -234,6 +250,7 @@ describe('deserialize — integration', () => {
 // M4: validation groups runtime filtering
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class AdminOnlyDto {
   @Field(isString, { groups: ['admin'] })
   secret!: string;
@@ -271,11 +288,13 @@ describe('deserialize — public sync/async path', () => {
 // @Field message/context — integration test
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class MessageIntegrationDto {
   @Field(isString, { message: 'Invalid name field' })
   name!: string;
 }
 
+@Recipe
 class ContextIntegrationDto {
   @Field(isNumber(), { context: { errorCode: 'E001' } })
   value!: number;

@@ -1,12 +1,13 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, configure, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, configure, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerError } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class ErrorDto {
   @Field(isString)
   name!: string;
@@ -18,6 +19,7 @@ class ErrorDto {
   email!: string;
 }
 
+@Recipe
 class MultiFieldErrorDto {
   @Field(isString)
   a!: string;

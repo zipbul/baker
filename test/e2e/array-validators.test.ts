@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import {
   isArray,
   isString,
@@ -19,21 +19,27 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class MinSizeDto {
   @Field(isArray, arrayMinSize(2)) items!: unknown[];
 }
+@Recipe
 class MaxSizeDto {
   @Field(isArray, arrayMaxSize(3)) items!: unknown[];
 }
+@Recipe
 class UniqueDto {
   @Field(isArray, arrayUnique()) items!: unknown[];
 }
+@Recipe
 class NotEmptyDto {
   @Field(arrayNotEmpty) items!: unknown[];
 }
+@Recipe
 class ContainsDto {
   @Field(arrayContains(['a', 'b'])) items!: string[];
 }
+@Recipe
 class NotContainsDto {
   @Field(arrayNotContains(['z'])) items!: string[];
 }
@@ -124,10 +130,12 @@ describe('@ArrayNotContains', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Set collection + array-level rules', () => {
+  @Recipe
   class SetItem {
     @Field(isString) name!: string;
   }
 
+  @Recipe
   class SetWithMinDto {
     @Field(arrayMinSize(2), { type: () => Set, setValue: () => SetItem })
     items!: Set<SetItem>;

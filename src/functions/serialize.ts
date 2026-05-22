@@ -18,7 +18,10 @@ function resolveSerializer(instance: unknown, fnName: string): SealedExecutors<u
   if (typeof Class !== 'function') {
     throw new SealError(`${fnName}: instance has no constructor`);
   }
-  if (Class === Object) {
+  // Reject plain objects and forged ones (e.g. `{ constructor: SomeDto }`): a real instance is
+  // `instanceof` its own constructor via the prototype chain; the `constructor` property alone
+  // (which anyone can set) is not trusted.
+  if (Class === Object || !(instance instanceof Class)) {
     throw new SealError(`${fnName}: received a plain object. Pass an instance of a DTO class decorated with @Field.`);
   }
   return ensureSealed(Class);

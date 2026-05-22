@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { createRule, deserialize, Field, isBakerError, serialize, validate, seal } from '../../index';
+import { createRule, deserialize, Field, Recipe, isBakerError, serialize, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -29,38 +30,41 @@ const asyncStartsWithA = createRule({
 
 describe('async semantics parity meta', () => {
   it('async custom rule matches validate() and DTO path', async () => {
+    @Recipe
     class Dto {
       @Field(isNumber(), asyncEven)
       value!: number;
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const samples = [2, 3, '2', null];
 
     for (const sample of samples) {
-      const adHoc = await validate(sample, asyncEven);
+      const rulePass = await asyncEven(sample);
       const dto = await deserialize(Dto, { value: sample });
-      expect(isBakerError(dto)).toBe(isBakerError(adHoc));
+      expect(isBakerError(dto)).toBe(!rulePass);
     }
   });
 
   it('async custom string rule matches validate() and DTO path', async () => {
+    @Recipe
     class Dto {
       @Field(isString, asyncStartsWithA)
       value!: string;
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const samples = ['alice', 'bob', 1, null];
 
     for (const sample of samples) {
-      const adHoc = await validate(sample, asyncStartsWithA);
+      const rulePass = await asyncStartsWithA(sample);
       const dto = await deserialize(Dto, { value: sample });
-      expect(isBakerError(dto)).toBe(isBakerError(adHoc));
+      expect(isBakerError(dto)).toBe(!rulePass);
     }
   });
 
   it('async deserialize transform parity', async () => {
+    @Recipe
     class Dto {
       @Field(isString, {
         transform: {
@@ -70,19 +74,21 @@ describe('async semantics parity meta', () => {
       })
       value!: string;
     }
-    seal(Dto);
+    sealClass(Dto);
 
     const result = (await deserialize<Dto>(Dto, { value: '  alice  ' })) as Dto;
     expect(result.value).toBe('ALICE');
   });
 
   it('async serialize transform parity with nested object', async () => {
+    @Recipe
     class ChildDto {
       @Field(isString)
       name!: string;
     }
-    seal(ChildDto);
+    sealClass(ChildDto);
 
+    @Recipe
     class ParentDto {
       @Field({ type: () => ChildDto })
       child!: ChildDto;
@@ -95,7 +101,7 @@ describe('async semantics parity meta', () => {
       })
       label!: string;
     }
-    seal(ParentDto);
+    sealClass(ParentDto);
 
     const parent = Object.assign(new ParentDto(), {
       child: Object.assign(new ChildDto(), { name: 'neo' }),

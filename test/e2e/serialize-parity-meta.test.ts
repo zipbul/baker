@@ -1,27 +1,32 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, serialize, seal } from '../../index';
+import { deserialize, Field, Recipe, serialize, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
 
+@Recipe
 class ChildDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class DogDto {
   @Field(isString)
   color!: string;
 }
 
+@Recipe
 class ComplexSerializeDto {
   @Field(isString, {
     serializeName: 'display_name',
@@ -91,6 +96,7 @@ describe('serialize parity meta', () => {
   });
 
   it('roundtrips directional names and serialize output contract together', async () => {
+    @Recipe
     class RoundtripDto {
       @Field(isString, {
         deserializeName: 'full_name',
@@ -105,7 +111,7 @@ describe('serialize parity meta', () => {
       @Field({ type: () => ChildDto, optional: true })
       child?: ChildDto;
     }
-    seal(RoundtripDto);
+    sealClass(RoundtripDto);
 
     const parsed = (await deserialize<RoundtripDto>(RoundtripDto, {
       full_name: '  Carol  ',

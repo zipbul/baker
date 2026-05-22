@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import {
   isAscii,
   isAlpha,
@@ -64,6 +64,7 @@ afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isAscii', () => {
+  @Recipe
   class D {
     @Field(isAscii) v!: string;
   }
@@ -76,6 +77,7 @@ describe('isAscii', () => {
 });
 
 describe('isAlpha', () => {
+  @Recipe
   class D {
     @Field(isAlpha) v!: string;
   }
@@ -88,6 +90,7 @@ describe('isAlpha', () => {
 });
 
 describe('isAlphanumeric', () => {
+  @Recipe
   class D {
     @Field(isAlphanumeric) v!: string;
   }
@@ -100,6 +103,7 @@ describe('isAlphanumeric', () => {
 });
 
 describe('isNumberString', () => {
+  @Recipe
   class D {
     @Field(isNumberString()) v!: string;
   }
@@ -112,6 +116,7 @@ describe('isNumberString', () => {
 });
 
 describe('isNumberString({ no_symbols: true })', () => {
+  @Recipe
   class NumStrictDto {
     @Field(isNumberString({ no_symbols: true })) v!: string;
   }
@@ -130,6 +135,7 @@ describe('isNumberString({ no_symbols: true })', () => {
 });
 
 describe('isDecimal', () => {
+  @Recipe
   class D {
     @Field(isDecimal()) v!: string;
   }
@@ -142,6 +148,7 @@ describe('isDecimal', () => {
 });
 
 describe('isFullWidth', () => {
+  @Recipe
   class D {
     @Field(isFullWidth) v!: string;
   }
@@ -154,6 +161,7 @@ describe('isFullWidth', () => {
 });
 
 describe('isHalfWidth', () => {
+  @Recipe
   class D {
     @Field(isHalfWidth) v!: string;
   }
@@ -166,6 +174,7 @@ describe('isHalfWidth', () => {
 });
 
 describe('isMultibyte', () => {
+  @Recipe
   class D {
     @Field(isMultibyte) v!: string;
   }
@@ -178,6 +187,7 @@ describe('isMultibyte', () => {
 });
 
 describe('isHexadecimal', () => {
+  @Recipe
   class D {
     @Field(isHexadecimal) v!: string;
   }
@@ -190,6 +200,7 @@ describe('isHexadecimal', () => {
 });
 
 describe('isOctal', () => {
+  @Recipe
   class D {
     @Field(isOctal) v!: string;
   }
@@ -202,6 +213,7 @@ describe('isOctal', () => {
 });
 
 describe('isHexColor', () => {
+  @Recipe
   class D {
     @Field(isHexColor) v!: string;
   }
@@ -214,6 +226,7 @@ describe('isHexColor', () => {
 });
 
 describe('isRgbColor', () => {
+  @Recipe
   class D {
     @Field(isRgbColor()) v!: string;
   }
@@ -226,6 +239,7 @@ describe('isRgbColor', () => {
 });
 
 describe('isHSL', () => {
+  @Recipe
   class D {
     @Field(isHSL) v!: string;
   }
@@ -238,6 +252,7 @@ describe('isHSL', () => {
 });
 
 describe('isMACAddress', () => {
+  @Recipe
   class D {
     @Field(isMACAddress()) v!: string;
   }
@@ -250,6 +265,7 @@ describe('isMACAddress', () => {
 });
 
 describe('isISBN', () => {
+  @Recipe
   class D {
     @Field(isISBN(13)) v!: string;
   }
@@ -262,6 +278,7 @@ describe('isISBN', () => {
 });
 
 describe('isISIN', () => {
+  @Recipe
   class D {
     @Field(isISIN) v!: string;
   }
@@ -274,6 +291,7 @@ describe('isISIN', () => {
 });
 
 describe('isISRC', () => {
+  @Recipe
   class D {
     @Field(isISRC) v!: string;
   }
@@ -286,6 +304,7 @@ describe('isISRC', () => {
 });
 
 describe('isISSN', () => {
+  @Recipe
   class D {
     @Field(isISSN()) v!: string;
   }
@@ -298,6 +317,7 @@ describe('isISSN', () => {
 });
 
 describe('isJWT', () => {
+  @Recipe
   class D {
     @Field(isJWT) v!: string;
   }
@@ -311,6 +331,7 @@ describe('isJWT', () => {
 });
 
 describe('isLatLong', () => {
+  @Recipe
   class D {
     @Field(isLatLong()) v!: string;
   }
@@ -323,6 +344,7 @@ describe('isLatLong', () => {
 });
 
 describe('isLocale', () => {
+  @Recipe
   class D {
     @Field(isLocale) v!: string;
   }
@@ -335,6 +357,7 @@ describe('isLocale', () => {
 });
 
 describe('isDataURI', () => {
+  @Recipe
   class D {
     @Field(isDataURI) v!: string;
   }
@@ -347,6 +370,7 @@ describe('isDataURI', () => {
 });
 
 describe('isFQDN', () => {
+  @Recipe
   class D {
     @Field(isFQDN()) v!: string;
   }
@@ -359,6 +383,7 @@ describe('isFQDN', () => {
 });
 
 describe('isFQDN({ require_tld: false })', () => {
+  @Recipe
   class HostDto {
     @Field(isFQDN({ require_tld: false })) host!: string;
   }
@@ -372,6 +397,7 @@ describe('isFQDN({ require_tld: false })', () => {
 });
 
 describe('isPort', () => {
+  @Recipe
   class D {
     @Field(isPort) v!: string;
   }
@@ -384,6 +410,7 @@ describe('isPort', () => {
 });
 
 describe('isISO31661Alpha2', () => {
+  @Recipe
   class D {
     @Field(isISO31661Alpha2) v!: string;
   }
@@ -396,6 +423,7 @@ describe('isISO31661Alpha2', () => {
 });
 
 describe('isISO31661Alpha3', () => {
+  @Recipe
   class D {
     @Field(isISO31661Alpha3) v!: string;
   }
@@ -408,6 +436,7 @@ describe('isISO31661Alpha3', () => {
 });
 
 describe('isBIC', () => {
+  @Recipe
   class D {
     @Field(isBIC) v!: string;
   }
@@ -420,6 +449,7 @@ describe('isBIC', () => {
 });
 
 describe('isSemVer', () => {
+  @Recipe
   class D {
     @Field(isSemVer) v!: string;
   }
@@ -432,6 +462,7 @@ describe('isSemVer', () => {
 });
 
 describe('isMongoId', () => {
+  @Recipe
   class D {
     @Field(isMongoId) v!: string;
   }
@@ -444,6 +475,7 @@ describe('isMongoId', () => {
 });
 
 describe('isBase64', () => {
+  @Recipe
   class D {
     @Field(isBase64()) v!: string;
   }
@@ -456,6 +488,7 @@ describe('isBase64', () => {
 });
 
 describe('isBase58', () => {
+  @Recipe
   class D {
     @Field(isBase58) v!: string;
   }
@@ -468,6 +501,7 @@ describe('isBase58', () => {
 });
 
 describe('isMimeType', () => {
+  @Recipe
   class D {
     @Field(isMimeType) v!: string;
   }
@@ -480,6 +514,7 @@ describe('isMimeType', () => {
 });
 
 describe('isCreditCard', () => {
+  @Recipe
   class D {
     @Field(isCreditCard) v!: string;
   }
@@ -492,6 +527,7 @@ describe('isCreditCard', () => {
 });
 
 describe('isByteLength', () => {
+  @Recipe
   class D {
     @Field(isByteLength(1, 10)) v!: string;
   }
@@ -504,11 +540,12 @@ describe('isByteLength', () => {
 });
 
 describe('isHash', () => {
+  @Recipe
   class D {
     @Field(isHash('md5')) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe('d41d8cd98f00b204e9800998ecf8427e');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'nothash' }))).toBe(true);
@@ -516,11 +553,12 @@ describe('isHash', () => {
 });
 
 describe('isRFC3339', () => {
+  @Recipe
   class D {
     @Field(isRFC3339) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '2024-01-01T00:00:00Z' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '2024-01-01T00:00:00Z' })) as D).v).toBe('2024-01-01T00:00:00Z');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'not-date' }))).toBe(true);
@@ -528,6 +566,7 @@ describe('isRFC3339', () => {
 });
 
 describe('isMilitaryTime', () => {
+  @Recipe
   class D {
     @Field(isMilitaryTime) v!: string;
   }
@@ -540,6 +579,7 @@ describe('isMilitaryTime', () => {
 });
 
 describe('isLatitude', () => {
+  @Recipe
   class D {
     @Field(isLatitude) v!: string;
   }
@@ -552,6 +592,7 @@ describe('isLatitude', () => {
 });
 
 describe('isLongitude', () => {
+  @Recipe
   class D {
     @Field(isLongitude) v!: string;
   }
@@ -564,11 +605,14 @@ describe('isLongitude', () => {
 });
 
 describe('isEthereumAddress', () => {
+  @Recipe
   class D {
     @Field(isEthereumAddress) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68' })) as D).v).toBe(
+      '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD68',
+    );
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: '0xinvalid' }))).toBe(true);
@@ -576,11 +620,14 @@ describe('isEthereumAddress', () => {
 });
 
 describe('isBtcAddress', () => {
+  @Recipe
   class D {
     @Field(isBtcAddress) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa' })) as D).v).toBe(
+      '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',
+    );
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
@@ -588,6 +635,7 @@ describe('isBtcAddress', () => {
 });
 
 describe('isISO4217CurrencyCode', () => {
+  @Recipe
   class D {
     @Field(isISO4217CurrencyCode) v!: string;
   }
@@ -600,11 +648,12 @@ describe('isISO4217CurrencyCode', () => {
 });
 
 describe('isPhoneNumber', () => {
+  @Recipe
   class D {
     @Field(isPhoneNumber) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '+14155552671' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '+14155552671' })) as D).v).toBe('+14155552671');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
@@ -612,11 +661,12 @@ describe('isPhoneNumber', () => {
 });
 
 describe('isStrongPassword', () => {
+  @Recipe
   class D {
     @Field(isStrongPassword()) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: 'Str0ng!Pass' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: 'Str0ng!Pass' })) as D).v).toBe('Str0ng!Pass');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'weak' }))).toBe(true);
@@ -624,11 +674,12 @@ describe('isStrongPassword', () => {
 });
 
 describe('isFirebasePushId', () => {
+  @Recipe
   class D {
     @Field(isFirebasePushId) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '-JhLeOlGIEjaIOFHR0xd' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '-JhLeOlGIEjaIOFHR0xd' })) as D).v).toBe('-JhLeOlGIEjaIOFHR0xd');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'short' }))).toBe(true);
@@ -636,11 +687,12 @@ describe('isFirebasePushId', () => {
 });
 
 describe('isEAN', () => {
+  @Recipe
   class D {
     @Field(isEAN) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '4006381333931' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '4006381333931' })) as D).v).toBe('4006381333931');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: '123' }))).toBe(true);
@@ -648,11 +700,14 @@ describe('isEAN', () => {
 });
 
 describe('isMagnetURI', () => {
+  @Recipe
   class D {
     @Field(isMagnetURI) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a' })) as D).v).toBe(
+      'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a',
+    );
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'notmagnet' }))).toBe(true);
@@ -660,6 +715,7 @@ describe('isMagnetURI', () => {
 });
 
 describe('isDateString', () => {
+  @Recipe
   class D {
     @Field(isDateString()) v!: string;
   }
@@ -672,11 +728,12 @@ describe('isDateString', () => {
 });
 
 describe('isCurrency', () => {
+  @Recipe
   class D {
     @Field(isCurrency()) v!: string;
   }
   it('passes', async () => {
-    expect(((await deserialize(D, { v: '$1,000.00' })) as D).v).toBeDefined();
+    expect(((await deserialize(D, { v: '$1,000.00' })) as D).v).toBe('$1,000.00');
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
@@ -684,6 +741,7 @@ describe('isCurrency', () => {
 });
 
 describe('isVariableWidth', () => {
+  @Recipe
   class D {
     @Field(isVariableWidth) v!: string;
   }
@@ -696,6 +754,7 @@ describe('isVariableWidth', () => {
 });
 
 describe('isSurrogatePair', () => {
+  @Recipe
   class D {
     @Field(isSurrogatePair) v!: string;
   }
@@ -708,6 +767,7 @@ describe('isSurrogatePair', () => {
 });
 
 describe('isBase32', () => {
+  @Recipe
   class D {
     @Field(isBase32()) v!: string;
   }
@@ -720,6 +780,7 @@ describe('isBase32', () => {
 });
 
 describe('isIBAN', () => {
+  @Recipe
   class D {
     @Field(isIBAN()) v!: string;
   }
@@ -732,6 +793,7 @@ describe('isIBAN', () => {
 });
 
 describe('isTaxId', () => {
+  @Recipe
   class D {
     @Field(isTaxId('US')) v!: string;
   }

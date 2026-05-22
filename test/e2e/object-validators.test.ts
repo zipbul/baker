@@ -1,18 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class EmptyObjDto {
   @Field(isNotEmptyObject())
   config!: Record<string, unknown>;
 }
 
+@Recipe
 class ObjDto {
   @Field(isObject)
   data!: object;
@@ -35,11 +38,12 @@ describe('isNotEmptyObject', () => {
   });
 
   it('nullable option — ignores null-valued keys', async () => {
+    @Recipe
     class NullableObjDto {
       @Field(isNotEmptyObject({ nullable: true }))
       config!: Record<string, unknown>;
     }
-    seal(NullableObjDto);
+    sealClass(NullableObjDto);
     // all values are null → treated as empty object
     expect(isBakerError(await deserialize(NullableObjDto, { config: { a: null, b: undefined } }))).toBe(true);
     // non-null value exists → passes

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, seal } from '../../index';
+import { Field, Recipe, deserialize, seal } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, minLength, isNumber } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
@@ -11,11 +11,13 @@ afterEach(() => unseal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class StringMessageDto {
   @Field(isString, minLength(3), { message: 'Name is invalid' })
   name!: string;
 }
 
+@Recipe
 class FunctionMessageDto {
   @Field(isString, {
     message: ({ property, value }) => `${property} got bad value: ${JSON.stringify(value)}`,
@@ -23,51 +25,61 @@ class FunctionMessageDto {
   email!: string;
 }
 
+@Recipe
 class ContextDto {
   @Field(isString, { context: { severity: 'warning', field: 'tag' } })
   tag!: string;
 }
 
+@Recipe
 class MessageAndContextDto {
   @Field(isNumber(), { message: 'Must be a number', context: { hint: 'use integer' } })
   count!: number;
 }
 
+@Recipe
 class MultiRuleMessageDto {
   @Field(isString, minLength(5), { message: 'Username invalid' })
   username!: string;
 }
 
+@Recipe
 class ArrayOfMessageDto {
   @Field(arrayOf(isString, minLength(1)), { message: 'Each tag must be a non-empty string' })
   tags!: string[];
 }
 
+@Recipe
 class NoMessageDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class FalsyContextZeroDto {
   @Field(isString, { context: 0 })
   value!: string;
 }
 
+@Recipe
 class FalsyContextFalseDto {
   @Field(isString, { context: false })
   value!: string;
 }
 
+@Recipe
 class FalsyContextEmptyStringDto {
   @Field(isString, { context: '' })
   value!: string;
 }
 
+@Recipe
 class EmptyStringMessageDto {
   @Field(isString, { message: '' })
   value!: string;
 }
 
+@Recipe
 class ConstraintsAccessDto {
   @Field(minLength(5), {
     message: ({ property, constraints }) => `${property} must be at least ${constraints['min']} chars`,
@@ -75,36 +87,43 @@ class ConstraintsAccessDto {
   name!: string;
 }
 
+@Recipe
 class InnerMsgDto {
   @Field(isString, { message: 'inner msg' })
   name!: string;
 }
 
+@Recipe
 class OuterMsgDto {
   @Field({ type: () => InnerMsgDto })
   child!: InnerMsgDto;
 }
 
+@Recipe
 class InnerCtxDto {
   @Field(isNumber(), { message: 'must be number', context: { severity: 'error' } })
   age!: number;
 }
 
+@Recipe
 class OuterCtxDto {
   @Field({ type: () => InnerCtxDto })
   nested!: InnerCtxDto;
 }
 
+@Recipe
 class InnerArrayMsgDto {
   @Field(isString, { message: 'item msg' })
   label!: string;
 }
 
+@Recipe
 class OuterArrayMsgDto {
   @Field({ type: () => [InnerArrayMsgDto] })
   items!: InnerArrayMsgDto[];
 }
 
+@Recipe
 class GroupsWithMessageDto {
   @Field(isString, { groups: ['admin'], message: 'Admin field invalid' })
   secret!: string;

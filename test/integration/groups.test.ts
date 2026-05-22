@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class AdminDto {
   @Field(isString)
   name!: string;
@@ -14,6 +15,7 @@ class AdminDto {
   internalCode?: string;
 }
 
+@Recipe
 class GroupedSerialDto {
   @Field(isString)
   name!: string;

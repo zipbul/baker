@@ -2,10 +2,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../../src/interfaces';
 
-import { Field, deserialize, serialize, validate, SealError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, validate, SealError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
+@Recipe
 class CallOptDto {
   @Field(isString) name!: string;
 }

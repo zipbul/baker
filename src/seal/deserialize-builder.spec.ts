@@ -79,6 +79,20 @@ describe('buildDeserializeCode', () => {
     expect((result as NameDto).name).toBe('Alice');
   });
 
+  it('escapes the field key in the debug exclusion comment (no codegen injection)', async () => {
+    // A field key containing a newline must not break out of the generated `//` debug comment and
+    // inject source into the `new Function` body (which would run when the executor is invoked).
+    const malicious = 'x\n;(globalThis).__BK_INJECT__=true;//';
+    class EvilDto {}
+    const merged: RawClassMeta = {
+      [malicious]: { validation: [], transform: [], expose: [], exclude: {}, type: null, flags: {} },
+    };
+    delete (globalThis as { __BK_INJECT__?: boolean }).__BK_INJECT__;
+    const exec = buildDeserializeCode(EvilDto, merged, { debug: true }, false, false);
+    await exec({});
+    expect((globalThis as { __BK_INJECT__?: boolean }).__BK_INJECT__).toBeUndefined();
+  });
+
   it('should return invalidInput error when input is null', async () => {
     // Arrange
     class NullDto {}

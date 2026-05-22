@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
 import { arrayMinSize, contains, isNumber, isObject, isPositive, minLength } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -48,11 +49,12 @@ function randomValue(rng: () => number): unknown {
 }
 
 async function dtoPasses(rule: import('../../src/types').EmittableRule, value: unknown): Promise<boolean> {
+  @Recipe
   class Dto {
     @Field(rule)
     value!: unknown;
   }
-  seal(Dto);
+  sealClass(Dto);
   return !isBakerError(await deserialize(Dto, { value }));
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import {
   isString,
   notContains,
@@ -17,21 +17,27 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class NotContainsDto {
   @Field(isString, notContains('bad')) val!: string;
 }
+@Recipe
 class LowercaseDto {
   @Field(isLowercase) val!: string;
 }
+@Recipe
 class UppercaseDto {
   @Field(isUppercase) val!: string;
 }
+@Recipe
 class BoolStringDto {
   @Field(isBooleanString) val!: string;
 }
+@Recipe
 class JsonDto {
   @Field(isJSON) val!: string;
 }
+@Recipe
 class ArrNotContainsDto {
   @Field(isArray, arrayNotContains([99])) items!: number[];
 }

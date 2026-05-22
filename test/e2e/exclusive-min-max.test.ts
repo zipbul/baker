@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -9,11 +9,13 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class ExclusiveDto {
   @Field(isNumber(), min(0, { exclusive: true }), max(100, { exclusive: true }))
   score!: number;
 }
 
+@Recipe
 class InclusiveDto {
   @Field(isNumber(), min(0), max(100))
   value!: number;

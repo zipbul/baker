@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { configure, SealError } from '../../index';
+import { getGlobalOptions } from '../../src/configure';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => unseal());
@@ -40,5 +41,20 @@ describe('configure() — input validation', () => {
 
   it('configure({}) accepts empty object', () => {
     expect(() => configure({})).not.toThrow();
+  });
+});
+
+describe('getGlobalOptions — frozen', () => {
+  it('returns a frozen options object on default state', () => {
+    expect(Object.isFrozen(getGlobalOptions())).toBe(true);
+  });
+
+  it('returns a frozen options object after configure()', () => {
+    configure({ stopAtFirstError: true });
+    const opts = getGlobalOptions();
+    expect(Object.isFrozen(opts)).toBe(true);
+    expect(() => {
+      (opts as { stopAtFirstError?: boolean }).stopAtFirstError = false;
+    }).toThrow();
   });
 });

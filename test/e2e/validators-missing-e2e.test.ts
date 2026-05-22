@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import {
   isBase32,
   isBase58,
@@ -25,51 +25,67 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
+@Recipe
 class Base32Dto {
   @Field(isBase32()) value!: string;
 }
+@Recipe
 class Base58Dto {
   @Field(isBase58) value!: string;
 }
+@Recipe
 class DateStringDto {
   @Field(isDateString()) value!: string;
 }
+@Recipe
 class MimeTypeDto {
   @Field(isMimeType) value!: string;
 }
+@Recipe
 class CurrencyDto {
   @Field(isCurrency()) value!: string;
 }
+@Recipe
 class MagnetURIDto {
   @Field(isMagnetURI) value!: string;
 }
+@Recipe
 class HashMd5Dto {
   @Field(isHash('md5')) value!: string;
 }
+@Recipe
 class RFC3339Dto {
   @Field(isRFC3339) value!: string;
 }
+@Recipe
 class MilitaryTimeDto {
   @Field(isMilitaryTime) value!: string;
 }
+@Recipe
 class LatitudeDto {
   @Field(isLatitude) value!: string;
 }
+@Recipe
 class LongitudeDto {
   @Field(isLongitude) value!: string;
 }
+@Recipe
 class EthereumAddressDto {
   @Field(isEthereumAddress) value!: string;
 }
+@Recipe
 class BtcAddressDto {
   @Field(isBtcAddress) value!: string;
 }
+@Recipe
 class ISO4217Dto {
   @Field(isISO4217CurrencyCode) value!: string;
 }
+@Recipe
 class PhoneNumberDto {
   @Field(isPhoneNumber) value!: string;
 }
+@Recipe
 class StrongPasswordDto {
   @Field(isStrongPassword()) value!: string;
 }

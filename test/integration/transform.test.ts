@@ -1,11 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class TrimmedDto {
   @Field(isString, {
     transform: {
@@ -16,6 +17,7 @@ class TrimmedDto {
   name!: string;
 }
 
+@Recipe
 class ToUpperDto {
   @Field(isString, {
     transform: {
@@ -26,6 +28,7 @@ class ToUpperDto {
   code!: string;
 }
 
+@Recipe
 class SerializeTransformDto {
   @Field(isNumber(), {
     transform: { deserialize: ({ value }) => value, serialize: ({ value }) => (typeof value === 'number' ? value * 100 : value) },

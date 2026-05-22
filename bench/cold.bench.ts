@@ -6,11 +6,10 @@ import { type } from 'arktype';
 // Benchmark: Cold start — schema definition + first validation (compile cost)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, deserialize, seal } from '../index';
+import { Field, Recipe, deserialize, seal } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { unseal } from '../test/integration/helpers/unseal';
 
@@ -19,6 +18,7 @@ const input = { name: 'Alice', email: 'alice@example.com', age: 30, active: true
 // ── Baker ────────────────────────────────────────────────────────────────────
 // Baker's seal is one-time per class. To measure cold start, we use unseal helper.
 
+@Recipe
 class BakerCold {
   @Field(isString, minLength(2)) name!: string;
   @Field(isString, isEmail()) email!: string;
@@ -30,8 +30,6 @@ class BakerCold {
 seal();
 await deserialize(BakerCold, input);
 
-// ── class-validator ──────────────────────────────────────────────────────────
-void reflectMetadata;
 // ── TypeBox ──────────────────────────────────────────────────────────────────
 // ── AJV ──────────────────────────────────────────────────────────────────────
 // ── ArkType ──────────────────────────────────────────────────────────────────

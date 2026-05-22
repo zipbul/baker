@@ -1,162 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { validate, deserialize, isBakerError, Field, createRule, seal } from '../../index';
-import { isString, isNumber, isBoolean, isEmail, min, max, minLength } from '../../src/rules/index';
+import { validate, deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { isString, isNumber, isEmail, min, max, minLength } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-const isEvenNumber = (v: unknown): boolean => typeof v === 'number' && (v as number) % 2 === 0;
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ad-hoc validation — single value + rules
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('validate ad-hoc — sync rules', () => {
-  it('single rule pass → true', async () => {
-    expect(await validate('hello', isString)).toBe(true);
-  });
-
-  it('single rule fail → BakerErrors with code', async () => {
-    const result = await validate(123, isString);
-    assertBakerError(result);
-    expect(result.errors).toEqual([{ path: '', code: 'isString' }]);
-  });
-
-  it('multiple rules all pass → true', async () => {
-    expect(await validate('hello@test.com', isString, minLength(3), isEmail())).toBe(true);
-  });
-
-  it('multiple rules partial fail → BakerErrors with failed codes only', async () => {
-    const result = await validate('ab', isString, minLength(3), isEmail());
-    assertBakerError(result);
-    expect(result.errors).toHaveLength(2);
-    expect(result.errors[0]!.code).toBe('minLength');
-    expect(result.errors[1]!.code).toBe('isEmail');
-  });
-
-  it('multiple rules all fail → BakerErrors with all codes', async () => {
-    const result = await validate(42, isString, minLength(3), isEmail());
-    assertBakerError(result);
-    expect(result.errors).toHaveLength(3);
-  });
-
-  it('number validation with min/max', async () => {
-    expect(await validate(50, isNumber(), min(0), max(100))).toBe(true);
-    const result = await validate(-5, isNumber(), min(0));
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('boolean validation', async () => {
-    expect(await validate(true, isBoolean)).toBe(true);
-    const result = await validate('true', isBoolean);
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('factory rule isEmail()', async () => {
-    expect(await validate('a@b.com', isEmail())).toBe(true);
-    const result = await validate('not-email', isEmail());
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('error path is empty string for ad-hoc', async () => {
-    const result = await validate(123, isString);
-    assertBakerError(result);
-    expect(result.errors[0]!.path).toBe('');
-  });
-
-  it('sync rules return directly', () => {
-    const result = validate('hello', isString);
-    expect(result).toBe(true);
-  });
-});
-
-describe('validate ad-hoc — async rules', () => {
-  const asyncPass = createRule({
-    name: 'asyncPass',
-    validate: async v => typeof v === 'string',
-  });
-
-  const asyncFail = createRule({
-    name: 'asyncFail',
-    validate: async () => false,
-  });
-
-  it('async rule pass → true', async () => {
-    expect(await validate('hello', asyncPass)).toBe(true);
-  });
-
-  it('async rule fail → BakerErrors', async () => {
-    const result = await validate('hello', asyncFail);
-    assertBakerError(result);
-    expect(result.errors[0]!.code).toBe('asyncFail');
-  });
-
-  it('mixed sync + async rules', async () => {
-    const result = await validate(123, isString, asyncPass);
-    assertBakerError(result);
-    expect(result.errors).toHaveLength(2);
-    expect(result.errors[0]!.code).toBe('isString');
-    expect(result.errors[1]!.code).toBe('asyncPass');
-  });
-
-  it('returns Promise for async rules', () => {
-    const result = validate('hello', asyncPass);
-    expect(result).toBeInstanceOf(Promise);
-  });
-
-  it('promise-returning non-async rule throws contract error', () => {
-    const promiseFalse = createRule({
-      name: 'promiseFalse',
-      validate: () => Promise.resolve(false),
-    });
-
-    expect(() => validate('hello', promiseFalse)).toThrow('sync rule returned Promise');
-  });
-});
-
-describe('validate ad-hoc — edge cases', () => {
-  it('null input fails isString', async () => {
-    const result = await validate(null, isString);
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('undefined input fails isNumber', async () => {
-    const result = await validate(undefined, isNumber());
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('empty string passes isString but fails minLength(1)', async () => {
-    expect(await validate('', isString)).toBe(true);
-    const result = await validate('', isString, minLength(1));
-    expect(isBakerError(result)).toBe(true);
-  });
-
-  it('createRule with simple form', async () => {
-    const isEven = createRule('isEven', isEvenNumber);
-    expect(await validate(4, isEven)).toBe(true);
-    const result = await validate(3, isEven);
-    assertBakerError(result);
-    expect(result.errors[0]!.code).toBe('isEven');
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // DTO-level validation
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class SimpleDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0), max(150)) age!: number;
   @Field(isString, isEmail()) email!: string;
 }
 
+@Recipe
 class NestedAddressDto {
   @Field(isString, minLength(1)) city!: string;
 }
 
+@Recipe
 class NestedUserDto {
   @Field(isString) name!: string;
   @Field({ type: () => NestedAddressDto }) address!: NestedAddressDto;
@@ -216,6 +85,19 @@ describe('validate DTO — nested', () => {
     const paths = result.errors.map(e => e.path);
     expect(paths.some(p => p.includes('address'))).toBe(true);
   });
+
+  it('rejects an array given for a nested DTO field without descending (consistent with deserialize)', async () => {
+    const input = { name: 'Bob', address: [] };
+    const v = await validate(NestedUserDto, input);
+    const d = await deserialize(NestedUserDto, input);
+    assertBakerError(v);
+    assertBakerError(d);
+    // The array must be rejected at the field itself, not validated as if it were an object.
+    expect(v.errors.some(e => e.path.startsWith('address.'))).toBe(false);
+    expect(v.errors.some(e => e.path === 'address')).toBe(true);
+    // validate and deserialize agree on the rejection.
+    expect(v.errors.map(e => `${e.path}:${e.code}`).sort()).toEqual(d.errors.map(e => `${e.path}:${e.code}`).sort());
+  });
 });
 
 describe('validate DTO — consistency with deserialize', () => {
@@ -248,14 +130,11 @@ describe('validate DTO — consistency with deserialize', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Overload resolution
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ─────────────────────────────────────────────────────────────────────────────
 // DTO-level — advanced scenarios
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate DTO — groups', () => {
+  @Recipe
   class GroupDto {
     @Field(isString) name!: string;
     @Field(isString, { groups: ['admin'] }) secret!: string;
@@ -276,6 +155,7 @@ describe('validate DTO — groups', () => {
 });
 
 describe('validate DTO — optional/nullable', () => {
+  @Recipe
   class OptionalDto {
     @Field(isString, { optional: true }) nickname?: string;
     @Field(isString) name!: string;
@@ -292,6 +172,7 @@ describe('validate DTO — optional/nullable', () => {
 });
 
 describe('validate DTO — async', () => {
+  @Recipe
   class AsyncDto {
     @Field(isString, {
       transform: { deserialize: async ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
@@ -309,84 +190,16 @@ describe('validate DTO — async', () => {
   });
 });
 
-describe('validate DTO — SealError', () => {
-  it('seal(EmptyDto) on class without @Field → throws SealError', () => {
+describe('validate DTO — empty class', () => {
+  it('seals a class with no @Field to an empty executor (no error)', () => {
     class EmptyDto {}
-    expect(() => seal(EmptyDto)).toThrow();
+    expect(() => sealClass(EmptyDto)).not.toThrow();
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Ad-hoc — edge cases
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('validate ad-hoc — no rules', () => {
-  it('no rules passed → true (vacuously valid)', async () => {
-    expect(await validate('anything')).toBe(true);
-  });
-
-  it('no rules with null → true', async () => {
-    expect(await validate(null)).toBe(true);
-  });
-});
-
-describe('validate ad-hoc — invalid rule argument rejection', () => {
-  it('non-function rule throws SealError', () => {
-    expect(() => validate('hello', 42 as never)).toThrow(/argument 1 is not a baker rule/);
-  });
-
-  it('null rule throws SealError', () => {
-    expect(() => validate('hello', null as never)).toThrow(/got null/);
-  });
-
-  it('function without emit/ruleName throws SealError', () => {
-    const fakeRule = (() => true) as never;
-    expect(() => validate('hello', fakeRule)).toThrow(/is not a baker rule/);
-  });
-});
-
-describe('validate ad-hoc — throwing rule', () => {
-  const throwRule = createRule('throwRule', () => {
-    throw new Error('boom');
-  });
-
-  it('sync rule that throws → throws the same error', () => {
-    expect(() => validate('hello', throwRule)).toThrow('boom');
-  });
-
-  it('async rule that throws → rejects with the thrown error', async () => {
-    const asyncThrow = createRule({
-      name: 'asyncThrow',
-      validate: async () => {
-        throw new Error('async boom');
-      },
-    });
-    await expect(validate('hello', asyncThrow)).rejects.toThrow('async boom');
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Overload resolution
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('validate overload resolution', () => {
-  it('function + plain object → DTO mode', async () => {
+describe('validate — DTO mode', () => {
+  it('validates a plain object against the class schema', async () => {
     const result = await validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
     expect(result).toBe(true);
-  });
-
-  it('function + EmittableRule → ad-hoc mode (validates function value)', async () => {
-    const fn = () => {};
-    const result = await validate(fn, isString);
-    assertBakerError(result);
-    expect(result.errors[0]!.code).toBe('isString');
-  });
-
-  it('string + rules → ad-hoc mode', async () => {
-    expect(await validate('hello', isString)).toBe(true);
-  });
-
-  it('number + rules → ad-hoc mode', async () => {
-    expect(await validate(42, isNumber())).toBe(true);
   });
 });

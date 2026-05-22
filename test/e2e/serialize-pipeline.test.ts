@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { serialize, deserialize, Field, seal } from '../../index';
+import { serialize, deserialize, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
+import { sealClass } from '../integration/helpers/seal';
+import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class NameMappedDto {
   @Field(isString, { name: 'full_name' })
   name!: string;
@@ -16,6 +18,7 @@ class NameMappedDto {
   age!: number;
 }
 
+@Recipe
 class ExcludeSerDto {
   @Field(isString)
   visible!: string;
@@ -24,6 +27,7 @@ class ExcludeSerDto {
   hidden!: string;
 }
 
+@Recipe
 class SerOnlyTransformDto {
   @Field(isNumber(), {
     transform: { deserialize: ({ value }) => value, serialize: ({ value }) => (value as number) * 100 },
@@ -31,6 +35,7 @@ class SerOnlyTransformDto {
   price!: number;
 }
 
+@Recipe
 class DeserOnlyTransformDto {
   @Field(isString, {
     transform: { deserialize: ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
@@ -38,11 +43,13 @@ class DeserOnlyTransformDto {
   tag!: string;
 }
 
+@Recipe
 class DirectionExposeDto {
   @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 }
 
+@Recipe
 class PipelineDto {
   @Field(isString, {
     serializeName: 'display_name',
@@ -123,11 +130,13 @@ describe('serialize pipeline — @Expose + @Transform combination', () => {
 
 // ─── E-19: nested array null element serialize ──────────────────────────────
 
+@Recipe
 class ChildDto {
   @Field(isString)
   label!: string;
 }
 
+@Recipe
 class ParentWithArrayDto {
   @Field(isString)
   name!: string;
@@ -161,5 +170,84 @@ describe('E-19: nested array with null elements — serialize', () => {
 
     const result = await serialize(parent);
     expect(result.children).toEqual([null, null]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Forged-instance rejection (a real instance is `instanceof` its class; a forged
+// `{ constructor: Dto }` plain object is not, and must be rejected).
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Recipe
+class ForgeTarget {
+  @Field(isString) name!: string;
+}
+
+describe('serialize — forged instance rejection', () => {
+  it('rejects a plain object whose constructor is forged to point at a sealed DTO', () => {
+    const forged = { constructor: ForgeTarget, name: 'x' };
+    expect(() => serialize(forged as never)).toThrow(/plain object/);
+  });
+
+  it('still serializes a genuine instance of the same class', () => {
+    const real = deserialize(ForgeTarget, { name: 'ok' }) as ForgeTarget;
+    expect(serialize(real)).toEqual({ name: 'ok' });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prototype-pollution safety: a `__proto__` output key (static expose name or Map key)
+// must become an own property, never mutate the output object's prototype.
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Recipe
+class ProtoMapDto {
+  @Field({ type: () => Map }) m!: Map<string, unknown>;
+}
+
+describe('serialize — prototype pollution safety', () => {
+  afterEach(() => {
+    purgePoisonClasses();
+    unseal();
+  });
+
+  it('rejects a reserved __proto__ expose name at seal', () => {
+    expect(() => {
+      @Recipe
+      class ProtoExposeDto {
+        @Field({ name: '__proto__' }) obj!: unknown;
+      }
+      sealClass(ProtoExposeDto);
+    }).toThrow(/reserved property name/);
+  });
+
+  it('rejects a reserved constructor expose name at seal', () => {
+    expect(() => {
+      @Recipe
+      class CtorExposeDto {
+        @Field({ name: 'constructor' }) v!: unknown;
+      }
+      sealClass(CtorExposeDto);
+    }).toThrow(/reserved property name/);
+  });
+
+  it('rejects a reserved prototype expose name at seal', () => {
+    expect(() => {
+      @Recipe
+      class ProtoNameDto {
+        @Field({ name: 'prototype' }) v!: unknown;
+      }
+      sealClass(ProtoNameDto);
+    }).toThrow(/reserved property name/);
+  });
+
+  it('does not pollute a serialized Map object via a __proto__ key', () => {
+    seal();
+    const inst = Object.create(ProtoMapDto.prototype) as ProtoMapDto;
+    inst.m = new Map<string, unknown>([['__proto__', { polluted: true }]]);
+    const out = serialize(inst) as { m: Record<string, unknown> };
+    expect(Object.getPrototypeOf(out.m)).toBe(null);
+    expect(Object.prototype.hasOwnProperty.call(out.m, '__proto__')).toBe(true);
+    expect((out.m as { polluted?: unknown }).polluted).toBeUndefined();
   });
 });

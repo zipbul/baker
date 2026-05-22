@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -25,6 +25,7 @@ enum Role {
   Guest = 'guest',
 }
 
+@Recipe
 class AddressDto {
   @Field(isString, minLength(1))
   city!: string;
@@ -36,6 +37,7 @@ class AddressDto {
   zipCode?: string;
 }
 
+@Recipe
 class CreateUserDto {
   @Field(isString, minLength(2), maxLength(50), { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;

@@ -171,13 +171,15 @@ describe('buildSerializeCode', () => {
     expect(result.name).toBe('ALICE');
   });
 
-  it('should apply all @Transform functions in order when multiple transforms are set (H5)', () => {
-    // Arrange — two serialize transforms: uppercase then prepend prefix
+  it('should apply multiple @Transform functions in reverse declaration order for serialize (H5)', () => {
+    // Arrange — order-sensitive transforms: a lowercase prefix then uppercasing. Forward order
+    // would give 'PRE_ALICE'... no: serialize runs transforms in REVERSE declaration order, so
+    // declared [upper, prefix] runs prefix first ('pre_alice') then upper ('PRE_ALICE').
     class MultiTransDto {
       name = 'alice';
     }
     const upperFn = mock(({ value }: { value: unknown }) => (value as string).toUpperCase());
-    const prefixFn = mock(({ value }: { value: unknown }) => 'PREFIX_' + (value as string));
+    const prefixFn = mock(({ value }: { value: unknown }) => 'pre_' + (value as string));
     const merged: RawClassMeta = {
       name: {
         validation: [],
@@ -192,8 +194,9 @@ describe('buildSerializeCode', () => {
     const instance = new MultiTransDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
-    // Assert — both transforms applied in order: 'alice' → 'ALICE' → 'PREFIX_ALICE'
-    expect(result.name).toBe('PREFIX_ALICE');
+    // Assert — reverse order: 'alice' → prefix → 'pre_alice' → upper → 'PRE_ALICE'.
+    // (forward order would yield 'PRE_ALICE' too only if prefix were uppercase; here it discriminates.)
+    expect(result.name).toBe('PRE_ALICE');
   });
 
   it('should apply all three @Transform functions in reverse order for serialize (codec stack)', () => {

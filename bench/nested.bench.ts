@@ -2,32 +2,33 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import Ajv from 'ajv';
 import { type } from 'arktype';
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Nested object (3 levels) — valid + invalid
+// (class-validator comparison lives in bench/class-validator — legacy decorators only.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class BakerAddress {
   @Field(isString, minLength(1)) street!: string;
   @Field(isString, minLength(1)) city!: string;
   @Field(isString, minLength(1)) zip!: string;
 }
+@Recipe
 class BakerCustomer {
   @Field(isString, minLength(1)) name!: string;
   @Field(isString) email!: string;
   @Field({ type: () => BakerAddress }) address!: BakerAddress;
 }
+@Recipe
 class BakerOrder {
   @Field(isString, minLength(1)) title!: string;
   @Field({ type: () => BakerCustomer }) customer!: BakerCustomer;
@@ -35,25 +36,6 @@ class BakerOrder {
 }
 seal();
 await deserialize(BakerOrder, NESTED_VALID);
-
-// ── class-validator ──────────────────────────────────────────────────────────
-void reflectMetadata;
-
-class CvAddress {
-  @IsString() @MinLength(1) street!: string;
-  @IsString() @MinLength(1) city!: string;
-  @IsString() @MinLength(1) zip!: string;
-}
-class CvCustomer {
-  @IsString() @MinLength(1) name!: string;
-  @IsString() email!: string;
-  @ValidateNested() @CvType(() => CvAddress) address!: CvAddress;
-}
-class CvOrder {
-  @IsString() @MinLength(1) title!: string;
-  @ValidateNested() @CvType(() => CvCustomer) customer!: CvCustomer;
-  @IsNumber() @Min(0) priority!: number;
-}
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -164,10 +146,6 @@ group('nested 3-level — valid input', () => {
     const r = deserialize(BakerOrder, NESTED_VALID);
     sinkNum += isBakerError(r) ? r.errors.length : 1;
   });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvOrder, NESTED_VALID);
-    sinkNum += validateSync(inst).length;
-  });
   bench('zod', () => {
     const r = zodOrder.safeParse(NESTED_VALID);
     sinkNum += r.success ? 1 : r.error.issues.length;
@@ -200,10 +178,6 @@ group('nested 3-level — invalid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerOrder, NESTED_INVALID);
     sinkNum += isBakerError(r) ? r.errors.length : 1;
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvOrder, NESTED_INVALID);
-    sinkNum += validateSync(inst).length;
   });
   bench('zod', () => {
     const r = zodOrder.safeParse(NESTED_INVALID);

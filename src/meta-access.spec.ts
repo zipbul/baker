@@ -102,5 +102,35 @@ describe('meta-access', () => {
       const cls = fresh();
       expect(() => freezeRaw(cls)).not.toThrow();
     });
+
+    it('hasRawOwn is false for a child that inherits the parent metadata via the class prototype chain', () => {
+      class Parent {}
+      setRaw(Parent, { x: {} } as never);
+      class Child extends Parent {}
+      // Child has no own RAW; Child[Symbol.metadata] resolves to Parent's via the class proto chain.
+      // hasRawOwn must still report false so mergeInheritance does not double-count the parent.
+      expect(hasRawOwn(Child)).toBe(false);
+      expect(hasRawOwn(Parent)).toBe(true);
+    });
+
+    it('setRaw on a child does not pollute the parent metadata slot', () => {
+      class Parent {}
+      const parentRaw = { p: {} };
+      setRaw(Parent, parentRaw as never);
+      class Child extends Parent {}
+      setRaw(Child, { c: {} } as never);
+      expect(getRaw(Parent)).toBe(parentRaw as never);
+      expect(hasRawOwn(Child)).toBe(true);
+      expect(getRaw(Child)).not.toBe(parentRaw as never);
+    });
+
+    it('freezeRaw on an inherited-only child does not freeze the parent RAW', () => {
+      class Parent {}
+      const parentRaw = { p: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } };
+      setRaw(Parent, parentRaw as never);
+      class Child extends Parent {}
+      freezeRaw(Child);
+      expect(Object.isFrozen(parentRaw)).toBe(false);
+    });
   });
 });

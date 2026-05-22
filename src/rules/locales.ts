@@ -119,7 +119,7 @@ const IDENTITY_CARD_REGEXES: Record<string, RegExp> = {
   CN: /^\d{15}(\d{2}[0-9xX])?$/,
   CY: /^\d{7}[A-Z]$/i,
   CZ: /^\d{9,10}$/,
-  DE: /^[LI TOUAEVBMNPRSZDFGHCK]{9}$/i,
+  DE: /^[LITOUAEVBMNPRSZDFGHCK]{9}$/i,
   DK: /^\d{10}$/,
   EE: /^\d{11}$/,
   ES: /^[0-9X-Z]\d{7}[TRWAGMYFPDXBNJZSQVHLCKE]$/i,

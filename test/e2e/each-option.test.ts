@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, arrayOf, deserialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, arrayOf, deserialize, configure, isBakerError, seal } from '../../index';
 import { isArray, isString, isNumber, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -10,16 +11,19 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class StringArrayDto {
   @Field(isArray, arrayOf(isString))
   tags!: string[];
 }
 
+@Recipe
 class NumberArrayDto {
   @Field(isArray, arrayOf(isNumber(), min(0)))
   scores!: number[];
 }
 
+@Recipe
 class MinLenArrayDto {
   @Field(isArray, arrayMinSize(1), arrayOf(isString, minLength(2)))
   names!: string[];
@@ -96,11 +100,12 @@ describe('each:true — Set with stopAtFirstError', () => {
   it('error path includes index (e.g. field[0])', async () => {
     configure({ stopAtFirstError: true });
     seal();
+    @Recipe
     class SetDto {
       @Field(arrayOf(isString))
       items!: Set<string>;
     }
-    seal(SetDto);
+    sealClass(SetDto);
     const result = await deserialize(SetDto, { items: new Set([42, 'ok']) });
     assertBakerError(result);
     const err = result.errors.find(err => err.path.startsWith('items'));
@@ -113,11 +118,12 @@ describe('each:true — Map with stopAtFirstError', () => {
   it('error path includes index', async () => {
     configure({ stopAtFirstError: true });
     seal();
+    @Recipe
     class MapDto {
       @Field(arrayOf(isString))
       items!: Map<string, string>;
     }
-    seal(MapDto);
+    sealClass(MapDto);
     const result = await deserialize(MapDto, {
       items: new Map<string, unknown>([
         ['a', 99],
@@ -134,11 +140,12 @@ describe('each:true — Map with stopAtFirstError', () => {
 describe('each:true — Set with collectErrors', () => {
   it('all errors collected', async () => {
     seal();
+    @Recipe
     class SetCollectDto {
       @Field(arrayOf(isString))
       items!: Set<string>;
     }
-    seal(SetCollectDto);
+    sealClass(SetCollectDto);
     const result = await deserialize(SetCollectDto, { items: new Set([42, 99]) });
     assertBakerError(result);
     const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
@@ -149,11 +156,12 @@ describe('each:true — Set with collectErrors', () => {
 describe('each:true — Map with collectErrors', () => {
   it('all errors collected', async () => {
     seal();
+    @Recipe
     class MapCollectDto {
       @Field(arrayOf(isString))
       items!: Map<string, string>;
     }
-    seal(MapCollectDto);
+    sealClass(MapCollectDto);
     const result = await deserialize(MapCollectDto, {
       items: new Map<string, unknown>([
         ['a', 42],

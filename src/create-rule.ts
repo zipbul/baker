@@ -38,7 +38,12 @@ export function createRule(
   validateFn?: (value: unknown) => boolean | Promise<boolean>,
 ): EmittableRule {
   const name = typeof nameOrOptions === 'string' ? nameOrOptions : nameOrOptions.name;
-  const validate = typeof nameOrOptions === 'string' ? validateFn! : nameOrOptions.validate;
+  const validate = typeof nameOrOptions === 'string' ? validateFn : nameOrOptions.validate;
+  // The overloads require `validate`; guard the untyped-JS path instead of asserting with `!`,
+  // so misuse fails clearly at creation rather than as a confusing TypeError at validation time.
+  if (typeof validate !== 'function') {
+    throw new Error(`createRule(${name}): a validate function is required.`);
+  }
   const constraints = typeof nameOrOptions === 'object' ? nameOrOptions.constraints : undefined;
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
 

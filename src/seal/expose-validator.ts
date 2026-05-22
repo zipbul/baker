@@ -21,6 +21,13 @@ function validateExposeStacks(merged: RawClassMeta, className?: string): void {
           `Invalid @Expose on field '${prefix}${key}': cannot have both deserializeOnly:true and serializeOnly:true on the same @Expose entry. Use separate @Expose decorators for each direction.`,
         );
       }
+      // Reserved output keys would corrupt the serialized object (e.g. a '__proto__' key sets the
+      // prototype instead of an own property) — reject them as wire names, matching banned field names.
+      if (exp.name === '__proto__' || exp.name === 'constructor' || exp.name === 'prototype') {
+        throw new SealError(
+          `Invalid @Field name on '${prefix}${key}': '${exp.name}' is a reserved property name and cannot be used as a serialized key.`,
+        );
+      }
     }
 
     // ② multi-entry check per direction

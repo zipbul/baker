@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -79,24 +79,31 @@ async function getErrorCode(cls: new (...args: never[]) => unknown, input: unkno
 // ─── type checker error codes ────────────────────────────────────────────────
 
 describe('type checker error codes', () => {
+  @Recipe
   class StringDto {
     @Field(isString) v!: string;
   }
+  @Recipe
   class NumberDto {
     @Field(isNumber()) v!: number;
   }
+  @Recipe
   class BooleanDto {
     @Field(isBoolean) v!: boolean;
   }
+  @Recipe
   class DateDto {
     @Field(isDate) v!: Date;
   }
+  @Recipe
   class IntDto {
     @Field(isInt) v!: number;
   }
+  @Recipe
   class ArrayDto {
     @Field(isArray) v!: unknown[];
   }
+  @Recipe
   class ObjectDto {
     @Field(isObject) v!: object;
   }
@@ -104,6 +111,7 @@ describe('type checker error codes', () => {
     Red = 'red',
     Blue = 'blue',
   }
+  @Recipe
   class EnumDto {
     @Field(isEnum(Color)) v!: Color;
   }
@@ -137,24 +145,31 @@ describe('type checker error codes', () => {
 // ─── common decorator error codes ──────────────────────────────────────────
 
 describe('common decorator error codes', () => {
+  @Recipe
   class DefinedDto {
     @Field() v!: string;
   }
+  @Recipe
   class EqualsDto {
     @Field(equals('yes')) v!: string;
   }
+  @Recipe
   class NotEqualsDto {
     @Field(notEquals('no')) v!: string;
   }
+  @Recipe
   class IsInDto {
     @Field(isIn(['a', 'b'])) v!: string;
   }
+  @Recipe
   class IsNotInDto {
     @Field(isNotIn(['x'])) v!: string;
   }
+  @Recipe
   class EmptyDto {
     @Field(isEmpty) v!: string;
   }
+  @Recipe
   class NotEmptyDto {
     @Field(isNotEmpty) v!: string;
   }
@@ -185,18 +200,23 @@ describe('common decorator error codes', () => {
 // ─── number decorator error codes ──────────────────────────────────────────
 
 describe('number decorator error codes', () => {
+  @Recipe
   class MinDto {
     @Field(min(5)) v!: number;
   }
+  @Recipe
   class MaxDto {
     @Field(max(10)) v!: number;
   }
+  @Recipe
   class PositiveDto {
     @Field(isPositive) v!: number;
   }
+  @Recipe
   class NegativeDto {
     @Field(isNegative) v!: number;
   }
+  @Recipe
   class DivisibleDto {
     @Field(isDivisibleBy(3)) v!: number;
   }
@@ -221,81 +241,107 @@ describe('number decorator error codes', () => {
 // ─── string decorator error codes ────────────────────────────────────────
 
 describe('string decorator error codes', () => {
+  @Recipe
   class MinLenDto {
     @Field(minLength(3)) v!: string;
   }
+  @Recipe
   class MaxLenDto {
     @Field(maxLength(5)) v!: string;
   }
+  @Recipe
   class LenDto {
     @Field(length(2, 4)) v!: string;
   }
+  @Recipe
   class ContainsDto {
     @Field(contains('foo')) v!: string;
   }
+  @Recipe
   class NotContainsDto {
     @Field(notContains('bar')) v!: string;
   }
+  @Recipe
   class MatchesDto {
     @Field(matches(/^\d+$/)) v!: string;
   }
+  @Recipe
   class LowercaseDto {
     @Field(isLowercase) v!: string;
   }
+  @Recipe
   class UppercaseDto {
     @Field(isUppercase) v!: string;
   }
+  @Recipe
   class AsciiDto {
     @Field(isAscii) v!: string;
   }
+  @Recipe
   class AlphaDto {
     @Field(isAlpha) v!: string;
   }
+  @Recipe
   class AlphanumDto {
     @Field(isAlphanumeric) v!: string;
   }
+  @Recipe
   class NumStrDto {
     @Field(isNumberString()) v!: string;
   }
+  @Recipe
   class DecimalDto {
     @Field(isDecimal()) v!: string;
   }
+  @Recipe
   class BoolStrDto {
     @Field(isBooleanString) v!: string;
   }
+  @Recipe
   class JsonDto {
     @Field(isJSON) v!: string;
   }
+  @Recipe
   class EmailDto {
     @Field(isEmail()) v!: string;
   }
+  @Recipe
   class UrlDto {
     @Field(isURL()) v!: string;
   }
+  @Recipe
   class UuidDto {
     @Field(isUUID()) v!: string;
   }
+  @Recipe
   class IpDto {
     @Field(isIP()) v!: string;
   }
+  @Recipe
   class Iso8601Dto {
     @Field(isISO8601()) v!: string;
   }
+  @Recipe
   class HexColorDto {
     @Field(isHexColor) v!: string;
   }
+  @Recipe
   class SemVerDto {
     @Field(isSemVer) v!: string;
   }
+  @Recipe
   class MongoIdDto {
     @Field(isMongoId) v!: string;
   }
+  @Recipe
   class CreditCardDto {
     @Field(isCreditCard) v!: string;
   }
+  @Recipe
   class PortDto {
     @Field(isPort) v!: string;
   }
+  @Recipe
   class FqdnDto {
     @Field(isFQDN()) v!: string;
   }
@@ -386,9 +432,11 @@ describe('date decorator error codes', () => {
   const now = new Date();
   const past = new Date('2000-01-01');
   const future = new Date('2100-01-01');
+  @Recipe
   class MinDateDto {
     @Field(minDate(future)) v!: Date;
   }
+  @Recipe
   class MaxDateDto {
     @Field(maxDate(past)) v!: Date;
   }
@@ -404,21 +452,27 @@ describe('date decorator error codes', () => {
 // ─── array decorator error codes ──────────────────────────────────────────
 
 describe('array decorator error codes', () => {
+  @Recipe
   class ArrMinDto {
     @Field(arrayMinSize(3)) v!: number[];
   }
+  @Recipe
   class ArrMaxDto {
     @Field(arrayMaxSize(2)) v!: number[];
   }
+  @Recipe
   class ArrUniqueDto {
     @Field(arrayUnique()) v!: number[];
   }
+  @Recipe
   class ArrNotEmptyDto {
     @Field(arrayNotEmpty) v!: number[];
   }
+  @Recipe
   class ArrContainsDto {
     @Field(arrayContains([1, 2])) v!: number[];
   }
+  @Recipe
   class ArrNotContainsDto {
     @Field(arrayNotContains([99])) v!: number[];
   }
@@ -446,9 +500,11 @@ describe('array decorator error codes', () => {
 // ─── object decorator error codes ──────────────────────────────────────────
 
 describe('object decorator error codes', () => {
+  @Recipe
   class NotEmptyObjDto {
     @Field(isNotEmptyObject()) v!: object;
   }
+  @Recipe
   class InstanceDto {
     @Field(isInstance(Date)) v!: Date;
   }
@@ -464,6 +520,7 @@ describe('object decorator error codes', () => {
 // ─── reserved error codes ─────────────────────────────────────────────────
 
 describe('reserved error codes', () => {
+  @Recipe
   class SimpleDto {
     @Field(isString) v!: string;
   }

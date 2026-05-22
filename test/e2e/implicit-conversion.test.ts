@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, configure, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, configure, deserialize, isBakerError, seal } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -13,6 +13,7 @@ afterEach(() => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class ConvDto {
   @Field(isNumber())
   age!: number;
@@ -24,11 +25,13 @@ class ConvDto {
   createdAt!: Date;
 }
 
+@Recipe
 class ConvWithTransformDto {
   @Field(isNumber(), { transform: { deserialize: ({ value }) => Number(value), serialize: ({ value }) => value } })
   score!: number;
 }
 
+@Recipe
 class ConvWithMinDto {
   @Field(isNumber(), min(0))
   count!: number;
@@ -121,6 +124,7 @@ describe('enableImplicitConversion', () => {
 
 describe('@Type hint implicit conversion', () => {
   it('@Type(() => Number) + isNotEmpty — string → number conversion then validation', async () => {
+    @Recipe
     class TypeHintDto {
       @Field(isNotEmpty, { type: () => Number })
       value!: number;
@@ -132,6 +136,7 @@ describe('@Type hint implicit conversion', () => {
   });
 
   it('@Type(() => Number) + isNotEmpty — conversion failure → conversionFailed', async () => {
+    @Recipe
     class TypeHintFailDto {
       @Field(isNotEmpty, { type: () => Number })
       value!: number;
@@ -150,6 +155,7 @@ describe('@Type hint implicit conversion', () => {
 
 describe('stopAtFirstError + autoConvert', () => {
   it('conversion success → normal behavior', async () => {
+    @Recipe
     class StopConvDto {
       @Field(isNumber(), min(0))
       count!: number;
@@ -161,6 +167,7 @@ describe('stopAtFirstError + autoConvert', () => {
   });
 
   it('conversion failure → stops at first error', async () => {
+    @Recipe
     class StopConvFailDto {
       @Field(isNumber())
       first!: number;

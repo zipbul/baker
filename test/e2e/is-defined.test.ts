@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -10,16 +10,19 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class DefinedDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class OptionalDto {
   @Field(isString, { optional: true })
   nickname?: string;
 }
 
+@Recipe
 class DefinedOverrideDto {
   @Field(isString)
   tag!: string;

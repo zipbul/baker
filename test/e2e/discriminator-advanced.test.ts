@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { assertBakerError } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
@@ -13,16 +13,19 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
+@Recipe
 class OwnerDto {
   @Field(isString)
   name!: string;
@@ -40,6 +43,7 @@ class OwnerDto {
   pet!: DogDto | CatDto;
 }
 
+@Recipe
 class OwnerKeepDiscDto {
   @Field({
     type: () => DogDto,
@@ -96,6 +100,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
 // discriminator serialize — single & array (covers serialize-builder C-8 instanceof chain)
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class OwnerArrayDto {
   @Field(isString)
   name!: string;
@@ -136,26 +141,31 @@ describe('discriminator — serialize', () => {
 // ─── E-23: 2 discriminator fields in same DTO ──────────────────────────────
 
 describe('E-23: 2 discriminator fields in same DTO', () => {
+  @Recipe
   class CreditCardPayment {
     @Field(isString)
     cardNumber!: string;
   }
 
+  @Recipe
   class BankTransferPayment {
     @Field(isString)
     bankCode!: string;
   }
 
+  @Recipe
   class DomesticAddress {
     @Field(isString)
     city!: string;
   }
 
+  @Recipe
   class InternationalAddress {
     @Field(isString)
     country!: string;
   }
 
+  @Recipe
   class OrderDto {
     @Field(isString)
     orderId!: string;
@@ -239,14 +249,17 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
 describe('discriminator default branch — context payload', () => {
   it('validate() on unknown discriminator value includes received + validSubTypes', async () => {
     const { validate, configure } = await import('../../index');
+    @Recipe
     class CatV {
       @Field(isString) kind!: string;
       @Field(isString) meow!: string;
     }
+    @Recipe
     class DogV {
       @Field(isString) kind!: string;
       @Field(isString) bark!: string;
     }
+    @Recipe
     class OwnerV {
       @Field({
         type: () => CatV,
@@ -276,15 +289,18 @@ describe('discriminator default branch — context payload', () => {
 
 describe('async serialize: discriminator + array (each)', () => {
   it('serializes an array of polymorphic DTOs in async DTO context', async () => {
+    @Recipe
     class CatA {
       @Field(isString) kind!: string;
       @Field(isString) meow!: string;
     }
+    @Recipe
     class DogA {
       @Field(isString) kind!: string;
       @Field(isString) bark!: string;
     }
 
+    @Recipe
     class OwnerA {
       @Field({
         type: () => [CatA],

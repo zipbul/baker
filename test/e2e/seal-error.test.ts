@@ -2,9 +2,10 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import type { EmittableRule } from '../../src/types';
 
-import { Field, deserialize, serialize, SealError, seal } from '../../index';
-import { ensureMeta } from '../../src/collect';
+import { Field, Recipe, deserialize, serialize, SealError, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
+import { applyField } from '../integration/helpers/modern-decorator';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
 
 /** Test-only: cast arbitrary garbage into an EmittableRule slot to exercise @Field's runtime rejection. */
@@ -21,9 +22,9 @@ describe('SealError', () => {
     unseal();
   });
 
-  it('seal(NoFieldDto) on class without @Field → SealError', () => {
+  it('sealClass(NoFieldDto) on a class without @Field seals to an empty executor (no error)', () => {
     class NoFieldDto {}
-    expect(() => seal(NoFieldDto)).toThrow(SealError);
+    expect(() => sealClass(NoFieldDto)).not.toThrow();
   });
 
   it('deserialize on class never sealed (no @Field) → SealError', () => {
@@ -39,14 +40,14 @@ describe('SealError', () => {
 
   it('banned field name "__proto__" throws SealError at seal', () => {
     class ProtoDto {}
-    ensureMeta(ProtoDto, '__proto__');
-    expect(() => seal(ProtoDto)).toThrow(SealError);
+    applyField(Field(isNumber()), ProtoDto, '__proto__');
+    expect(() => sealClass(ProtoDto)).toThrow(SealError);
   });
 
   it('banned field name "constructor" throws SealError at seal', () => {
     class CtorDto {}
-    ensureMeta(CtorDto, 'constructor');
-    expect(() => seal(CtorDto)).toThrow(SealError);
+    applyField(Field(isNumber()), CtorDto, 'constructor');
+    expect(() => sealClass(CtorDto)).toThrow(SealError);
   });
 
   it('serialize null → SealError', () => {
@@ -69,28 +70,31 @@ describe('SealError', () => {
 
   it('@Field with rule factory not invoked → SealError with factory hint', () => {
     expect(() => {
+      @Recipe
       class BadFactoryDto {
         @Field(asRule(isNumber)) v!: number;
       }
-      seal(BadFactoryDto);
+      sealClass(BadFactoryDto);
     }).toThrow(/is not a baker rule.*Did you forget to call/);
   });
 
   it('@Field with non-function (number) → SealError', () => {
     expect(() => {
+      @Recipe
       class BadArgDto {
         @Field(asRule(42)) v!: number;
       }
-      seal(BadArgDto);
+      sealClass(BadArgDto);
     }).toThrow(/expected a baker rule.*got number/);
   });
 
   it('@Field(null) → SealError', () => {
     expect(() => {
+      @Recipe
       class NullArgDto {
         @Field(asRule(null)) v!: number;
       }
-      seal(NullArgDto);
+      sealClass(NullArgDto);
     }).toThrow(/got null/);
   });
 });

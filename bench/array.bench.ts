@@ -2,42 +2,31 @@ import { Type as T } from '@sinclair/typebox';
 import { TypeCompiler } from '@sinclair/typebox/compiler';
 import Ajv from 'ajv';
 import { type } from 'arktype';
-import { plainToInstance, Type as CvType } from 'class-transformer';
-import { IsString, IsNumber, Min, ValidateNested, ArrayMinSize, validateSync } from 'class-validator';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Array of 1000 objects — valid
+// (class-validator comparison lives in bench/class-validator — legacy decorators only.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
-import * as reflectMetadata from 'reflect-metadata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 import { ARRAY_VALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class BakerItem {
   @Field(isString) name!: string;
   @Field(isNumber(), min(0)) value!: number;
 }
+@Recipe
 class BakerList {
   @Field(arrayMinSize(1), { type: () => [BakerItem] }) items!: BakerItem[];
 }
 seal();
 await deserialize(BakerList, ARRAY_VALID);
-
-// ── class-validator ──────────────────────────────────────────────────────────
-void reflectMetadata;
-
-class CvItem {
-  @IsString() name!: string;
-  @IsNumber() @Min(0) value!: number;
-}
-class CvList {
-  @ValidateNested({ each: true }) @ArrayMinSize(1) @CvType(() => CvItem) items!: CvItem[];
-}
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -116,10 +105,6 @@ group('array 1000 items — valid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerList, ARRAY_VALID);
     sinkNum += isBakerError(r) ? r.errors.length : (r as { items: unknown[] }).items.length;
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvList, ARRAY_VALID);
-    sinkNum += validateSync(inst).length;
   });
   bench('zod', () => {
     const r = zodList.safeParse(ARRAY_VALID);

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -9,16 +9,19 @@ afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class BaseDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class ChildDto extends BaseDto {
   @Field(isNumber(), min(0))
   age!: number;
 }
 
+@Recipe
 class GrandChildDto extends ChildDto {
   @Field(isBoolean)
   active!: boolean;

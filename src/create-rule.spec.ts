@@ -164,4 +164,9 @@ describe('createRule', () => {
     const rule = createRule({ name: 'badRule', validate: () => Promise.resolve(true) });
     expect(() => rule('hello')).toThrow('sync rule returned Promise');
   });
+
+  it('should throw at creation when the string form is called without a validate function', () => {
+    // Untyped-JS misuse: the TS overloads require the validate arg, so widen to Function to call it.
+    expect(() => (createRule as Function)('noValidate')).toThrow(/validate function is required/);
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, seal } from '../../index';
+import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
 import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -8,21 +8,27 @@ beforeEach(() => seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class PhoneKRDto {
   @Field(isMobilePhone('ko-KR')) phone!: string;
 }
+@Recipe
 class PhoneUSDto {
   @Field(isMobilePhone('en-US')) phone!: string;
 }
+@Recipe
 class PostalUSDto {
   @Field(isPostalCode('US')) code!: string;
 }
+@Recipe
 class PostalKRDto {
   @Field(isPostalCode('KR')) code!: string;
 }
+@Recipe
 class IdentityUSDto {
   @Field(isIdentityCard('US')) ssn!: string;
 }
+@Recipe
 class PassportUSDto {
   @Field(isPassportNumber('US')) passport!: string;
 }
