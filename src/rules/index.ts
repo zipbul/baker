@@ -15,6 +15,7 @@ export {
   isAscii,
   isAlpha,
   isAlphanumeric,
+  isHttpToken,
   isBooleanString,
   isNumberString,
   isDecimal,

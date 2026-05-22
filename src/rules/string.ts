@@ -156,6 +156,20 @@ const isAlphanumeric = makeStringRule(
   },
 );
 
+// HTTP token — RFC 9110 §5.6.2: token = 1*tchar.
+// tchar = "!"/"#"/"$"/"%"/"&"/"'"/"*"/"+"/"-"/"."/"^"/"_"/"`"/"|"/"~" / DIGIT / ALPHA.
+// Used for HTTP method names and header field-names (not field-values). The hyphen is
+// escaped so it stays literal — an unescaped `+-.` would form a range that admits ",".
+const HTTP_TOKEN_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const isHttpToken = makeStringRule(
+  'isHttpToken',
+  v => HTTP_TOKEN_RE.test(v),
+  (varName, ctx) => {
+    const i = ctx.addRegex(HTTP_TOKEN_RE);
+    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHttpToken')};`;
+  },
+);
+
 // BooleanString: 'true' | 'false' | '1' | '0'
 const isBooleanString = makeRule({
   name: 'isBooleanString',
@@ -2395,6 +2409,7 @@ export {
   isAscii,
   isAlpha,
   isAlphanumeric,
+  isHttpToken,
   isBooleanString,
   isNumberString,
   isDecimal,

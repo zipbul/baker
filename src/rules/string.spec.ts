@@ -77,6 +77,7 @@ import {
   isPhoneNumber,
   isStrongPassword,
   isTaxId,
+  isHttpToken,
 } from './string';
 
 function makeCtx(refIndex: number = 0) {
@@ -380,6 +381,58 @@ describe('isAscii', () => {
 
   it('should return true for empty string', () => {
     expect(isAscii('')).toBe(true);
+  });
+});
+
+describe('isHttpToken', () => {
+  // RFC 9110 §5.6.2 token = 1*tchar
+  it('should return true for valid tokens (methods, field-names, tchar-only)', () => {
+    for (const v of [
+      'GET',
+      'POST',
+      'X-Foo',
+      'X-Custom-Header',
+      'Content-Type',
+      'PROPFIND',
+      'MKCALENDAR',
+      'M-SEARCH',
+      'foo.bar',
+      '!#$%&',
+      "!#$%&'*+-.^_`|~",
+      'a`b',
+    ]) {
+      expect(isHttpToken(v)).toBe(true);
+    }
+  });
+
+  it('should return false for non-tokens (separators, spaces, CTL, non-ASCII)', () => {
+    for (const v of [
+      '',
+      ' ',
+      'X Foo',
+      'X-Foo(bar)',
+      'X-Foo:Bar',
+      'X-Foo,Bar',
+      'X-Foo;',
+      'X-Foo<>',
+      'X-Foo\t',
+      'X-Foo\n',
+      'X-Foo\r',
+      'GET\n',
+      '\nGET',
+      'X-한글',
+    ]) {
+      expect(isHttpToken(v)).toBe(false);
+    }
+  });
+
+  it('should generate regex test code when calling emit() and have ruleName isHttpToken', () => {
+    const { ctx, addRegexMock, failMock } = makeCtx(0);
+    const code = isHttpToken.emit('v', ctx);
+    expect(addRegexMock).toHaveBeenCalledTimes(1);
+    expect(code).toContain('re[0]');
+    expect(failMock).toHaveBeenCalledWith('isHttpToken');
+    expect(isHttpToken.ruleName).toBe('isHttpToken');
   });
 });
 

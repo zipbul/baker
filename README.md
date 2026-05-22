@@ -230,7 +230,7 @@ const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 
 ## Rules
 
-104 built-in validation rules.
+105 built-in validation rules.
 
 ### Type Checkers
 
@@ -248,7 +248,7 @@ const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 
 ### Formats
 
-`isEmail()`, `isURL()`, `isUUID(version?)`, `isIP(version?)`, `isISO8601()`, `isJSON`, `isJWT`, `isCreditCard`, `isIBAN()`, `isFQDN()`, `isMACAddress()`, `isBase64()`, `isHexColor`, `isSemVer`, `isMongoId`, `isPhoneNumber()`, `isStrongPassword()`, `isULID()`, `isCUID2()`
+`isEmail()`, `isURL()`, `isUUID(version?)`, `isIP(version?)`, `isISO8601()`, `isJSON`, `isJWT`, `isCreditCard`, `isIBAN()`, `isFQDN()`, `isMACAddress()`, `isBase64()`, `isHexColor`, `isSemVer`, `isMongoId`, `isPhoneNumber()`, `isStrongPassword()`, `isULID()`, `isCUID2()`, `isHttpToken`
 
 ### Arrays
 

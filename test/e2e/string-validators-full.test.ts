@@ -56,6 +56,7 @@ import {
   isMagnetURI,
   isDateString,
   isCurrency,
+  isHttpToken,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -73,6 +74,22 @@ describe('isAscii', () => {
   });
   it('rejected', async () => {
     expect(isBakerError(await deserialize(D, { v: '한글' }))).toBe(true);
+  });
+});
+
+describe('isHttpToken', () => {
+  @Recipe
+  class D {
+    @Field(isHttpToken) v!: string;
+  }
+  it('passes', async () => {
+    expect(((await deserialize(D, { v: 'X-Foo' })) as D).v).toBe('X-Foo');
+  });
+  it('rejected', async () => {
+    expect(isBakerError(await deserialize(D, { v: 'X-Foo(bar)' }))).toBe(true);
+  });
+  it('rejects empty string (1*tchar)', async () => {
+    expect(isBakerError(await deserialize(D, { v: '' }))).toBe(true);
   });
 });
 
