@@ -1,6 +1,6 @@
 {
   "name": "@zipbul/baker",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "Fastest decorator-based DTO validation for TypeScript. AOT code generation, 42ns per validation, 163x faster than class-validator. Zero reflect-metadata.",
   "keywords": [
     "aot",
