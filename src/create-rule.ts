@@ -1,5 +1,6 @@
 import type { EmittableRule, EmitContext, InternalRule } from './types';
 
+import { BakerError } from './errors';
 import { defineRuleMetadata } from './rule-metadata';
 import { isAsyncFunction, isPromiseLike } from './utils';
 
@@ -42,7 +43,7 @@ export function createRule(
   // The overloads require `validate`; guard the untyped-JS path instead of asserting with `!`,
   // so misuse fails clearly at creation rather than as a confusing TypeError at validation time.
   if (typeof validate !== 'function') {
-    throw new Error(`createRule(${name}): a validate function is required.`);
+    throw new BakerError(`createRule(${name}): a validate function is required.`);
   }
   const constraints = typeof nameOrOptions === 'object' ? nameOrOptions.constraints : undefined;
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
@@ -53,7 +54,9 @@ export function createRule(
   const fn = function (value: unknown): boolean | Promise<boolean> {
     const result = validate(value);
     if (!isAsyncFn && isPromiseLike(result)) {
-      throw new Error(`createRule(${name}): sync rule returned Promise. Declare the validator with async if it is asynchronous.`);
+      throw new BakerError(
+        `createRule(${name}): sync rule returned Promise. Declare the validator with async if it is asynchronous.`,
+      );
     }
     return result;
   } as InternalRule;

@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, validate, Field, Recipe, isBakerError, configure, seal } from '../../index';
+import { deserialize, validate, Field, Recipe, isBakerIssueSet, configure, seal } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -15,11 +15,11 @@ afterEach(() => unseal());
  */
 
 function expectSameErrors(desResult: unknown, valResult: unknown, _label: string) {
-  const desIsErr = isBakerError(desResult);
-  const valIsErr = isBakerError(valResult);
+  const desIsErr = isBakerIssueSet(desResult);
+  const valIsErr = isBakerIssueSet(valResult);
   expect(valIsErr).toBe(desIsErr);
 
-  if (isBakerError(desResult) && isBakerError(valResult)) {
+  if (isBakerIssueSet(desResult) && isBakerIssueSet(valResult)) {
     const desErrors = desResult.errors.map(e => ({ path: e.path, code: e.code }));
     const valErrors = valResult.errors.map(e => ({ path: e.path, code: e.code }));
     desErrors.sort((a, b) => a.path.localeCompare(b.path) || a.code.localeCompare(b.code));
@@ -288,7 +288,7 @@ describe('validate inline parity — very deep nesting (11 levels)', () => {
     seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
     const result = validate(Root, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
 });
@@ -444,10 +444,10 @@ describe('validate inline parity — stopAtFirstError', () => {
     const input = { items: [{ v: 1 }, { v: 2 }] };
     const desResult = deserialize(Root, input);
     const valResult = validate(Root, input);
-    expect(isBakerError(desResult)).toBe(true);
-    expect(isBakerError(valResult)).toBe(true);
-    assertBakerError(desResult);
-    assertBakerError(valResult);
+    expect(isBakerIssueSet(desResult)).toBe(true);
+    expect(isBakerIssueSet(valResult)).toBe(true);
+    assertBakerIssueSet(desResult);
+    assertBakerIssueSet(valResult);
     // Both should have exactly 1 error
     expect(desResult.errors.length).toBe(1);
     expect(valResult.errors.length).toBe(1);

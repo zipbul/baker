@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -63,10 +63,10 @@ import { unseal } from '../integration/helpers/unseal';
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-/** Helper: extracts the error code for a specific path from BakerErrors */
+/** Helper: extracts the error code for a specific path from BakerIssueSet */
 async function getErrorCode(cls: new (...args: never[]) => unknown, input: unknown, path?: string): Promise<string> {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {
+  if (!isBakerIssueSet(result)) {
     throw new Error('expected validation failure');
   }
   const err = path !== undefined ? result.errors.find(x => x.path === path) : result.errors[0];

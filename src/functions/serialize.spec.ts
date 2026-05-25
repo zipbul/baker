@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../interfaces';
 
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { setSealed, deleteSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { resetForTesting } from '../seal/seal';
@@ -88,15 +88,15 @@ describe('serialize', () => {
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when instance class has no [SEALED] executor', () => {
+  it('should throw BakerError when instance class has no [SEALED] executor', () => {
     // Arrange
     const Dto = makeClass('UnsealedDto');
     const instance = new Dto();
     // Act & Assert
-    expect(() => serialize(instance)).toThrow(SealError);
+    expect(() => serialize(instance)).toThrow(BakerError);
   });
 
-  it('should include class name in SealError message when not sealed', () => {
+  it('should include class name in BakerError message when not sealed', () => {
     // Arrange
     const Dto = makeClass('MySerializeDto');
     const instance = new Dto();
@@ -186,11 +186,11 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should throw SealError when class is not sealed', () => {
+  it('should throw BakerError when class is not sealed', () => {
     // Arrange
     const Dto = makeClass('NotSealedSerDto');
     const instance = new Dto();
     // Act & Assert
-    expect(() => serialize(instance)).toThrow(SealError);
+    expect(() => serialize(instance)).toThrow(BakerError);
   });
 });

@@ -1,7 +1,7 @@
-import type { BakerError, BakerErrors } from '../errors';
+import type { BakerIssue, BakerIssueSet } from '../errors';
 import type { RuntimeOptions } from '../interfaces';
 
-import { toBakerErrors, SealError } from '../errors';
+import { toBakerIssueSet, BakerError } from '../errors';
 import { ensureSealed } from '../seal/seal';
 import { checkCallOptions } from './check-call-options';
 
@@ -18,16 +18,16 @@ function validate<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): true | BakerErrors | Promise<true | BakerErrors> {
+): true | BakerIssueSet | Promise<true | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    return (sealed.validate(input, checkedOpts) as Promise<BakerError[] | null>).then((result): true | BakerErrors =>
-      result === null ? true : toBakerErrors(result),
+    return (sealed.validate(input, checkedOpts) as Promise<BakerIssue[] | null>).then((result): true | BakerIssueSet =>
+      result === null ? true : toBakerIssueSet(result),
     );
   }
-  const result = sealed.validate(input, checkedOpts) as BakerError[] | null;
-  return result === null ? true : toBakerErrors(result);
+  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
+  return result === null ? true : toBakerIssueSet(result);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,17 +35,17 @@ function validate<T>(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Sync-asserted validate. Throws `SealError` if Class has any async rule/transform
+ * Sync-asserted validate. Throws `BakerError` if Class has any async rule/transform
  * on the deserialize/validate side. Use when caller code assumes sync return.
  */
-function validateSync<T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerErrors {
+function validateSync<T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerIssueSet {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    throw new SealError(`validateSync(${Class.name}): DTO has async rules/transforms. Use validateAsync() instead.`);
+    throw new BakerError(`validateSync(${Class.name}): DTO has async rules/transforms. Use validateAsync() instead.`);
   }
-  const result = sealed.validate(input, checkedOpts) as BakerError[] | null;
-  return result === null ? true : toBakerErrors(result);
+  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
+  return result === null ? true : toBakerIssueSet(result);
 }
 
 /**
@@ -55,15 +55,15 @@ function validateAsync<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): Promise<true | BakerErrors> {
+): Promise<true | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    return (sealed.validate(input, checkedOpts) as Promise<BakerError[] | null>).then((r): true | BakerErrors =>
-      r === null ? true : toBakerErrors(r),
+    return (sealed.validate(input, checkedOpts) as Promise<BakerIssue[] | null>).then((r): true | BakerIssueSet =>
+      r === null ? true : toBakerIssueSet(r),
     );
   }
-  const result = sealed.validate(input, checkedOpts) as BakerError[] | null;
-  return Promise.resolve(result === null ? true : toBakerErrors(result));
+  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
+  return Promise.resolve(result === null ? true : toBakerIssueSet(result));
 }
 export { validate, validateSync, validateAsync };

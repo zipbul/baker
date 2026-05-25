@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, configure, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, configure, seal } from '../../index';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
-import { assertBakerError } from './helpers/assert';
+import { assertBakerIssueSet } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -40,31 +40,31 @@ afterEach(() => {
 });
 
 describe('error — integration', () => {
-  it('should return BakerErrors on invalid input', async () => {
+  it('should return BakerIssueSet on invalid input', async () => {
     seal();
     const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
-  it('BakerErrors should have errors array', async () => {
+  it('BakerIssueSet should have errors array', async () => {
     seal();
     const result = await deserialize(ErrorDto, { name: 123, age: 25, email: 'x@y.com' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors).toBeArray();
     expect(result.errors.length).toBeGreaterThan(0);
   });
 
-  it('BakerErrors.errors should include path and code', async () => {
+  it('BakerIssueSet.errors should include path and code', async () => {
     seal();
     const result = await deserialize(ErrorDto, { age: 25, email: 'x@y.com' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(err => err.path === 'name')).toBe(true);
   });
 
   it('should collect all errors when multiple fields invalid', async () => {
     seal();
     const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
 
@@ -72,7 +72,7 @@ describe('error — integration', () => {
     configure({ stopAtFirstError: true });
     seal();
     const result = await deserialize(MultiFieldErrorDto, { a: 1, b: 2, c: 3 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 });

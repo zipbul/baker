@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -35,7 +35,7 @@ describe('@Type / @Field({ type })', () => {
   });
 
   it('nested validation failure', async () => {
-    expect(isBakerError(await deserialize(TypeDto, { address: { city: 123 } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(TypeDto, { address: { city: 123 } }))).toBe(true);
   });
 
   it('discriminator polymorphism', async () => {

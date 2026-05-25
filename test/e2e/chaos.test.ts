@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, configure, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, serialize, configure, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
-import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet, assertNotBakerIssueSet } from '../integration/helpers/assert';
 import { applyField, applyRecipe } from '../integration/helpers/modern-decorator';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -32,7 +32,7 @@ describe('chaos — empty object to DTO with many required fields', () => {
   it('all errors collected for empty input', async () => {
     seal();
     const result = await deserialize(ManyFieldsDto, {});
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const paths = result.errors.map(e => e.path);
     expect(paths).toContain('a');
     expect(paths).toContain('b');
@@ -108,7 +108,7 @@ describe('chaos — deeply nested DTO (10+ levels)', () => {
     seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 123 } } } } } } } } } } };
     const result = await deserialize(Root, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
 });
@@ -131,7 +131,7 @@ describe('chaos — 1000+ fields DTO', () => {
       input[`f${i}`] = i;
     }
     const result = await deserialize<BigDto>(BigDto, input);
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
     expect((result as Record<string, number>)['f0']).toBe(0);
     expect((result as Record<string, number>)['f999']).toBe(999);
   });
@@ -143,7 +143,7 @@ describe('chaos — 1000+ fields DTO', () => {
       input[`f${i}`] = 'bad';
     }
     const result = await deserialize(BigDto, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1000);
   });
 });
@@ -164,7 +164,7 @@ describe('chaos — circular reference detection', () => {
     const obj: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     obj.child.child = obj;
     const result = await deserialize(TreeNode, obj);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'circular')).toBe(true);
   });
 });
@@ -209,7 +209,7 @@ describe('chaos — concurrent deserialize calls', () => {
     );
     const results = await Promise.all(promises);
     for (let i = 0; i < 100; i++) {
-      expect(isBakerError(results[i])).toBe(false);
+      expect(isBakerIssueSet(results[i])).toBe(false);
       const dto = results[i] as ConcurrentDto;
       expect(dto.id).toBe(`item-${i}`);
       expect(dto.val).toBe(i);
@@ -237,7 +237,7 @@ describe('chaos — every rule type on one field', () => {
   it('short string fails minLength among other rules', async () => {
     seal();
     const result = await deserialize(KitchenSinkDto, { email: 'a@b' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
 });
@@ -267,7 +267,7 @@ describe('chaos — extremely long string (100KB)', () => {
     }
     sealClass(D);
     const result = await deserialize(D, { v: 'x'.repeat(100_000) });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
 });
@@ -297,19 +297,19 @@ describe('chaos — extremely large number', () => {
   it('NaN fails isNumber by default', async () => {
     seal();
     const result = await deserialize(NumberDto, { val: NaN });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity fails isNumber by default', async () => {
     seal();
     const result = await deserialize(NumberDto, { val: Infinity });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity fails isNumber by default', async () => {
     seal();
     const result = await deserialize(NumberDto, { val: -Infinity });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -326,49 +326,49 @@ describe('chaos — special values as top-level input', () => {
   it('null input produces error', async () => {
     seal();
     const result = await deserialize(Dto, null);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('undefined input produces error', async () => {
     seal();
     const result = await deserialize(Dto, undefined);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('NaN input produces error', async () => {
     seal();
     const result = await deserialize(Dto, NaN);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity input produces error', async () => {
     seal();
     const result = await deserialize(Dto, Infinity);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity input produces error', async () => {
     seal();
     const result = await deserialize(Dto, -Infinity);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('empty string input produces error', async () => {
     seal();
     const result = await deserialize(Dto, '');
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('0 input produces error', async () => {
     seal();
     const result = await deserialize(Dto, 0);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('false input produces error', async () => {
     seal();
     const result = await deserialize(Dto, false);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -386,7 +386,7 @@ describe('chaos — prototype pollution attempt', () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"polluted":true}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
-    assertNotBakerError(result);
+    assertNotBakerIssueSet(result);
     expect(result.name).toBe('ok');
     expect((result as SafeDto & { polluted?: unknown }).polluted).toBeUndefined();
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
@@ -396,7 +396,7 @@ describe('chaos — prototype pollution attempt', () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","constructor":{"prototype":{"polluted":true}}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
-    assertNotBakerError(result);
+    assertNotBakerIssueSet(result);
     expect(result.name).toBe('ok');
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
   });
@@ -406,7 +406,7 @@ describe('chaos — prototype pollution attempt', () => {
     seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"p":true},"constructor":{}}');
     const result = await deserialize(SafeDto, malicious);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
 });

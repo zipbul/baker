@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -55,7 +55,7 @@ describe('nullable deserialization', () => {
 
   it('undefined → rejected (nullable without optional)', async () => {
     const result = await deserialize(NullableStringDto, { name: 'Alice' });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('nullable + optional → both null and undefined allowed', async () => {
@@ -76,6 +76,6 @@ describe('nullable deserialization', () => {
 
   it('nullable number range violation → error', async () => {
     const result = await deserialize(NullableNumberDto, { age: -1 });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });

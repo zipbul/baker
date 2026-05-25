@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -11,7 +11,7 @@ type TryResult<T> = { ok: true; value: T } | { ok: false; codes: string[] };
 
 async function tryDeserialize<T>(cls: new (...args: never[]) => T, input: unknown): Promise<TryResult<T>> {
   const result = await deserialize(cls, input);
-  if (isBakerError(result)) {
+  if (isBakerIssueSet(result)) {
     return { ok: false, codes: result.errors.map(x => x.code) };
   }
   return { ok: true, value: result };

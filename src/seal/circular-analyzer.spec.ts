@@ -273,9 +273,9 @@ describe('analyzeCircular', () => {
     expect(result).toBe(false);
   });
 
-  // ── E-3: lazy type throw → SealError (→ B-7) ─────────────────────────────
+  // ── E-3: lazy type throw → BakerError (→ B-7) ─────────────────────────────
 
-  it('should throw SealError when lazy type function throws', () => {
+  it('should throw BakerError when lazy type function throws', () => {
     // Arrange
     class LazyThrowDto {}
     setRaw(
@@ -288,7 +288,7 @@ describe('analyzeCircular', () => {
     expect(() => analyzeCircular(LazyThrowDto)).toThrow('boom');
   });
 
-  it('should include class name in SealError when lazy type throws', () => {
+  it('should include class name in BakerError when lazy type throws', () => {
     // Arrange
     class NamedThrowDto {}
     setRaw(

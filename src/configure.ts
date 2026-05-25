@@ -1,6 +1,6 @@
 import type { SealOptions } from './interfaces';
 
-import { SealError } from './errors';
+import { BakerError } from './errors';
 import { isSealed } from './seal/seal-state';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,18 +36,18 @@ let globalOptionsState: SealOptions = Object.freeze({});
  */
 function configure(config: BakerConfig): void {
   if (isSealed()) {
-    throw new SealError(
+    throw new BakerError(
       '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
     );
   }
   if (config === null || typeof config !== 'object' || Array.isArray(config)) {
-    throw new SealError(
+    throw new BakerError(
       `[baker] configure() requires a plain object. Received: ${config === null ? 'null' : Array.isArray(config) ? 'array' : typeof config}.`,
     );
   }
   for (const key of Object.keys(config)) {
     if (!BAKER_CONFIG_KEYS.has(key as keyof BakerConfig)) {
-      throw new SealError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
+      throw new BakerError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
     }
   }
   globalOptionsState = Object.freeze({

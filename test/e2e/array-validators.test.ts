@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import {
   isArray,
   isString,
@@ -11,7 +11,7 @@ import {
   arrayContains,
   arrayNotContains,
 } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -52,10 +52,10 @@ describe('@ArrayMinSize', () => {
     expect(r.items).toHaveLength(3);
   });
   it('size below minimum rejected', async () => {
-    expect(isBakerError(await deserialize(MinSizeDto, { items: [1] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MinSizeDto, { items: [1] }))).toBe(true);
   });
   it('non-array value rejected even when it has length', async () => {
-    expect(isBakerError(await deserialize(MinSizeDto, { items: 'abcd' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MinSizeDto, { items: 'abcd' }))).toBe(true);
   });
 });
 
@@ -65,10 +65,10 @@ describe('@ArrayMaxSize', () => {
     expect(r.items).toHaveLength(2);
   });
   it('size above maximum rejected', async () => {
-    expect(isBakerError(await deserialize(MaxSizeDto, { items: [1, 2, 3, 4] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MaxSizeDto, { items: [1, 2, 3, 4] }))).toBe(true);
   });
   it('non-array value rejected even when it fits max length', async () => {
-    expect(isBakerError(await deserialize(MaxSizeDto, { items: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MaxSizeDto, { items: 'abc' }))).toBe(true);
   });
 });
 
@@ -78,10 +78,10 @@ describe('@ArrayUnique', () => {
     expect(r.items).toEqual([1, 2, 3]);
   });
   it('duplicate elements rejected', async () => {
-    expect(isBakerError(await deserialize(UniqueDto, { items: [1, 2, 2] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UniqueDto, { items: [1, 2, 2] }))).toBe(true);
   });
   it('non-array value rejected instead of being treated like an iterable', async () => {
-    expect(isBakerError(await deserialize(UniqueDto, { items: 'aba' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UniqueDto, { items: 'aba' }))).toBe(true);
   });
 });
 
@@ -91,10 +91,10 @@ describe('@ArrayNotEmpty', () => {
     expect(r.items).toHaveLength(1);
   });
   it('empty array rejected', async () => {
-    expect(isBakerError(await deserialize(NotEmptyDto, { items: [] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NotEmptyDto, { items: [] }))).toBe(true);
   });
   it('non-array value rejected instead of using string length', async () => {
-    expect(isBakerError(await deserialize(NotEmptyDto, { items: 'x' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NotEmptyDto, { items: 'x' }))).toBe(true);
   });
 });
 
@@ -104,14 +104,14 @@ describe('@ArrayContains', () => {
     expect(r.items).toEqual(['a', 'b', 'c']);
   });
   it('missing required elements rejected', async () => {
-    expect(isBakerError(await deserialize(ContainsDto, { items: ['a', 'c'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ContainsDto, { items: ['a', 'c'] }))).toBe(true);
   });
   it('exactly the required elements passes', async () => {
     const r = (await deserialize(ContainsDto, { items: ['a', 'b'] })) as ContainsDto;
     expect(r.items).toEqual(['a', 'b']);
   });
   it('non-array value rejected even when string search would match', async () => {
-    expect(isBakerError(await deserialize(ContainsDto, { items: 'catab' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ContainsDto, { items: 'catab' }))).toBe(true);
   });
 });
 
@@ -121,7 +121,7 @@ describe('@ArrayNotContains', () => {
     expect(r.items).toEqual(['a', 'b']);
   });
   it('non-array value rejected even when string search would not match', async () => {
-    expect(isBakerError(await deserialize(NotContainsDto, { items: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NotContainsDto, { items: 'abc' }))).toBe(true);
   });
 });
 
@@ -149,7 +149,7 @@ describe('Set collection + array-level rules', () => {
 
   it('Set with arrayMinSize — too few items → error', async () => {
     const result = await deserialize(SetWithMinDto, { items: [{ name: 'a' }] });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'arrayMinSize')).toBe(true);
   });
 });

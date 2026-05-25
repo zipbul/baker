@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { validate, deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { validate, deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, isNumber, isEmail, min, max, minLength } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -36,35 +36,35 @@ describe('validate DTO — basic', () => {
     expect(await validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' })).toBe(true);
   });
 
-  it('invalid input → BakerErrors with field paths', async () => {
+  it('invalid input → BakerIssueSet with field paths', async () => {
     const result = await validate(SimpleDto, { name: 'A', age: -5, email: 'bad' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const codes = result.errors.map(e => e.code);
     expect(codes).toContain('minLength');
     expect(codes).toContain('min');
     expect(codes).toContain('isEmail');
   });
 
-  it('wrong types → BakerErrors', async () => {
+  it('wrong types → BakerIssueSet', async () => {
     const result = await validate(SimpleDto, { name: 123, age: 'bad', email: 42 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('missing fields → BakerErrors', async () => {
+  it('missing fields → BakerIssueSet', async () => {
     const result = await validate(SimpleDto, {});
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
-  it('null input → BakerErrors with invalidInput code', async () => {
+  it('null input → BakerIssueSet with invalidInput code', async () => {
     const result = await validate(SimpleDto, null);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
-  it('array input → BakerErrors with invalidInput code', async () => {
+  it('array input → BakerIssueSet with invalidInput code', async () => {
     const result = await validate(SimpleDto, [1, 2, 3]);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
@@ -79,9 +79,9 @@ describe('validate DTO — nested', () => {
     expect(await validate(NestedUserDto, { name: 'Bob', address: { city: 'Seoul' } })).toBe(true);
   });
 
-  it('invalid nested field → BakerErrors with nested path', async () => {
+  it('invalid nested field → BakerIssueSet with nested path', async () => {
     const result = await validate(NestedUserDto, { name: 'Bob', address: { city: '' } });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const paths = result.errors.map(e => e.path);
     expect(paths.some(p => p.includes('address'))).toBe(true);
   });
@@ -90,8 +90,8 @@ describe('validate DTO — nested', () => {
     const input = { name: 'Bob', address: [] };
     const v = await validate(NestedUserDto, input);
     const d = await deserialize(NestedUserDto, input);
-    assertBakerError(v);
-    assertBakerError(d);
+    assertBakerIssueSet(v);
+    assertBakerIssueSet(d);
     // The array must be rejected at the field itself, not validated as if it were an object.
     expect(v.errors.some(e => e.path.startsWith('address.'))).toBe(false);
     expect(v.errors.some(e => e.path === 'address')).toBe(true);
@@ -106,23 +106,23 @@ describe('validate DTO — consistency with deserialize', () => {
     const vResult = await validate(SimpleDto, input);
     const dResult = await deserialize(SimpleDto, input);
     expect(vResult).toBe(true);
-    expect(isBakerError(dResult)).toBe(false);
+    expect(isBakerIssueSet(dResult)).toBe(false);
   });
 
-  it('validate returns BakerErrors when deserialize returns BakerErrors', async () => {
+  it('validate returns BakerIssueSet when deserialize returns BakerIssueSet', async () => {
     const input = { name: 'A', age: -1, email: 'bad' };
     const vResult = await validate(SimpleDto, input);
     const dResult = await deserialize(SimpleDto, input);
-    expect(isBakerError(vResult)).toBe(true);
-    expect(isBakerError(dResult)).toBe(true);
+    expect(isBakerIssueSet(vResult)).toBe(true);
+    expect(isBakerIssueSet(dResult)).toBe(true);
   });
 
   it('same error codes from validate and deserialize', async () => {
     const input = { name: 123, age: 'x', email: 42 };
     const vResult = await validate(SimpleDto, input);
     const dResult = await deserialize(SimpleDto, input);
-    assertBakerError(vResult);
-    assertBakerError(dResult);
+    assertBakerIssueSet(vResult);
+    assertBakerIssueSet(dResult);
     const vCodes = vResult.errors.map(e => `${e.path}:${e.code}`).sort();
     const dCodes = dResult.errors.map(e => `${e.path}:${e.code}`).sort();
     expect(vCodes).toEqual(dCodes);
@@ -150,7 +150,7 @@ describe('validate DTO — groups', () => {
 
   it('with groups → missing group field → fails', async () => {
     const result = await validate(GroupDto, { name: 'Alice' }, { groups: ['admin'] });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -167,7 +167,7 @@ describe('validate DTO — optional/nullable', () => {
 
   it('optional field present but invalid → fails', async () => {
     const result = await validate(OptionalDto, { name: 'Alice', nickname: 123 });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -184,9 +184,9 @@ describe('validate DTO — async', () => {
     expect(await validate(AsyncDto, { name: '  Alice  ' })).toBe(true);
   });
 
-  it('async DTO missing field → BakerErrors', async () => {
+  it('async DTO missing field → BakerIssueSet', async () => {
     const result = await validate(AsyncDto, {});
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 

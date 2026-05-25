@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isNumber, isInt, isPositive, isNegative, isDivisibleBy } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -46,10 +46,10 @@ describe('isPositive', () => {
     expect(r.val).toBe(1);
   });
   it('0 rejected (exclusive)', async () => {
-    expect(isBakerError(await deserialize(PositiveDto, { val: 0 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PositiveDto, { val: 0 }))).toBe(true);
   });
   it('negative number rejected', async () => {
-    expect(isBakerError(await deserialize(PositiveDto, { val: -1 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PositiveDto, { val: -1 }))).toBe(true);
   });
 });
 
@@ -59,10 +59,10 @@ describe('isNegative', () => {
     expect(r.val).toBe(-1);
   });
   it('0 rejected (exclusive)', async () => {
-    expect(isBakerError(await deserialize(NegativeDto, { val: 0 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NegativeDto, { val: 0 }))).toBe(true);
   });
   it('positive number rejected', async () => {
-    expect(isBakerError(await deserialize(NegativeDto, { val: 1 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NegativeDto, { val: 1 }))).toBe(true);
   });
 });
 
@@ -76,7 +76,7 @@ describe('isDivisibleBy', () => {
     expect(r.val).toBe(0);
   });
   it('non-divisible value rejected', async () => {
-    expect(isBakerError(await deserialize(DivisibleDto, { val: 7 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(DivisibleDto, { val: 7 }))).toBe(true);
   });
 });
 
@@ -86,7 +86,7 @@ describe('isInt', () => {
     expect(r.val).toBe(42);
   });
   it('decimal rejected', async () => {
-    expect(isBakerError(await deserialize(IntDto, { val: 3.14 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IntDto, { val: 3.14 }))).toBe(true);
   });
   it('negative integer passes', async () => {
     const r = (await deserialize(IntDto, { val: -10 })) as IntDto;
@@ -114,7 +114,7 @@ describe('isNumber options', () => {
   });
 
   it('maxDecimalPlaces exceeded rejected', async () => {
-    expect(isBakerError(await deserialize(NumberOptsDto, { nanOk: NaN, infOk: Infinity, precise: 1.234 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NumberOptsDto, { nanOk: NaN, infOk: Infinity, precise: 1.234 }))).toBe(true);
   });
 
   it('within maxDecimalPlaces passes', async () => {

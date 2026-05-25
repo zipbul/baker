@@ -11,7 +11,7 @@ Zero `reflect-metadata`. Sealed codegen. 99%+ line coverage.
 ## Quick Start
 
 ```typescript
-import { deserialize, isBakerError, Field, seal } from '@zipbul/baker';
+import { deserialize, isBakerIssueSet, Field, seal } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
 class UserDto {
@@ -29,7 +29,7 @@ const result = await deserialize(UserDto, {
   email: 'alice@test.com',
 });
 
-if (isBakerError(result)) {
+if (isBakerIssueSet(result)) {
   console.log(result.errors); // [{ path: 'email', code: 'isEmail' }]
 } else {
   console.log(result.name); // 'Alice' — typed as UserDto
@@ -61,17 +61,17 @@ See [`bench/`](./bench) for the current benchmark suite and exact scenarios.
 
 **Required.** Call once at app startup, after every DTO module has been imported. With no arguments, seals every class registered via `@Field` so far. With class arguments, seals only those (and any nested DTOs they reach). Idempotent.
 
-`deserialize` / `serialize` / `validate` throw `SealError` if the DTO is not sealed. Tests that need to mutate decorator metadata should call `seal()` after each `configure(...)` reconfiguration.
+`deserialize` / `serialize` / `validate` throw `BakerError` if the DTO is not sealed. Tests that need to mutate decorator metadata should call `seal()` after each `configure(...)` reconfiguration.
 
 ### `deserialize<T>(Class, input, options?)`
 
-Returns `T | BakerErrors` for sync DTOs, `Promise<T | BakerErrors>` for async DTOs. Never throws on validation failure.
+Returns `T | BakerIssueSet` for sync DTOs, `Promise<T | BakerIssueSet>` for async DTOs. Never throws on validation failure.
 
 If the DTO has any async rule or transformer, `deserialize` returns a `Promise`. Otherwise it returns the value directly. For full type safety pick a strict variant (see below).
 
 ### `deserializeSync<T>` / `deserializeAsync<T>`
 
-Strict variants. `deserializeSync` throws `SealError` if the DTO is async on the deserialize side. `deserializeAsync` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`).
+Strict variants. `deserializeSync` throws `BakerError` if the DTO is async on the deserialize side. `deserializeAsync` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`).
 
 ### `serialize<T>(instance, options?)`
 
@@ -79,23 +79,23 @@ Returns `Record<string, unknown>` for sync DTOs, `Promise<Record<string, unknown
 
 ### `serializeSync<T>` / `serializeAsync<T>`
 
-Strict variants. `serializeSync` throws `SealError` if the DTO is async on the serialize side.
+Strict variants. `serializeSync` throws `BakerError` if the DTO is async on the serialize side.
 
 ### `validate(Class, input, options?)`
 
-Validates `input` against a decorated class's schema. Returns `true | BakerErrors` for sync paths, `Promise<true | BakerErrors>` for async paths. To validate a single primitive without a DTO, call the rule directly (e.g. `isEmail()(value)`).
+Validates `input` against a decorated class's schema. Returns `true | BakerIssueSet` for sync paths, `Promise<true | BakerIssueSet>` for async paths. To validate a single primitive without a DTO, call the rule directly (e.g. `isEmail()(value)`).
 
 ### `validateSync` / `validateAsync`
 
-Strict variants. `validateSync` throws `SealError` if the DTO is async; `validateAsync` always returns `Promise`.
+Strict variants. `validateSync` throws `BakerError` if the DTO is async; `validateAsync` always returns `Promise`.
 
-### `isBakerError(value)`
+### `isBakerIssueSet(value)`
 
-Type guard. Narrows result to `BakerErrors` containing `{ path, code, message?, context? }[]`.
+Type guard. Narrows result to `BakerIssueSet` containing `{ path, code, message?, context? }[]`.
 
 ### `configure(config)`
 
-Global configuration. Must be called **before** `seal()`. After seal, `configure(...)` throws `SealError`; reconfiguring requires `unseal()` (test-only helper) + `configure(...)` + `seal()` again.
+Global configuration. Must be called **before** `seal()`. After seal, `configure(...)` throws `BakerError`; reconfiguring requires `unseal()` (test-only helper) + `configure(...)` + `seal()` again.
 
 ```typescript
 configure({
@@ -131,7 +131,7 @@ Only fields decorated with `@Field` participate in validation, deserialization, 
 @Field()                    // marker-only (no rules)
 ```
 
-Each rule must be an emittable rule object created via `createRule()` or one of the built-in rule factories. Passing a raw function (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) throws `SealError` at decorator-evaluation time.
+Each rule must be an emittable rule object created via `createRule()` or one of the built-in rule factories. Passing a raw function (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) throws `BakerError` at decorator-evaluation time.
 
 ### Options
 
@@ -339,7 +339,7 @@ Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `deserialize()
 
 ### How does the AOT code generation work?
 
-Calling `seal()` once at app startup walks every registered DTO, analyzes field metadata, generates optimized JavaScript validation functions via `new Function()`, and caches them. Subsequent `deserialize`/`serialize`/`validate` calls execute the pre-compiled functions directly. There is no auto-seal — forgetting to call `seal()` raises `SealError` on first use.
+Calling `seal()` once at app startup walks every registered DTO, analyzes field metadata, generates optimized JavaScript validation functions via `new Function()`, and caches them. Subsequent `deserialize`/`serialize`/`validate` calls execute the pre-compiled functions directly. There is no auto-seal — forgetting to call `seal()` raises `BakerError` on first use.
 
 ## Exports
 
@@ -349,9 +349,9 @@ import {
   deserialize, deserializeSync, deserializeAsync,
   validate,    validateSync,    validateAsync,
   serialize,   serializeSync,   serializeAsync,
-  configure, createRule, Field, arrayOf, isBakerError, SealError,
+  configure, createRule, Field, arrayOf, isBakerIssueSet, BakerError,
 } from '@zipbul/baker';
-import type { Transformer, TransformParams, BakerError, BakerErrors, FieldOptions, EmittableRule, RuntimeOptions } from '@zipbul/baker';
+import type { Transformer, TransformParams, BakerError, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions } from '@zipbul/baker';
 import { isString, isEmail, isULID, isCUID2, ... } from '@zipbul/baker/rules';
 import { trimTransformer, jsonTransformer, ... } from '@zipbul/baker/transformers';
 ```

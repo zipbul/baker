@@ -2,7 +2,7 @@ import { isErr } from '@zipbul/result';
 
 import type { RuntimeOptions } from '../interfaces';
 
-import { toBakerErrors, SealError, type BakerError, type BakerErrors } from '../errors';
+import { toBakerIssueSet, BakerError, type BakerIssue, type BakerIssueSet } from '../errors';
 import { ensureSealed } from '../seal/seal';
 import { checkCallOptions } from './check-call-options';
 
@@ -12,28 +12,28 @@ import { checkCallOptions } from './check-call-options';
 
 /**
  * Converts input to a Class instance + validates.
- * - Requires `seal()` to be called beforehand; throws `SealError` if not sealed
+ * - Requires `seal()` to be called beforehand; throws `BakerError` if not sealed
  * - Sync DTOs return directly; async DTOs return Promise
  * - Success: T
- * - Validation failure: BakerErrors (use isBakerError() to narrow)
+ * - Validation failure: BakerIssueSet (use isBakerIssueSet() to narrow)
  */
 export function deserialize<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): T | BakerErrors | Promise<T | BakerErrors>;
+): T | BakerIssueSet | Promise<T | BakerIssueSet>;
 export function deserialize<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): T | BakerErrors | Promise<T | BakerErrors> {
+): T | BakerIssueSet | Promise<T | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
 
   if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
       if (isErr(result)) {
-        return toBakerErrors(result.data as BakerError[]);
+        return toBakerIssueSet(result.data as BakerIssue[]);
       }
       return result as T;
     });
@@ -41,28 +41,28 @@ export function deserialize<T>(
 
   const result = sealed.deserialize(input, checkedOpts);
   if (isErr(result)) {
-    return toBakerErrors(result.data as BakerError[]);
+    return toBakerIssueSet(result.data as BakerIssue[]);
   }
   return result as T;
 }
 
 /**
- * Sync-asserted deserialize. Throws `SealError` if Class has any async rule/transform
+ * Sync-asserted deserialize. Throws `BakerError` if Class has any async rule/transform
  * on the deserialize side.
  */
 export function deserializeSync<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): T | BakerErrors {
+): T | BakerIssueSet {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    throw new SealError(`deserializeSync(${Class.name}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
+    throw new BakerError(`deserializeSync(${Class.name}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
   }
   const result = sealed.deserialize(input, checkedOpts);
   if (isErr(result)) {
-    return toBakerErrors(result.data as BakerError[]);
+    return toBakerIssueSet(result.data as BakerIssue[]);
   }
   return result as T;
 }
@@ -74,20 +74,20 @@ export function deserializeAsync<T>(
   Class: new (...args: never[]) => T,
   input: unknown,
   options?: RuntimeOptions,
-): Promise<T | BakerErrors> {
+): Promise<T | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   const sealed = ensureSealed(Class);
   if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerErrors => {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
       if (isErr(result)) {
-        return toBakerErrors(result.data as BakerError[]);
+        return toBakerIssueSet(result.data as BakerIssue[]);
       }
       return result as T;
     });
   }
   const result = sealed.deserialize(input, checkedOpts);
   if (isErr(result)) {
-    return Promise.resolve(toBakerErrors(result.data as BakerError[]));
+    return Promise.resolve(toBakerIssueSet(result.data as BakerIssue[]));
   }
   return Promise.resolve(result as T);
 }

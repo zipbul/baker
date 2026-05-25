@@ -10,7 +10,7 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
@@ -144,7 +144,7 @@ let sinkNum = 0;
 group('nested 3-level — valid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerOrder, NESTED_VALID);
-    sinkNum += isBakerError(r) ? r.errors.length : 1;
+    sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {
     const r = zodOrder.safeParse(NESTED_VALID);
@@ -177,7 +177,7 @@ group('nested 3-level — valid input', () => {
 group('nested 3-level — invalid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerOrder, NESTED_INVALID);
-    sinkNum += isBakerError(r) ? r.errors.length : 1;
+    sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {
     const r = zodOrder.safeParse(NESTED_INVALID);

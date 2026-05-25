@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 
-import { arrayOf, configure, deserialize, Field, Recipe, isBakerError, serialize, seal } from '../../index';
+import { arrayOf, configure, deserialize, Field, Recipe, isBakerIssueSet, serialize, seal } from '../../index';
 import { isNumber, isString, min, minLength } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -43,7 +43,7 @@ describe('option combinations meta', () => {
     const nullable = (await deserialize<Dto>(Dto, { count: null })) as Dto;
     expect(nullable.count).toBeNull();
 
-    expect(isBakerError(await deserialize(Dto, { count: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(Dto, { count: 'abc' }))).toBe(true);
   });
 
   it('when + transform: skipped fields are not assigned, active fields are transformed and validated', async () => {
@@ -84,7 +84,7 @@ describe('option combinations meta', () => {
     expect(ok.name).toBe('alice');
 
     const bad = await deserialize(Dto, { name: 'alice' });
-    assertBakerError(bad);
+    assertBakerIssueSet(bad);
     expect(bad.errors[0]!.code).toBe('whitelistViolation');
   });
 
@@ -139,6 +139,6 @@ describe('option combinations meta', () => {
     const valid = (await deserialize<Dto>(Dto, { tags: ['ab', 'cd'] })) as Dto;
     expect(valid.tags).toEqual(['ab', 'cd']);
 
-    expect(isBakerError(await deserialize(Dto, { tags: ['a'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(Dto, { tags: ['a'] }))).toBe(true);
   });
 });

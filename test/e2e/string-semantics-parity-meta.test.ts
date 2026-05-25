@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import {
   contains,
   isAlpha,
@@ -50,7 +50,7 @@ async function dtoPasses(rule: import('../../src/types').EmittableRule, value: u
 
   sealClass(Dto);
   const result = await deserialize(Dto, { value });
-  return !isBakerError(result);
+  return !isBakerIssueSet(result);
 }
 
 const cases: StringRuleCase[] = [

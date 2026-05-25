@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { BakerError } from '../errors';
 import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8,7 +9,7 @@ import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue 
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   if (!Number.isFinite(n)) {
-    throw new Error(`min: bound must be a finite number, got ${n}`);
+    throw new BakerError(`min: bound must be a finite number, got ${n}`);
   }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
@@ -32,7 +33,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   if (!Number.isFinite(n)) {
-    throw new Error(`max: bound must be a finite number, got ${n}`);
+    throw new BakerError(`max: bound must be a finite number, got ${n}`);
   }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
@@ -84,7 +85,7 @@ export const isNegative = makePlannedRule({
 
 export function isDivisibleBy(n: number): EmittableRule {
   if (n === 0) {
-    throw new Error('isDivisibleBy: divisor must not be zero');
+    throw new BakerError('isDivisibleBy: divisor must not be zero');
   }
   return makeRule({
     name: 'isDivisibleBy',

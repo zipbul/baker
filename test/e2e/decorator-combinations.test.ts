@@ -14,7 +14,7 @@ import {
   matches,
   arrayMinSize,
 } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -22,7 +22,7 @@ afterEach(() => unseal());
 
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
-  assertBakerError(result);
+  assertBakerIssueSet(result);
   return result.errors;
 }
 

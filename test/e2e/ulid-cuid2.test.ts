@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import { isULID, isCUID2 } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -16,7 +16,7 @@ async function pass<T>(cls: new (...a: never[]) => T, input: unknown): Promise<T
 /** Helper: verify rejection + return error code */
 async function failCode(cls: new (...args: never[]) => unknown, input: unknown): Promise<string> {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) {
+  if (!isBakerIssueSet(result)) {
     throw new Error('expected validation failure');
   }
   return result.errors[0]!.code;
@@ -63,7 +63,7 @@ describe('isULID', () => {
     expect(ok.id).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
 
     const err = await deserialize(UlidDto, { id: 'not-a-ulid' });
-    expect(isBakerError(err)).toBe(true);
+    expect(isBakerIssueSet(err)).toBe(true);
   });
 });
 
@@ -105,6 +105,6 @@ describe('isCUID2', () => {
     expect(ok.id).toBe('clh3am6660002q2bfx5y9z0rn');
 
     const err = await deserialize(Cuid2Dto, { id: 'NOT-VALID' });
-    expect(isBakerError(err)).toBe(true);
+    expect(isBakerIssueSet(err)).toBe(true);
   });
 });

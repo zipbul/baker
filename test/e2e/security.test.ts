@@ -1,21 +1,21 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, configure, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, configure, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { assertBakerError, assertNotBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet, assertNotBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
 afterEach(() => unseal());
 
 /**
- * Asserts that prototype-pollution input was either rejected (BakerError with
+ * Asserts that prototype-pollution input was either rejected (BakerIssue with
  * `expectedCode`) OR succeeded without polluting the result with `admin`.
  *
  * Lives at module scope so the branching `if` is outside any `it()` body.
  */
 function expectProtoPollutionPrevented(result: unknown, expectedCode: string): void {
-  if (isBakerError(result)) {
+  if (isBakerIssueSet(result)) {
     expect(result.errors.some(x => x.code === expectedCode)).toBe(true);
     return;
   }
@@ -41,7 +41,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 
@@ -49,7 +49,7 @@ describe('prototype pollution defense (forbidUnknown)', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 });
@@ -65,7 +65,7 @@ describe('extra keys ignored without forbidUnknown', () => {
   it('undeclared keys not included in result', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
-    assertNotBakerError(r);
+    assertNotBakerIssueSet(r);
     expect(r.name).toBe('ok');
     expect((r as Dto & { extra?: unknown }).extra).toBeUndefined();
   });
@@ -115,7 +115,7 @@ describe('deeply nested objects stack safety', () => {
       child: { child: { child: { child: { leaf: { value: 123 } } } } },
     };
     const result = await deserialize(Level1, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('child.child.child.child.leaf.value');
     expect(result.errors[0]!.code).toBe('isString');
   });
@@ -149,7 +149,7 @@ describe('large array input handling', () => {
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
     const result = await deserialize(ListDto, { items });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const paths = result.errors.map(x => x.path);
     expect(paths).toContain('items[50].id');
     expect(paths).toContain('items[99].id');
@@ -188,11 +188,11 @@ describe('E-26: frozen / null-prototype input', () => {
     expect(r).toBeInstanceOf(FrozenDto);
   });
 
-  it('frozen input with invalid value → BakerErrors returned', async () => {
+  it('frozen input with invalid value → BakerIssueSet returned', async () => {
     seal();
     const input = Object.freeze({ name: 123, age: 25 });
     const result = await deserialize(FrozenDto, input);
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -206,21 +206,21 @@ describe('special string value handling', () => {
     seal();
     const longStr = 'x'.repeat(10_000);
     const r = await deserialize<Dto>(Dto, { v: longStr });
-    assertNotBakerError(r);
+    assertNotBakerIssueSet(r);
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { v: '🎉🎊🎈' });
-    assertNotBakerError(r);
+    assertNotBakerIssueSet(r);
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
     seal();
     const r = await deserialize<Dto>(Dto, { v: 'hello\x00world' });
-    assertNotBakerError(r);
+    assertNotBakerIssueSet(r);
     expect(r.v).toBe('hello\x00world');
   });
 });

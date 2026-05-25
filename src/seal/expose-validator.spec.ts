@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { RawClassMeta } from '../types';
 
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { validateExposeStacks } from './expose-validator';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -64,14 +64,14 @@ describe('validateExposeStacks', () => {
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when a single @Expose entry has both deserializeOnly and serializeOnly', () => {
+  it('should throw BakerError when a single @Expose entry has both deserializeOnly and serializeOnly', () => {
     // Arrange
     const merged = fieldWithExpose({ deserializeOnly: true, serializeOnly: true });
     // Act / Assert
-    expect(() => validateExposeStacks(merged)).toThrow(SealError);
+    expect(() => validateExposeStacks(merged)).toThrow(BakerError);
   });
 
-  it('should throw SealError when one of multiple fields has an invalid @Expose entry', () => {
+  it('should throw BakerError when one of multiple fields has an invalid @Expose entry', () => {
     // Arrange
     const merged: RawClassMeta = {
       name: {
@@ -92,7 +92,7 @@ describe('validateExposeStacks', () => {
       },
     };
     // Act / Assert
-    expect(() => validateExposeStacks(merged)).toThrow(SealError);
+    expect(() => validateExposeStacks(merged)).toThrow(BakerError);
   });
 
   // ── Edge ───────────────────────────────────────────────────────────────────
@@ -115,24 +115,24 @@ describe('validateExposeStacks', () => {
 
   // ── H3: Multi-entry @Expose conflict detection ─────────────────────────────
 
-  it('should throw SealError when two @Expose entries have same direction and both ungrouped (groups=[])', () => {
+  it('should throw BakerError when two @Expose entries have same direction and both ungrouped (groups=[])', () => {
     // Arrange — two deserialization-direction entries, both with no groups
     const merged = fieldWithExpose(
       { deserializeOnly: true }, // groups = undefined → []
       { deserializeOnly: true }, // same direction, same ungrouped
     );
     // Act / Assert
-    expect(() => validateExposeStacks(merged)).toThrow(SealError);
+    expect(() => validateExposeStacks(merged)).toThrow(BakerError);
   });
 
-  it('should throw SealError when two @Expose entries have same direction with overlapping groups', () => {
+  it('should throw BakerError when two @Expose entries have same direction with overlapping groups', () => {
     // Arrange — two serialize entries, both include 'admin' group
     const merged = fieldWithExpose(
       { serializeOnly: true, groups: ['admin'] },
       { serializeOnly: true, groups: ['admin', 'superadmin'] },
     );
     // Act / Assert
-    expect(() => validateExposeStacks(merged)).toThrow(SealError);
+    expect(() => validateExposeStacks(merged)).toThrow(BakerError);
   });
 
   it('should not throw when two @Expose entries have same direction with non-overlapping groups', () => {

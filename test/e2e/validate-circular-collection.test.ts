@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { validate, Field, Recipe, configure, seal } from '../../index';
 import { isString, minLength } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -52,7 +52,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
     expect(await validate(SetNode, input)).toBe(true);
   });
 
-  it('depth-2 nested violation → BakerErrors with nested path', async () => {
+  it('depth-2 nested violation → BakerIssueSet with nested path', async () => {
     seal();
     const input = {
       value: 'root',
@@ -61,7 +61,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       ],
     };
     const result = await validate(SetNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'minLength');
     expect(err).toBeDefined();
     expect(err!.path).toBe('children[0].children[0].value');
@@ -79,7 +79,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       ],
     };
     const result = await validate(SetNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'minLength');
     expect(err).toBeDefined();
     expect(err!.path).toBe('children[0].children[1].value');
@@ -92,7 +92,7 @@ describe('validate() — self-recursive Set<DTO> (validateOnly, useInline=false)
       children: [{ value: 'a', children: ['not-an-object'] }],
     };
     const result = await validate(SetNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'invalidInput');
     expect(err).toBeDefined();
     expect(err!.path).toBe('children[0].children[0].');
@@ -112,7 +112,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
     expect(await validate(MapNode, input)).toBe(true);
   });
 
-  it('depth-2 nested violation → BakerErrors with nested path', async () => {
+  it('depth-2 nested violation → BakerIssueSet with nested path', async () => {
     seal();
     const input = {
       value: 'root',
@@ -121,7 +121,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'minLength');
     expect(err).toBeDefined();
     expect(err!.path).toBe('branches[a].branches[bad].value');
@@ -142,7 +142,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'minLength');
     expect(err).toBeDefined();
     expect(err!.path).toBe('branches[lvl1].branches[lvl2b].value');
@@ -160,7 +160,7 @@ describe('validate() — self-recursive Map<string, DTO> (validateOnly, useInlin
       },
     };
     const result = await validate(MapNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'invalidInput');
     expect(err).toBeDefined();
     expect(err!.path).toBe('branches[a].branches[bad].');
@@ -182,7 +182,7 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
       children: [{ value: 'a', children: [{ value: '' }, { value: '' }] }],
     };
     const result = await validate(SetNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]!.code).toBe('minLength');
     expect(result.errors[0]!.path).toBe('children[0].children[0].value');
@@ -202,7 +202,7 @@ describe('validate() — stopAtFirstError on self-recursive collections', () => 
       },
     };
     const result = await validate(MapNode, input);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]!.code).toBe('minLength');
     expect(result.errors[0]!.path).toBe('branches[a].branches[x].value');

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -42,7 +42,7 @@ describe('isMobilePhone', () => {
   });
 
   it('ko-KR invalid number rejected', async () => {
-    expect(isBakerError(await deserialize(PhoneKRDto, { phone: '1234' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PhoneKRDto, { phone: '1234' }))).toBe(true);
   });
 
   it('en-US valid number passes', async () => {
@@ -51,7 +51,7 @@ describe('isMobilePhone', () => {
   });
 
   it('en-US invalid number rejected', async () => {
-    expect(isBakerError(await deserialize(PhoneUSDto, { phone: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PhoneUSDto, { phone: 'abc' }))).toBe(true);
   });
 });
 
@@ -62,7 +62,7 @@ describe('isPostalCode', () => {
   });
 
   it('US invalid postal code rejected', async () => {
-    expect(isBakerError(await deserialize(PostalUSDto, { code: '1234' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PostalUSDto, { code: '1234' }))).toBe(true);
   });
 
   it('KR postal code passes', async () => {
@@ -78,7 +78,7 @@ describe('isIdentityCard', () => {
   });
 
   it('invalid format rejected', async () => {
-    expect(isBakerError(await deserialize(IdentityUSDto, { ssn: '12345' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IdentityUSDto, { ssn: '12345' }))).toBe(true);
   });
 });
 
@@ -89,6 +89,6 @@ describe('isPassportNumber', () => {
   });
 
   it('invalid format rejected', async () => {
-    expect(isBakerError(await deserialize(PassportUSDto, { passport: 'AB123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PassportUSDto, { passport: 'AB123' }))).toBe(true);
   });
 });

@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, validate, Field, Recipe, isBakerError, configure, seal, arrayOf } from '../../index';
+import { deserialize, serialize, validate, Field, Recipe, isBakerIssueSet, configure, seal, arrayOf } from '../../index';
 import { isString } from '../../src/rules/index';
-import { assertBakerError } from './helpers/assert';
+import { assertBakerIssueSet } from './helpers/assert';
 import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
 
@@ -47,22 +47,22 @@ describe('nested — integration', () => {
     expect(result.address.city).toBe('Springfield');
   });
 
-  it('should return BakerErrors for invalid nested field', async () => {
+  it('should return BakerIssueSet for invalid nested field', async () => {
     seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Bob',
       address: { street: 123, city: 'Shelbyville' },
     });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
-  it('should return BakerErrors when nested object has missing required field', async () => {
+  it('should return BakerIssueSet when nested object has missing required field', async () => {
     seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Carol',
       address: { city: 'Capital City' },
     });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('should serialize instance with nested DTO', async () => {
@@ -116,7 +116,7 @@ describe('nested — integration', () => {
     const result = await deserialize(OrderDto, {
       items: [{ name: 123 }, { name: 456 }],
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]!.path).toBe('items[0].name');
     expect(result.errors[0]!.code).toBe('isString');
@@ -136,7 +136,7 @@ describe('nested — integration', () => {
     configure({ stopAtFirstError: true });
     seal();
     const result = await deserialize(OrderDto, { items: 'not an array' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isArray');
   });
 
@@ -221,7 +221,7 @@ describe('nested — integration', () => {
     expect((result.content as { type?: unknown }).type).toBeUndefined();
   });
 
-  it('should return BakerErrors with invalidDiscriminator for unknown discriminator value', async () => {
+  it('should return BakerIssueSet with invalidDiscriminator for unknown discriminator value', async () => {
     seal();
     @Recipe
     class TextContent3 {
@@ -244,7 +244,7 @@ describe('nested — integration', () => {
     const result = await deserialize(NotificationDto3, {
       content: { type: 'unknown', body: 'x' },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'invalidDiscriminator')).toBe(true);
   });
 
@@ -286,8 +286,8 @@ describe('nested — circular DTO error path', () => {
     const input = { v: 'x', child: { w: 'y', parent: { v: 'z', child: { w: 123 } } } };
     const d = await deserialize(CircA, input);
     const v = await validate(CircA, input);
-    assertBakerError(d);
-    assertBakerError(v);
+    assertBakerIssueSet(d);
+    assertBakerIssueSet(v);
     expect(d.errors.some(e => e.path === 'child.parent.child.w')).toBe(true);
     expect(v.errors.some(e => e.path === 'child.parent.child.w')).toBe(true);
   });
@@ -326,7 +326,7 @@ describe('nested — validate-only collection error paths carry parent prefix', 
 
   const pathsOf = async (input: object): Promise<string[]> => {
     const r = await validate(PrefixRoot, input);
-    assertBakerError(r);
+    assertBakerIssueSet(r);
     return r.errors.map(e => e.path);
   };
 

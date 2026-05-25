@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import { isDate, minDate, maxDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -42,19 +42,19 @@ describe('@MinDate/@MaxDate', () => {
   });
 
   it('before range → rejected', async () => {
-    expect(isBakerError(await deserialize(DateRangeDto, { eventDate: new Date('2019-12-31T23:59:59.999Z') }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(DateRangeDto, { eventDate: new Date('2019-12-31T23:59:59.999Z') }))).toBe(true);
   });
 
   it('after range → rejected', async () => {
-    expect(isBakerError(await deserialize(DateRangeDto, { eventDate: new Date('2026-01-01T00:00:00.000Z') }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(DateRangeDto, { eventDate: new Date('2026-01-01T00:00:00.000Z') }))).toBe(true);
   });
 
   it('non-Date value → isDate error', async () => {
-    expect(isBakerError(await deserialize(DateRangeDto, { eventDate: '2023-01-01' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(DateRangeDto, { eventDate: '2023-01-01' }))).toBe(true);
   });
 
   it('invalid Date object rejected', async () => {
-    expect(isBakerError(await deserialize(DateOnlyMinDto, { start: new Date('invalid') }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(DateOnlyMinDto, { start: new Date('invalid') }))).toBe(true);
   });
 
   it('MinDate only', async () => {

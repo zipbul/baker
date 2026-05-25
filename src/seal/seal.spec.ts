@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
-import type { BakerError } from '../errors';
+import type { BakerIssue } from '../errors';
 import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
 
 import { assertIsErr } from '../../test/integration/helpers/assert';
 import { sealClass } from '../../test/integration/helpers/seal';
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { getSealed, setSealed, deleteSealed, getRaw, setRaw, deleteRaw, requireSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { min, max } from '../rules/number';
@@ -130,7 +130,7 @@ describe('seal', () => {
     const sealed = requireSealed(PersonDto2);
     const result = await sealed.deserialize({ name: 42 });
     // Assert — should be Err (has .data property)
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     expect(result.data).toBeDefined();
     expect(Array.isArray(result.data)).toBe(true);
   });
@@ -206,7 +206,7 @@ describe('seal', () => {
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when @Expose has both deserializeOnly and serializeOnly', () => {
+  it('should throw BakerError when @Expose has both deserializeOnly and serializeOnly', () => {
     // Arrange
     class BadExposeDto {}
     registerClass(BadExposeDto, {
@@ -220,7 +220,7 @@ describe('seal', () => {
       },
     });
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
   // ── State Transition ───────────────────────────────────────────────────────
@@ -421,7 +421,7 @@ describe('seal', () => {
     expect(globalRegistry.has(NestedLate)).toBe(false);
   });
 
-  it('should throw SealError when @Type returns invalid value (null/non-function)', () => {
+  it('should throw BakerError when @Type returns invalid value (null/non-function)', () => {
     // Arrange
     class BadTypeDto {}
     registerClass(BadTypeDto, {
@@ -435,11 +435,11 @@ describe('seal', () => {
       },
     });
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
   it('should clean up stale placeholders when seal fails', () => {
-    // Arrange — nested DTO has banned field name 'constructor' → SealError
+    // Arrange — nested DTO has banned field name 'constructor' → BakerError
     class BrokenNested {}
     const brokenRaw: RawClassMeta = Object.create(null) as RawClassMeta;
     brokenRaw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
@@ -458,7 +458,7 @@ describe('seal', () => {
       },
     });
     // Act — seal fails
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
     // Assert — stale placeholder cleaned up
     expect(getSealed(ParentDto)).toBeUndefined();
   });
@@ -771,35 +771,35 @@ function makeRawWithBannedKey(bannedKey: string): RawClassMeta {
 }
 
 describe('sealOne — banned field names (C5)', () => {
-  it('should throw SealError when a field is named __proto__', () => {
+  it('should throw BakerError when a field is named __proto__', () => {
     // Arrange
     class BannedProtoDto {}
     registerClass(BannedProtoDto, makeRawWithBannedKey('__proto__'));
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
-  it('should throw SealError when a field is named constructor', () => {
+  it('should throw BakerError when a field is named constructor', () => {
     // Arrange
     class BannedConstructorDto {}
     const raw: RawClassMeta = Object.create(null) as RawClassMeta;
     raw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
     registerClass(BannedConstructorDto, raw);
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
-  it('should throw SealError when a field is named prototype', () => {
+  it('should throw BakerError when a field is named prototype', () => {
     // Arrange
     class BannedPrototypeDto {}
     const raw: RawClassMeta = Object.create(null) as RawClassMeta;
     raw['prototype'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
     registerClass(BannedPrototypeDto, raw);
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
-  it('should throw SealError even when banned field coexists with valid fields', () => {
+  it('should throw BakerError even when banned field coexists with valid fields', () => {
     // Arrange — both a valid field ('name') and a banned field ('constructor')
     class MixedBannedDto {}
     const raw = Object.create(null) as RawClassMeta;
@@ -817,10 +817,10 @@ describe('sealOne — banned field names (C5)', () => {
     });
     registerClass(MixedBannedDto, raw);
     // Act / Assert
-    expect(() => seal()).toThrow(SealError);
+    expect(() => seal()).toThrow(BakerError);
   });
 
-  it('should not throw SealError for __PROTO__ (uppercase — not a banned name)', () => {
+  it('should not throw BakerError for __PROTO__ (uppercase — not a banned name)', () => {
     // Arrange — same letters but different case, not a reserved name
     class UpperCaseDto {}
     registerClass(UpperCaseDto, makeRawWithBannedKey('__PROTO__'));
@@ -834,10 +834,10 @@ describe('sealOne — banned field names (C5)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('circularPlaceholder', () => {
-  it('should return placeholder that throws SealError on deserialize and serialize', () => {
+  it('should return placeholder that throws BakerError on deserialize and serialize', () => {
     const p = circularPlaceholder('TestDto');
-    expect(() => p.deserialize({})).toThrow(SealError);
-    expect(() => p.serialize({})).toThrow(SealError);
+    expect(() => p.deserialize({})).toThrow(BakerError);
+    expect(() => p.serialize({})).toThrow(BakerError);
     expect(p.isAsync).toBe(false);
     expect(p.isSerializeAsync).toBe(false);
   });

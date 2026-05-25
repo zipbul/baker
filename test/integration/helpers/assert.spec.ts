@@ -1,29 +1,29 @@
 import { err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { BakerError } from '../../../src/errors';
+import type { BakerIssue } from '../../../src/errors';
 
-import { toBakerErrors } from '../../../src/errors';
-import { assertBakerError, assertDefined, assertIsErr, assertNotBakerError } from './assert';
+import { toBakerIssueSet } from '../../../src/errors';
+import { assertBakerIssueSet, assertDefined, assertIsErr, assertNotBakerIssueSet } from './assert';
 
 describe('test assert helpers', () => {
-  describe('assertBakerError', () => {
-    it('throws on a non-BakerError value', () => {
-      expect(() => assertBakerError({ ok: true })).toThrow(/expected BakerError/);
+  describe('assertBakerIssueSet', () => {
+    it('throws on a non-BakerIssue value', () => {
+      expect(() => assertBakerIssueSet({ ok: true })).toThrow(/expected BakerIssue/);
     });
-    it('does not throw on a BakerError value', () => {
-      const baker = toBakerErrors([{ path: 'x', code: 'isString' }]);
-      expect(() => assertBakerError(baker)).not.toThrow();
+    it('does not throw on a BakerIssue value', () => {
+      const baker = toBakerIssueSet([{ path: 'x', code: 'isString' }]);
+      expect(() => assertBakerIssueSet(baker)).not.toThrow();
     });
   });
 
-  describe('assertNotBakerError', () => {
-    it('throws on a BakerError value', () => {
-      const baker = toBakerErrors([{ path: 'x', code: 'isString' }]);
-      expect(() => assertNotBakerError(baker)).toThrow(/expected success/);
+  describe('assertNotBakerIssueSet', () => {
+    it('throws on a BakerIssue value', () => {
+      const baker = toBakerIssueSet([{ path: 'x', code: 'isString' }]);
+      expect(() => assertNotBakerIssueSet(baker)).toThrow(/expected success/);
     });
-    it('does not throw on a non-BakerError value', () => {
-      expect(() => assertNotBakerError({ name: 'Alice' })).not.toThrow();
+    it('does not throw on a non-BakerIssue value', () => {
+      expect(() => assertNotBakerIssueSet({ name: 'Alice' })).not.toThrow();
     });
   });
 
@@ -32,7 +32,7 @@ describe('test assert helpers', () => {
       expect(() => assertIsErr({ name: 'Alice' })).toThrow(/expected Err/);
     });
     it('does not throw on Err', () => {
-      const errVal: BakerError[] = [{ path: '', code: 'x' }];
+      const errVal: BakerIssue[] = [{ path: '', code: 'x' }];
       expect(() => assertIsErr(err(errVal))).not.toThrow();
     });
   });

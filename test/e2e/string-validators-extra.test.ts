@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import {
   isString,
   notContains,
@@ -50,7 +50,7 @@ describe('notContains', () => {
     expect(r.val).toBe('good text');
   });
   it('string containing substring rejected', async () => {
-    expect(isBakerError(await deserialize(NotContainsDto, { val: 'bad word' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NotContainsDto, { val: 'bad word' }))).toBe(true);
   });
 });
 
@@ -60,14 +60,14 @@ describe('isLowercase / isUppercase', () => {
     expect(r.val).toBe('hello');
   });
   it('contains uppercase rejected', async () => {
-    expect(isBakerError(await deserialize(LowercaseDto, { val: 'Hello' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(LowercaseDto, { val: 'Hello' }))).toBe(true);
   });
   it('uppercase passes', async () => {
     const r = (await deserialize(UppercaseDto, { val: 'HELLO' })) as UppercaseDto;
     expect(r.val).toBe('HELLO');
   });
   it('contains lowercase rejected', async () => {
-    expect(isBakerError(await deserialize(UppercaseDto, { val: 'Hello' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UppercaseDto, { val: 'Hello' }))).toBe(true);
   });
 });
 
@@ -81,7 +81,7 @@ describe('isBooleanString', () => {
     expect(r.val).toBe('false');
   });
   it('other string rejected', async () => {
-    expect(isBakerError(await deserialize(BoolStringDto, { val: 'yes' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(BoolStringDto, { val: 'yes' }))).toBe(true);
   });
 });
 
@@ -91,7 +91,7 @@ describe('isJSON', () => {
     expect(r.val).toBe('{"a":1}');
   });
   it('invalid JSON rejected', async () => {
-    expect(isBakerError(await deserialize(JsonDto, { val: '{bad}' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(JsonDto, { val: '{bad}' }))).toBe(true);
   });
 });
 
@@ -101,6 +101,6 @@ describe('arrayNotContains', () => {
     expect(r.items).toEqual([1, 2, 3]);
   });
   it('containing forbidden elements rejected', async () => {
-    expect(isBakerError(await deserialize(ArrNotContainsDto, { items: [1, 99, 3] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ArrNotContainsDto, { items: [1, 99, 3] }))).toBe(true);
   });
 });

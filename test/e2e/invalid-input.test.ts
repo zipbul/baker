@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, Recipe, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -21,7 +21,7 @@ class SimpleDto {
 describe('invalidInput error code', () => {
   it('null input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, null);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors[0]!;
     expect(err.path).toBe('');
     expect(err.code).toBe('invalidInput');
@@ -29,25 +29,25 @@ describe('invalidInput error code', () => {
 
   it('undefined input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, undefined);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('array input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, [1, 2, 3]);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('string input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, 'hello');
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('number input → invalidInput', async () => {
     const result = await deserialize(SimpleDto, 42);
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 

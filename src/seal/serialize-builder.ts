@@ -1,6 +1,7 @@
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 
+import { BakerError } from '../errors';
 import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
@@ -173,10 +174,11 @@ function buildSerializeCode<T>(
   // ── Execute new Function ───────────────────────────────────────────────────
 
   const fnKeyword = isAsync ? 'async function' : 'function';
-  const executor = new Function('refs', 'execs', `return ${fnKeyword}(instance, opts) { ` + body + ' }')(refs, execs) as (
-    instance: T,
-    opts?: RuntimeOptions,
-  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  const executor = new Function('refs', 'execs', 'BakerError', `return ${fnKeyword}(instance, opts) { ` + body + ' }')(
+    refs,
+    execs,
+    BakerError,
+  ) as (instance: T, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>;
 
   return executor;
 }
@@ -262,7 +264,7 @@ function generateSerializeFieldCode(
       }
     } else {
       // Map → plain object (W8: keys must be strings — throw otherwise)
-      const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new TypeError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
+      const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new BakerError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
       if (meta.type.resolvedCollectionValue) {
         const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;

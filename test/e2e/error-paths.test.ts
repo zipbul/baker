@@ -2,16 +2,16 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, Recipe, arrayOf, deserialize, seal } from '../../index';
 import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
 afterEach(() => unseal());
 
-/** Helper: extracts errors array from BakerErrors */
+/** Helper: extracts errors array from BakerIssueSet */
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
-  assertBakerError(result);
+  assertBakerIssueSet(result);
   return [...result.errors];
 }
 
@@ -185,17 +185,17 @@ describe('multiple errors per field (collectErrors mode)', () => {
   });
 });
 
-// ─── error paths — BakerErrors ──────────────────────────────────────────────
+// ─── error paths — BakerIssueSet ──────────────────────────────────────────────
 
-describe('BakerErrors from deserialize', () => {
+describe('BakerIssueSet from deserialize', () => {
   @Recipe
   class UserProfile {
     @Field(isString) name!: string;
   }
 
-  it('errors array accessible via isBakerError', async () => {
+  it('errors array accessible via isBakerIssueSet', async () => {
     const result = await deserialize(UserProfile, { name: 123 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(1);
   });
 });

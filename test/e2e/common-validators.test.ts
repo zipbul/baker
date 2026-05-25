@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import { equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty, isEnum } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -52,7 +52,7 @@ describe('@Equals', () => {
     expect(r.answer).toBe('yes');
   });
   it('mismatch rejected', async () => {
-    expect(isBakerError(await deserialize(EqualsDto, { answer: 'no' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(EqualsDto, { answer: 'no' }))).toBe(true);
   });
 });
 
@@ -62,7 +62,7 @@ describe('@NotEquals', () => {
     expect(r.answer).toBe('yes');
   });
   it('match rejected', async () => {
-    expect(isBakerError(await deserialize(NotEqualsDto, { answer: 'no' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NotEqualsDto, { answer: 'no' }))).toBe(true);
   });
 });
 
@@ -72,7 +72,7 @@ describe('@IsIn', () => {
     expect(r.choice).toBe('b');
   });
   it('value not in list rejected', async () => {
-    expect(isBakerError(await deserialize(IsInDto, { choice: 'z' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IsInDto, { choice: 'z' }))).toBe(true);
   });
 });
 
@@ -82,7 +82,7 @@ describe('@IsNotIn', () => {
     expect(r.val).toBe(5);
   });
   it('value in list rejected', async () => {
-    expect(isBakerError(await deserialize(IsNotInDto, { val: 2 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IsNotInDto, { val: 2 }))).toBe(true);
   });
 });
 
@@ -92,7 +92,7 @@ describe('@IsEmpty', () => {
     expect(r.field).toBe('');
   });
   it('non-empty value rejected', async () => {
-    expect(isBakerError(await deserialize(IsEmptyDto, { field: 'hello' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IsEmptyDto, { field: 'hello' }))).toBe(true);
   });
 });
 
@@ -102,7 +102,7 @@ describe('@IsNotEmpty', () => {
     expect(r.field).toBe('hello');
   });
   it('empty string rejected', async () => {
-    expect(isBakerError(await deserialize(IsNotEmptyDto, { field: '' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IsNotEmptyDto, { field: '' }))).toBe(true);
   });
 });
 
@@ -116,9 +116,9 @@ describe('@IsEnum', () => {
     expect(r.color).toBe(Color.Blue);
   });
   it('non-enum value rejected', async () => {
-    expect(isBakerError(await deserialize(EnumDto, { color: 'purple' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(EnumDto, { color: 'purple' }))).toBe(true);
   });
   it('numeric enum rejected', async () => {
-    expect(isBakerError(await deserialize(EnumDto, { color: 0 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(EnumDto, { color: 0 }))).toBe(true);
   });
 });

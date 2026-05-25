@@ -11,7 +11,7 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
 
@@ -137,7 +137,7 @@ group('simple object — valid input', () => {
 group('simple object — invalid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerSimple, SIMPLE_INVALID);
-    if (isBakerError(r)) {
+    if (isBakerIssueSet(r)) {
       sinkNum += r.errors.length;
     } else {
       sinkNum += 1;

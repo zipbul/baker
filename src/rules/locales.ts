@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { BakerError } from '../errors';
 import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ function isPassportNumber(locale: string): EmittableRule {
 function makeLocaleRegexRule(name: string, locale: string, registry: Record<string, RegExp>): EmittableRule {
   const re = registry[locale];
   if (!re) {
-    throw new Error(`Unsupported locale: "${locale}" for ${name}`);
+    throw new BakerError(`Unsupported locale: "${locale}" for ${name}`);
   }
   return makeRule({
     name,

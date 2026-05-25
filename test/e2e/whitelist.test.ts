@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { deserialize, configure, Field, Recipe, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -32,7 +32,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'whitelistViolation');
     expect(err).toBeDefined();
     expect(err!.path).toBe('extra');
@@ -57,7 +57,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ExposedDto, { user_name: 'Carol', hack: 1 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
 
@@ -65,7 +65,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const errors = result.errors.filter(e => e.code === 'whitelistViolation');
     expect(errors.length).toBe(2);
   });
@@ -74,7 +74,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true, stopAtFirstError: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 
@@ -82,7 +82,7 @@ describe('forbidUnknown (whitelist) configure option', () => {
     configure({ forbidUnknown: true });
     seal();
     const result = await deserialize(ProfileDto, { name: 123, age: 'bad', extra: 'x' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const errors = result.errors;
     expect(errors.some(x => x.code === 'isString')).toBe(true);
     expect(errors.some(x => x.code === 'isNumber')).toBe(true);

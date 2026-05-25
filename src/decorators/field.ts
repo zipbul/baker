@@ -1,7 +1,7 @@
 import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 
 import { ensureMeta } from '../collect';
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { isAsyncFunction, isPromiseLike } from '../utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -135,11 +135,11 @@ function assertRule(value: unknown, fieldKey: string, slot?: string): void {
       const hint = fn.name
         ? ` Did you forget to call '${fn.name}()'? Factories must be invoked (e.g., '${fn.name}()'). Rule constants are passed directly (e.g., 'isString' without parentheses).`
         : ` Use createRule() or import a rule from @zipbul/baker/rules.`;
-      throw new SealError(`@Field on ${loc}: argument is not a baker rule.${hint}${validForms}`);
+      throw new BakerError(`@Field on ${loc}: argument is not a baker rule.${hint}${validForms}`);
     }
     return;
   }
-  throw new SealError(
+  throw new BakerError(
     `@Field on ${loc}: expected a baker rule (function with .emit and .ruleName), got ${value === null ? 'null' : typeof value}. Use createRule() or import a rule from @zipbul/baker/rules.${validForms}`,
   );
 }
@@ -243,7 +243,7 @@ function wrapTransform(
   const wrapped = (params => {
     const result = fn(params);
     if (!isAsync && isPromiseLike(result)) {
-      throw new Error(
+      throw new BakerError(
         `@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`,
       );
     }
@@ -285,13 +285,13 @@ function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): FieldDecorator
 function Field(...args: unknown[]): FieldDecorator {
   return (_value, context) => {
     if (context.static) {
-      throw new SealError(`@Field cannot decorate static fields.`);
+      throw new BakerError(`@Field cannot decorate static fields.`);
     }
     if (context.private) {
-      throw new SealError(`@Field cannot decorate private fields.`);
+      throw new BakerError(`@Field cannot decorate private fields.`);
     }
     if (typeof context.name === 'symbol') {
-      throw new SealError(`@Field: symbol property keys are not supported. Use a string property name.`);
+      throw new BakerError(`@Field: symbol property keys are not supported. Use a string property name.`);
     }
     const propertyKey = context.name;
     const meta = ensureMeta(context.metadata, propertyKey);
@@ -302,7 +302,7 @@ function Field(...args: unknown[]): FieldDecorator {
     // is contradictory — reject it instead of silently dropping the per-direction names. Truthiness
     // matches applyExpose: an empty-string name is treated as "no name" consistently throughout.
     if (options.name && (options.deserializeName || options.serializeName)) {
-      throw new SealError(
+      throw new BakerError(
         `@Field on ${propertyKey}: 'name' cannot be combined with 'deserializeName'/'serializeName'. Use one or the other.`,
       );
     }

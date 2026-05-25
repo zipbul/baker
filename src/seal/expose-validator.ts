@@ -1,12 +1,12 @@
 import type { RawClassMeta, ExposeDef } from '../types';
 
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 
 /**
  * Static validation of @Expose stacks (§4.1, §3.3)
  *
  * Check 1: same @Expose entry has deserializeOnly: true + serializeOnly: true → excluded from both directions
- * Check 2: if 2+ @Expose entries in the same direction have overlapping groups → SealError
+ * Check 2: if 2+ @Expose entries in the same direction have overlapping groups → BakerError
  *          - both groups=[] (ungrouped) → overlap
  *          - both non-empty groups with intersection → overlap
  *          - one ungrouped + one grouped → no overlap (different scope)
@@ -17,14 +17,14 @@ function validateExposeStacks(merged: RawClassMeta, className?: string): void {
     // ① single-entry check: deserializeOnly + serializeOnly cannot coexist
     for (const exp of meta.expose) {
       if (exp.deserializeOnly && exp.serializeOnly) {
-        throw new SealError(
+        throw new BakerError(
           `Invalid @Expose on field '${prefix}${key}': cannot have both deserializeOnly:true and serializeOnly:true on the same @Expose entry. Use separate @Expose decorators for each direction.`,
         );
       }
       // Reserved output keys would corrupt the serialized object (e.g. a '__proto__' key sets the
       // prototype instead of an own property) — reject them as wire names, matching banned field names.
       if (exp.name === '__proto__' || exp.name === 'constructor' || exp.name === 'prototype') {
-        throw new SealError(
+        throw new BakerError(
           `Invalid @Field name on '${prefix}${key}': '${exp.name}' is a reserved property name and cannot be used as a serialized key.`,
         );
       }
@@ -52,7 +52,7 @@ function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: str
       if (groupsOverlap(aGroups, bGroups)) {
         const bSet = new Set(bGroups);
         const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bSet.has(g));
-        throw new SealError(
+        throw new BakerError(
           `@Expose conflict on '${key}': 2 @Expose stacks with '${direction}' direction and overlapping groups [${overlapping.join(', ')}]. Each direction must have at most one @Expose per group set.`,
         );
       }

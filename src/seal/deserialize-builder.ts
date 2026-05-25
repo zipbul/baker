@@ -5,7 +5,7 @@ import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef } from '../types';
 
-import { SealError, type BakerError } from '../errors';
+import { BakerError, type BakerIssue } from '../errors';
 import { getSealed } from '../meta-access';
 import { emitRulePlan } from '../rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
@@ -112,8 +112,8 @@ function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): str
 // buildDeserializeCode — new Function-based executor generation (§4.9)
 // ─────────────────────────────────────────────────────────────────────────────
 
-type DeserializeExecutor<T> = (input: unknown, opts?: RuntimeOptions) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
-type ValidateExecutor = (input: unknown, opts?: RuntimeOptions) => BakerError[] | null | Promise<BakerError[] | null>;
+type DeserializeExecutor<T> = (input: unknown, opts?: RuntimeOptions) => Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
+type ValidateExecutor = (input: unknown, opts?: RuntimeOptions) => BakerIssue[] | null | Promise<BakerIssue[] | null>;
 
 function buildDeserializeCode<T>(
   Class: Function,
@@ -285,7 +285,7 @@ function buildDeserializeCode<T>(
   )(Class, regexes, refs, execs, resultErr, resultIsErr, seenKey) as (
     input: unknown,
     opts?: RuntimeOptions,
-  ) => Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
+  ) => Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
 
   return executor;
 }
@@ -737,7 +737,7 @@ function generateConversionCode(
     case 'date':
       return `  ${varName} = new Date(${varName});\n  if (isNaN(${varName}.getTime())) { ${failCode} }\n`;
     default:
-      throw new SealError(`Unknown implicit conversion type: "${targetType}" for field "${fieldKey}"`);
+      throw new BakerError(`Unknown implicit conversion type: "${targetType}" for field "${fieldKey}"`);
   }
 }
 
@@ -822,7 +822,7 @@ function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validati
     }
   }
   if (activeTypes) {
-    throw new SealError(`Field "${fieldKey}" has conflicting requiresType: ${activeTypes.join(', ')}`);
+    throw new BakerError(`Field "${fieldKey}" has conflicting requiresType: ${activeTypes.join(', ')}`);
   }
 
   return { each, generalRules, typedDeps: chosen };
@@ -890,7 +890,7 @@ function resolveTypeGate(
       const typeCtor = Array.isArray(raw) ? raw[0] : raw;
       typeHintGate = typeCtor ? (PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null) : null;
     } catch (e) {
-      throw new SealError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`);
+      throw new BakerError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`, { cause: e });
     }
   }
 

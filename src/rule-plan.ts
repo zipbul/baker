@@ -132,7 +132,8 @@ function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
     case 'call0':
       return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
     default:
-      throw new Error('unreachable');
+      // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.
+      return a satisfies never;
   }
 }
 
@@ -155,7 +156,8 @@ function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache
     case 'call0':
       return cache?.time ?? `${emitPlanExpr(expr.object, varName, cache)}.getTime()`;
     default:
-      throw new Error('unreachable');
+      // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.
+      return expr satisfies never;
   }
 }
 export { planValue, planLength, planTime, planLiteral, planCompare, planOr, makePlannedRule, makeRule, emitRulePlan };

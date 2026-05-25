@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, isDate } from '../../src/rules/index';
 import {
   trimTransformer,
@@ -278,11 +278,11 @@ describe('type + transform combo (jsonTransformer + nested DTO)', () => {
     expect(result.nested.name).toBe('alice');
   });
 
-  it('deserialize: invalid nested field returns BakerError', async () => {
+  it('deserialize: invalid nested field returns BakerIssue', async () => {
     const result = await deserialize(WrapperDto, {
       nested: '{"name":123}',
     });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('serialize: DTO instance → JSON string', async () => {

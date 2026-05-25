@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, isNumber, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -30,7 +30,7 @@ class ConditionalWithMinDto {
 
 describe('@Field({ when }) — conditional validation', () => {
   it('condition true → validation applied', async () => {
-    expect(isBakerError(await deserialize(ConditionalDto, { type: 'business' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ConditionalDto, { type: 'business' }))).toBe(true);
   });
 
   it('condition true + valid value → passes', async () => {
@@ -59,7 +59,7 @@ describe('@Field({ when }) — conditional validation', () => {
 
   it('numeric condition + Min validation', async () => {
     // role >= 2 → Min(100) applied → budget 50 rejected
-    expect(isBakerError(await deserialize(ConditionalWithMinDto, { role: 3, budget: 50 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ConditionalWithMinDto, { role: 3, budget: 50 }))).toBe(true);
   });
 
   it('numeric condition false → Min skipped', async () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { assertBakerError } from './helpers/assert';
+import { assertBakerIssueSet } from './helpers/assert';
 import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
 
@@ -51,7 +51,7 @@ describe('@Type auto-nested', () => {
     expect((result['inner'] as { value?: unknown })['value']).toBe('world');
   });
 
-  it('should return BakerErrors for invalid nested field with @Type alone', async () => {
+  it('should return BakerIssueSet for invalid nested field with @Type alone', async () => {
     @Recipe
     class InnerDto {
       @Field(isNumber()) num!: number;
@@ -66,7 +66,7 @@ describe('@Type auto-nested', () => {
     const result = await deserialize(OuterDto, {
       inner: { num: 'not a number' },
     });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -116,7 +116,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     expect(items[1]!['name']).toBe('Y');
   });
 
-  it('should return BakerErrors with isArray error when non-array passed to @Type(() => [Dto])', async () => {
+  it('should return BakerIssueSet with isArray error when non-array passed to @Type(() => [Dto])', async () => {
     @Recipe
     class ItemDto {
       @Field(isString) name!: string;
@@ -129,7 +129,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     }
     sealClass(OrderDto);
     const result = await deserialize(OrderDto, { items: 'not an array' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isArray');
   });
 
@@ -148,7 +148,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
     const result = await deserialize(OrderDto, {
       items: [{ name: 'valid' }, { name: 123 }],
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(e => e.path.startsWith('items[1]'))).toBe(true);
   });
 

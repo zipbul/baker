@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 describe('validateMeta — discriminator invariants', () => {
-  it('empty property string throws SealError', () => {
+  it('empty property string throws BakerError', () => {
     @Recipe
     class ChildA {
       @Field(isString) k!: string;
@@ -32,7 +32,7 @@ describe('validateMeta — discriminator invariants', () => {
     expect(() => sealClass(BadDisc)).toThrow(/discriminator\.property must be a non-empty string/);
   });
 
-  it('empty subTypes throws SealError', () => {
+  it('empty subTypes throws BakerError', () => {
     @Recipe
     class EmptyDisc {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [] } })
@@ -41,7 +41,7 @@ describe('validateMeta — discriminator invariants', () => {
     expect(() => sealClass(EmptyDisc)).toThrow(/discriminator\.subTypes must be a non-empty array/);
   });
 
-  it('subTypes entry with empty name throws SealError', () => {
+  it('subTypes entry with empty name throws BakerError', () => {
     @Recipe
     class C1 {
       @Field(isString) k!: string;
@@ -54,7 +54,7 @@ describe('validateMeta — discriminator invariants', () => {
     expect(() => sealClass(BadName)).toThrow(/subTypes\[0\]\.name must be a non-empty string/);
   });
 
-  it('subTypes entry with non-class value throws SealError', () => {
+  it('subTypes entry with non-class value throws BakerError', () => {
     @Recipe
     class BadValue {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [{ value: 'NotAClass' as never, name: 'a' }] } })
@@ -63,7 +63,7 @@ describe('validateMeta — discriminator invariants', () => {
     expect(() => sealClass(BadValue)).toThrow(/must be a class constructor/);
   });
 
-  it('duplicate subType names throw SealError', () => {
+  it('duplicate subType names throw BakerError', () => {
     @Recipe
     class D1 {
       @Field(isString) k!: string;
@@ -89,7 +89,7 @@ describe('validateMeta — discriminator invariants', () => {
     expect(() => sealClass(DupNames)).toThrow(/duplicate name 'x'/);
   });
 
-  it('subType value without @Field decorators throws SealError', () => {
+  it('subType value without @Field decorators throws BakerError', () => {
     class NoFields {}
     @Recipe
     class HasUndecoratedSub {
@@ -101,7 +101,7 @@ describe('validateMeta — discriminator invariants', () => {
 });
 
 describe('validateMeta — Set/Map collection invariants', () => {
-  it('setValue target without @Field throws SealError', () => {
+  it('setValue target without @Field throws BakerError', () => {
     class NoFieldsItem {}
     @Recipe
     class SetParent {
@@ -111,7 +111,7 @@ describe('validateMeta — Set/Map collection invariants', () => {
     expect(() => sealClass(SetParent)).toThrow(/setValue target.*has no @Field decorators/);
   });
 
-  it('mapValue target without @Field throws SealError', () => {
+  it('mapValue target without @Field throws BakerError', () => {
     class NoFieldsVal {}
     @Recipe
     class MapParent {

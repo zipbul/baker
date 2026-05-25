@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, configure, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, configure, deserialize, isBakerIssueSet, seal } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => unseal());
@@ -89,7 +89,7 @@ describe('enableImplicitConversion', () => {
   it('unconvertible value → conversionFailed', async () => {
     configure({ autoConvert: true });
     seal();
-    expect(isBakerError(await deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
   });
 
   it('explicit @Field transform present → conversion skipped', async () => {
@@ -113,7 +113,7 @@ describe('enableImplicitConversion', () => {
   it('autoConvert: false → type error without conversion', async () => {
     configure({ autoConvert: false });
     seal();
-    expect(isBakerError(await deserialize(ConvDto, { age: '25', active: true, createdAt: new Date() }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ConvDto, { age: '25', active: true, createdAt: new Date() }))).toBe(true);
   });
 });
 
@@ -144,7 +144,7 @@ describe('@Type hint implicit conversion', () => {
     configure({ autoConvert: true });
     seal();
     const result = await deserialize(TypeHintFailDto, { value: 'abc' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('conversionFailed');
   });
 });
@@ -178,7 +178,7 @@ describe('stopAtFirstError + autoConvert', () => {
     configure({ autoConvert: true, stopAtFirstError: true });
     seal();
     const result = await deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors).toHaveLength(1);
   });
 });

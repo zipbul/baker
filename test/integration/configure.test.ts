@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { configure, SealError } from '../../index';
+import { configure, BakerError } from '../../index';
 import { getGlobalOptions } from '../../src/configure';
 import { unseal } from './helpers/unseal';
 
@@ -13,24 +13,24 @@ function configureBad(c: unknown): void {
 }
 
 describe('configure() — input validation', () => {
-  it('configure(null) throws SealError', () => {
-    expect(() => configureBad(null)).toThrow(SealError);
+  it('configure(null) throws BakerError', () => {
+    expect(() => configureBad(null)).toThrow(BakerError);
     expect(() => configureBad(null)).toThrow(/requires a plain object/);
   });
 
-  it('configure(undefined) throws SealError', () => {
-    expect(() => configureBad(undefined)).toThrow(SealError);
+  it('configure(undefined) throws BakerError', () => {
+    expect(() => configureBad(undefined)).toThrow(BakerError);
   });
 
-  it('configure("string") throws SealError', () => {
-    expect(() => configureBad('hello')).toThrow(SealError);
+  it('configure("string") throws BakerError', () => {
+    expect(() => configureBad('hello')).toThrow(BakerError);
   });
 
-  it('configure([]) throws SealError', () => {
+  it('configure([]) throws BakerError', () => {
     expect(() => configureBad([])).toThrow(/Received: array/);
   });
 
-  it('configure({unknownKey}) throws SealError listing valid keys', () => {
+  it('configure({unknownKey}) throws BakerError listing valid keys', () => {
     expect(() => configureBad({ unknownKey: 1 })).toThrow(/unknown key 'unknownKey'/);
     expect(() => configureBad({ unknownKey: 1 })).toThrow(/Valid keys: autoConvert/);
   });

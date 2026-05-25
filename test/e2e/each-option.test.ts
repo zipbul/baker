@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, arrayOf, deserialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, arrayOf, deserialize, configure, isBakerIssueSet, seal } from '../../index';
 import { isArray, isString, isNumber, min, minLength, arrayMinSize } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -40,7 +40,7 @@ describe('each:true — type validation', () => {
 
   it('non-string element → rejected', async () => {
     seal();
-    expect(isBakerError(await deserialize(StringArrayDto, { tags: ['a', 123, 'c'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(StringArrayDto, { tags: ['a', 123, 'c'] }))).toBe(true);
   });
 
   it('empty array → passes (each is per-element, no elements to validate)', async () => {
@@ -59,7 +59,7 @@ describe('each:true — constraint validation', () => {
 
   it('some elements violate Min → rejected', async () => {
     seal();
-    expect(isBakerError(await deserialize(NumberArrayDto, { scores: [5, -1, 10] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NumberArrayDto, { scores: [5, -1, 10] }))).toBe(true);
   });
 });
 
@@ -67,7 +67,7 @@ describe('each:true — error paths', () => {
   it('error path includes index', async () => {
     seal();
     const result = await deserialize(StringArrayDto, { tags: ['ok', 42] });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const tagErr = result.errors.find(err => err.path.startsWith('tags'));
     expect(tagErr).toBeDefined();
     expect(tagErr!.path).toContain('[');
@@ -83,12 +83,12 @@ describe('each:true — array + element combined', () => {
 
   it('ArrayMinSize violation rejected', async () => {
     seal();
-    expect(isBakerError(await deserialize(MinLenArrayDto, { names: [] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MinLenArrayDto, { names: [] }))).toBe(true);
   });
 
   it('element MinLength violation rejected', async () => {
     seal();
-    expect(isBakerError(await deserialize(MinLenArrayDto, { names: ['a'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MinLenArrayDto, { names: ['a'] }))).toBe(true);
   });
 });
 
@@ -107,7 +107,7 @@ describe('each:true — Set with stopAtFirstError', () => {
     }
     sealClass(SetDto);
     const result = await deserialize(SetDto, { items: new Set([42, 'ok']) });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(err => err.path.startsWith('items'));
     expect(err).toBeDefined();
     expect(err!.path).toMatch(/items\[\d+\]/);
@@ -130,7 +130,7 @@ describe('each:true — Map with stopAtFirstError', () => {
         ['b', 'ok'],
       ]),
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(err => err.path.startsWith('items'));
     expect(err).toBeDefined();
     expect(err!.path).toMatch(/items\[\d+\]/);
@@ -147,7 +147,7 @@ describe('each:true — Set with collectErrors', () => {
     }
     sealClass(SetCollectDto);
     const result = await deserialize(SetCollectDto, { items: new Set([42, 99]) });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
     expect(itemErrors.length).toBeGreaterThanOrEqual(2);
   });
@@ -168,7 +168,7 @@ describe('each:true — Map with collectErrors', () => {
         ['b', 99],
       ]),
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const itemErrors = result.errors.filter(err => err.path.startsWith('items['));
     expect(itemErrors.length).toBeGreaterThanOrEqual(2);
   });

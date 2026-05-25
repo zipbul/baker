@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, configure, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -50,7 +50,7 @@ describe('exposeDefaultValues', () => {
     configure({ allowClassDefaults: false });
     seal();
     const result = await deserialize(DefaultsDto, {});
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('true + optional → optional fields also use default values', async () => {

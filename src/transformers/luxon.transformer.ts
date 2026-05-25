@@ -1,5 +1,7 @@
 import type { Transformer } from '../types';
 
+import { BakerError } from '../errors';
+
 interface LuxonTransformerOptions {
   format?: string;
   zone?: string;
@@ -10,12 +12,14 @@ interface LuxonLike {
   toFormat(f: string): string;
 }
 
+const LUXON_MISSING = "luxonTransformer requires the optional peer dependency 'luxon'. Install it with: bun add luxon";
+
 async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transformer> {
   let luxon: typeof import('luxon');
   try {
     luxon = await import('luxon');
-  } catch {
-    throw new Error("luxonTransformer requires the optional peer dependency 'luxon'. Install it with: bun add luxon");
+  } catch (e) {
+    throw new BakerError(LUXON_MISSING, { cause: e });
   }
   const { DateTime } = luxon;
   const zone = opts?.zone ?? 'utc';

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import {
   isAscii,
   isAlpha,
@@ -73,7 +73,7 @@ describe('isAscii', () => {
     expect(((await deserialize(D, { v: 'hello' })) as D).v).toBe('hello');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '한글' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '한글' }))).toBe(true);
   });
 });
 
@@ -86,10 +86,10 @@ describe('isHttpToken', () => {
     expect(((await deserialize(D, { v: 'X-Foo' })) as D).v).toBe('X-Foo');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'X-Foo(bar)' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'X-Foo(bar)' }))).toBe(true);
   });
   it('rejects empty string (1*tchar)', async () => {
-    expect(isBakerError(await deserialize(D, { v: '' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '' }))).toBe(true);
   });
 });
 
@@ -102,7 +102,7 @@ describe('isAlpha', () => {
     expect(((await deserialize(D, { v: 'abc' })) as D).v).toBe('abc');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc123' }))).toBe(true);
   });
 });
 
@@ -115,7 +115,7 @@ describe('isAlphanumeric', () => {
     expect(((await deserialize(D, { v: 'abc123' })) as D).v).toBe('abc123');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc-123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc-123' }))).toBe(true);
   });
 });
 
@@ -128,7 +128,7 @@ describe('isNumberString', () => {
     expect(((await deserialize(D, { v: '123.45' })) as D).v).toBe('123.45');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -141,13 +141,13 @@ describe('isNumberString({ no_symbols: true })', () => {
     expect(((await deserialize<NumStrictDto>(NumStrictDto, { v: '12345' })) as NumStrictDto).v).toBe('12345');
   });
   it('digits with decimal point rejected', async () => {
-    expect(isBakerError(await deserialize(NumStrictDto, { v: '1.5' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NumStrictDto, { v: '1.5' }))).toBe(true);
   });
   it('empty string rejected', async () => {
-    expect(isBakerError(await deserialize(NumStrictDto, { v: '' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NumStrictDto, { v: '' }))).toBe(true);
   });
   it('digits with sign rejected', async () => {
-    expect(isBakerError(await deserialize(NumStrictDto, { v: '-1' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NumStrictDto, { v: '-1' }))).toBe(true);
   });
 });
 
@@ -160,7 +160,7 @@ describe('isDecimal', () => {
     expect(((await deserialize(D, { v: '3.14' })) as D).v).toBe('3.14');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -173,7 +173,7 @@ describe('isFullWidth', () => {
     expect(((await deserialize(D, { v: '\uff41\uff42\uff43' })) as D).v).toBe('\uff41\uff42\uff43');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -186,7 +186,7 @@ describe('isHalfWidth', () => {
     expect(((await deserialize(D, { v: 'abc' })) as D).v).toBe('abc');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '\uff41\uff42\uff43' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '\uff41\uff42\uff43' }))).toBe(true);
   });
 });
 
@@ -199,7 +199,7 @@ describe('isMultibyte', () => {
     expect(((await deserialize(D, { v: '\ud55c\uae00\u30c6\u30b9\u30c8' })) as D).v).toBe('\ud55c\uae00\u30c6\u30b9\u30c8');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -212,7 +212,7 @@ describe('isHexadecimal', () => {
     expect(((await deserialize(D, { v: 'deadBEEF' })) as D).v).toBe('deadBEEF');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'xyz' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'xyz' }))).toBe(true);
   });
 });
 
@@ -225,7 +225,7 @@ describe('isOctal', () => {
     expect(((await deserialize(D, { v: '0o777' })) as D).v).toBe('0o777');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '999' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '999' }))).toBe(true);
   });
 });
 
@@ -238,7 +238,7 @@ describe('isHexColor', () => {
     expect(((await deserialize(D, { v: '#ff0000' })) as D).v).toBe('#ff0000');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'red' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'red' }))).toBe(true);
   });
 });
 
@@ -251,7 +251,7 @@ describe('isRgbColor', () => {
     expect(((await deserialize(D, { v: 'rgb(255,0,0)' })) as D).v).toBe('rgb(255,0,0)');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'red' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'red' }))).toBe(true);
   });
 });
 
@@ -264,7 +264,7 @@ describe('isHSL', () => {
     expect(((await deserialize(D, { v: 'hsl(0,100%,50%)' })) as D).v).toBe('hsl(0,100%,50%)');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'red' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'red' }))).toBe(true);
   });
 });
 
@@ -277,7 +277,7 @@ describe('isMACAddress', () => {
     expect(((await deserialize(D, { v: 'AA:BB:CC:DD:EE:FF' })) as D).v).toBe('AA:BB:CC:DD:EE:FF');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -290,7 +290,7 @@ describe('isISBN', () => {
     expect(((await deserialize(D, { v: '9780306406157' })) as D).v).toBe('9780306406157');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '123' }))).toBe(true);
   });
 });
 
@@ -303,7 +303,7 @@ describe('isISIN', () => {
     expect(((await deserialize(D, { v: 'US0378331005' })) as D).v).toBe('US0378331005');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -316,7 +316,7 @@ describe('isISRC', () => {
     expect(((await deserialize(D, { v: 'USRC17607839' })) as D).v).toBe('USRC17607839');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -329,7 +329,7 @@ describe('isISSN', () => {
     expect(((await deserialize(D, { v: '0378-5955' })) as D).v).toBe('0378-5955');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '1234' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '1234' }))).toBe(true);
   });
 });
 
@@ -343,7 +343,7 @@ describe('isJWT', () => {
     expect(((await deserialize(D, { v: validJwt })) as D).v).toBe(validJwt);
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'hello' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'hello' }))).toBe(true);
   });
 });
 
@@ -356,7 +356,7 @@ describe('isLatLong', () => {
     expect(((await deserialize(D, { v: '37.7749,-122.4194' })) as D).v).toBe('37.7749,-122.4194');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -369,7 +369,7 @@ describe('isLocale', () => {
     expect(((await deserialize(D, { v: 'en-US' })) as D).v).toBe('en-US');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '!!!' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '!!!' }))).toBe(true);
   });
 });
 
@@ -382,7 +382,7 @@ describe('isDataURI', () => {
     expect(((await deserialize(D, { v: 'data:text/plain;base64,SGVsbG8=' })) as D).v).toContain('data:');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'not-data-uri' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'not-data-uri' }))).toBe(true);
   });
 });
 
@@ -395,7 +395,7 @@ describe('isFQDN', () => {
     expect(((await deserialize(D, { v: 'example.com' })) as D).v).toBe('example.com');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'not_a_domain' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'not_a_domain' }))).toBe(true);
   });
 });
 
@@ -409,7 +409,7 @@ describe('isFQDN({ require_tld: false })', () => {
     expect(r.host).toBe('localhost');
   });
   it('empty string rejected', async () => {
-    expect(isBakerError(await deserialize(HostDto, { host: '' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(HostDto, { host: '' }))).toBe(true);
   });
 });
 
@@ -422,7 +422,7 @@ describe('isPort', () => {
     expect(((await deserialize(D, { v: '8080' })) as D).v).toBe('8080');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '99999' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '99999' }))).toBe(true);
   });
 });
 
@@ -435,7 +435,7 @@ describe('isISO31661Alpha2', () => {
     expect(((await deserialize(D, { v: 'US' })) as D).v).toBe('US');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'ZZ' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'ZZ' }))).toBe(true);
   });
 });
 
@@ -448,7 +448,7 @@ describe('isISO31661Alpha3', () => {
     expect(((await deserialize(D, { v: 'USA' })) as D).v).toBe('USA');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'ZZZ' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'ZZZ' }))).toBe(true);
   });
 });
 
@@ -461,7 +461,7 @@ describe('isBIC', () => {
     expect(((await deserialize(D, { v: 'DEUTDEFF' })) as D).v).toBe('DEUTDEFF');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -474,7 +474,7 @@ describe('isSemVer', () => {
     expect(((await deserialize(D, { v: '1.2.3' })) as D).v).toBe('1.2.3');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -487,7 +487,7 @@ describe('isMongoId', () => {
     expect(((await deserialize(D, { v: '507f1f77bcf86cd799439011' })) as D).v).toBe('507f1f77bcf86cd799439011');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'short' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'short' }))).toBe(true);
   });
 });
 
@@ -500,7 +500,7 @@ describe('isBase64', () => {
     expect(((await deserialize(D, { v: 'SGVsbG8=' })) as D).v).toBe('SGVsbG8=');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '!!!' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '!!!' }))).toBe(true);
   });
 });
 
@@ -513,7 +513,7 @@ describe('isBase58', () => {
     expect(((await deserialize(D, { v: '3J98t1WpEZ' })) as D).v).toBe('3J98t1WpEZ');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '0OIl' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '0OIl' }))).toBe(true);
   });
 });
 
@@ -526,7 +526,7 @@ describe('isMimeType', () => {
     expect(((await deserialize(D, { v: 'application/json' })) as D).v).toBe('application/json');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'not-mime' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'not-mime' }))).toBe(true);
   });
 });
 
@@ -539,7 +539,7 @@ describe('isCreditCard', () => {
     expect(((await deserialize(D, { v: '4111111111111111' })) as D).v).toBe('4111111111111111');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '1234' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '1234' }))).toBe(true);
   });
 });
 
@@ -552,7 +552,7 @@ describe('isByteLength', () => {
     expect(((await deserialize(D, { v: 'hello' })) as D).v).toBe('hello');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '' }))).toBe(true);
   });
 });
 
@@ -565,7 +565,7 @@ describe('isHash', () => {
     expect(((await deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe('d41d8cd98f00b204e9800998ecf8427e');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'nothash' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'nothash' }))).toBe(true);
   });
 });
 
@@ -578,7 +578,7 @@ describe('isRFC3339', () => {
     expect(((await deserialize(D, { v: '2024-01-01T00:00:00Z' })) as D).v).toBe('2024-01-01T00:00:00Z');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'not-date' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'not-date' }))).toBe(true);
   });
 });
 
@@ -591,7 +591,7 @@ describe('isMilitaryTime', () => {
     expect(((await deserialize(D, { v: '23:59' })) as D).v).toBe('23:59');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '25:00' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '25:00' }))).toBe(true);
   });
 });
 
@@ -604,7 +604,7 @@ describe('isLatitude', () => {
     expect(((await deserialize(D, { v: '37.7749' })) as D).v).toBe('37.7749');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '100.0' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '100.0' }))).toBe(true);
   });
 });
 
@@ -617,7 +617,7 @@ describe('isLongitude', () => {
     expect(((await deserialize(D, { v: '-122.4194' })) as D).v).toBe('-122.4194');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '200.0' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '200.0' }))).toBe(true);
   });
 });
 
@@ -632,7 +632,7 @@ describe('isEthereumAddress', () => {
     );
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '0xinvalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '0xinvalid' }))).toBe(true);
   });
 });
 
@@ -647,7 +647,7 @@ describe('isBtcAddress', () => {
     );
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -660,7 +660,7 @@ describe('isISO4217CurrencyCode', () => {
     expect(((await deserialize(D, { v: 'USD' })) as D).v).toBe('USD');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'ZZZ' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'ZZZ' }))).toBe(true);
   });
 });
 
@@ -673,7 +673,7 @@ describe('isPhoneNumber', () => {
     expect(((await deserialize(D, { v: '+14155552671' })) as D).v).toBe('+14155552671');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -686,7 +686,7 @@ describe('isStrongPassword', () => {
     expect(((await deserialize(D, { v: 'Str0ng!Pass' })) as D).v).toBe('Str0ng!Pass');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'weak' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'weak' }))).toBe(true);
   });
 });
 
@@ -699,7 +699,7 @@ describe('isFirebasePushId', () => {
     expect(((await deserialize(D, { v: '-JhLeOlGIEjaIOFHR0xd' })) as D).v).toBe('-JhLeOlGIEjaIOFHR0xd');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'short' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'short' }))).toBe(true);
   });
 });
 
@@ -712,7 +712,7 @@ describe('isEAN', () => {
     expect(((await deserialize(D, { v: '4006381333931' })) as D).v).toBe('4006381333931');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '123' }))).toBe(true);
   });
 });
 
@@ -727,7 +727,7 @@ describe('isMagnetURI', () => {
     );
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'notmagnet' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'notmagnet' }))).toBe(true);
   });
 });
 
@@ -740,7 +740,7 @@ describe('isDateString', () => {
     expect(((await deserialize(D, { v: '2024-01-01' })) as D).v).toBe('2024-01-01');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'notdate' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'notdate' }))).toBe(true);
   });
 });
 
@@ -753,7 +753,7 @@ describe('isCurrency', () => {
     expect(((await deserialize(D, { v: '$1,000.00' })) as D).v).toBe('$1,000.00');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -766,7 +766,7 @@ describe('isVariableWidth', () => {
     expect(((await deserialize(D, { v: '\uff41b\uff43' })) as D).v).toBe('\uff41b\uff43');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -779,7 +779,7 @@ describe('isSurrogatePair', () => {
     expect(((await deserialize(D, { v: '\ud842\udfb7' })) as D).v).toBe('\ud842\udfb7');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'abc' }))).toBe(true);
   });
 });
 
@@ -792,7 +792,7 @@ describe('isBase32', () => {
     expect(((await deserialize(D, { v: 'JBSWY3DPEHPK3PXP' })) as D).v).toBe('JBSWY3DPEHPK3PXP');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: '!!invalid!!' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: '!!invalid!!' }))).toBe(true);
   });
 });
 
@@ -805,7 +805,7 @@ describe('isIBAN', () => {
     expect(((await deserialize(D, { v: 'DE89370400440532013000' })) as D).v).toBe('DE89370400440532013000');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });
 
@@ -818,6 +818,6 @@ describe('isTaxId', () => {
     expect(((await deserialize(D, { v: '12-3456789' })) as D).v).toBe('12-3456789');
   });
   it('rejected', async () => {
-    expect(isBakerError(await deserialize(D, { v: 'invalid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(D, { v: 'invalid' }))).toBe(true);
   });
 });

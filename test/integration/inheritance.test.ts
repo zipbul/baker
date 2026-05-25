@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -40,7 +40,7 @@ describe('inheritance — integration', () => {
   it('should validate parent field rules in child DTO', async () => {
     // name is required by BaseDto's @Field(isString)
     const result = await deserialize(ChildDto, { age: 25 });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('should deserialize grandchild DTO with all ancestor fields', async () => {

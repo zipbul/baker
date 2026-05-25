@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, Recipe, deserialize, createRule, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -45,7 +45,7 @@ describe('createRule — sync', () => {
 
   it('rule violation → custom error code', async () => {
     const result = await deserialize(EvenDto, { value: 3 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'isEven');
     expect(err).toBeDefined();
   });
@@ -64,7 +64,7 @@ describe('createRule — async', () => {
 
   it('async rule violation', async () => {
     const result = await deserialize(AsyncRuleDto, { score: -1 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'asyncPositive');
     expect(err).toBeDefined();
   });

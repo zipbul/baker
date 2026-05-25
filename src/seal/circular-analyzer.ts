@@ -1,4 +1,4 @@
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { getRaw } from '../meta-access';
 
 /**
@@ -29,7 +29,7 @@ export function analyzeCircular(Class: Function): boolean {
           try {
             typeResult = meta.type.fn();
           } catch (e) {
-            throw new SealError(`${cls.name}: type function threw: ${(e as Error).message}`);
+            throw new BakerError(`${cls.name}: type function threw: ${(e as Error).message}`, { cause: e });
           }
           const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
           if (walk(nested as Function)) {
@@ -50,7 +50,7 @@ export function analyzeCircular(Class: Function): boolean {
           try {
             resolved = meta.type.collectionValue();
           } catch (e) {
-            throw new SealError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`);
+            throw new BakerError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`, { cause: e });
           }
           if (typeof resolved === 'function' && walk(resolved as Function)) {
             return true;

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import {
   isBase32,
   isBase58,
@@ -19,7 +19,7 @@ import {
   isPhoneNumber,
   isStrongPassword,
 } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -93,11 +93,11 @@ class StrongPasswordDto {
 describe('isBase32', () => {
   it('valid → passes', async () => {
     const result = await deserialize(Base32Dto, { value: 'JBSWY3DPEHPK3PXP' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isBase32', async () => {
     const result = await deserialize(Base32Dto, { value: 'not-base32!' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isBase32');
   });
 });
@@ -105,11 +105,11 @@ describe('isBase32', () => {
 describe('isBase58', () => {
   it('valid → passes', async () => {
     const result = await deserialize(Base58Dto, { value: '3QJmnh' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isBase58', async () => {
     const result = await deserialize(Base58Dto, { value: '0OIl' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isBase58');
   });
 });
@@ -117,11 +117,11 @@ describe('isBase58', () => {
 describe('isDateString', () => {
   it('valid → passes', async () => {
     const result = await deserialize(DateStringDto, { value: '2024-01-15' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isDateString', async () => {
     const result = await deserialize(DateStringDto, { value: 'not-a-date' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isDateString');
   });
 });
@@ -129,11 +129,11 @@ describe('isDateString', () => {
 describe('isMimeType', () => {
   it('valid → passes', async () => {
     const result = await deserialize(MimeTypeDto, { value: 'application/json' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isMimeType', async () => {
     const result = await deserialize(MimeTypeDto, { value: 'notamimetype' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isMimeType');
   });
 });
@@ -141,11 +141,11 @@ describe('isMimeType', () => {
 describe('isCurrency', () => {
   it('valid → passes', async () => {
     const result = await deserialize(CurrencyDto, { value: '$1,000.50' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isCurrency', async () => {
     const result = await deserialize(CurrencyDto, { value: 'abc' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isCurrency');
   });
 });
@@ -153,11 +153,11 @@ describe('isCurrency', () => {
 describe('isMagnetURI', () => {
   it('valid → passes', async () => {
     const result = await deserialize(MagnetURIDto, { value: 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isMagnetURI', async () => {
     const result = await deserialize(MagnetURIDto, { value: 'not-magnet' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isMagnetURI');
   });
 });
@@ -165,11 +165,11 @@ describe('isMagnetURI', () => {
 describe('isHash(md5)', () => {
   it('valid → passes', async () => {
     const result = await deserialize(HashMd5Dto, { value: 'd41d8cd98f00b204e9800998ecf8427e' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isHash', async () => {
     const result = await deserialize(HashMd5Dto, { value: 'xyz' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isHash');
   });
 });
@@ -177,11 +177,11 @@ describe('isHash(md5)', () => {
 describe('isRFC3339', () => {
   it('valid → passes', async () => {
     const result = await deserialize(RFC3339Dto, { value: '2024-01-15T10:30:00Z' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isRFC3339', async () => {
     const result = await deserialize(RFC3339Dto, { value: 'not-rfc3339' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isRFC3339');
   });
 });
@@ -189,11 +189,11 @@ describe('isRFC3339', () => {
 describe('isMilitaryTime', () => {
   it('valid → passes', async () => {
     const result = await deserialize(MilitaryTimeDto, { value: '23:59' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isMilitaryTime', async () => {
     const result = await deserialize(MilitaryTimeDto, { value: '25:00' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isMilitaryTime');
   });
 });
@@ -201,11 +201,11 @@ describe('isMilitaryTime', () => {
 describe('isLatitude', () => {
   it('valid → passes', async () => {
     const result = await deserialize(LatitudeDto, { value: '45.0' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isLatitude', async () => {
     const result = await deserialize(LatitudeDto, { value: '91' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isLatitude');
   });
 });
@@ -213,11 +213,11 @@ describe('isLatitude', () => {
 describe('isLongitude', () => {
   it('valid → passes', async () => {
     const result = await deserialize(LongitudeDto, { value: '120.5' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isLongitude', async () => {
     const result = await deserialize(LongitudeDto, { value: '181' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isLongitude');
   });
 });
@@ -225,11 +225,11 @@ describe('isLongitude', () => {
 describe('isEthereumAddress', () => {
   it('valid → passes', async () => {
     const result = await deserialize(EthereumAddressDto, { value: '0x0000000000000000000000000000000000000000' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isEthereumAddress', async () => {
     const result = await deserialize(EthereumAddressDto, { value: '0xZZZ' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isEthereumAddress');
   });
 });
@@ -237,11 +237,11 @@ describe('isEthereumAddress', () => {
 describe('isBtcAddress', () => {
   it('valid → passes', async () => {
     const result = await deserialize(BtcAddressDto, { value: '1BvBMSEYstWetqTFn5Au4m4GFg7xJaNVN2' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isBtcAddress', async () => {
     const result = await deserialize(BtcAddressDto, { value: 'notabtcaddress' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isBtcAddress');
   });
 });
@@ -249,11 +249,11 @@ describe('isBtcAddress', () => {
 describe('isISO4217CurrencyCode', () => {
   it('valid → passes', async () => {
     const result = await deserialize(ISO4217Dto, { value: 'USD' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isISO4217CurrencyCode', async () => {
     const result = await deserialize(ISO4217Dto, { value: 'XXX' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isISO4217CurrencyCode');
   });
 });
@@ -261,11 +261,11 @@ describe('isISO4217CurrencyCode', () => {
 describe('isPhoneNumber', () => {
   it('valid → passes', async () => {
     const result = await deserialize(PhoneNumberDto, { value: '+821012345678' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isPhoneNumber', async () => {
     const result = await deserialize(PhoneNumberDto, { value: 'not-phone' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isPhoneNumber');
   });
 });
@@ -273,11 +273,11 @@ describe('isPhoneNumber', () => {
 describe('isStrongPassword', () => {
   it('valid → passes', async () => {
     const result = await deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
-    expect(isBakerError(result)).toBe(false);
+    expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isStrongPassword', async () => {
     const result = await deserialize(StrongPasswordDto, { value: 'weak' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isStrongPassword');
   });
 });

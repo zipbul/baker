@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -25,8 +25,8 @@ class InclusiveDto {
 
 describe('@Min/@Max exclusive', () => {
   it('exclusive — boundary values exactly rejected', async () => {
-    expect(isBakerError(await deserialize(ExclusiveDto, { score: 0 }))).toBe(true);
-    expect(isBakerError(await deserialize(ExclusiveDto, { score: 100 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ExclusiveDto, { score: 0 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ExclusiveDto, { score: 100 }))).toBe(true);
   });
 
   it('exclusive — just inside boundary passes', async () => {
@@ -44,7 +44,7 @@ describe('@Min/@Max exclusive', () => {
   });
 
   it('inclusive — out of range rejected', async () => {
-    expect(isBakerError(await deserialize(InclusiveDto, { value: -1 }))).toBe(true);
-    expect(isBakerError(await deserialize(InclusiveDto, { value: 101 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(InclusiveDto, { value: -1 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(InclusiveDto, { value: 101 }))).toBe(true);
   });
 });

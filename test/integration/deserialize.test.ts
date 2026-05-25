@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
-import { assertBakerError } from './helpers/assert';
+import { assertBakerIssueSet } from './helpers/assert';
 import { unseal } from './helpers/unseal';
 
 beforeEach(() => {
@@ -133,12 +133,12 @@ describe('deserialize — integration', () => {
     expect(result.age).toBe(30);
   });
 
-  it('should return BakerErrors when required string is missing', async () => {
-    expect(isBakerError(await deserialize(SimpleDto, { age: 30 }))).toBe(true);
+  it('should return BakerIssueSet when required string is missing', async () => {
+    expect(isBakerIssueSet(await deserialize(SimpleDto, { age: 30 }))).toBe(true);
   });
 
-  it('should return BakerErrors when type mismatch (number given as string)', async () => {
-    expect(isBakerError(await deserialize(SimpleDto, { name: 123, age: 30 }))).toBe(true);
+  it('should return BakerIssueSet when type mismatch (number given as string)', async () => {
+    expect(isBakerIssueSet(await deserialize(SimpleDto, { name: 123, age: 30 }))).toBe(true);
   });
 
   it('should accept optional field when absent', async () => {
@@ -157,14 +157,14 @@ describe('deserialize — integration', () => {
     expect(result.active).toBe(true);
   });
 
-  it('should return BakerErrors when boolean field receives string', async () => {
-    expect(isBakerError(await deserialize(BooleanDto, { active: 'yes' }))).toBe(true);
+  it('should return BakerIssueSet when boolean field receives string', async () => {
+    expect(isBakerIssueSet(await deserialize(BooleanDto, { active: 'yes' }))).toBe(true);
   });
 
   // ── C3: ISIN / ISSN checksum validation via compiled executor ──────────────
 
-  it('should return BakerErrors when @IsISIN field value passes regex but fails Luhn checksum', async () => {
-    expect(isBakerError(await deserialize(IsinDto, { isin: 'US0378331006' }))).toBe(true);
+  it('should return BakerIssueSet when @IsISIN field value passes regex but fails Luhn checksum', async () => {
+    expect(isBakerIssueSet(await deserialize(IsinDto, { isin: 'US0378331006' }))).toBe(true);
   });
 
   it('should accept valid ISIN that passes both regex and Luhn checksum', async () => {
@@ -172,8 +172,8 @@ describe('deserialize — integration', () => {
     expect(result.isin).toBe('US0378331005');
   });
 
-  it('should return BakerErrors when @IsISSN field value passes regex but fails mod-11 checksum', async () => {
-    expect(isBakerError(await deserialize(IssnDto, { issn: '0378-5950' }))).toBe(true);
+  it('should return BakerIssueSet when @IsISSN field value passes regex but fails mod-11 checksum', async () => {
+    expect(isBakerIssueSet(await deserialize(IssnDto, { issn: '0378-5950' }))).toBe(true);
   });
 
   it('should accept valid ISSN that passes both regex and mod-11 checksum', async () => {
@@ -203,8 +203,8 @@ describe('deserialize — integration', () => {
 
   // ── C2: @IsDefined (now just @Field) ──────────────────────────────────────
 
-  it('should return BakerErrors when @Field-only field receives undefined', async () => {
-    expect(isBakerError(await deserialize(IsDefinedOnlyDto, { value: undefined }))).toBe(true);
+  it('should return BakerIssueSet when @Field-only field receives undefined', async () => {
+    expect(isBakerIssueSet(await deserialize(IsDefinedOnlyDto, { value: undefined }))).toBe(true);
   });
 
   it('should pass when @Field(isString) field receives empty string', async () => {
@@ -219,12 +219,12 @@ describe('deserialize — integration', () => {
 
   // ── C4: NaN/Infinity gate ──────────────────────────────────────────────────
 
-  it('should return BakerErrors when @Field(isNumber()) field receives NaN', async () => {
-    expect(isBakerError(await deserialize(IsNumberOnlyDto, { value: NaN }))).toBe(true);
+  it('should return BakerIssueSet when @Field(isNumber()) field receives NaN', async () => {
+    expect(isBakerIssueSet(await deserialize(IsNumberOnlyDto, { value: NaN }))).toBe(true);
   });
 
-  it('should return BakerErrors when @Field(isNumber()) field receives Infinity', async () => {
-    expect(isBakerError(await deserialize(IsNumberOnlyDto, { value: Infinity }))).toBe(true);
+  it('should return BakerIssueSet when @Field(isNumber()) field receives Infinity', async () => {
+    expect(isBakerIssueSet(await deserialize(IsNumberOnlyDto, { value: Infinity }))).toBe(true);
   });
 
   it('should pass when @Field(isNumber({ allowNaN: true })) field receives NaN', async () => {
@@ -237,12 +237,12 @@ describe('deserialize — integration', () => {
     expect(result.value).toBe(Infinity);
   });
 
-  it('should return BakerErrors when @Field(min(0)) only field receives NaN', async () => {
-    expect(isBakerError(await deserialize(MinOnlyDto, { value: NaN }))).toBe(true);
+  it('should return BakerIssueSet when @Field(min(0)) only field receives NaN', async () => {
+    expect(isBakerIssueSet(await deserialize(MinOnlyDto, { value: NaN }))).toBe(true);
   });
 
-  it('should return BakerErrors when @Field(isNumber(), min(0)) receives NaN', async () => {
-    expect(isBakerError(await deserialize(IsNumberAndMinDto, { value: NaN }))).toBe(true);
+  it('should return BakerIssueSet when @Field(isNumber(), min(0)) receives NaN', async () => {
+    expect(isBakerIssueSet(await deserialize(IsNumberAndMinDto, { value: NaN }))).toBe(true);
   });
 });
 
@@ -278,9 +278,9 @@ describe('deserialize — public sync/async path', () => {
     expect(result).toBeInstanceOf(SimpleDto);
   });
 
-  it('sync DTO failure returns BakerErrors (not a throw)', async () => {
+  it('sync DTO failure returns BakerIssueSet (not a throw)', async () => {
     const result = await deserialize(SimpleDto, { name: 123, age: 'bad' });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 
@@ -306,9 +306,9 @@ describe('deserialize — @Field message integration', () => {
     seal();
   });
 
-  it('should include field-level message in BakerError.message on validation failure', async () => {
+  it('should include field-level message in BakerIssue.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.message).toBe('Invalid name field');
   });
@@ -325,9 +325,9 @@ describe('deserialize — @Field context integration', () => {
     seal();
   });
 
-  it('should include value in BakerError.context on validation failure', async () => {
+  it('should include value in BakerIssue.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.context).toEqual({ errorCode: 'E001' });
   });
@@ -345,7 +345,7 @@ describe('M4 — validation groups runtime filtering', () => {
   });
 
   it('groups match → field included + rules executed', async () => {
-    expect(isBakerError(await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(AdminOnlyDto, { secret: 123, id: 1 }, { groups: ['admin'] }))).toBe(true);
   });
 
   it('groups mismatch → field excluded', async () => {
@@ -354,7 +354,7 @@ describe('M4 — validation groups runtime filtering', () => {
   });
 
   it('fields without groups are always executed', async () => {
-    expect(isBakerError(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] }))).toBe(
+    expect(isBakerIssueSet(await deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] }))).toBe(
       true,
     );
   });

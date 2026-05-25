@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -67,7 +67,7 @@ describe('groups — deserialize', () => {
 
   it('rule groups — create group → @Min applied, @Max not applied', async () => {
     expect(
-      isBakerError(await deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] })),
+      isBakerIssueSet(await deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] })),
     ).toBe(true);
 
     // Max not applied → 200 passes

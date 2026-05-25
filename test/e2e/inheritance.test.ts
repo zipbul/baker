@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -52,7 +52,7 @@ describe('inheritance — deserialize', () => {
   it('parent rule violation → error in child too', async () => {
     // age: -1 violates min(0) from ChildDto
     const result = await deserialize(GrandChildDto, { name: 'X', age: -1, active: true });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 });
 

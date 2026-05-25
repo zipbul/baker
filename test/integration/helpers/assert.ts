@@ -2,30 +2,30 @@ import type { Err } from '@zipbul/result';
 
 import { isErr } from '@zipbul/result';
 
-import type { BakerErrors } from '../../../src/errors';
+import type { BakerIssueSet } from '../../../src/errors';
 
-import { isBakerError } from '../../../src/errors';
+import { isBakerIssueSet } from '../../../src/errors';
 
 /**
- * Test-only assertion helper — narrows `result` to `BakerErrors`.
+ * Test-only assertion helper — narrows `result` to `BakerIssueSet`.
  *
  * Allows tests to read `result.errors` without an in-test `if` (which would
  * trigger oxlint's `jest(no-conditional-in-test)` rule).
  */
-export function assertBakerError(value: unknown): asserts value is BakerErrors {
-  if (!isBakerError(value)) {
-    throw new Error(`expected BakerError, got: ${JSON.stringify(value)}`);
+export function assertBakerIssueSet(value: unknown): asserts value is BakerIssueSet {
+  if (!isBakerIssueSet(value)) {
+    throw new Error(`expected BakerIssue, got: ${JSON.stringify(value)}`);
   }
 }
 
 /**
- * Test-only assertion helper — narrows `result` away from `BakerErrors`.
+ * Test-only assertion helper — narrows `result` away from `BakerIssueSet`.
  *
  * After this call, the value is the success branch (e.g. a DTO instance).
  */
-export function assertNotBakerError<T>(value: T | BakerErrors): asserts value is T {
-  if (isBakerError(value)) {
-    throw new Error(`expected success, got BakerError: ${JSON.stringify(value.errors)}`);
+export function assertNotBakerIssueSet<T>(value: T | BakerIssueSet): asserts value is T {
+  if (isBakerIssueSet(value)) {
+    throw new Error(`expected success, got BakerIssue: ${JSON.stringify(value.errors)}`);
   }
 }
 

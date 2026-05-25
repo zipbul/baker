@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, createRule, configure, isBakerError, SealError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, createRule, configure, isBakerIssueSet, BakerError, seal } from '../../index';
 import { getRaw, getSealed, setRaw, requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
-import { assertBakerError } from './helpers/assert';
+import { assertBakerIssueSet } from './helpers/assert';
 import { sealClass } from './helpers/seal';
 import { unseal, purgePoisonClasses } from './helpers/unseal';
 
@@ -33,7 +33,7 @@ describe('seal() — explicit seal at startup', () => {
 
   it('deserialize works after explicit seal()', async () => {
     const r = await deserialize(SealTestDto, { name: 'Alice', age: 25 });
-    expect(isBakerError(r)).toBe(false);
+    expect(isBakerIssueSet(r)).toBe(false);
   });
 
   it('serialize works after explicit seal()', async () => {
@@ -63,15 +63,15 @@ describe('seal() — explicit seal at startup', () => {
 });
 
 describe('seal() — error when not sealed', () => {
-  it('deserialize throws SealError when class is not sealed', () => {
+  it('deserialize throws BakerError when class is not sealed', () => {
     unseal();
-    expect(() => deserialize(SealTestDto, { name: 'x', age: 1 })).toThrow(SealError);
+    expect(() => deserialize(SealTestDto, { name: 'x', age: 1 })).toThrow(BakerError);
   });
 
-  it('serialize throws SealError when class is not sealed', () => {
+  it('serialize throws BakerError when class is not sealed', () => {
     unseal();
     const dto = Object.assign(new SealTestDto(), { name: 'x', age: 1 });
-    expect(() => serialize(dto)).toThrow(SealError);
+    expect(() => serialize(dto)).toThrow(BakerError);
   });
 });
 
@@ -246,8 +246,8 @@ describe('configure() — post-seal misuse', () => {
     expect(() => configure({})).not.toThrow();
   });
 
-  it('should throw SealError when called after seal', () => {
-    expect(() => configure({ autoConvert: true })).toThrow(SealError);
+  it('should throw BakerError when called after seal', () => {
+    expect(() => configure({ autoConvert: true })).toThrow(BakerError);
     expect(() => configure({ autoConvert: true })).toThrow('called after seal()');
   });
 
@@ -271,7 +271,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     seal();
 
     const result = await deserialize(SealTestDto, { name: 'Bob', age: 30, extra: 'bad' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find((x: { code: string }) => x.code === 'whitelistViolation');
     expect(err).toBeDefined();
   });
@@ -281,7 +281,7 @@ describe('E-15: partial seal + reconfigure takes effect after unseal', () => {
     configure({ forbidUnknown: true });
     seal();
     const result1 = await deserialize(SealTestDto, { name: 'Alice', age: 25, extra: 'bad' });
-    expect(isBakerError(result1)).toBe(true);
+    expect(isBakerIssueSet(result1)).toBe(true);
 
     unseal();
     configure({});
@@ -302,7 +302,7 @@ describe('seal() — transactional failure cleanup', () => {
     unseal();
   });
 
-  it('nested setValue thunk thrown during analyzeCircular wraps in SealError', () => {
+  it('nested setValue thunk thrown during analyzeCircular wraps in BakerError', () => {
     @Recipe
     class NestedBad {
       @Field({
@@ -378,7 +378,7 @@ describe('seal() — transactional failure cleanup', () => {
     } catch (e) {
       caught = e;
     }
-    expect(caught).toBeInstanceOf(SealError);
+    expect(caught).toBeInstanceOf(BakerError);
     expect(getSealed(ConflictReq)).toBeUndefined();
   });
 
@@ -387,7 +387,7 @@ describe('seal() — transactional failure cleanup', () => {
     class BadRetry {
       @Field(isEmail(), min(5)) v!: unknown;
     }
-    expect(() => sealClass(BadRetry)).toThrow(SealError);
+    expect(() => sealClass(BadRetry)).toThrow(BakerError);
     expect(getSealed(BadRetry)).toBeUndefined();
     // A subsequent unrelated seal must work — the failed attempt left nothing behind.
     @Recipe
@@ -415,7 +415,7 @@ describe('seal() — @Recipe discovery', () => {
     }
     seal();
     expect(getSealed(FieldOnly)).toBeUndefined();
-    expect(() => deserialize(FieldOnly, { name: 'x' })).toThrow(SealError);
+    expect(() => deserialize(FieldOnly, { name: 'x' })).toThrow(BakerError);
   });
 
   it('argless seal() seals and freezes a nested DTO reachable via @Field type even without its own @Recipe', () => {
@@ -430,6 +430,6 @@ describe('seal() — @Recipe discovery', () => {
     expect(getSealed(NestedNoRecipe)).toBeDefined();
     expect(Object.isFrozen(getRaw(NestedNoRecipe))).toBe(true);
     const out = deserialize(ParentWithNested, { child: { v: 'ok' } });
-    expect(isBakerError(out)).toBe(false);
+    expect(isBakerIssueSet(out)).toBe(false);
   });
 });

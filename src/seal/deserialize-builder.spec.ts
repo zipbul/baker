@@ -1,7 +1,7 @@
 import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { BakerError } from '../errors';
+import type { BakerIssue } from '../errors';
 import type { SealOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 
@@ -24,7 +24,7 @@ async function run<T>(Class: new (...a: never[]) => T, merged: RawClassMeta, opt
 
 const matchPathAndCode =
   (path: string, code: string) =>
-  (e: BakerError): boolean =>
+  (e: BakerIssue): boolean =>
     e.path === path && e.code === code;
 
 /**
@@ -101,7 +101,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec(null);
     // Assert
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs[0]?.path).toBe('');
     expect(errs[0]?.code).toBe('invalidInput');
@@ -115,7 +115,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec([1, 2, 3]);
     // Assert
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     expect(result.data[0]?.code).toBe('invalidInput');
   });
 
@@ -192,7 +192,7 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'not-a-number' });
     // Assert — collects both errors
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs.length).toBeGreaterThanOrEqual(2);
   });
@@ -211,7 +211,7 @@ describe('buildDeserializeCode', () => {
     // Act — both fields invalid
     const result = await exec({ name: 42, age: 'bad' });
     // Assert — early return with 1 error
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs.length).toBe(1);
   });
@@ -260,7 +260,7 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({ email: 123 });
     // Assert
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs[0]?.path).toBe('email');
     expect(errs[0]?.code).toBe('isString');
@@ -278,9 +278,9 @@ describe('buildDeserializeCode', () => {
     // Act
     const result = await exec({});
     // Assert
-    assertIsErr<BakerError[]>(result);
+    assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
-    expect(errs.some((e: BakerError) => e.path === 'name')).toBe(true);
+    expect(errs.some((e: BakerIssue) => e.path === 'name')).toBe(true);
   });
 
   it('should treat @IsDefined as overriding @IsOptional (undefined still fails)', async () => {
@@ -345,7 +345,7 @@ describe('buildDeserializeCode', () => {
 
 // ── message/context ────────────────────────────────────────────────────────
 
-it('should include string message in BakerError when validation fails', async () => {
+it('should include string message in BakerIssue when validation fails', async () => {
   // Arrange
   class MsgDto {
     name!: string;
@@ -363,12 +363,12 @@ it('should include string message in BakerError when validation fails', async ()
   // Act
   const result = await run(MsgDto, merged, undefined, { name: 42 });
   // Assert
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toBe('이름은 문자열이어야 합니다');
 });
 
-it('should include function message result in BakerError when validation fails', async () => {
+it('should include function message result in BakerIssue when validation fails', async () => {
   // Arrange
   class FnMsgDto {
     age!: number;
@@ -391,12 +391,12 @@ it('should include function message result in BakerError when validation fails',
   // Act
   const result = await run(FnMsgDto, merged, undefined, { age: 'hello' });
   // Assert
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toContain('age must be a number');
 });
 
-it('should include context in BakerError when validation fails', async () => {
+it('should include context in BakerIssue when validation fails', async () => {
   // Arrange
   class CtxDto {
     name!: string;
@@ -414,7 +414,7 @@ it('should include context in BakerError when validation fails', async () => {
   // Act
   const result = await run(CtxDto, merged, undefined, { name: 99 });
   // Assert
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errs = result.data;
   expect(errs[0]?.context).toEqual({ httpStatus: 400, extra: 'info' });
 });
@@ -437,7 +437,7 @@ it('should not include message/context when not set (backward compat)', async ()
   // Act
   const result = await run(NoMsgDto, merged, undefined, { name: 42 });
   // Assert
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errs = result.data;
   expect(errs[0]?.message).toBeUndefined();
   expect(errs[0]?.context).toBeUndefined();
@@ -1042,7 +1042,7 @@ it('whitelist: should fail with whitelistViolation for extra key (stopAtFirstErr
     },
   };
   const result = await run(WlDto2, merged, { whitelist: true, stopAtFirstError: true }, { name: 'ok', extra: 1 });
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errors = result.data;
   expect(errors).toHaveLength(1);
   expect(errors[0]?.code).toBe('whitelistViolation');
@@ -1064,7 +1064,7 @@ it('whitelist: should collect all violations (collectErrors)', async () => {
     },
   };
   const result = await run(WlDto3, merged, { whitelist: true }, { name: 'ok', extra1: 1, extra2: 2 });
-  assertIsErr<BakerError[]>(result);
+  assertIsErr<BakerIssue[]>(result);
   const errors = result.data;
   expect(errors.length).toBeGreaterThanOrEqual(2);
   expect(errors.some(matchPathAndCode('extra1', 'whitelistViolation'))).toBe(true);

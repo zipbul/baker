@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../../src/interfaces';
 
-import { Field, Recipe, deserialize, serialize, validate, SealError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, validate, BakerError, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
@@ -30,17 +30,17 @@ describe('checkCallOptions — only `groups` is a valid per-call option', () => 
     expect(() => deserialize(CallOptDto, { name: 'x' }, { groups: ['a'] })).not.toThrow();
   });
 
-  it('deserialize with unsupported per-call option throws SealError', () => {
-    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { stopAtFirstError: true })).toThrow(SealError);
+  it('deserialize with unsupported per-call option throws BakerError', () => {
+    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { stopAtFirstError: true })).toThrow(BakerError);
   });
 
-  it('serialize with unsupported per-call option throws SealError', () => {
+  it('serialize with unsupported per-call option throws BakerError', () => {
     const dto = Object.assign(new CallOptDto(), { name: 'x' });
-    expect(() => serializeBad(dto, { autoConvert: true })).toThrow(SealError);
+    expect(() => serializeBad(dto, { autoConvert: true })).toThrow(BakerError);
   });
 
-  it('validate with unsupported per-call option throws SealError', () => {
-    expect(() => validateBad(CallOptDto, { name: 'x' }, { forbidUnknown: true })).toThrow(SealError);
+  it('validate with unsupported per-call option throws BakerError', () => {
+    expect(() => validateBad(CallOptDto, { name: 'x' }, { forbidUnknown: true })).toThrow(BakerError);
   });
 
   it('multiple unsupported options listed in error', () => {
@@ -50,22 +50,22 @@ describe('checkCallOptions — only `groups` is a valid per-call option', () => 
       expect((e as Error).message).toMatch(/stopAtFirstError|debug/);
       return;
     }
-    throw new Error('expected SealError');
+    throw new Error('expected BakerError');
   });
 
   it('undefined options is fine', () => {
     expect(() => deserialize(CallOptDto, { name: 'x' }, undefined)).not.toThrow();
   });
 
-  it('non-object options throws SealError', () => {
+  it('non-object options throws BakerError', () => {
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, 'oops')).toThrow(/must be a plain object/);
   });
 
-  it('array options throws SealError', () => {
+  it('array options throws BakerError', () => {
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, [])).toThrow(/must be a plain object/);
   });
 
-  it('unknown per-call option key throws SealError', () => {
+  it('unknown per-call option key throws BakerError', () => {
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, { totallyUnknownKey: 1 })).toThrow(/Unknown per-call option/);
   });
 

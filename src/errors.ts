@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerError — Individual field error (§12.2)
+// BakerIssue — Individual field error (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -13,9 +13,9 @@
  * - 'conversionFailed': when type conversion fails in enableImplicitConversion
  * - 'whitelistViolation': when undeclared fields exist in input with whitelist: true
  *
- * Future extension fields (message, expected, actual, etc.) must be added as Optional.
+ * Future extension fields (expected, actual, etc.) must be added as Optional.
  */
-export interface BakerError {
+export interface BakerIssue {
   readonly path: string;
   readonly code: string;
   /** User-defined error message — included only when the decorator message option is set */
@@ -25,30 +25,30 @@ export interface BakerError {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerErrors — Validation failure return (§12.2)
+// BakerIssueSet — Validation failure return (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Symbol tag for isBakerError() type guard — collision-proof discriminator */
+/** Symbol tag for isBakerIssueSet() type guard — collision-proof discriminator */
 export const BAKER_ERROR: unique symbol = Symbol.for('baker:error');
 
 /** Validation failure — returned by deserialize()/validate() on invalid input */
-export interface BakerErrors {
+export interface BakerIssueSet {
   readonly [BAKER_ERROR]: true;
-  readonly errors: readonly BakerError[];
+  readonly errors: readonly BakerIssue[];
 }
 
 /**
- * Type guard — narrows deserialize()/validate() result to BakerErrors.
+ * Type guard — narrows deserialize()/validate() result to BakerIssueSet.
  *
  * @example
  * const result = await deserialize(UserDto, input);
- * if (isBakerError(result)) {
- *   result.errors // readonly BakerError[]
+ * if (isBakerIssueSet(result)) {
+ *   result.errors // readonly BakerIssue[]
  * } else {
  *   result // UserDto
  * }
  */
-export function isBakerError(value: unknown): value is BakerErrors {
+export function isBakerIssueSet(value: unknown): value is BakerIssueSet {
   return (
     value != null &&
     typeof value === 'object' &&
@@ -57,26 +57,32 @@ export function isBakerError(value: unknown): value is BakerErrors {
   );
 }
 
-/** @internal — create BakerErrors object */
-export function toBakerErrors(errors: BakerError[]): BakerErrors {
+/** @internal — create BakerIssueSet object */
+export function toBakerIssueSet(errors: BakerIssue[]): BakerIssueSet {
   return { [BAKER_ERROR]: true as const, errors };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SealError — Seal-related error (§12.2)
+// BakerError — the single throw channel (§12.2)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Seal-related error:
- * - When deserialize()/serialize()/validate() is called on an unsealed class
- * - When configure() is called after seal()
- * - When seal-time metadata invariants fail (discriminator, Map keys, etc.)
- * - When per-call options contain unsupported keys
- * - When @Field receives a non-rule value
+ * The single error thrown by baker for any developer/config/schema misuse — i.e. anything
+ * discoverable without external input. End-user input-data failures are NOT thrown; they are
+ * returned as a {@link BakerIssueSet}.
+ *
+ * Thrown when, e.g.:
+ * - deserialize()/serialize()/validate() is called on an unsealed class
+ * - configure() is called after seal(), or with an unknown key
+ * - seal-time metadata invariants fail (discriminator, Map keys, banned names, …)
+ * - per-call options contain unsupported keys
+ * - @Field receives a non-rule value, or a rule/transformer factory is misused
+ * - a user @Type/collectionValue thunk throws (wrapped, with the original error as `cause`)
+ * - an optional peer dependency (luxon/moment) is missing
  */
-export class SealError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SealError';
+export class BakerError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = 'BakerError';
   }
 }

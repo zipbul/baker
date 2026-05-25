@@ -10,7 +10,7 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerError, seal } from '../index';
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 import { ARRAY_VALID } from './data';
 
@@ -104,7 +104,7 @@ let sinkNum = 0;
 group('array 1000 items — valid input', () => {
   bench('baker', () => {
     const r = deserialize(BakerList, ARRAY_VALID);
-    sinkNum += isBakerError(r) ? r.errors.length : (r as { items: unknown[] }).items.length;
+    sinkNum += isBakerIssueSet(r) ? r.errors.length : (r as { items: unknown[] }).items.length;
   });
   bench('zod', () => {
     const r = zodList.safeParse(ARRAY_VALID);

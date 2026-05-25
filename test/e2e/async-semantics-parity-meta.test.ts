@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { createRule, deserialize, Field, Recipe, isBakerError, serialize, seal } from '../../index';
+import { createRule, deserialize, Field, Recipe, isBakerIssueSet, serialize, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -42,7 +42,7 @@ describe('async semantics parity meta', () => {
     for (const sample of samples) {
       const rulePass = await asyncEven(sample);
       const dto = await deserialize(Dto, { value: sample });
-      expect(isBakerError(dto)).toBe(!rulePass);
+      expect(isBakerIssueSet(dto)).toBe(!rulePass);
     }
   });
 
@@ -59,7 +59,7 @@ describe('async semantics parity meta', () => {
     for (const sample of samples) {
       const rulePass = await asyncStartsWithA(sample);
       const dto = await deserialize(Dto, { value: sample });
-      expect(isBakerError(dto)).toBe(!rulePass);
+      expect(isBakerIssueSet(dto)).toBe(!rulePass);
     }
   });
 

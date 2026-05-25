@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => {
@@ -67,13 +67,13 @@ describe('discriminator — invalidDiscriminator', () => {
       name: 'Alice',
       pet: { type: 'fish', scales: true },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'invalidDiscriminator');
     expect(err).toBeDefined();
   });
 
   it('discriminator property missing → error', async () => {
-    expect(isBakerError(await deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }))).toBe(true);
   });
 });
 
@@ -223,7 +223,7 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
       payment: { type: 'crypto', hash: 'abc' },
       address: { kind: 'domestic', city: 'Seoul' },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(x => x.code === 'invalidDiscriminator');
     expect(err).toBeDefined();
     expect(err!.path).toContain('payment');
@@ -235,7 +235,7 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
       payment: { type: 'creditcard', cardNumber: '4111111111111111' },
       address: { kind: 'alien', planet: 'Mars' },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(x => x.code === 'invalidDiscriminator');
     expect(err).toBeDefined();
     expect(err!.path).toContain('address');
@@ -277,7 +277,7 @@ describe('discriminator default branch — context payload', () => {
     configure({ stopAtFirstError: true });
     seal();
     const r = await validate(OwnerV, { pet: { kind: 'bird' } });
-    assertBakerError(r);
+    assertBakerIssueSet(r);
     const err = r.errors.find((e: { code: string }) => e.code === 'invalidDiscriminator');
     expect((err as { context?: unknown })?.context).toMatchObject({ received: 'bird', validSubTypes: ['cat', 'dog'] });
   });

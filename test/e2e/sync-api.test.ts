@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import type { SealedExecutors } from '../../src/types';
 
-import { Field, Recipe, deserialize, serialize, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { getSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
@@ -62,7 +62,7 @@ describe('dual sync/async API — deserialize', () => {
 
   it('sync DTO validation failure → rejected promise', async () => {
     const result = await deserialize(SyncDto, { name: 123, age: 'bad' });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('async DTO deserialize succeeds', async () => {

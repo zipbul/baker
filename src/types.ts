@@ -1,6 +1,6 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
-import type { BakerError } from './errors';
+import type { BakerIssue } from './errors';
 import type { RuntimeOptions } from './interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -79,9 +79,9 @@ export interface RuleDef {
   rule: InternalRule;
   each?: boolean;
   groups?: string[];
-  /** Value to include in BakerError.message on validation failure */
+  /** Value to include in BakerIssue.message on validation failure */
   message?: string | ((args: MessageArgs) => string);
-  /** Arbitrary value to include in BakerError.context on validation failure */
+  /** Arbitrary value to include in BakerIssue.context on validation failure */
   context?: unknown;
 }
 
@@ -185,11 +185,11 @@ export interface RawClassMeta {
 
 export interface SealedExecutors<T> {
   /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
-  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
+  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
   /** Internal executor — always succeeds. serialize assumes no validation */
   serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
-  /** Internal executor — validate-only (no object creation). Returns null on success, BakerError[] on failure */
-  validate(input: unknown, options?: RuntimeOptions): BakerError[] | null | Promise<BakerError[] | null>;
+  /** Internal executor — validate-only (no object creation). Returns null on success, BakerIssue[] on failure */
+  validate(input: unknown, options?: RuntimeOptions): BakerIssue[] | null | Promise<BakerIssue[] | null>;
   /** true if the deserialize direction has async rules/transforms/nested */
   isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */

@@ -1,9 +1,9 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, configure, isBakerError, seal } from '../../index';
+import { Field, Recipe, deserialize, serialize, configure, isBakerIssueSet, seal } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, isNumber, minLength } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -91,7 +91,7 @@ describe('Set<primitive> — deserialize', () => {
 
   it('non-array input → error', async () => {
     seal();
-    expect(isBakerError(await deserialize(PrimitiveSetDto, { tags: 'not-array' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PrimitiveSetDto, { tags: 'not-array' }))).toBe(true);
   });
 });
 
@@ -125,7 +125,7 @@ describe('Set<DTO> — deserialize', () => {
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: 'ok' }, { name: '' }],
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     const err = result.errors.find(e => e.path.includes('[1]'));
     expect(err).toBeDefined();
@@ -163,12 +163,12 @@ describe('Map<string, primitive> — deserialize', () => {
 
   it('array input → error', async () => {
     seal();
-    expect(isBakerError(await deserialize(PrimitiveMapDto, { config: [1, 2] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PrimitiveMapDto, { config: [1, 2] }))).toBe(true);
   });
 
   it('null input → error', async () => {
     seal();
-    expect(isBakerError(await deserialize(PrimitiveMapDto, { config: null }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(PrimitiveMapDto, { config: null }))).toBe(true);
   });
 });
 
@@ -205,7 +205,7 @@ describe('Map<string, DTO> — deserialize', () => {
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     const err = result.errors.find(e => e.path.includes('KRW'));
     expect(err).toBeDefined();
@@ -239,7 +239,7 @@ describe('Set with each validation', () => {
 
   it('each element validation failure → error', async () => {
     seal();
-    expect(isBakerError(await deserialize(ValidatedSetDto, { items: ['ok', 'x'] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ValidatedSetDto, { items: ['ok', 'x'] }))).toBe(true);
   });
 });
 
@@ -288,14 +288,14 @@ describe('Set — duplicate value handling', () => {
 describe('Set<DTO> — null elements', () => {
   it('null element in array → nested deserialize error', async () => {
     seal();
-    expect(isBakerError(await deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }))).toBe(true);
   });
 });
 
 describe('Map<string, DTO> — null value', () => {
   it('null Map value → nested deserialize error', async () => {
     seal();
-    expect(isBakerError(await deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }))).toBe(true);
   });
 });
 
@@ -365,7 +365,7 @@ describe('stopAtFirstError — collection', () => {
     const result = await deserialize(StopSetDto, {
       items: [{ name: '' }, { name: '' }, { name: '' }],
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
     expect(result.errors[0]!.path).toContain('[0]');
   });
@@ -384,7 +384,7 @@ describe('stopAtFirstError — collection', () => {
     const result = await deserialize(StopMapDto, {
       data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 });
@@ -395,7 +395,7 @@ describe('collectErrors — collection', () => {
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: '' }, { name: '' }],
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -404,7 +404,7 @@ describe('collectErrors — collection', () => {
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
     });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(2);
     const paths = result.errors.map(e => e.path);
     expect(paths.some(p => p.includes('USD'))).toBe(true);

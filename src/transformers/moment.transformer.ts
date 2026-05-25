@@ -1,5 +1,7 @@
 import type { Transformer } from '../types';
 
+import { BakerError } from '../errors';
+
 interface MomentTransformerOptions {
   format?: string;
 }
@@ -9,12 +11,14 @@ interface MomentLike {
   format(f: string): string;
 }
 
+const MOMENT_MISSING = "momentTransformer requires the optional peer dependency 'moment'. Install it with: bun add moment";
+
 async function momentTransformer(opts?: MomentTransformerOptions): Promise<Transformer> {
   let moment: typeof import('moment');
   try {
     moment = (await import('moment')).default;
-  } catch {
-    throw new Error("momentTransformer requires the optional peer dependency 'moment'. Install it with: bun add moment");
+  } catch (e) {
+    throw new BakerError(MOMENT_MISSING, { cause: e });
   }
   // Hoist format option once so the serialize closure doesn't re-read opts per call
   const format = opts?.format;

@@ -9,9 +9,9 @@ import {
   validateAsync,
   serializeSync,
   serializeAsync,
-  SealError,
+  BakerError,
   seal,
-  isBakerError,
+  isBakerIssueSet,
 } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
@@ -46,8 +46,8 @@ describe('deserializeSync / deserializeAsync', () => {
     expect(r.name).toBe('x');
   });
 
-  it('deserializeSync on async DTO throws SealError', () => {
-    expect(() => deserializeSync(AsyncDeserDto, { name: 'x' })).toThrow(SealError);
+  it('deserializeSync on async DTO throws BakerError', () => {
+    expect(() => deserializeSync(AsyncDeserDto, { name: 'x' })).toThrow(BakerError);
   });
 
   it('deserializeAsync on sync DTO returns Promise', async () => {
@@ -60,9 +60,9 @@ describe('deserializeSync / deserializeAsync', () => {
     expect(r.name).toBe('x');
   });
 
-  it('deserializeSync surfaces BakerErrors', () => {
+  it('deserializeSync surfaces BakerIssueSet', () => {
     const r = deserializeSync(SyncDto, { name: 1 });
-    expect(isBakerError(r)).toBe(true);
+    expect(isBakerIssueSet(r)).toBe(true);
   });
 });
 
@@ -73,9 +73,9 @@ describe('serializeSync / serializeAsync', () => {
     expect(r.name).toBe('x');
   });
 
-  it('serializeSync on async-serialize DTO throws SealError', () => {
+  it('serializeSync on async-serialize DTO throws BakerError', () => {
     const dto = Object.assign(new AsyncSerDto(), { price: 1 });
-    expect(() => serializeSync(dto)).toThrow(SealError);
+    expect(() => serializeSync(dto)).toThrow(BakerError);
   });
 
   it('serializeAsync on sync DTO returns Promise', async () => {
@@ -92,15 +92,15 @@ describe('serializeSync / serializeAsync', () => {
 });
 
 describe('serializeSync / serializeAsync — defensive input checks', () => {
-  it('serializeSync(null) throws SealError', () => {
+  it('serializeSync(null) throws BakerError', () => {
     expect(() => serializeSync(null)).toThrow(/expected a class instance, got null/);
   });
 
-  it('serializeSync(undefined) throws SealError', () => {
+  it('serializeSync(undefined) throws BakerError', () => {
     expect(() => serializeSync(undefined)).toThrow(/expected a class instance, got undefined/);
   });
 
-  it('serializeSync("string") throws SealError', () => {
+  it('serializeSync("string") throws BakerError', () => {
     expect(() => serializeSync('hello')).toThrow(/expected a class instance, got string/);
   });
 
@@ -109,11 +109,11 @@ describe('serializeSync / serializeAsync — defensive input checks', () => {
     expect(() => serializeSync(obj)).toThrow(/instance has no constructor/);
   });
 
-  it('serializeAsync(null) throws SealError', () => {
+  it('serializeAsync(null) throws BakerError', () => {
     expect(() => serializeAsync(null)).toThrow(/expected a class instance/);
   });
 
-  it('serializeAsync(undefined) throws SealError', () => {
+  it('serializeAsync(undefined) throws BakerError', () => {
     expect(() => serializeAsync(undefined)).toThrow(/expected a class instance/);
   });
 
@@ -128,8 +128,8 @@ describe('validateSync / validateAsync', () => {
     expect(validateSync(SyncDto, { name: 'x' })).toBe(true);
   });
 
-  it('validateSync on async DTO throws SealError', () => {
-    expect(() => validateSync(AsyncDeserDto, { name: 'x' })).toThrow(SealError);
+  it('validateSync on async DTO throws BakerError', () => {
+    expect(() => validateSync(AsyncDeserDto, { name: 'x' })).toThrow(BakerError);
   });
 
   it('validateAsync on sync DTO returns Promise<true>', async () => {
@@ -140,9 +140,9 @@ describe('validateSync / validateAsync', () => {
     expect(await validateAsync(AsyncDeserDto, { name: 'x' })).toBe(true);
   });
 
-  it('validateSync surfaces BakerErrors on invalid input', () => {
+  it('validateSync surfaces BakerIssueSet on invalid input', () => {
     const r = validateSync(SyncDto, { name: 1 });
-    expect(isBakerError(r)).toBe(true);
+    expect(isBakerIssueSet(r)).toBe(true);
   });
 });
 

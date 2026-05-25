@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -87,7 +87,7 @@ describe('@Nested deserialization', () => {
   });
 
   it('nested DTO validation failure', async () => {
-    expect(isBakerError(await deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }))).toBe(true);
   });
 
   it('array nested (each: true)', async () => {
@@ -100,7 +100,7 @@ describe('@Nested deserialization', () => {
   });
 
   it('array nested size validation', async () => {
-    expect(isBakerError(await deserialize(ListDto, { items: [] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ListDto, { items: [] }))).toBe(true);
   });
 
   it('discriminator deserialization', async () => {
@@ -135,7 +135,7 @@ describe('@Nested serialization', () => {
 describe('@Nested edge cases', () => {
   it('non-object passed to nested DTO → error', async () => {
     const result = await deserialize(UserDto, { name: 'Alice', address: 'not-object' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors[0]!;
     expect(err.path).toBe('address');
     expect(err.code).toBe('isObject');
@@ -143,7 +143,7 @@ describe('@Nested edge cases', () => {
 
   it('specific element failure in array nested → index in path', async () => {
     const result = await deserialize(ListDto, { items: [{ label: 'ok' }, { label: 123 }, { label: 'fine' }] });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     expect(result.errors.some(matchPathCode('items[1].label', 'isString'))).toBe(true);
   });
 

@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import { isString, minLength, maxLength, matches } from '../../src/rules/index';
-import { assertBakerError } from '../integration/helpers/assert';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -151,7 +151,7 @@ describe('E-24: async transform failure error path', () => {
     }
     sealClass(AsyncInvalidDto);
     const result = await deserialize(AsyncInvalidDto, { name: 'hello' });
-    assertBakerError(result);
+    assertBakerIssueSet(result);
     const err = result.errors.find(x => x.code === 'isString');
     expect(err).toBeDefined();
     expect(err!.path).toBe('name');
@@ -193,7 +193,7 @@ describe('@Transform null return behavior', () => {
     }
     sealClass(NullTransformDto);
     // original 'EMPTY' is a string → guard passes → Transform → null → isString fails
-    expect(isBakerError(await deserialize(NullTransformDto, { v: 'EMPTY' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(NullTransformDto, { v: 'EMPTY' }))).toBe(true);
   });
 
   it('Transform returning valid value → validation passes', async () => {
@@ -255,6 +255,6 @@ describe('field with 3+ rules and 3+ transforms (codec stack)', () => {
 
   it('failing rule still surfaces error after transforms', async () => {
     const r = await deserialize(TripleDto, { name: '  H1  ' });
-    expect(isBakerError(r)).toBe(true);
+    expect(isBakerIssueSet(r)).toBe(true);
   });
 });

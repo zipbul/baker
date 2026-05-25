@@ -22,7 +22,7 @@ seal();
 const r = await deserialize(UserDto, payload);
 ```
 
-`deserialize` / `serialize` / `validate` throw `SealError` if the DTO is not sealed.
+`deserialize` / `serialize` / `validate` throw `BakerError` if the DTO is not sealed.
 
 ### 2. Move per-call options into `configure(...)`
 
@@ -43,18 +43,18 @@ seal();
 await deserialize(UserDto, payload);
 ```
 
-All other keys (`stopAtFirstError`, `autoConvert`, `allowClassDefaults`, `forbidUnknown`, `debug`) and their legacy `SealOptions` aliases (`enableImplicitConversion`, `exposeDefaultValues`, `whitelist`) now throw `SealError` when passed per-call.
+All other keys (`stopAtFirstError`, `autoConvert`, `allowClassDefaults`, `forbidUnknown`, `debug`) and their legacy `SealOptions` aliases (`enableImplicitConversion`, `exposeDefaultValues`, `whitelist`) now throw `BakerError` when passed per-call.
 
 ### 3. `configure()` must run before `seal()`
 
-After `seal()`, `configure(...)` throws `SealError`. Tests that need to reconfigure must call the test-only `unseal()` helper, change config, then `seal()` again.
+After `seal()`, `configure(...)` throws `BakerError`. Tests that need to reconfigure must call the test-only `unseal()` helper, change config, then `seal()` again.
 
 ### 4. `@Field` argument validation is strict
 
-Passing a non-rule value (factory not invoked, primitive, plain function without `.emit` / `.ruleName`) throws `SealError` at decorator-evaluation time with the four valid forms listed.
+Passing a non-rule value (factory not invoked, primitive, plain function without `.emit` / `.ruleName`) throws `BakerError` at decorator-evaluation time with the four valid forms listed.
 
 ```ts
-@Field(isNumber)       // ✗ factory not invoked → SealError
+@Field(isNumber)       // ✗ factory not invoked → BakerError
 @Field(isNumber())     // ✓
 @Field(isString)       // ✓ constant rule
 @Field()               // ✓ marker only
@@ -76,7 +76,7 @@ Six new entry points enforce the call-direction asymmetry at the type level:
 | `serialize`   | `serializeSync`   | `serializeAsync`   |
 | `validate`    | `validateSync`    | `validateAsync`    |
 
-`*Sync` throws `SealError` if the DTO is async on that direction (e.g. async transform on deserialize side for `deserializeSync`). `*Async` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`). The integrated `deserialize` / `serialize` / `validate` remain available for ergonomic use.
+`*Sync` throws `BakerError` if the DTO is async on that direction (e.g. async transform on deserialize side for `deserializeSync`). `*Async` always returns `Promise` (sync DTOs are wrapped via `Promise.resolve`). The integrated `deserialize` / `serialize` / `validate` remain available for ergonomic use.
 
 ## Defect fixes (no migration needed)
 
@@ -84,7 +84,7 @@ The following bugs in 2.x are silently fixed in 3.x:
 
 - **Set/Map nested DTO cycles** no longer cause stack overflow (`circular-analyzer` now walks `collectionValue`).
 - **Set/Map value DTOs marked async** now correctly propagate `_isAsync` / `_isSerializeAsync` to the parent.
-- **Discriminator with empty `subTypes`** throws `SealError` at seal time instead of producing invalid generated JS.
+- **Discriminator with empty `subTypes`** throws `BakerError` at seal time instead of producing invalid generated JS.
 - **Concurrent async deserialize on the same input** no longer reports a false `circular` error (per-call `WeakSet` via `Symbol.for('baker:circular-seen')`).
 - **`Object.hasOwn` checks** prevent prototype-chain values from leaking into DTO results.
 - **Discriminator default branch** error now reports `context: { received, validSubTypes: [...] }`.
@@ -92,7 +92,7 @@ The following bugs in 2.x are silently fixed in 3.x:
 - **MAGNET URI regex** now anchors the trailing end.
 - **Inheritance dedup** now compares by `ruleName` — a child re-declaring the same rule replaces the parent's rule.
 - **`seal(Class)` failure** is now transactional: a failed seal removes the placeholder so retry can succeed.
-- **`collectionValue` thunk** errors are wrapped in `SealError` with the field name.
+- **`collectionValue` thunk** errors are wrapped in `BakerError` with the field name.
 
 ## Removed APIs
 

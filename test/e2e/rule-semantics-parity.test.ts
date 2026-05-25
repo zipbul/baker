@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerError, seal } from '../../index';
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import {
   arrayContains,
   arrayMaxSize,
@@ -51,7 +51,7 @@ async function passesWithDto(rule: RuleCase['rule'], value: unknown): Promise<bo
 
   sealClass(Dto);
   const result = await deserialize(Dto, { value });
-  return !isBakerError(result);
+  return !isBakerIssueSet(result);
 }
 
 async function expectParity(testCase: RuleCase): Promise<void> {

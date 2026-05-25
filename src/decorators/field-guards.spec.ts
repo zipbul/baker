@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { isString } from '../rules/index';
 import { Field } from './field';
 
@@ -35,7 +35,7 @@ describe('@Field — target guards', () => {
   });
 
   it('rejects combining name with deserializeName/serializeName', () => {
-    expect(() => Field({ name: 'wire', deserializeName: 'in' })(undefined, fieldContext({}))).toThrow(SealError);
+    expect(() => Field({ name: 'wire', deserializeName: 'in' })(undefined, fieldContext({}))).toThrow(BakerError);
     expect(() => Field({ name: 'wire', serializeName: 'out' })(undefined, fieldContext({}))).toThrow(/cannot be combined/);
   });
 

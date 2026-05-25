@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import {
   isString,
   isEmail,
@@ -79,7 +79,7 @@ describe('isEmail', () => {
     expect(r.email).toBe('test@example.com');
   });
   it('invalid email rejected', async () => {
-    expect(isBakerError(await deserialize(EmailDto, { email: 'not-email' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(EmailDto, { email: 'not-email' }))).toBe(true);
   });
 });
 
@@ -89,7 +89,7 @@ describe('isUUID', () => {
     expect(r.id).toBe('550e8400-e29b-41d4-a716-446655440000');
   });
   it('invalid UUID rejected', async () => {
-    expect(isBakerError(await deserialize(UUIDDto, { id: 'not-uuid' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UUIDDto, { id: 'not-uuid' }))).toBe(true);
   });
 });
 
@@ -103,10 +103,10 @@ describe('isIP', () => {
     expect(r.ip).toBe('::1');
   });
   it('IPv6 value rejected for IPv4', async () => {
-    expect(isBakerError(await deserialize(IPv4Dto, { ip: '::1' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IPv4Dto, { ip: '::1' }))).toBe(true);
   });
   it('invalid IP rejected', async () => {
-    expect(isBakerError(await deserialize(IPv4Dto, { ip: 'not-ip' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(IPv4Dto, { ip: 'not-ip' }))).toBe(true);
   });
 });
 
@@ -116,7 +116,7 @@ describe('isURL', () => {
     expect(r.url).toBe('https://example.com');
   });
   it('invalid URL rejected', async () => {
-    expect(isBakerError(await deserialize(URLDto, { url: 'not a url' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(URLDto, { url: 'not a url' }))).toBe(true);
   });
 
   // E-6: isURL port boundary
@@ -125,10 +125,10 @@ describe('isURL', () => {
     expect(r.url).toBe('https://example.com:65535');
   });
   it('port 65536 rejected', async () => {
-    expect(isBakerError(await deserialize(URLDto, { url: 'https://example.com:65536' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(URLDto, { url: 'https://example.com:65536' }))).toBe(true);
   });
   it('port 99999 rejected', async () => {
-    expect(isBakerError(await deserialize(URLDto, { url: 'https://example.com:99999' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(URLDto, { url: 'https://example.com:99999' }))).toBe(true);
   });
   it('port 0 passes', async () => {
     const r = (await deserialize(URLDto, { url: 'https://example.com:0' })) as URLDto;
@@ -142,15 +142,15 @@ describe('isISO8601', () => {
     expect(r.ts).toBe('2024-01-01T00:00:00.000Z');
   });
   it('invalid date string rejected', async () => {
-    expect(isBakerError(await deserialize(ISO8601Dto, { ts: 'not-a-date' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ISO8601Dto, { ts: 'not-a-date' }))).toBe(true);
   });
 });
 
 // Exercises the strict-mode codegen branch (month range always, day range when present),
 // which the JS validate path tests cover but the emitted executor did not until now.
 describe('isISO8601 strict — codegen executor', () => {
-  const accept = async (ts: string) => expect(isBakerError(await deserialize(ISO8601StrictDto, { ts }))).toBe(false);
-  const reject = async (ts: string) => expect(isBakerError(await deserialize(ISO8601StrictDto, { ts }))).toBe(true);
+  const accept = async (ts: string) => expect(isBakerIssueSet(await deserialize(ISO8601StrictDto, { ts }))).toBe(false);
+  const reject = async (ts: string) => expect(isBakerIssueSet(await deserialize(ISO8601StrictDto, { ts }))).toBe(true);
 
   it('accepts valid year-month and full date', async () => {
     await accept('2021-12');
@@ -171,14 +171,14 @@ describe('minLength / maxLength', () => {
     expect(r.name).toBe('abc');
   });
   it('MinLength below minimum rejected', async () => {
-    expect(isBakerError(await deserialize(MinLenDto, { name: 'ab' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MinLenDto, { name: 'ab' }))).toBe(true);
   });
   it('MaxLength passes', async () => {
     const r = (await deserialize(MaxLenDto, { code: 'abcde' })) as MaxLenDto;
     expect(r.code).toBe('abcde');
   });
   it('MaxLength exceeded rejected', async () => {
-    expect(isBakerError(await deserialize(MaxLenDto, { code: 'abcdef' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MaxLenDto, { code: 'abcdef' }))).toBe(true);
   });
 });
 
@@ -188,7 +188,7 @@ describe('length', () => {
     expect(r.tag).toBe('hello');
   });
   it('below minimum rejected', async () => {
-    expect(isBakerError(await deserialize(LengthDto, { tag: 'a' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(LengthDto, { tag: 'a' }))).toBe(true);
   });
   // Multi-length-rule field exercises insideTypeGate=true codegen path where
   // stripSelfComparison keeps 2+ non-self-comparison checks on length(min,max).
@@ -201,7 +201,7 @@ describe('length', () => {
     seal();
     const ok = (await deserialize<MultiLenDto>(MultiLenDto, { v: 'hello' })) as MultiLenDto;
     expect(ok.v).toBe('hello');
-    expect(isBakerError(await deserialize(MultiLenDto, { v: 'x' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MultiLenDto, { v: 'x' }))).toBe(true);
   });
 });
 
@@ -211,7 +211,7 @@ describe('matches', () => {
     expect(r.slug).toBe('hello');
   });
   it('pattern mismatch rejected', async () => {
-    expect(isBakerError(await deserialize(MatchesDto, { slug: 'Hello123' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(MatchesDto, { slug: 'Hello123' }))).toBe(true);
   });
 });
 
@@ -221,6 +221,6 @@ describe('contains', () => {
     expect(r.greeting).toBe('say hello world');
   });
   it('not containing rejected', async () => {
-    expect(isBakerError(await deserialize(ContainsDto, { greeting: 'goodbye' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ContainsDto, { greeting: 'goodbye' }))).toBe(true);
   });
 });

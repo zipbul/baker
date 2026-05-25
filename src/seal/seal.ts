@@ -2,7 +2,7 @@ import type { SealOptions } from '../interfaces';
 import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 
 import { getGlobalOptions } from '../configure';
-import { SealError } from '../errors';
+import { BakerError } from '../errors';
 import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { isAsyncFunction } from '../utils';
@@ -21,13 +21,13 @@ function circularPlaceholder(className: string): SealedExecutors<unknown> {
   const msg = `Circular dependency during seal: ${className} is still being sealed`;
   return {
     deserialize() {
-      throw new SealError(msg);
+      throw new BakerError(msg);
     },
     serialize() {
-      throw new SealError(msg);
+      throw new BakerError(msg);
     },
     validate() {
-      throw new SealError(msg);
+      throw new BakerError(msg);
     },
     isAsync: false,
     isSerializeAsync: false,
@@ -132,7 +132,7 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
   const sealed = getSealed(Class);
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
-    throw new SealError(
+    throw new BakerError(
       `${name} is not sealed. Call seal() at app startup before deserialize/validate/serialize. ` +
         `(If ${name} has no @Field decorators, decorate at least one property.)`,
     );
@@ -234,7 +234,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
     // 1a. Banned field name check — prevent prototype pollution (C5)
     for (const key of Object.keys(merged)) {
       if (BANNED_FIELD_NAMES.has(key)) {
-        throw new SealError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
+        throw new BakerError(`${Class.name}: field name '${key}' is not allowed (reserved property name)`);
       }
     }
 
@@ -244,7 +244,12 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
       if (!meta.type?.fn) {
         continue;
       }
-      const typeResult = meta.type.fn();
+      let typeResult: unknown;
+      try {
+        typeResult = meta.type.fn();
+      } catch (e) {
+        throw new BakerError(`${Class.name}.${key}: type function threw: ${(e as Error).message}`, { cause: e });
+      }
 
       // Detect Map/Set collection
       if (typeResult === Map || typeResult === Set) {
@@ -256,7 +261,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
           try {
             valCls = meta.type.collectionValue();
           } catch (e) {
-            throw new SealError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`);
+            throw new BakerError(`${Class.name}.${key}: collectionValue function threw: ${(e as Error).message}`, { cause: e });
           }
           if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
             typeCopy.resolvedCollectionValue = valCls as ClassCtor;
@@ -269,7 +274,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
       const isArray = Array.isArray(typeResult);
       const resolved = isArray ? (typeResult as unknown[])[0] : typeResult;
       if (resolved == null || typeof resolved !== 'function') {
-        throw new SealError(
+        throw new BakerError(
           `${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`,
         );
       }
@@ -291,7 +296,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
       merged[key] = { ...meta, type: typeCopy };
     }
 
-    // 2. Static validation of @Expose stacks (throws SealError on failure)
+    // 2. Static validation of @Expose stacks (throws BakerError on failure)
     validateExposeStacks(merged, Class.name);
 
     // 2b. W2: seal-time invariant checks (D7 discriminator/Set·Map + D9 async-in-sync)

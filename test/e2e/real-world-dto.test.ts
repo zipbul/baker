@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerError, Field, Recipe, seal } from '../../index';
+import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -121,23 +121,23 @@ describe('CreateUserDto — deserialization', () => {
 
 describe('CreateUserDto — validation failure', () => {
   it('name too short', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, user_name: 'A' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, user_name: 'A' }))).toBe(true);
   });
 
   it('invalid email', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, email: 'not-email' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, email: 'not-email' }))).toBe(true);
   });
 
   it('age out of range', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, age: 200 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, age: 200 }))).toBe(true);
   });
 
   it('invalid enum value', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }))).toBe(true);
   });
 
   it('nested DTO validation failure', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
   });
 });
 
