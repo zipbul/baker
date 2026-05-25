@@ -11,9 +11,10 @@ Zero `reflect-metadata`. Sealed codegen. 99%+ line coverage.
 ## Quick Start
 
 ```typescript
-import { deserialize, isBakerIssueSet, Field, seal } from '@zipbul/baker';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
+@Recipe
 class UserDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0)) age!: number;
@@ -215,6 +216,7 @@ email!: string;
 import { luxonTransformer } from '@zipbul/baker/transformers';
 const luxon = await luxonTransformer({ zone: 'Asia/Seoul' });
 
+@Recipe
 class EventDto {
   @Field({ transform: luxon }) startAt!: DateTime;
 }
@@ -269,10 +271,12 @@ const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 ## Nested DTOs
 
 ```typescript
+@Recipe
 class AddressDto {
   @Field(isString) city!: string;
 }
 
+@Recipe
 class UserDto {
   @Field({ type: () => AddressDto }) address!: AddressDto;
   @Field({ type: () => [AddressDto] }) addresses!: AddressDto[];
@@ -282,6 +286,7 @@ class UserDto {
 ## Collections
 
 ```typescript
+@Recipe
 class UserDto {
   @Field({ type: () => Set as any, setValue: () => TagDto }) tags!: Set<TagDto>;
   @Field({ type: () => Map as any, mapValue: () => PriceDto }) prices!: Map<string, PriceDto>;
@@ -291,6 +296,7 @@ class UserDto {
 ## Discriminator
 
 ```typescript
+@Recipe
 class PetOwner {
   @Field({
     type: () => CatDto,
@@ -309,10 +315,12 @@ class PetOwner {
 ## Inheritance
 
 ```typescript
+@Recipe
 class BaseDto {
   @Field(isString) id!: string;
 }
 
+@Recipe
 class UserDto extends BaseDto {
   @Field(isString) name!: string;
   // inherits 'id' field with isString rule

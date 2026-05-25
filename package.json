@@ -37,7 +37,6 @@
     "dist/**/*.d.ts",
     "README.md",
     "CHANGELOG.md",
-    "MIGRATION-3.0.md",
     "LICENSE"
   ],
   "type": "module",
