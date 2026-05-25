@@ -1,9 +1,22 @@
-import { describe, it, expect } from 'bun:test';
-import { deserialize, serialize, Field, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
+import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
+import { sealClass } from '../integration/helpers/seal';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
+
+const matchPathCode =
+  (path: string, code: string) =>
+  (e: { path: string; code: string }): boolean =>
+    e.path === path && e.code === code;
+
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class AddressDto {
   @Field(isString)
   city!: string;
@@ -12,6 +25,7 @@ class AddressDto {
   street!: string;
 }
 
+@Recipe
 class UserDto {
   @Field(isString)
   name!: string;
@@ -20,26 +34,31 @@ class UserDto {
   address!: AddressDto;
 }
 
+@Recipe
 class ItemDto {
   @Field(isString)
   label!: string;
 }
 
+@Recipe
 class ListDto {
   @Field(arrayMinSize(1), { type: () => [ItemDto] })
   items!: ItemDto[];
 }
 
+@Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
+@Recipe
 class PetOwnerDto {
   @Field({
     type: () => DogDto,
@@ -58,42 +77,42 @@ class PetOwnerDto {
 
 describe('@Nested deserialization', () => {
   it('simple nested DTO', async () => {
-    const result = await deserialize(UserDto, {
+    const result = (await deserialize(UserDto, {
       name: 'Alice',
       address: { city: 'Seoul', street: '강남대로' },
-    }) as UserDto;
+    })) as UserDto;
     expect(result.name).toBe('Alice');
     expect(result.address).toBeInstanceOf(AddressDto);
     expect(result.address.city).toBe('Seoul');
   });
 
   it('nested DTO validation failure', async () => {
-    expect(isBakerError(await deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(UserDto, { name: 'Alice', address: { city: 123, street: 'ok' } }))).toBe(true);
   });
 
   it('array nested (each: true)', async () => {
-    const result = await deserialize(ListDto, {
+    const result = (await deserialize(ListDto, {
       items: [{ label: 'a' }, { label: 'b' }],
-    }) as ListDto;
+    })) as ListDto;
     expect(result.items).toHaveLength(2);
     expect(result.items[0]!).toBeInstanceOf(ItemDto);
     expect(result.items[0]!.label).toBe('a');
   });
 
   it('array nested size validation', async () => {
-    expect(isBakerError(await deserialize(ListDto, { items: [] }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(ListDto, { items: [] }))).toBe(true);
   });
 
   it('discriminator deserialization', async () => {
-    const dog = await deserialize(PetOwnerDto, {
+    const dog = (await deserialize(PetOwnerDto, {
       pet: { type: 'dog', breed: 'Shiba' },
-    }) as PetOwnerDto;
+    })) as PetOwnerDto;
     expect(dog.pet).toBeInstanceOf(DogDto);
     expect((dog.pet as DogDto).breed).toBe('Shiba');
 
-    const cat = await deserialize(PetOwnerDto, {
+    const cat = (await deserialize(PetOwnerDto, {
       pet: { type: 'cat', indoor: true },
-    }) as PetOwnerDto;
+    })) as PetOwnerDto;
     expect(cat.pet).toBeInstanceOf(CatDto);
     expect((cat.pet as CatDto).indoor).toBe(true);
   });
@@ -116,38 +135,38 @@ describe('@Nested serialization', () => {
 describe('@Nested edge cases', () => {
   it('non-object passed to nested DTO → error', async () => {
     const result = await deserialize(UserDto, { name: 'Alice', address: 'not-object' });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors[0]!;
-      expect(err.path).toBe('address');
-      expect(err.code).toBe('isObject');
-    }
+    assertBakerIssueSet(result);
+    const err = result.errors[0]!;
+    expect(err.path).toBe('address');
+    expect(err.code).toBe('isObject');
   });
 
   it('specific element failure in array nested → index in path', async () => {
     const result = await deserialize(ListDto, { items: [{ label: 'ok' }, { label: 123 }, { label: 'fine' }] });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.some(err => err.path === 'items[1].label' && err.code === 'isString')).toBe(true);
-    }
+    assertBakerIssueSet(result);
+    expect(result.errors.some(matchPathCode('items[1].label', 'isString'))).toBe(true);
   });
 
   it('@Nested + optional → missing nested field allowed', async () => {
+    @Recipe
     class OptNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
     }
-    const r = await deserialize(OptNested, { name: 'Alice' }) as OptNested;
+    sealClass(OptNested);
+    const r = (await deserialize(OptNested, { name: 'Alice' })) as OptNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeUndefined();
   });
 
   it('@Nested + nullable → null nested allowed', async () => {
+    @Recipe
     class NullNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;
     }
-    const r = await deserialize(NullNested, { name: 'Alice', address: null }) as NullNested;
+    sealClass(NullNested);
+    const r = (await deserialize(NullNested, { name: 'Alice', address: null })) as NullNested;
     expect(r.name).toBe('Alice');
     expect(r.address).toBeNull();
   });

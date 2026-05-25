@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import {
   arrayContains,
   arrayMaxSize,
@@ -29,34 +30,35 @@ import {
   minLength,
   notEquals,
 } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 type RuleCase = {
   name: string;
-  rule: (value: unknown) => boolean | Promise<boolean>;
+  rule: import('../../src/types').EmittableRule;
   samples: unknown[];
 };
 
-async function passesWithDto(rule: any, value: unknown): Promise<boolean> {
+async function passesWithDto(rule: RuleCase['rule'], value: unknown): Promise<boolean> {
+  @Recipe
   class Dto {
     @Field(rule)
     value!: unknown;
   }
 
+  sealClass(Dto);
   const result = await deserialize(Dto, { value });
-  return !isBakerError(result);
+  return !isBakerIssueSet(result);
 }
 
 async function expectParity(testCase: RuleCase): Promise<void> {
   for (const sample of testCase.samples) {
     const runtime = !!(await testCase.rule(sample));
     const dto = await passesWithDto(testCase.rule, sample);
-    expect(
-      dto,
-      `${testCase.name} parity mismatch for ${String(sample)}`,
-    ).toBe(runtime);
+    expect(dto, `${testCase.name} parity mismatch for ${String(sample)}`).toBe(runtime);
   }
 }
 

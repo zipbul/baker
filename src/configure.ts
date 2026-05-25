@@ -1,12 +1,13 @@
 import type { SealOptions } from './interfaces';
-import { SealError } from './errors';
-import { _isSealed } from './seal/seal';
+
+import { BakerError } from './errors';
+import { isSealed } from './seal/seal-state';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerConfig — Global configuration (call before auto-seal)
+// BakerConfig — Global configuration (call before seal())
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface BakerConfig {
+interface BakerConfig {
   /** Automatic type conversion ("123" → 123). @default false */
   autoConvert?: boolean;
   /** Use class default values when key is missing from input. @default false */
@@ -19,33 +20,53 @@ export interface BakerConfig {
   debug?: boolean;
 }
 
-let _globalOptions: SealOptions = {};
+const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
+  'autoConvert',
+  'allowClassDefaults',
+  'stopAtFirstError',
+  'forbidUnknown',
+  'debug',
+]);
+
+let globalOptionsState: SealOptions = Object.freeze({});
 
 /**
- * Baker global configuration. Call before the first auto-seal.
+ * Baker global configuration. Call before `seal()`.
  * If not called, defaults are applied.
  */
-export function configure(config: BakerConfig): void {
-  if (_isSealed()) {
-    throw new SealError(
-      '[baker] configure() called after auto-seal. Already-sealed classes are not affected. Call configure() before the first deserialize/serialize/validate.',
+function configure(config: BakerConfig): void {
+  if (isSealed()) {
+    throw new BakerError(
+      '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
     );
   }
-  _globalOptions = {
+  if (config === null || typeof config !== 'object' || Array.isArray(config)) {
+    throw new BakerError(
+      `[baker] configure() requires a plain object. Received: ${config === null ? 'null' : Array.isArray(config) ? 'array' : typeof config}.`,
+    );
+  }
+  for (const key of Object.keys(config)) {
+    if (!BAKER_CONFIG_KEYS.has(key as keyof BakerConfig)) {
+      throw new BakerError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
+    }
+  }
+  globalOptionsState = Object.freeze({
     enableImplicitConversion: config.autoConvert ?? false,
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
     whitelist: config.forbidUnknown ?? false,
     debug: config.debug ?? false,
-  };
+  });
 }
 
-/** @internal — used by seal */
-export function _getGlobalOptions(): SealOptions {
-  return _globalOptions;
+/** @internal — used by seal. Returns the frozen global options; the only way to change them is configure(). */
+function getGlobalOptions(): SealOptions {
+  return globalOptionsState;
 }
 
 /** @internal — reset to defaults on unseal */
-export function _resetConfigForTesting(): void {
-  _globalOptions = {};
+function resetConfigForTesting(): void {
+  globalOptionsState = Object.freeze({});
 }
+export { configure, getGlobalOptions, resetConfigForTesting };
+export type { BakerConfig };

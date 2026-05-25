@@ -1,99 +1,119 @@
 import { describe, it, expect } from 'bun:test';
-import { isBakerError, BAKER_ERROR, SealError, _toBakerErrors } from './errors';
-import type { BakerError, BakerErrors } from './errors';
 
-describe('isBakerError', () => {
+import type { BakerIssue } from './errors';
+
+import { assertBakerIssueSet } from '../test/integration/helpers/assert';
+import { isBakerIssueSet, BAKER_ERROR, BakerError, toBakerIssueSet } from './errors';
+
+describe('isBakerIssueSet', () => {
   it('should return true for object with BAKER_ERROR symbol', () => {
     const obj = { [BAKER_ERROR]: true as const, errors: [] };
-    expect(isBakerError(obj)).toBe(true);
+    expect(isBakerIssueSet(obj)).toBe(true);
   });
 
-  it('should return true for BakerErrors created via _toBakerErrors', () => {
-    const errors: BakerError[] = [{ path: 'name', code: 'isString' }];
-    const result = _toBakerErrors(errors);
-    expect(isBakerError(result)).toBe(true);
+  it('should return true for BakerIssueSet created via toBakerIssueSet', () => {
+    const errors: BakerIssue[] = [{ path: 'name', code: 'isString' }];
+    const result = toBakerIssueSet(errors);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('should return false for plain object without BAKER_ERROR symbol', () => {
-    expect(isBakerError({ errors: [] })).toBe(false);
+    expect(isBakerIssueSet({ errors: [] })).toBe(false);
   });
 
   it('should return false for null', () => {
-    expect(isBakerError(null)).toBe(false);
+    expect(isBakerIssueSet(null)).toBe(false);
   });
 
   it('should return false for undefined', () => {
-    expect(isBakerError(undefined)).toBe(false);
+    expect(isBakerIssueSet(undefined)).toBe(false);
   });
 
   it('should return false for primitive string', () => {
-    expect(isBakerError('error')).toBe(false);
+    expect(isBakerIssueSet('error')).toBe(false);
   });
 
   it('should return false for primitive number', () => {
-    expect(isBakerError(42)).toBe(false);
+    expect(isBakerIssueSet(42)).toBe(false);
   });
 
   it('should return false for Error instance', () => {
-    expect(isBakerError(new Error('fail'))).toBe(false);
+    expect(isBakerIssueSet(new Error('fail'))).toBe(false);
+  });
+
+  it('should return false for a thrown BakerError instance (throw channel is not the result channel)', () => {
+    expect(isBakerIssueSet(new BakerError('boom'))).toBe(false);
   });
 
   it('should return false for array', () => {
-    expect(isBakerError([{ path: '', code: 'isString' }])).toBe(false);
+    expect(isBakerIssueSet([{ path: '', code: 'isString' }])).toBe(false);
   });
 
   it('should return false for Promise', () => {
-    expect(isBakerError(Promise.resolve(true))).toBe(false);
+    expect(isBakerIssueSet(Promise.resolve(true))).toBe(false);
   });
 
   it('should return false for class instance without BAKER_ERROR', () => {
-    class Foo { errors = []; }
-    expect(isBakerError(new Foo())).toBe(false);
+    class Foo {
+      errors = [];
+    }
+    expect(isBakerIssueSet(new Foo())).toBe(false);
   });
 
   it('should return false for boolean true', () => {
-    expect(isBakerError(true)).toBe(false);
+    expect(isBakerIssueSet(true)).toBe(false);
   });
 
   it('should return false for boolean false', () => {
-    expect(isBakerError(false)).toBe(false);
+    expect(isBakerIssueSet(false)).toBe(false);
   });
 
-  it('should expose errors array when narrowed via isBakerError', () => {
-    const errors: BakerError[] = [
+  it('should expose errors array when narrowed via isBakerIssueSet', () => {
+    const errors: BakerIssue[] = [
       { path: 'name', code: 'isString' },
       { path: 'email', code: 'isEmail' },
     ];
-    const result: unknown = _toBakerErrors(errors);
-    if (isBakerError(result)) {
-      expect(result.errors).toEqual(errors);
-      expect(result.errors).toHaveLength(2);
-    } else {
-      expect.unreachable();
-    }
+    const result: unknown = toBakerIssueSet(errors);
+    assertBakerIssueSet(result);
+    expect(result.errors).toEqual(errors);
+    expect(result.errors).toHaveLength(2);
   });
 
-  it('should return true for BakerErrors with empty errors array', () => {
-    const result = _toBakerErrors([]);
-    expect(isBakerError(result)).toBe(true);
+  it('should return true for BakerIssueSet with empty errors array', () => {
+    const result = toBakerIssueSet([]);
+    expect(isBakerIssueSet(result)).toBe(true);
     expect(result.errors).toHaveLength(0);
   });
 });
 
-describe('SealError', () => {
-  it('should be constructable when given a message string', () => {
-    const err = new SealError('not sealed: Foo');
-    expect(err).toBeDefined();
+describe('BakerError (throw channel)', () => {
+  it('should be an Error subclass', () => {
+    expect(new BakerError('boom')).toBeInstanceOf(Error);
   });
 
-  it("should have name 'SealError' when accessing .name", () => {
-    const err = new SealError('not sealed: Foo');
-    expect(err.name).toBe('SealError');
+  it("should have name 'BakerError' when accessing .name", () => {
+    const err = new BakerError('not sealed: Foo');
+    expect(err.name).toBe('BakerError');
   });
 
   it('should expose the passed message when accessing .message', () => {
     const msg = 'already sealed: seal() must be called exactly once';
-    const err = new SealError(msg);
+    const err = new BakerError(msg);
     expect(err.message).toBe(msg);
+  });
+
+  it('should default .cause to undefined when no options are given', () => {
+    expect(new BakerError('boom').cause).toBeUndefined();
+  });
+
+  it('should preserve the original error as .cause when provided', () => {
+    const original = new Error('underlying');
+    const err = new BakerError('wrapped', { cause: original });
+    expect(err.cause).toBe(original);
+  });
+
+  it('should accept a non-Error cause value', () => {
+    const err = new BakerError('wrapped', { cause: 'raw string cause' });
+    expect(err.cause).toBe('raw string cause');
   });
 });

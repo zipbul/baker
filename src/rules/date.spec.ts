@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import { minDate, maxDate } from './date';
 
 function makeCtx(refIndex: number = 0) {
@@ -59,10 +61,10 @@ describe('minDate', () => {
     const rule = minDate(new Date('2020-01-01'));
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(0);
-    expect(code).toContain('_v.getTime()');
+    expect(code).toContain('v.getTime()');
     expect(failMock).toHaveBeenCalledWith('minDate');
   });
 
@@ -111,7 +113,7 @@ describe('maxDate', () => {
     const rule = maxDate(new Date('2025-01-01'));
     const { ctx, addRefMock, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_v', ctx);
+    rule.emit('v', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledTimes(0);
     expect(failMock).toHaveBeenCalledWith('maxDate');

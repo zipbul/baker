@@ -1,6 +1,5 @@
-import { RAW } from '../symbols';
-import { SealError } from '../errors';
-import type { RawClassMeta } from '../types'; // used in walk() cast
+import { BakerError } from '../errors';
+import { getRaw } from '../meta-access';
 
 /**
  * Static analysis for circular references (§4.6)
@@ -10,18 +9,18 @@ import type { RawClassMeta } from '../types'; // used in walk() cast
  * Flat DTO without cycles → false (zero WeakSet overhead)
  * DTO with cycles → true (WeakSet automatically inserted)
  */
-export function analyzeCircular(
-  Class: Function,
-): boolean {
+export function analyzeCircular(Class: Function): boolean {
   // @Type reference graph DFS — detect back-edges via visited set
   const visited = new Set<Function>();
 
   function walk(cls: Function): boolean {
-    if (visited.has(cls)) return true; // back-edge → cycle detected
+    if (visited.has(cls)) {
+      return true;
+    } // back-edge → cycle detected
 
     visited.add(cls);
 
-    const raw = (cls as any)[RAW] as RawClassMeta | undefined;
+    const raw = getRaw(cls);
     if (raw) {
       for (const meta of Object.values(raw)) {
         // Simple @Type
@@ -30,15 +29,31 @@ export function analyzeCircular(
           try {
             typeResult = meta.type.fn();
           } catch (e) {
-            throw new SealError(`${cls.name}: type function threw: ${(e as Error).message}`);
+            throw new BakerError(`${cls.name}: type function threw: ${(e as Error).message}`, { cause: e });
           }
           const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
-          if (walk(nested as Function)) return true;
+          if (walk(nested as Function)) {
+            return true;
+          }
         }
         // discriminator subTypes
         if (meta.type?.discriminator) {
           for (const sub of meta.type.discriminator.subTypes) {
-            if (walk(sub.value)) return true;
+            if (walk(sub.value)) {
+              return true;
+            }
+          }
+        }
+        // W1 (F-1): collectionValue thunk (Set/Map nested DTO) — invoke and walk
+        if (meta.type?.collectionValue) {
+          let resolved: unknown;
+          try {
+            resolved = meta.type.collectionValue();
+          } catch (e) {
+            throw new BakerError(`${cls.name}: collectionValue function threw: ${(e as Error).message}`, { cause: e });
+          }
+          if (typeof resolved === 'function' && walk(resolved as Function)) {
+            return true;
           }
         }
       }

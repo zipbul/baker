@@ -1,15 +1,18 @@
 import { describe, it, expect, mock } from 'bun:test';
+
+import type { EmitContext } from './types';
+
 import { createRule } from './create-rule';
 
 function makeCtx(refIndex: number = 0) {
-  const addRefMock = mock((_fn: Function) => refIndex);
+  const addRefMock = mock((_fn: unknown) => refIndex);
   const failMock = mock((code: string) => `_errors.push({path:'x',code:'${code}'})`);
-  const ctx = {
+  const ctx: EmitContext = {
     addRegex: mock((_re: RegExp) => 0),
     addRef: addRefMock,
     addExecutor: mock(() => 0),
     fail: failMock,
-    collectErrors: true as const,
+    collectErrors: true,
   };
   return { ctx, addRefMock, failMock };
 }
@@ -44,7 +47,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(typeof code).toBe('string');
   });
@@ -54,9 +57,9 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(3);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
-    expect(code).toContain('_refs[3]');
+    expect(code).toContain('refs[3]');
   });
 
   it('should include the result of ctx.fail in emitted code when calling fn.emit()', () => {
@@ -64,7 +67,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx, failMock } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert: fail was called and its return value appears in the emitted code
     expect(failMock).toHaveBeenCalledWith('myRule');
     expect(code).toContain(failMock.mock.results[0]!.value as string);
@@ -86,7 +89,7 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: validateFn });
     const { ctx, addRefMock } = makeCtx(0);
     // Act
-    rule.emit('_val', ctx as any);
+    rule.emit('_val', ctx);
     // Assert
     expect(addRefMock).toHaveBeenCalledWith(rule);
   });
@@ -96,9 +99,9 @@ describe('createRule', () => {
     const rule = createRule({ name: 'myRule', validate: () => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
   });
 
   it('should return independent functions when calling createRule twice with the same options', () => {
@@ -115,41 +118,41 @@ describe('createRule', () => {
 
   it('should set isAsync=true when validate is an async function', () => {
     // Arrange / Act
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     // Assert
     expect(rule.isAsync).toBe(true);
   });
 
   it('should set isAsync when validate is a sync function', () => {
     // Arrange / Act
-    const rule = createRule({ name: 'syncRule', validate: (_v) => true });
+    const rule = createRule({ name: 'syncRule', validate: _v => true });
     // Assert
     expect(rule.isAsync).toBe(false);
   });
 
   it('should include await in emitted code when validate is async', () => {
     // Arrange
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).toContain('await');
   });
 
   it('should include await in emitted code when validate is sync', () => {
     // Arrange
-    const rule = createRule({ name: 'syncRule', validate: (_v) => true });
+    const rule = createRule({ name: 'syncRule', validate: _v => true });
     const { ctx } = makeCtx(0);
     // Act
-    const code = rule.emit('_val', ctx as any);
+    const code = rule.emit('_val', ctx);
     // Assert
     expect(code).not.toContain('await');
   });
 
   it('should return a Promise<boolean> when calling the async rule function', async () => {
     // Arrange
-    const rule = createRule({ name: 'asyncRule', validate: async (_v) => true });
+    const rule = createRule({ name: 'asyncRule', validate: async _v => true });
     // Act
     const result = rule('hello');
     // Assert
@@ -160,5 +163,10 @@ describe('createRule', () => {
   it('should throw when a sync rule returns Promise', () => {
     const rule = createRule({ name: 'badRule', validate: () => Promise.resolve(true) });
     expect(() => rule('hello')).toThrow('sync rule returned Promise');
+  });
+
+  it('should throw at creation when the string form is called without a validate function', () => {
+    // Untyped-JS misuse: the TS overloads require the validate arg, so widen to Function to call it.
+    expect(() => (createRule as Function)('noValidate')).toThrow(/validate function is required/);
   });
 });

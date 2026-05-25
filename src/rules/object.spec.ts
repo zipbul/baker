@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import { isNotEmptyObject, isInstance } from './object';
 
 function makeCtx(refIndex: number = 0) {
@@ -46,18 +48,17 @@ describe('isNotEmptyObject', () => {
 
   it('should generate Object.keys check code when calling emit() and have ruleName isNotEmptyObject', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isNotEmptyObject().emit('_v', ctx);
+    const code = isNotEmptyObject().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isNotEmptyObject');
     expect(isNotEmptyObject().ruleName).toBe('isNotEmptyObject');
   });
 
-  it('should generate inline Object.keys().some() code when emit() is called with nullable:true', () => {
+  it('should generate inline for-in code when emit() is called with nullable:true', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = isNotEmptyObject({ nullable: true }).emit('_v', ctx);
+    const code = isNotEmptyObject({ nullable: true }).emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('Object.keys');
-    expect(code).toContain('.some(');
+    expect(code).toContain('for(var __k in v)');
     expect(code).toContain('!=null');
     expect(failMock).toHaveBeenCalledWith('isNotEmptyObject');
   });
@@ -104,7 +105,7 @@ describe('isInstance', () => {
 
   it('should call ctx.addRef with the target class and generate instanceof check code when calling emit()', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = isInstance(Date).emit('_v', ctx);
+    const code = isInstance(Date).emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(addRefMock).toHaveBeenCalledWith(Date);
     expect(code).toBeTruthy();

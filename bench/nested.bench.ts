@@ -1,53 +1,43 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Nested object (3 levels) — valid + invalid
+// (class-validator comparison lives in bench/class-validator — legacy decorators only.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import * as v from 'valibot';
+import { z } from 'zod';
+
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
+import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize } from '../index';
-import { isString, isNumber, min, minLength } from '../src/rules/index';
 
+@Recipe
 class BakerAddress {
   @Field(isString, minLength(1)) street!: string;
   @Field(isString, minLength(1)) city!: string;
   @Field(isString, minLength(1)) zip!: string;
 }
+@Recipe
 class BakerCustomer {
   @Field(isString, minLength(1)) name!: string;
   @Field(isString) email!: string;
   @Field({ type: () => BakerAddress }) address!: BakerAddress;
 }
+@Recipe
 class BakerOrder {
   @Field(isString, minLength(1)) title!: string;
   @Field({ type: () => BakerCustomer }) customer!: BakerCustomer;
   @Field(isNumber(), min(0)) priority!: number;
 }
+seal();
 await deserialize(BakerOrder, NESTED_VALID);
 
-// ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
-import { IsString, IsNumber, Min, MinLength, ValidateNested, validateSync } from 'class-validator';
-import { plainToInstance, Type as CvType } from 'class-transformer';
-
-class CvAddress {
-  @IsString() @MinLength(1) street!: string;
-  @IsString() @MinLength(1) city!: string;
-  @IsString() @MinLength(1) zip!: string;
-}
-class CvCustomer {
-  @IsString() @MinLength(1) name!: string;
-  @IsString() email!: string;
-  @ValidateNested() @CvType(() => CvAddress) address!: CvAddress;
-}
-class CvOrder {
-  @IsString() @MinLength(1) title!: string;
-  @ValidateNested() @CvType(() => CvCustomer) customer!: CvCustomer;
-  @IsNumber() @Min(0) priority!: number;
-}
-
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodAddress = z.object({
   street: z.string().min(1),
@@ -66,7 +56,6 @@ const zodOrder = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const vAddress = v.object({
   street: v.pipe(v.string(), v.minLength(1)),
@@ -85,7 +74,6 @@ const vOrder = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const ajvOrder = ajv.compile({
@@ -115,8 +103,6 @@ const ajvOrder = ajv.compile({
 });
 
 // ── TypeBox ──────────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbOrder = T.Object({
   title: T.String({ minLength: 1 }),
@@ -134,7 +120,6 @@ const tbOrder = T.Object({
 const tbCheck = TypeCompiler.Compile(tbOrder);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkOrder = type({
   title: 'string >= 1',
@@ -154,56 +139,75 @@ const arkOrder = type({
 // Benchmarks
 // ─────────────────────────────────────────────────────────────────────────────
 
-let sink: unknown;
+let sinkNum = 0;
 
 group('nested 3-level — valid input', () => {
   bench('baker', () => {
-    sink = deserialize(BakerOrder, NESTED_VALID);
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvOrder, NESTED_VALID);
-    sink = validateSync(inst);
+    const r = deserialize(BakerOrder, NESTED_VALID);
+    sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {
-    sink = zodOrder.parse(NESTED_VALID);
+    const r = zodOrder.safeParse(NESTED_VALID);
+    sinkNum += r.success ? 1 : r.error.issues.length;
   });
   bench('valibot', () => {
-    sink = v.parse(vOrder, NESTED_VALID);
+    const r = v.safeParse(vOrder, NESTED_VALID);
+    sinkNum += r.success ? 1 : r.issues.length;
   });
   bench('ajv', () => {
-    sink = ajvOrder(NESTED_VALID);
+    const ok = ajvOrder(NESTED_VALID);
+    sinkNum += ok ? 1 : (ajvOrder.errors?.length ?? 0);
   });
   bench('typebox', () => {
-    sink = tbCheck.Check(NESTED_VALID);
+    const ok = tbCheck.Check(NESTED_VALID);
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(NESTED_VALID)) {
+        sinkNum += 1;
+      }
+    }
   });
   bench('arktype', () => {
-    sink = arkOrder(NESTED_VALID);
+    const r = arkOrder(NESTED_VALID);
+    sinkNum += r instanceof type.errors ? r.length : 1;
   });
 });
 
 group('nested 3-level — invalid input', () => {
   bench('baker', () => {
-    sink = deserialize(BakerOrder, NESTED_INVALID);
-  });
-  bench('class-validator', () => {
-    const inst = plainToInstance(CvOrder, NESTED_INVALID);
-    sink = validateSync(inst);
+    const r = deserialize(BakerOrder, NESTED_INVALID);
+    sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {
-    sink = zodOrder.safeParse(NESTED_INVALID);
+    const r = zodOrder.safeParse(NESTED_INVALID);
+    sinkNum += r.success ? 1 : r.error.issues.length;
   });
   bench('valibot', () => {
-    sink = v.safeParse(vOrder, NESTED_INVALID);
+    const r = v.safeParse(vOrder, NESTED_INVALID);
+    sinkNum += r.success ? 1 : r.issues.length;
   });
   bench('ajv', () => {
-    sink = ajvOrder(NESTED_INVALID);
+    const ok = ajvOrder(NESTED_INVALID);
+    sinkNum += ok ? 1 : (ajvOrder.errors?.length ?? 0);
   });
   bench('typebox', () => {
-    sink = tbCheck.Check(NESTED_INVALID);
+    const ok = tbCheck.Check(NESTED_INVALID);
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(NESTED_INVALID)) {
+        sinkNum += 1;
+      }
+    }
   });
   bench('arktype', () => {
-    sink = arkOrder(NESTED_INVALID);
+    const r = arkOrder(NESTED_INVALID);
+    sinkNum += r instanceof type.errors ? r.length : 1;
   });
 });
 
 await run();
+if (sinkNum === -1) {
+  console.log('unreachable', sinkNum);
+}

@@ -1,58 +1,84 @@
 import { bench, group, run } from 'mitata';
-import { Field, deserialize } from '../index';
+
+import { Field, Recipe, deserialize, seal } from '../index';
 import {
-  isNumberString, isISBN, isISIN, isISO8601, isISSN, isFQDN,
-  isEAN, isJSON, isIBAN, isByteLength, isLatitude, isLongitude,
+  isNumberString,
+  isISBN,
+  isISIN,
+  isISO8601,
+  isISSN,
+  isFQDN,
+  isEAN,
+  isJSON,
+  isIBAN,
+  isByteLength,
+  isLatitude,
+  isLongitude,
   isStrongPassword,
 } from '../src/rules/index';
 import { isNotEmptyObject } from '../src/rules/object';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
+@Recipe
 class NumberStringDto {
   @Field(isNumberString()) value!: string;
 }
+@Recipe
 class ISBNDto {
   @Field(isISBN(13)) value!: string;
 }
+@Recipe
 class ISINDto {
   @Field(isISIN) value!: string;
 }
+@Recipe
 class ISO8601StrictDto {
   @Field(isISO8601({ strict: true })) value!: string;
 }
+@Recipe
 class ISSNDto {
   @Field(isISSN()) value!: string;
 }
+@Recipe
 class FQDNDto {
   @Field(isFQDN()) value!: string;
 }
+@Recipe
 class EANDto {
   @Field(isEAN) value!: string;
 }
+@Recipe
 class JSONDto {
   @Field(isJSON) value!: string;
 }
+@Recipe
 class IBANDto {
   @Field(isIBAN()) value!: string;
 }
+@Recipe
 class ByteLengthDto {
   @Field(isByteLength(1, 100)) value!: string;
 }
+@Recipe
 class LatitudeDto {
   @Field(isLatitude) value!: number;
 }
+@Recipe
 class LongitudeDto {
   @Field(isLongitude) value!: number;
 }
+@Recipe
 class StrongPasswordDto {
   @Field(isStrongPassword()) value!: string;
 }
+@Recipe
 class NotEmptyObjDto {
   @Field(isNotEmptyObject({ nullable: true })) value!: object;
 }
 
 // Warm seal
+seal();
 deserialize(NumberStringDto, { value: '123' });
 deserialize(ISBNDto, { value: '9780306406157' });
 deserialize(ISINDto, { value: 'US0378331005' });
@@ -71,20 +97,51 @@ deserialize(NotEmptyObjDto, { value: { a: 1 } });
 let sink: unknown;
 
 group('proof — inline emit validators (previously refs)', () => {
-  bench('isNumberString', () => { sink = deserialize(NumberStringDto, { value: '123' }); });
-  bench('isISBN(13)', () => { sink = deserialize(ISBNDto, { value: '9780306406157' }); });
-  bench('isISIN', () => { sink = deserialize(ISINDto, { value: 'US0378331005' }); });
-  bench('isISO8601(strict)', () => { sink = deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' }); });
-  bench('isISSN', () => { sink = deserialize(ISSNDto, { value: '0378-5955' }); });
-  bench('isFQDN', () => { sink = deserialize(FQDNDto, { value: 'example.com' }); });
-  bench('isEAN', () => { sink = deserialize(EANDto, { value: '73513537' }); });
-  bench('isJSON', () => { sink = deserialize(JSONDto, { value: '{"a":1}' }); });
-  bench('isIBAN', () => { sink = deserialize(IBANDto, { value: 'DE89370400440532013000' }); });
-  bench('isByteLength', () => { sink = deserialize(ByteLengthDto, { value: 'hello' }); });
-  bench('isLatitude', () => { sink = deserialize(LatitudeDto, { value: 45.5 }); });
-  bench('isLongitude', () => { sink = deserialize(LongitudeDto, { value: -122.6 }); });
-  bench('isStrongPassword', () => { sink = deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' }); });
-  bench('isNotEmptyObject(nullable)', () => { sink = deserialize(NotEmptyObjDto, { value: { a: 1 } }); });
+  bench('isNumberString', () => {
+    sink = deserialize(NumberStringDto, { value: '123' });
+  });
+  bench('isISBN(13)', () => {
+    sink = deserialize(ISBNDto, { value: '9780306406157' });
+  });
+  bench('isISIN', () => {
+    sink = deserialize(ISINDto, { value: 'US0378331005' });
+  });
+  bench('isISO8601(strict)', () => {
+    sink = deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
+  });
+  bench('isISSN', () => {
+    sink = deserialize(ISSNDto, { value: '0378-5955' });
+  });
+  bench('isFQDN', () => {
+    sink = deserialize(FQDNDto, { value: 'example.com' });
+  });
+  bench('isEAN', () => {
+    sink = deserialize(EANDto, { value: '73513537' });
+  });
+  bench('isJSON', () => {
+    sink = deserialize(JSONDto, { value: '{"a":1}' });
+  });
+  bench('isIBAN', () => {
+    sink = deserialize(IBANDto, { value: 'DE89370400440532013000' });
+  });
+  bench('isByteLength', () => {
+    sink = deserialize(ByteLengthDto, { value: 'hello' });
+  });
+  bench('isLatitude', () => {
+    sink = deserialize(LatitudeDto, { value: 45.5 });
+  });
+  bench('isLongitude', () => {
+    sink = deserialize(LongitudeDto, { value: -122.6 });
+  });
+  bench('isStrongPassword', () => {
+    sink = deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
+  });
+  bench('isNotEmptyObject(nullable)', () => {
+    sink = deserialize(NotEmptyObjDto, { value: { a: 1 } });
+  });
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

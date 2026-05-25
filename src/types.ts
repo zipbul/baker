@@ -1,3 +1,8 @@
+import type { Result, ResultAsync } from '@zipbul/result';
+
+import type { BakerIssue } from './errors';
+import type { RuntimeOptions } from './interfaces';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // EmitContext — Code generation context (§4.7)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -16,7 +21,7 @@ export interface EmitContext {
   /** Whether this emit runs inside a type gate (typeof/instanceof already verified) */
   insideTypeGate?: boolean;
   /** @internal Path expression for inline nested — used by makeRuleEmitCtx */
-  _pathExpr?: string;
+  pathExpr?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -30,7 +35,7 @@ export interface EmittableRule {
   /**
    * Meta for the builder to determine whether to insert a typeof guard.
    * Only set for rules that assume a specific type (e.g., isEmail → 'string').
-   * @IsString itself is undefined (it includes its own typeof check).
+   * `@IsString` itself is undefined (it includes its own typeof check).
    */
   readonly requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
   /** Expose rule parameters for external reading */
@@ -74,9 +79,9 @@ export interface RuleDef {
   rule: InternalRule;
   each?: boolean;
   groups?: string[];
-  /** Value to include in BakerError.message on validation failure */
+  /** Value to include in BakerIssue.message on validation failure */
   message?: string | ((args: MessageArgs) => string);
-  /** Arbitrary value to include in BakerError.context on validation failure */
+  /** Arbitrary value to include in BakerIssue.context on validation failure */
   context?: unknown;
 }
 
@@ -116,8 +121,11 @@ export interface ExcludeDef {
   serializeOnly?: boolean;
 }
 
+/** Generic class constructor — contravariant `never[]` args accept any user constructor */
+export type ClassCtor<T = object> = new (...args: never[]) => T;
+
 export interface TypeDef {
-  fn: () => (new (...args: any[]) => any) | (new (...args: any[]) => any)[];
+  fn: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
   discriminator?: {
     property: string;
     subTypes: { value: Function; name: string }[];
@@ -126,13 +134,13 @@ export interface TypeDef {
   /** seal() normalization result — true if fn() returns an array */
   isArray?: boolean;
   /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
-  resolvedClass?: new (...args: any[]) => any;
+  resolvedClass?: ClassCtor;
   /** seal() normalization result — Map or Set collection type */
   collection?: 'Map' | 'Set';
   /** Nested DTO class thunk for Map value / Set element */
-  collectionValue?: () => new (...args: any[]) => any;
+  collectionValue?: () => ClassCtor;
   /** seal() normalization result — cached class after resolving collectionValue */
-  resolvedCollectionValue?: new (...args: any[]) => any;
+  resolvedCollectionValue?: ClassCtor;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -140,22 +148,22 @@ export interface TypeDef {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PropertyFlags {
-  /** @IsOptional() — skip all validation when undefined/null */
+  /** `@IsOptional`() — skip all validation when undefined/null */
   isOptional?: boolean;
-  /** @IsDefined() — disallow undefined (overrides @IsOptional). Current code rejects only undefined; null is delegated to subsequent validation */
+  /** `@IsDefined`() — disallow undefined (overrides @IsOptional). Current code rejects only undefined; null is delegated to subsequent validation */
   isDefined?: boolean;
-  /** @IsNullable() — allow and assign null, reject undefined */
+  /** `@IsNullable`() — allow and assign null, reject undefined */
   isNullable?: boolean;
-  /** @ValidateIf(cond) — skip all field validation when false */
-  validateIf?: (obj: Record<string, any>) => boolean;
-  /** @ValidateNested() — trigger recursive validation for nested DTOs. Used with @Type */
+  /** `@ValidateIf`(cond) — skip all field validation when false */
+  validateIf?: (obj: Record<string, unknown>) => boolean;
+  /** `@ValidateNested`() — trigger recursive validation for nested DTOs. Used with @Type */
   validateNested?: boolean;
-  /** @ValidateNested({ each: true }) — validate nested DTOs per array element */
+  /** `@ValidateNested`({ each: true }) — validate nested DTOs per array element */
   validateNestedEach?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// RawPropertyMeta — Collection data stored in Class[RAW][propertyKey] (§2.1)
+// RawPropertyMeta — Collection data stored in Class[Symbol.metadata][RAW][propertyKey] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface RawPropertyMeta {
@@ -175,21 +183,17 @@ export interface RawClassMeta {
 // SealedExecutors — Dual executor stored in Class[SEALED] (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import type { RuntimeOptions } from './interfaces';
-import type { BakerError } from './errors';
-import type { Result, ResultAsync } from '@zipbul/result';
-
 export interface SealedExecutors<T> {
   /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
-  _deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerError[]> | ResultAsync<T, BakerError[]>;
+  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
   /** Internal executor — always succeeds. serialize assumes no validation */
-  _serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
-  /** Internal executor — validate-only (no object creation). Returns null on success, BakerError[] on failure */
-  _validate(input: unknown, options?: RuntimeOptions): BakerError[] | null | Promise<BakerError[] | null>;
+  serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
+  /** Internal executor — validate-only (no object creation). Returns null on success, BakerIssue[] on failure */
+  validate(input: unknown, options?: RuntimeOptions): BakerIssue[] | null | Promise<BakerIssue[] | null>;
   /** true if the deserialize direction has async rules/transforms/nested */
-  _isAsync: boolean;
+  isAsync: boolean;
   /** true if the serialize direction has async transforms/nested */
-  _isSerializeAsync: boolean;
+  isSerializeAsync: boolean;
   /** Merged metadata cache — used internally by unseal helper */
-  _merged?: RawClassMeta;
+  merged?: RawClassMeta;
 }

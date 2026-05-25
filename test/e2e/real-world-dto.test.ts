@@ -1,16 +1,31 @@
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+
+import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
 import {
-  deserialize, serialize, isBakerError,
-  Field,
-} from '../../index';
-import {
-  isString, isNumber, isBoolean, isEmail, isEnum,
-  min, max, minLength, maxLength, arrayMinSize,
+  isString,
+  isNumber,
+  isBoolean,
+  isEmail,
+  isEnum,
+  min,
+  max,
+  minLength,
+  maxLength,
+  arrayMinSize,
 } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
+afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-enum Role { Admin = 'admin', User = 'user', Guest = 'guest' }
+enum Role {
+  Admin = 'admin',
+  User = 'user',
+  Guest = 'guest',
+}
 
+@Recipe
 class AddressDto {
   @Field(isString, minLength(1))
   city!: string;
@@ -22,6 +37,7 @@ class AddressDto {
   zipCode?: string;
 }
 
+@Recipe
 class CreateUserDto {
   @Field(isString, minLength(2), maxLength(50), { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
@@ -50,7 +66,12 @@ class CreateUserDto {
   @Field(isString, { exclude: 'serializeOnly' })
   password!: string;
 
-  @Field(isString, { transform: { deserialize: ({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value, serialize: ({ value }) => value } })
+  @Field(isString, {
+    transform: {
+      deserialize: ({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value),
+      serialize: ({ value }) => value,
+    },
+  })
   tag!: string;
 }
 
@@ -70,7 +91,7 @@ const validInput = {
 
 describe('CreateUserDto — deserialization', () => {
   it('valid input → all fields pass', async () => {
-    const user = await deserialize(CreateUserDto, validInput) as CreateUserDto;
+    const user = (await deserialize(CreateUserDto, validInput)) as CreateUserDto;
     expect(user).toBeInstanceOf(CreateUserDto);
     expect(user.name).toBe('Alice Kim');
     expect(user.email).toBe('alice@example.com');
@@ -85,44 +106,44 @@ describe('CreateUserDto — deserialization', () => {
   });
 
   it('passes without optional fields', async () => {
-    const input = { ...validInput };
-    delete (input as any).active;
-    delete (input as any).addresses;
-    const user = await deserialize(CreateUserDto, input) as CreateUserDto;
+    const input: Record<string, unknown> = { ...validInput };
+    delete input['active'];
+    delete input['addresses'];
+    const user = (await deserialize(CreateUserDto, input)) as CreateUserDto;
     expect(user.active).toBeUndefined();
   });
 
   it('nullable → null allowed', async () => {
-    const user = await deserialize(CreateUserDto, validInput) as CreateUserDto;
+    const user = (await deserialize(CreateUserDto, validInput)) as CreateUserDto;
     expect(user.bio).toBeNull();
   });
 });
 
 describe('CreateUserDto — validation failure', () => {
   it('name too short', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, user_name: 'A' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, user_name: 'A' }))).toBe(true);
   });
 
   it('invalid email', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, email: 'not-email' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, email: 'not-email' }))).toBe(true);
   });
 
   it('age out of range', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, age: 200 }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, age: 200 }))).toBe(true);
   });
 
   it('invalid enum value', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, role: 'superadmin' }))).toBe(true);
   });
 
   it('nested DTO validation failure', async () => {
-    expect(isBakerError(await deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
   });
 });
 
 describe('CreateUserDto — serialization', () => {
   it('serialize → direction-specific keys, @Exclude serializeOnly', async () => {
-    const dto = await deserialize(CreateUserDto, validInput) as CreateUserDto;
+    const dto = (await deserialize(CreateUserDto, validInput)) as CreateUserDto;
     const plain = await serialize(dto);
     // serializeOnly @Expose → userName
     expect(plain['userName']).toBe('Alice Kim');
@@ -136,4 +157,3 @@ describe('CreateUserDto — serialization', () => {
     expect(plain['role']).toBe('admin');
   });
 });
-

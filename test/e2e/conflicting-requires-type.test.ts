@@ -1,8 +1,11 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize } from '../../index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
+import { Field, Recipe, deserialize, seal } from '../../index';
 import { isString } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,17 +14,21 @@ afterEach(() => unseal());
 
 describe('auto-nested via @Type', () => {
   it('@Field({ type }) alone triggers nested validation without @ValidateNested', async () => {
+    @Recipe
     class Inner {
       @Field(isString)
       label!: string;
     }
+    sealClass(Inner);
 
+    @Recipe
     class Outer {
       @Field({ type: () => Inner })
       child!: Inner;
     }
+    sealClass(Outer);
 
-    const result = await deserialize<Outer>(Outer, { child: { label: 'hello' } }) as Outer;
+    const result = (await deserialize<Outer>(Outer, { child: { label: 'hello' } })) as Outer;
     expect(result.child).toBeInstanceOf(Inner);
     expect(result.child.label).toBe('hello');
   });

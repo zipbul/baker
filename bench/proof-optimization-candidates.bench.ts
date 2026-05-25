@@ -1,17 +1,21 @@
 import { bench, group, run } from 'mitata';
-import { Field, deserialize, serialize } from '../index';
+
+import { Field, Recipe, deserialize, serialize, seal } from '../index';
 import { isString, minLength } from '../src/rules/index';
 
+@Recipe
 class PlainDto {
   @Field(isString, minLength(1))
   value!: string;
 }
 
+@Recipe
 class GroupDto {
   @Field(isString, minLength(1), { groups: ['admin'] })
   value!: string;
 }
 
+@Recipe
 class OneTransformDto {
   @Field(isString, {
     transform: {
@@ -22,6 +26,7 @@ class OneTransformDto {
   value!: string;
 }
 
+@Recipe
 class TwoTransformDto {
   @Field(isString, {
     transform: [
@@ -32,6 +37,7 @@ class TwoTransformDto {
   value!: string;
 }
 
+seal();
 deserialize(PlainDto, { value: 'x' });
 deserialize(GroupDto, { value: 'x' }, { groups: ['admin'] });
 deserialize(OneTransformDto, { value: 'x' });
@@ -69,3 +75,6 @@ group('proof — optimization candidates', () => {
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

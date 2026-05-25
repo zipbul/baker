@@ -1,22 +1,24 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import {
-  Field, arrayOf, deserialize, isBakerError,
-} from '../../index';
-import { isString, isNumber, isInt, min, minLength, arrayMinSize } from '../../src/rules/index';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
+import { Field, Recipe, arrayOf, deserialize, seal } from '../../index';
+import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
-/** Helper: extracts errors array from BakerErrors */
-async function getErrors(cls: new (...args: any[]) => any, input: unknown) {
+/** Helper: extracts errors array from BakerIssueSet */
+async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
   const result = await deserialize(cls, input);
-  if (!isBakerError(result)) throw new Error('expected validation failure');
+  assertBakerIssueSet(result);
   return [...result.errors];
 }
 
 // ─── basic field paths ─────────────────────────────────────────────────────
 
 describe('single field error paths', () => {
+  @Recipe
   class Dto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
@@ -39,11 +41,13 @@ describe('single field error paths', () => {
 // ─── nested object error paths ──────────────────────────────────────────────
 
 describe('nested object error paths', () => {
+  @Recipe
   class Address {
     @Field(isString) city!: string;
     @Field(isString) street!: string;
   }
 
+  @Recipe
   class UserDto {
     @Field(isString) name!: string;
     @Field({ type: () => Address }) address!: Address;
@@ -74,9 +78,18 @@ describe('nested object error paths', () => {
 // ─── deep nesting (3 levels) ────────────────────────────────────────────────
 
 describe('deep nesting error paths (3 levels)', () => {
-  class Zip { @Field(isString) code!: string; }
-  class City { @Field({ type: () => Zip }) zip!: Zip; }
-  class Company { @Field({ type: () => City }) city!: City; }
+  @Recipe
+  class Zip {
+    @Field(isString) code!: string;
+  }
+  @Recipe
+  class City {
+    @Field({ type: () => Zip }) zip!: Zip;
+  }
+  @Recipe
+  class Company {
+    @Field({ type: () => City }) city!: City;
+  }
 
   it('path = "city.zip.code"', async () => {
     const errors = await getErrors(Company, { city: { zip: { code: 999 } } });
@@ -89,6 +102,7 @@ describe('deep nesting error paths (3 levels)', () => {
 // ─── array each:true error paths ─────────────────────────────────────────────
 
 describe('array each:true error paths', () => {
+  @Recipe
   class TagsDto {
     @Field(arrayOf(isString)) tags!: string[];
   }
@@ -111,11 +125,13 @@ describe('array each:true error paths', () => {
 // ─── nested array error paths ────────────────────────────────────────────────
 
 describe('nested array error paths', () => {
+  @Recipe
   class Item {
     @Field(isString) label!: string;
     @Field(isNumber()) price!: number;
   }
 
+  @Recipe
   class OrderDto {
     @Field(arrayMinSize(1), { type: () => [Item] })
     items!: Item[];
@@ -153,6 +169,7 @@ describe('nested array error paths', () => {
 // ─── multiple errors per field ──────────────────────────────────────────────
 
 describe('multiple errors per field (collectErrors mode)', () => {
+  @Recipe
   class MultiDto {
     @Field(isInt, min(10))
     v!: number;
@@ -168,16 +185,17 @@ describe('multiple errors per field (collectErrors mode)', () => {
   });
 });
 
-// ─── error paths — BakerErrors ──────────────────────────────────────────────
+// ─── error paths — BakerIssueSet ──────────────────────────────────────────────
 
-describe('BakerErrors from deserialize', () => {
-  class UserProfile { @Field(isString) name!: string; }
+describe('BakerIssueSet from deserialize', () => {
+  @Recipe
+  class UserProfile {
+    @Field(isString) name!: string;
+  }
 
-  it('errors array accessible via isBakerError', async () => {
+  it('errors array accessible via isBakerIssueSet', async () => {
     const result = await deserialize(UserProfile, { name: 123 });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      expect(result.errors.length).toBeGreaterThanOrEqual(1);
-    }
+    assertBakerIssueSet(result);
+    expect(result.errors.length).toBeGreaterThanOrEqual(1);
   });
 });

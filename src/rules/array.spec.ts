@@ -1,17 +1,12 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  arrayContains,
-  arrayNotContains,
-  arrayMinSize,
-  arrayMaxSize,
-  arrayUnique,
-  arrayNotEmpty,
-} from './array';
+
+import { arrayContains, arrayNotContains, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty } from './array';
 
 function makeCtx(refIndex: number = 0) {
-  const addRefMock = mock((fn: Function) => refIndex++);
-  const addRegexMock = mock((re: RegExp) => refIndex++);
+  const addRefMock = mock((_fn: Function) => refIndex++);
+  const addRegexMock = mock((_re: RegExp) => refIndex++);
   const failMock = mock((code: string) => `throw new Error('${code}')`);
   const ctx: EmitContext = {
     addRegex: addRegexMock,
@@ -46,7 +41,7 @@ describe('arrayContains', () => {
 
   it('should call ctx.addRef and generate includes check code when calling emit()', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = arrayContains(['a', 'b']).emit('_v', ctx);
+    const code = arrayContains(['a', 'b']).emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('arrayContains');
@@ -76,7 +71,7 @@ describe('arrayNotContains', () => {
 
   it('should call ctx.addRef and generate inverse includes check code when calling emit()', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = arrayNotContains(['x']).emit('_v', ctx);
+    const code = arrayNotContains(['x']).emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('arrayNotContains');
@@ -110,8 +105,8 @@ describe('arrayMinSize', () => {
 
   it('should generate length >= n check code when calling emit() and have ruleName arrayMinSize', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = arrayMinSize(3).emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = arrayMinSize(3).emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(code).toContain('3');
     expect(failMock).toHaveBeenCalledWith('arrayMinSize');
     expect(arrayMinSize(3).ruleName).toBe('arrayMinSize');
@@ -144,8 +139,8 @@ describe('arrayMaxSize', () => {
 
   it('should generate length > n check code when calling emit() and have ruleName arrayMaxSize', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = arrayMaxSize(3).emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = arrayMaxSize(3).emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(code).toContain('3');
     expect(failMock).toHaveBeenCalledWith('arrayMaxSize');
     expect(arrayMaxSize(3).ruleName).toBe('arrayMaxSize');
@@ -184,7 +179,7 @@ describe('arrayUnique', () => {
 
   it('should generate code and have ruleName arrayUnique when calling emit()', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = arrayUnique().emit('_v', ctx);
+    const code = arrayUnique().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('arrayUnique');
     expect(arrayUnique().ruleName).toBe('arrayUnique');
@@ -193,9 +188,9 @@ describe('arrayUnique', () => {
   it('should generate identifier-map code when emit() is called with an identifier function', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
     const byId = (v: unknown) => (v as { id: number }).id;
-    const code = arrayUnique(byId).emit('_v', ctx);
+    const code = arrayUnique(byId).emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledWith(byId);
-    expect(code).toContain('_v.map(');
+    expect(code).toContain('v.map(');
     expect(code).toContain('Set');
     expect(failMock).toHaveBeenCalledWith('arrayUnique');
   });
@@ -219,8 +214,8 @@ describe('arrayNotEmpty', () => {
 
   it('should generate length > 0 check code when calling emit() and have ruleName arrayNotEmpty', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = arrayNotEmpty.emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = arrayNotEmpty.emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(failMock).toHaveBeenCalledWith('arrayNotEmpty');
     expect(arrayNotEmpty.ruleName).toBe('arrayNotEmpty');
   });

@@ -3,9 +3,13 @@
   "compilerOptions": {
     "noEmit": false,
     "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "dist"
+    "emitDeclarationOnly": false,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "rootDir": ".",
+    "allowImportingTsExtensions": false
   },
   "include": ["index.ts", "src/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/*.test.ts", "test"]
+  "exclude": ["**/*.spec.ts", "**/*.test.ts", "test", "bench"]
 }

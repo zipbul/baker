@@ -1,14 +1,18 @@
-import { describe, it, expect, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError } from '../../index';
-import { isString, isNumber, minLength } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
-import { SEALED } from '../../src/symbols';
+import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+
 import type { SealedExecutors } from '../../src/types';
 
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { getSealed } from '../../src/meta-access';
+import { isString, isNumber } from '../../src/rules/index';
+import { unseal } from '../integration/helpers/unseal';
+
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 // ─── sync DTO (no async transform) ──────────────────────────────────────────
 
+@Recipe
 class SyncDto {
   @Field(isString)
   name!: string;
@@ -19,10 +23,11 @@ class SyncDto {
 
 // ─── async DTO (has async transform) ────────────────────────────────────────
 
+@Recipe
 class AsyncDto {
   @Field(isString, {
     transform: {
-      deserialize: async ({ value }) => typeof value === 'string' ? value.trim() : value,
+      deserialize: async ({ value }) => (typeof value === 'string' ? value.trim() : value),
       serialize: ({ value }) => value,
     },
   })
@@ -32,16 +37,16 @@ class AsyncDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('dual sync/async API — deserialize', () => {
-  it('sync DTO has _isAsync = false', async () => {
+  it('sync DTO has isAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
-    expect(sealed._isAsync).toBe(false);
+    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
+    expect(sealed.isAsync).toBe(false);
   });
 
-  it('async DTO has _isAsync = true', async () => {
+  it('async DTO has isAsync = true', async () => {
     await deserialize(AsyncDto, { name: 'Bob' });
-    const sealed = (AsyncDto as any)[SEALED] as SealedExecutors<AsyncDto>;
-    expect(sealed._isAsync).toBe(true);
+    const sealed = getSealed(AsyncDto) as SealedExecutors<AsyncDto>;
+    expect(sealed.isAsync).toBe(true);
   });
 
   it('sync DTO deserialize returns direct value', () => {
@@ -50,27 +55,27 @@ describe('dual sync/async API — deserialize', () => {
   });
 
   it('sync DTO deserialize succeeds', async () => {
-    const result = await deserialize(SyncDto, { name: 'Alice', age: 30 }) as SyncDto;
+    const result = (await deserialize(SyncDto, { name: 'Alice', age: 30 })) as SyncDto;
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(30);
   });
 
   it('sync DTO validation failure → rejected promise', async () => {
     const result = await deserialize(SyncDto, { name: 123, age: 'bad' });
-    expect(isBakerError(result)).toBe(true);
+    expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('async DTO deserialize succeeds', async () => {
-    const result = await deserialize(AsyncDto, { name: '  trimmed  ' }) as AsyncDto;
+    const result = (await deserialize(AsyncDto, { name: '  trimmed  ' })) as AsyncDto;
     expect(result.name).toBe('trimmed');
   });
 });
 
 describe('dual sync/async API — serialize', () => {
-  it('sync DTO has _isSerializeAsync = false', async () => {
+  it('sync DTO has isSerializeAsync = false', async () => {
     await deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = (SyncDto as any)[SEALED] as SealedExecutors<SyncDto>;
-    expect(sealed._isSerializeAsync).toBe(false);
+    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
+    expect(sealed.isSerializeAsync).toBe(false);
   });
 
   it('sync DTO serialize succeeds', async () => {

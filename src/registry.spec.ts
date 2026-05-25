@@ -1,4 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
+
 import { globalRegistry } from './registry';
 
 describe('globalRegistry', () => {
@@ -65,4 +66,3 @@ describe('globalRegistry', () => {
     expect(idx(B)).toBeLessThan(idx(C));
   });
 });
-

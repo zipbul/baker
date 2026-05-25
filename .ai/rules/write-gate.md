@@ -76,8 +76,8 @@ Halt immediately when:
 
 ## Prohibited Actions
 
-| Code | Prohibited | Reason |
-| --- | --- | --- |
-| F2 | Trusting stale results | May differ from current files |
-| F3 | Public API change without impact analysis | Downstream breakage |
-| F4 | Ignoring integrity violations | Compounds problems |
+| Code | Prohibited                                | Reason                        |
+| ---- | ----------------------------------------- | ----------------------------- |
+| F2   | Trusting stale results                    | May differ from current files |
+| F3   | Public API change without impact analysis | Downstream breakage           |
+| F4   | Ignoring integrity violations             | Compounds problems            |

@@ -2,10 +2,10 @@
 
 ## Layers
 
-| Layer | Pattern | Location | SUT Boundary |
-|-------|---------|----------|--------------|
-| Unit | `*.spec.ts` | Colocated with source | Single export (function/class) |
-| Integration | `*.test.ts` | `test/` | Cross-module combination |
+| Layer       | Pattern     | Location              | SUT Boundary                   |
+| ----------- | ----------- | --------------------- | ------------------------------ |
+| Unit        | `*.spec.ts` | Colocated with source | Single export (function/class) |
+| Integration | `*.test.ts` | `test/`               | Cross-module combination       |
 
 ```
 Rule: TST-LAYER
@@ -20,13 +20,13 @@ Enforcement: block
 All test doubles MUST use `bun:test` APIs.
 Hand-rolled counter variables or manual tracking objects are **prohibited** as substitutes for spy/mock.
 
-| Type | Purpose | When to use | bun:test API |
-|------|---------|-------------|--------------|
-| Dummy | Fill parameter slots; never called | Unused required arguments | `{} as Type` or `undefined as any` |
-| Stub | Return fixed values; no call tracking | Control return values of external deps | `mock(() => value)` |
-| Spy | Record calls + preserve real behavior | Verify side-effect calls (count, args, order) | `spyOn(obj, 'method')` |
-| Mock | Record calls + replace behavior | Replace external dependency entirely | `mock(() => fake)` with `.toHaveBeenCalled*` |
-| Fixture | Reusable test data / state setup | Shared input across multiple `it` blocks | Factory function (no API needed) |
+| Type    | Purpose                               | When to use                                   | bun:test API                                 |
+| ------- | ------------------------------------- | --------------------------------------------- | -------------------------------------------- |
+| Dummy   | Fill parameter slots; never called    | Unused required arguments                     | `{} as Type` or `undefined as any`           |
+| Stub    | Return fixed values; no call tracking | Control return values of external deps        | `mock(() => value)`                          |
+| Spy     | Record calls + preserve real behavior | Verify side-effect calls (count, args, order) | `spyOn(obj, 'method')`                       |
+| Mock    | Record calls + replace behavior       | Replace external dependency entirely          | `mock(() => fake)` with `.toHaveBeenCalled*` |
+| Fixture | Reusable test data / state setup      | Shared input across multiple `it` blocks      | Factory function (no API needed)             |
 
 ```
 Rule: TST-DOUBLE-TYPE
@@ -41,6 +41,7 @@ Direct property assignment (`=`) on global/singleton objects to replace behavior
 Always use `spyOn(obj, 'method').mockImplementation(...)` instead.
 
 Examples of prohibited patterns:
+
 - `(process as any).kill = fakeKill`
 - `(globalThis as any).fetch = fakeFetch`
 - `console.log = () => {}`
@@ -77,24 +78,24 @@ Enforcement: block
 
 SUT = single export (function / class).
 
-| Aspect | Rule |
-|--------|------|
-| External dependencies | **ALL** replaced with test doubles — no exceptions |
-| DTO / Value Objects | May use real implementations (pure data, no side-effects) |
+| Aspect                                   | Rule                                                                                                                  |
+| ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| External dependencies                    | **ALL** replaced with test doubles — no exceptions                                                                    |
+| DTO / Value Objects                      | May use real implementations (pure data, no side-effects)                                                             |
 | I/O (filesystem, network, timer, random) | **Absolutely prohibited** in real form. Must be test-doubled. Temporary directories with cleanup = still a violation. |
-| Side-effect calls | Verified via `spyOn()` or `mock()` — call count, arguments, call order |
-| Module-level imports | Use `mock.module()` when DI is not available |
+| Side-effect calls                        | Verified via `spyOn()` or `mock()` — call count, arguments, call order                                                |
+| Module-level imports                     | Use `mock.module()` when DI is not available                                                                          |
 
 ### Integration Test Isolation (`*.test.ts`)
 
 SUT = cross-module combination.
 
-| Aspect | Rule |
-|--------|------|
-| Inside SUT boundary | **Real implementations** — including real I/O between modules |
-| Outside SUT boundary | **ALL** replaced with test doubles |
-| External services (API, DB, third-party) | Always test-doubled, even if "inside" the project directory |
-| Side-effect calls on outside deps | Verified via `spyOn()` or `mock()` |
+| Aspect                                   | Rule                                                          |
+| ---------------------------------------- | ------------------------------------------------------------- |
+| Inside SUT boundary                      | **Real implementations** — including real I/O between modules |
+| Outside SUT boundary                     | **ALL** replaced with test doubles                            |
+| External services (API, DB, third-party) | Always test-doubled, even if "inside" the project directory   |
+| Side-effect calls on outside deps        | Verified via `spyOn()` or `mock()`                            |
 
 ```
 Rule: TST-ISOLATION
@@ -148,16 +149,16 @@ This is a **hard gate** — skipping this step prohibits all subsequent test aut
 For every module/function under test, use `sequential-thinking` MCP to enumerate
 scenarios across all 8 categories below.
 
-| # | Category | Description |
-|---|----------|-------------|
-| 1 | Happy Path | Valid inputs producing expected outputs; primary use cases |
-| 2 | Negative / Error | Invalid inputs, error paths, expected exceptions |
-| 3 | Edge | Single boundary condition: empty, zero, one, max, min |
-| 4 | Corner | Two or more boundary conditions occurring simultaneously |
-| 5 | State Transition | Lifecycle changes, reuse after close/dispose, re-initialization |
-| 6 | Concurrency / Race | Simultaneous access, ordering races, timing sensitivity |
-| 7 | Idempotency | Repeated identical operations must yield identical results |
-| 8 | Ordering | Input/execution order affecting outcomes |
+| #   | Category           | Description                                                     |
+| --- | ------------------ | --------------------------------------------------------------- |
+| 1   | Happy Path         | Valid inputs producing expected outputs; primary use cases      |
+| 2   | Negative / Error   | Invalid inputs, error paths, expected exceptions                |
+| 3   | Edge               | Single boundary condition: empty, zero, one, max, min           |
+| 4   | Corner             | Two or more boundary conditions occurring simultaneously        |
+| 5   | State Transition   | Lifecycle changes, reuse after close/dispose, re-initialization |
+| 6   | Concurrency / Race | Simultaneous access, ordering races, timing sensitivity         |
+| 7   | Idempotency        | Repeated identical operations must yield identical results      |
+| 8   | Ordering           | Input/execution order affecting outcomes                        |
 
 ##### Minimum scenario count — branch-count scaling
 
@@ -165,10 +166,10 @@ Count all branches in the SUT (if, else, switch/case, early return, throw, catch
 ternary `? :`, optional chaining `?.`, nullish coalescing `??`), then apply:
 
 | SUT branch count | Minimum scenarios per applicable category |
-|:-:|:-:|
-| 0 – 2 | 10 |
-| 3 – 5 | 25 |
-| 6 + | 50 |
+| :--------------: | :---------------------------------------: |
+|      0 – 2       |                    10                     |
+|      3 – 5       |                    25                     |
+|       6 +        |                    50                     |
 
 **Hard constraints — no exceptions:**
 
@@ -334,14 +335,14 @@ For each SUT parameter, identify equivalence classes and test one representative
 
 Required cases by type:
 
-| Parameter Type | Required it |
-|---------------|-------------|
-| nullable (`T \| null \| undefined`) | null input, undefined input |
-| array (`T[]`) | empty array, single element, multiple elements |
-| string | empty string |
-| number | 0, negative (if applicable) |
-| union / enum | at least 1 per variant |
-| boolean | true, false |
+| Parameter Type                      | Required it                                    |
+| ----------------------------------- | ---------------------------------------------- |
+| nullable (`T \| null \| undefined`) | null input, undefined input                    |
+| array (`T[]`)                       | empty array, single element, multiple elements |
+| string                              | empty string                                   |
+| number                              | 0, negative (if applicable)                    |
+| union / enum                        | at least 1 per variant                         |
+| boolean                             | true, false                                    |
 
 **Class hierarchy consistency:**
 When SUT is a class hierarchy (`extends`), if the base class test covers N equivalence classes

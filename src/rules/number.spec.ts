@@ -1,12 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  min,
-  max,
-  isPositive,
-  isNegative,
-  isDivisibleBy,
-} from './number';
+
+import { min, max, isPositive, isNegative, isDivisibleBy } from './number';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
@@ -57,9 +53,9 @@ describe('min', () => {
     const rule = min(10);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v < 10');
+    expect(code).toContain('v < 10');
     expect(failMock).toHaveBeenCalledWith('min');
   });
 
@@ -74,7 +70,7 @@ describe('min', () => {
     // Arrange
     const rule = min(0);
     // Act / Assert
-    expect((rule as any).requiresType).toBe('number');
+    expect(rule.requiresType).toBe('number');
   });
 
   it('exclusive: value > n (boundary excluded)', () => {
@@ -87,8 +83,8 @@ describe('min', () => {
   it('exclusive: emit generates v <= n check', () => {
     const rule = min(10, { exclusive: true });
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v <= 10');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v <= 10');
     expect(failMock).toHaveBeenCalledWith('min');
   });
 
@@ -139,9 +135,9 @@ describe('max', () => {
     const rule = max(10);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v > 10');
+    expect(code).toContain('v > 10');
     expect(failMock).toHaveBeenCalledWith('max');
   });
 
@@ -156,7 +152,7 @@ describe('max', () => {
     // Arrange
     const rule = max(10);
     // Act / Assert
-    expect((rule as any).requiresType).toBe('number');
+    expect(rule.requiresType).toBe('number');
   });
 
   it('exclusive: value < n (boundary excluded)', () => {
@@ -169,8 +165,8 @@ describe('max', () => {
   it('exclusive: emit generates v >= n check', () => {
     const rule = max(10, { exclusive: true });
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v >= 10');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v >= 10');
     expect(failMock).toHaveBeenCalledWith('max');
   });
 
@@ -207,12 +203,12 @@ describe('isPositive', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isPositive.emit('_v', ctx);
+    const code = isPositive.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v <= 0');
+    expect(code).toContain('v <= 0');
     expect(failMock).toHaveBeenCalledWith('isPositive');
     expect(isPositive.ruleName).toBe('isPositive');
-    expect((isPositive as any).requiresType).toBe('number');
+    expect(isPositive.requiresType).toBe('number');
   });
 });
 
@@ -243,12 +239,12 @@ describe('isNegative', () => {
     // Arrange
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = isNegative.emit('_v', ctx);
+    const code = isNegative.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v >= 0');
+    expect(code).toContain('v >= 0');
     expect(failMock).toHaveBeenCalledWith('isNegative');
     expect(isNegative.ruleName).toBe('isNegative');
-    expect((isNegative as any).requiresType).toBe('number');
+    expect(isNegative.requiresType).toBe('number');
   });
 });
 
@@ -295,9 +291,9 @@ describe('isDivisibleBy', () => {
     const rule = isDivisibleBy(4);
     const { ctx, failMock } = makeCtx();
     // Act
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     // Assert
-    expect(code).toContain('_v % 4');
+    expect(code).toContain('v % 4');
     expect(code).toContain('!== 0');
     expect(failMock).toHaveBeenCalledWith('isDivisibleBy');
   });
@@ -313,7 +309,7 @@ describe('isDivisibleBy', () => {
     // Arrange
     const rule = isDivisibleBy(2);
     // Act / Assert
-    expect((rule as any).requiresType).toBe('number');
+    expect(rule.requiresType).toBe('number');
   });
 
   it('should return independent rule objects on multiple factory calls', () => {

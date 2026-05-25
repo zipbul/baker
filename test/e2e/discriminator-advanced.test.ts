@@ -1,24 +1,31 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { Field, deserialize, serialize, isBakerError } from '../../index';
-import type { BakerErrors } from '../../index';
+
+import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
+beforeEach(() => {
+  unseal();
+  seal();
+});
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
+@Recipe
 class OwnerDto {
   @Field(isString)
   name!: string;
@@ -36,6 +43,7 @@ class OwnerDto {
   pet!: DogDto | CatDto;
 }
 
+@Recipe
 class OwnerKeepDiscDto {
   @Field({
     type: () => DogDto,
@@ -59,34 +67,32 @@ describe('discriminator — invalidDiscriminator', () => {
       name: 'Alice',
       pet: { type: 'fish', scales: true },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(e => e.code === 'invalidDiscriminator');
-      expect(err).toBeDefined();
-    }
+    assertBakerIssueSet(result);
+    const err = result.errors.find(e => e.code === 'invalidDiscriminator');
+    expect(err).toBeDefined();
   });
 
   it('discriminator property missing → error', async () => {
-    expect(isBakerError(await deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }))).toBe(true);
+    expect(isBakerIssueSet(await deserialize(OwnerDto, { name: 'Bob', pet: { breed: 'Shiba' } }))).toBe(true);
   });
 });
 
 describe('discriminator — keepDiscriminatorProperty', () => {
   it('keepDiscriminatorProperty: true → discriminator field retained in result', async () => {
-    const result = await deserialize(OwnerKeepDiscDto, {
+    const result = (await deserialize(OwnerKeepDiscDto, {
       pet: { kind: 'dog', breed: 'Poodle' },
-    }) as OwnerKeepDiscDto;
+    })) as OwnerKeepDiscDto;
     expect(result.pet).toBeInstanceOf(DogDto);
     expect((result.pet as DogDto).breed).toBe('Poodle');
-    expect((result.pet as any).kind).toBe('dog');
+    expect((result.pet as DogDto & { kind?: string }).kind).toBe('dog');
   });
 
   it('keepDiscriminatorProperty not set → discriminator field absent from result', async () => {
-    const result = await deserialize(OwnerDto, {
+    const result = (await deserialize(OwnerDto, {
       name: 'Carol',
       pet: { type: 'cat', indoor: true },
-    }) as OwnerDto;
-    expect((result.pet as any).type).toBeUndefined();
+    })) as OwnerDto;
+    expect((result.pet as object & { type?: unknown }).type).toBeUndefined();
   });
 });
 
@@ -94,6 +100,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
 // discriminator serialize — single & array (covers serialize-builder C-8 instanceof chain)
 // ─────────────────────────────────────────────────────────────────────────────
 
+@Recipe
 class OwnerArrayDto {
   @Field(isString)
   name!: string;
@@ -134,26 +141,31 @@ describe('discriminator — serialize', () => {
 // ─── E-23: 2 discriminator fields in same DTO ──────────────────────────────
 
 describe('E-23: 2 discriminator fields in same DTO', () => {
+  @Recipe
   class CreditCardPayment {
     @Field(isString)
     cardNumber!: string;
   }
 
+  @Recipe
   class BankTransferPayment {
     @Field(isString)
     bankCode!: string;
   }
 
+  @Recipe
   class DomesticAddress {
     @Field(isString)
     city!: string;
   }
 
+  @Recipe
   class InternationalAddress {
     @Field(isString)
     country!: string;
   }
 
+  @Recipe
   class OrderDto {
     @Field(isString)
     orderId!: string;
@@ -184,11 +196,11 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   }
 
   it('both discriminator fields deserialize correctly', async () => {
-    const r = await deserialize(OrderDto, {
+    const r = (await deserialize(OrderDto, {
       orderId: 'ORD-1',
       payment: { type: 'creditcard', cardNumber: '4111111111111111' },
       address: { kind: 'domestic', city: 'Seoul' },
-    }) as OrderDto;
+    })) as OrderDto;
     expect(r.payment).toBeInstanceOf(CreditCardPayment);
     expect((r.payment as CreditCardPayment).cardNumber).toBe('4111111111111111');
     expect(r.address).toBeInstanceOf(DomesticAddress);
@@ -196,11 +208,11 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
   });
 
   it('second combination: bank + international', async () => {
-    const r = await deserialize(OrderDto, {
+    const r = (await deserialize(OrderDto, {
       orderId: 'ORD-2',
       payment: { type: 'bank', bankCode: 'SWIFT123' },
       address: { kind: 'international', country: 'US' },
-    }) as OrderDto;
+    })) as OrderDto;
     expect(r.payment).toBeInstanceOf(BankTransferPayment);
     expect(r.address).toBeInstanceOf(InternationalAddress);
   });
@@ -211,12 +223,10 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
       payment: { type: 'crypto', hash: 'abc' },
       address: { kind: 'domestic', city: 'Seoul' },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(x => x.code === 'invalidDiscriminator');
-      expect(err).toBeDefined();
-      expect(err!.path).toContain('payment');
-    }
+    assertBakerIssueSet(result);
+    const err = result.errors.find(x => x.code === 'invalidDiscriminator');
+    expect(err).toBeDefined();
+    expect(err!.path).toContain('payment');
   });
 
   it('address invalid discriminator → error path on address', async () => {
@@ -225,11 +235,101 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
       payment: { type: 'creditcard', cardNumber: '4111111111111111' },
       address: { kind: 'alien', planet: 'Mars' },
     });
-    expect(isBakerError(result)).toBe(true);
-    if (isBakerError(result)) {
-      const err = result.errors.find(x => x.code === 'invalidDiscriminator');
-      expect(err).toBeDefined();
-      expect(err!.path).toContain('address');
+    assertBakerIssueSet(result);
+    const err = result.errors.find(x => x.code === 'invalidDiscriminator');
+    expect(err).toBeDefined();
+    expect(err!.path).toContain('address');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Discriminator default branch — context: { received, validSubTypes }
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('discriminator default branch — context payload', () => {
+  it('validate() on unknown discriminator value includes received + validSubTypes', async () => {
+    const { validate, configure } = await import('../../index');
+    @Recipe
+    class CatV {
+      @Field(isString) kind!: string;
+      @Field(isString) meow!: string;
     }
+    @Recipe
+    class DogV {
+      @Field(isString) kind!: string;
+      @Field(isString) bark!: string;
+    }
+    @Recipe
+    class OwnerV {
+      @Field({
+        type: () => CatV,
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: CatV, name: 'cat' },
+            { value: DogV, name: 'dog' },
+          ],
+        },
+      })
+      pet!: CatV | DogV;
+    }
+    unseal();
+    configure({ stopAtFirstError: true });
+    seal();
+    const r = await validate(OwnerV, { pet: { kind: 'bird' } });
+    assertBakerIssueSet(r);
+    const err = r.errors.find((e: { code: string }) => e.code === 'invalidDiscriminator');
+    expect((err as { context?: unknown })?.context).toMatchObject({ received: 'bird', validSubTypes: ['cat', 'dog'] });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// async serialize: discriminator array (each)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('async serialize: discriminator + array (each)', () => {
+  it('serializes an array of polymorphic DTOs in async DTO context', async () => {
+    @Recipe
+    class CatA {
+      @Field(isString) kind!: string;
+      @Field(isString) meow!: string;
+    }
+    @Recipe
+    class DogA {
+      @Field(isString) kind!: string;
+      @Field(isString) bark!: string;
+    }
+
+    @Recipe
+    class OwnerA {
+      @Field({
+        type: () => [CatA],
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: CatA, name: 'cat' },
+            { value: DogA, name: 'dog' },
+          ],
+        },
+        keepDiscriminatorProperty: true,
+      })
+      pets!: (CatA | DogA)[];
+
+      @Field(isString, {
+        transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => `<${value}>` },
+      })
+      tag!: string;
+    }
+
+    unseal();
+    seal();
+    const cat = Object.assign(Object.create(CatA.prototype), { kind: 'cat', meow: 'nya' });
+    const dog = Object.assign(Object.create(DogA.prototype), { kind: 'dog', bark: 'woof' });
+    const owner = Object.assign(Object.create(OwnerA.prototype), { pets: [cat, dog], tag: 'root' });
+
+    const result = (await serialize(owner)) as Record<string, unknown>;
+    expect(Array.isArray(result.pets)).toBe(true);
+    expect(result.pets).toHaveLength(2);
+    expect(result.tag).toBe('<root>');
   });
 });

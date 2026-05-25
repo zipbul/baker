@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
 import {
   contains,
   isAlpha,
@@ -28,24 +29,28 @@ import {
   isMultibyte,
   matches,
 } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 type StringRuleCase = {
   name: string;
-  rule: (value: unknown) => boolean | Promise<boolean>;
+  rule: import('../../src/types').EmittableRule;
   samples: unknown[];
 };
 
-async function dtoPasses(rule: any, value: unknown): Promise<boolean> {
+async function dtoPasses(rule: import('../../src/types').EmittableRule, value: unknown): Promise<boolean> {
+  @Recipe
   class Dto {
     @Field(rule)
     value!: unknown;
   }
 
+  sealClass(Dto);
   const result = await deserialize(Dto, { value });
-  return !isBakerError(result);
+  return !isBakerIssueSet(result);
 }
 
 const cases: StringRuleCase[] = [

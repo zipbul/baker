@@ -1,15 +1,11 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, isBakerError } from '../../index';
-import {
-  arrayMinSize,
-  contains,
-  isNumber,
-  isObject,
-  isPositive,
-  minLength,
-} from '../../src/rules/index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
+import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { arrayMinSize, contains, isNumber, isObject, isPositive, minLength } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
 function makeRng(seed: number): () => number {
@@ -33,23 +29,33 @@ function randomString(rng: () => number): string {
 function randomValue(rng: () => number): unknown {
   const kind = Math.floor(rng() * 8);
   switch (kind) {
-    case 0: return randomString(rng);
-    case 1: return Math.floor(rng() * 7) - 3;
-    case 2: return rng() > 0.5;
-    case 3: return null;
-    case 4: return [randomString(rng), randomString(rng)].filter(Boolean);
-    case 5: return { a: randomString(rng) };
-    case 6: return [];
-    default: return rng() > 0.5 ? NaN : undefined;
+    case 0:
+      return randomString(rng);
+    case 1:
+      return Math.floor(rng() * 7) - 3;
+    case 2:
+      return rng() > 0.5;
+    case 3:
+      return null;
+    case 4:
+      return [randomString(rng), randomString(rng)].filter(Boolean);
+    case 5:
+      return { a: randomString(rng) };
+    case 6:
+      return [];
+    default:
+      return rng() > 0.5 ? NaN : undefined;
   }
 }
 
-async function dtoPasses(rule: any, value: unknown): Promise<boolean> {
+async function dtoPasses(rule: import('../../src/types').EmittableRule, value: unknown): Promise<boolean> {
+  @Recipe
   class Dto {
     @Field(rule)
     value!: unknown;
   }
-  return !isBakerError(await deserialize(Dto, { value }));
+  sealClass(Dto);
+  return !isBakerIssueSet(await deserialize(Dto, { value }));
 }
 
 describe('deterministic fuzz parity', () => {
@@ -64,7 +70,7 @@ describe('deterministic fuzz parity', () => {
 
   for (const fuzzCase of fuzzCases) {
     it(fuzzCase.name, async () => {
-      const rng = makeRng(0xC0FFEE);
+      const rng = makeRng(0xc0ffee);
       for (let i = 0; i < 100; i++) {
         const value = randomValue(rng);
         const runtime = !!fuzzCase.rule(value);

@@ -1,23 +1,31 @@
-import { SealError } from '../errors';
 import type { RawClassMeta, ExposeDef } from '../types';
+
+import { BakerError } from '../errors';
 
 /**
  * Static validation of @Expose stacks (§4.1, §3.3)
  *
  * Check 1: same @Expose entry has deserializeOnly: true + serializeOnly: true → excluded from both directions
- * Check 2: if 2+ @Expose entries in the same direction have overlapping groups → SealError
+ * Check 2: if 2+ @Expose entries in the same direction have overlapping groups → BakerError
  *          - both groups=[] (ungrouped) → overlap
  *          - both non-empty groups with intersection → overlap
  *          - one ungrouped + one grouped → no overlap (different scope)
  */
-export function validateExposeStacks(merged: RawClassMeta, className?: string): void {
+function validateExposeStacks(merged: RawClassMeta, className?: string): void {
   const prefix = className ? `${className}.` : '';
   for (const [key, meta] of Object.entries(merged)) {
     // ① single-entry check: deserializeOnly + serializeOnly cannot coexist
     for (const exp of meta.expose) {
       if (exp.deserializeOnly && exp.serializeOnly) {
-        throw new SealError(
+        throw new BakerError(
           `Invalid @Expose on field '${prefix}${key}': cannot have both deserializeOnly:true and serializeOnly:true on the same @Expose entry. Use separate @Expose decorators for each direction.`,
+        );
+      }
+      // Reserved output keys would corrupt the serialized object (e.g. a '__proto__' key sets the
+      // prototype instead of an own property) — reject them as wire names, matching banned field names.
+      if (exp.name === '__proto__' || exp.name === 'constructor' || exp.name === 'prototype') {
+        throw new BakerError(
+          `Invalid @Field name on '${prefix}${key}': '${exp.name}' is a reserved property name and cannot be used as a serialized key.`,
         );
       }
     }
@@ -28,23 +36,23 @@ export function validateExposeStacks(merged: RawClassMeta, className?: string): 
     // serialize direction: !deserializeOnly (includes bidirectional + serializeOnly)
     const serEntries = meta.expose.filter(e => !e.deserializeOnly);
 
-    _checkDirectionOverlap(prefix + key, desEntries, 'deserialize');
-    _checkDirectionOverlap(prefix + key, serEntries, 'serialize');
+    checkDirectionOverlap(prefix + key, desEntries, 'deserialize');
+    checkDirectionOverlap(prefix + key, serEntries, 'serialize');
   }
 }
 
 /**
  * Check for groups overlap between each pair of @Expose entries within the same direction
  */
-function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
+function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const aGroups = entries[i]!.groups ?? [];
       const bGroups = entries[j]!.groups ?? [];
-      if (_groupsOverlap(aGroups, bGroups)) {
+      if (groupsOverlap(aGroups, bGroups)) {
         const bSet = new Set(bGroups);
         const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bSet.has(g));
-        throw new SealError(
+        throw new BakerError(
           `@Expose conflict on '${key}': 2 @Expose stacks with '${direction}' direction and overlapping groups [${overlapping.join(', ')}]. Each direction must have at most one @Expose per group set.`,
         );
       }
@@ -58,8 +66,13 @@ function _checkDirectionOverlap(key: string, entries: ExposeDef[], direction: st
  * - both non-empty with intersection → overlap
  * - one empty + one non-empty → no overlap (different filter scopes)
  */
-function _groupsOverlap(a: string[], b: string[]): boolean {
-  if (a.length === 0 && b.length === 0) return true;
-  if (a.length === 0 || b.length === 0) return false;
+function groupsOverlap(a: string[], b: string[]): boolean {
+  if (a.length === 0 && b.length === 0) {
+    return true;
+  }
+  if (a.length === 0 || b.length === 0) {
+    return false;
+  }
   return a.some(g => b.includes(g));
 }
+export { validateExposeStacks };

@@ -1,4 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
+
+import { BakerError } from '../errors';
 import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -6,7 +8,9 @@ import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
-  if (!Number.isFinite(n)) throw new Error(`min: bound must be a finite number, got ${n}`);
+  if (!Number.isFinite(n)) {
+    throw new BakerError(`min: bound must be a finite number, got ${n}`);
+  }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
@@ -19,9 +23,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
     requiresType: 'number',
     constraints: exclusive ? { min: n, exclusive: true } : { min: n },
     plan,
-    validate: exclusive
-      ? (value) => typeof value === 'number' && !isNaN(value) && value > n
-      : (value) => typeof value === 'number' && !isNaN(value) && value >= n,
+    validate: exclusive ? value => typeof value === 'number' && value > n : value => typeof value === 'number' && value >= n,
   });
 }
 
@@ -30,7 +32,9 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
-  if (!Number.isFinite(n)) throw new Error(`max: bound must be a finite number, got ${n}`);
+  if (!Number.isFinite(n)) {
+    throw new BakerError(`max: bound must be a finite number, got ${n}`);
+  }
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
@@ -43,9 +47,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
     requiresType: 'number',
     constraints: exclusive ? { max: n, exclusive: true } : { max: n },
     plan,
-    validate: exclusive
-      ? (value) => typeof value === 'number' && !isNaN(value) && value < n
-      : (value) => typeof value === 'number' && !isNaN(value) && value <= n,
+    validate: exclusive ? value => typeof value === 'number' && value < n : value => typeof value === 'number' && value <= n,
   });
 }
 
@@ -58,12 +60,9 @@ export const isPositive = makePlannedRule({
   requiresType: 'number',
   constraints: { min: 0, exclusive: true },
   plan: {
-    failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), '<=', planLiteral(0)),
-    ),
+    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '<=', planLiteral(0))),
   },
-  validate: (value) => typeof value === 'number' && !isNaN(value) && value > 0,
+  validate: value => typeof value === 'number' && value > 0,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -75,12 +74,9 @@ export const isNegative = makePlannedRule({
   requiresType: 'number',
   constraints: { max: 0, exclusive: true },
   plan: {
-    failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), '>=', planLiteral(0)),
-    ),
+    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '>=', planLiteral(0))),
   },
-  validate: (value) => typeof value === 'number' && !isNaN(value) && value < 0,
+  validate: value => typeof value === 'number' && value < 0,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -88,13 +84,14 @@ export const isNegative = makePlannedRule({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isDivisibleBy(n: number): EmittableRule {
-  if (n === 0) throw new Error('isDivisibleBy: divisor must not be zero');
+  if (n === 0) {
+    throw new BakerError('isDivisibleBy: divisor must not be zero');
+  }
   return makeRule({
     name: 'isDivisibleBy',
     requiresType: 'number',
     constraints: { divisor: n },
-    validate: (value) => typeof value === 'number' && !isNaN(value) && value % n === 0,
-    emit: (varName: string, ctx: EmitContext): string =>
-      `if (${varName} % ${n} !== 0) ${ctx.fail('isDivisibleBy')};`,
+    validate: value => typeof value === 'number' && value % n === 0,
+    emit: (varName: string, ctx: EmitContext): string => `if (${varName} % ${n} !== 0) ${ctx.fail('isDivisibleBy')};`,
   });
 }

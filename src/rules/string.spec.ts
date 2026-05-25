@@ -1,5 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
+
 import {
   // Group A — length/range
   minLength,
@@ -75,6 +77,7 @@ import {
   isPhoneNumber,
   isStrongPassword,
   isTaxId,
+  isHttpToken,
 } from './string';
 
 function makeCtx(refIndex: number = 0) {
@@ -117,8 +120,8 @@ describe('minLength', () => {
   it('should generate v.length < n check code when calling emit()', () => {
     const rule = minLength(3);
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(code).toContain('3');
     expect(failMock).toHaveBeenCalledWith('minLength');
   });
@@ -160,8 +163,8 @@ describe('maxLength', () => {
   it('should generate v.length > n check code when calling emit()', () => {
     const rule = maxLength(5);
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(code).toContain('5');
     expect(failMock).toHaveBeenCalledWith('maxLength');
   });
@@ -207,8 +210,8 @@ describe('length', () => {
   it('should generate range check code when calling emit()', () => {
     const rule = length(3, 5);
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
-    expect(code).toContain('_v.length');
+    const code = rule.emit('v', ctx);
+    expect(code).toContain('v.length');
     expect(failMock).toHaveBeenCalledWith('length');
   });
 
@@ -233,10 +236,10 @@ describe('contains', () => {
   it('should call ctx.addRef with seed and generate includes check when calling emit()', () => {
     const rule = contains('foo');
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledTimes(1);
     expect(addRefMock).toHaveBeenCalledWith('foo');
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(failMock).toHaveBeenCalledWith('contains');
   });
 
@@ -261,9 +264,9 @@ describe('notContains', () => {
   it('should call ctx.addRef with seed and generate inverse includes check when calling emit()', () => {
     const rule = notContains('foo');
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     expect(addRefMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_refs[0]');
+    expect(code).toContain('refs[0]');
     expect(failMock).toHaveBeenCalledWith('notContains');
   });
 
@@ -292,9 +295,9 @@ describe('matches', () => {
   it('should call ctx.addRegex and generate test check code when calling emit()', () => {
     const rule = matches(/^[a-z]+$/);
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_re[0]');
+    expect(code).toContain('re[0]');
     expect(code).toContain('.test(');
     expect(failMock).toHaveBeenCalledWith('matches');
   });
@@ -324,7 +327,7 @@ describe('isLowercase', () => {
 
   it('should generate toLowerCase comparison code when calling emit() and have ruleName isLowercase', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isLowercase.emit('_v', ctx);
+    const code = isLowercase.emit('v', ctx);
     expect(code).toContain('toLowerCase');
     expect(failMock).toHaveBeenCalledWith('isLowercase');
     expect(isLowercase.ruleName).toBe('isLowercase');
@@ -347,7 +350,7 @@ describe('isUppercase', () => {
 
   it('should generate toUpperCase comparison code when calling emit() and have ruleName isUppercase', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isUppercase.emit('_v', ctx);
+    const code = isUppercase.emit('v', ctx);
     expect(code).toContain('toUpperCase');
     expect(failMock).toHaveBeenCalledWith('isUppercase');
     expect(isUppercase.ruleName).toBe('isUppercase');
@@ -369,15 +372,67 @@ describe('isAscii', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isAscii', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isAscii.emit('_v', ctx);
+    const code = isAscii.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_re[0]');
+    expect(code).toContain('re[0]');
     expect(failMock).toHaveBeenCalledWith('isAscii');
     expect(isAscii.ruleName).toBe('isAscii');
   });
 
   it('should return true for empty string', () => {
     expect(isAscii('')).toBe(true);
+  });
+});
+
+describe('isHttpToken', () => {
+  // RFC 9110 §5.6.2 token = 1*tchar
+  it('should return true for valid tokens (methods, field-names, tchar-only)', () => {
+    for (const v of [
+      'GET',
+      'POST',
+      'X-Foo',
+      'X-Custom-Header',
+      'Content-Type',
+      'PROPFIND',
+      'MKCALENDAR',
+      'M-SEARCH',
+      'foo.bar',
+      '!#$%&',
+      "!#$%&'*+-.^_`|~",
+      'a`b',
+    ]) {
+      expect(isHttpToken(v)).toBe(true);
+    }
+  });
+
+  it('should return false for non-tokens (separators, spaces, CTL, non-ASCII)', () => {
+    for (const v of [
+      '',
+      ' ',
+      'X Foo',
+      'X-Foo(bar)',
+      'X-Foo:Bar',
+      'X-Foo,Bar',
+      'X-Foo;',
+      'X-Foo<>',
+      'X-Foo\t',
+      'X-Foo\n',
+      'X-Foo\r',
+      'GET\n',
+      '\nGET',
+      'X-한글',
+    ]) {
+      expect(isHttpToken(v)).toBe(false);
+    }
+  });
+
+  it('should generate regex test code when calling emit() and have ruleName isHttpToken', () => {
+    const { ctx, addRegexMock, failMock } = makeCtx(0);
+    const code = isHttpToken.emit('v', ctx);
+    expect(addRegexMock).toHaveBeenCalledTimes(1);
+    expect(code).toContain('re[0]');
+    expect(failMock).toHaveBeenCalledWith('isHttpToken');
+    expect(isHttpToken.ruleName).toBe('isHttpToken');
   });
 });
 
@@ -396,9 +451,9 @@ describe('isAlpha', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isAlpha', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isAlpha.emit('_v', ctx);
+    const code = isAlpha.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_re[0]');
+    expect(code).toContain('re[0]');
     expect(failMock).toHaveBeenCalledWith('isAlpha');
     expect(isAlpha.ruleName).toBe('isAlpha');
   });
@@ -415,7 +470,7 @@ describe('isAlphanumeric', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isAlphanumeric', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isAlphanumeric.emit('_v', ctx);
+    isAlphanumeric.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isAlphanumeric');
     expect(isAlphanumeric.ruleName).toBe('isAlphanumeric');
@@ -449,7 +504,7 @@ describe('isBooleanString', () => {
 
   it('should generate inline boolean check code when calling emit() and have ruleName isBooleanString', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isBooleanString.emit('_v', ctx);
+    const code = isBooleanString.emit('v', ctx);
     expect(code).toContain('true');
     expect(code).toContain('false');
     expect(failMock).toHaveBeenCalledWith('isBooleanString');
@@ -474,23 +529,44 @@ describe('isNumberString', () => {
     expect(isNumberString()('')).toBe(false);
   });
 
+  it('should return false for whitespace-only string', () => {
+    expect(isNumberString()('   ')).toBe(false);
+  });
+
+  it('should return false for a hex literal string', () => {
+    expect(isNumberString()('0x1A')).toBe(false);
+  });
+
+  it('should return false for a numeric value padded with whitespace', () => {
+    expect(isNumberString()('  12  ')).toBe(false);
+  });
+
+  it('should return false for scientific notation', () => {
+    expect(isNumberString()('1e5')).toBe(false);
+  });
+
+  it('should return true for a leading-dot decimal', () => {
+    expect(isNumberString()('.5')).toBe(true);
+  });
+
+  it('should return false for a trailing-dot number', () => {
+    expect(isNumberString()('5.')).toBe(false);
+  });
+
   it('should generate number check code when calling emit() and have ruleName isNumberString', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isNumberString().emit('_v', ctx);
+    const code = isNumberString().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isNumberString');
     expect(isNumberString().ruleName).toBe('isNumberString');
   });
 
-  it('should emit inline Number+isNaN+isFinite check (no addRef)', () => {
-    const { ctx, addRefMock } = makeCtx(0);
-    const code = isNumberString().emit('_v', ctx);
-    expect(addRefMock).not.toHaveBeenCalled();
-    // inline code checks empty length, then Number() + isNaN/isFinite
-    expect(code).toContain('_v.length === 0');
-    expect(code).toContain('Number(');
-    expect(code).toContain('isNaN');
-    expect(code).toContain('isFinite');
+  it('should emit a regex test (not Number coercion)', () => {
+    const { ctx } = makeCtx();
+    const code = isNumberString().emit('v', ctx);
+    expect(code).toContain('re[');
+    expect(code).not.toContain('Number(');
+    expect(code).not.toContain('isFinite');
   });
 });
 
@@ -541,9 +617,17 @@ describe('isDecimal', () => {
     expect(isDecimal()('hello')).toBe(false);
   });
 
+  it('should return false for a trailing-dot number', () => {
+    expect(isDecimal()('5.')).toBe(false);
+  });
+
+  it('should return true for a leading-dot decimal', () => {
+    expect(isDecimal()('.5')).toBe(true);
+  });
+
   it('should generate regex check code when calling emit() and have ruleName isDecimal', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isDecimal().emit('_v', ctx);
+    const code = isDecimal().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isDecimal');
     expect(isDecimal().ruleName).toBe('isDecimal');
@@ -561,7 +645,7 @@ describe('isFullWidth', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isFullWidth', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isFullWidth.emit('_v', ctx);
+    isFullWidth.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isFullWidth');
     expect(isFullWidth.ruleName).toBe('isFullWidth');
@@ -583,7 +667,7 @@ describe('isHalfWidth', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isHalfWidth', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isHalfWidth.emit('_v', ctx);
+    isHalfWidth.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHalfWidth');
     expect(isHalfWidth.ruleName).toBe('isHalfWidth');
@@ -609,7 +693,7 @@ describe('isVariableWidth', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isVariableWidth', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isVariableWidth.emit('_v', ctx);
+    const code = isVariableWidth.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isVariableWidth');
     expect(isVariableWidth.ruleName).toBe('isVariableWidth');
@@ -620,10 +704,13 @@ describe('isVariableWidth', () => {
     expect(isVariableWidth('')).toBe(false);
   });
 
-  it('should emit code that fails for empty string', () => {
+  it('should emit code that fails for empty string (via FULLWIDTH+HALFWIDTH regex returning false)', () => {
     const { ctx } = makeCtx(0);
-    const code = isVariableWidth.emit('_v', ctx);
-    expect(code).toContain('.length === 0');
+    const code = isVariableWidth.emit('v', ctx);
+    // Both regexes return false on empty input, so the codegen relies on the regex semantics
+    // rather than an explicit `.length === 0` guard.
+    expect(code).toContain('!re[');
+    expect(code).toContain('.test(v)');
   });
 });
 
@@ -638,7 +725,7 @@ describe('isMultibyte', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isMultibyte', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isMultibyte.emit('_v', ctx);
+    isMultibyte.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isMultibyte');
     expect(isMultibyte.ruleName).toBe('isMultibyte');
@@ -660,7 +747,7 @@ describe('isSurrogatePair', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isSurrogatePair', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isSurrogatePair.emit('_v', ctx);
+    isSurrogatePair.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isSurrogatePair');
     expect(isSurrogatePair.ruleName).toBe('isSurrogatePair');
@@ -686,7 +773,7 @@ describe('isHexadecimal', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isHexadecimal', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isHexadecimal.emit('_v', ctx);
+    isHexadecimal.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHexadecimal');
     expect(isHexadecimal.ruleName).toBe('isHexadecimal');
@@ -705,7 +792,7 @@ describe('isOctal', () => {
 
   it('should generate regex test code when calling emit() and have ruleName isOctal', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isOctal.emit('_v', ctx);
+    isOctal.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isOctal');
     expect(isOctal.ruleName).toBe('isOctal');
@@ -745,9 +832,9 @@ describe('isEmail', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit()', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isEmail().emit('_v', ctx);
+    const code = isEmail().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_re[0]');
+    expect(code).toContain('re[0]');
     expect(failMock).toHaveBeenCalledWith('isEmail');
   });
 
@@ -784,7 +871,7 @@ describe('isURL', () => {
 
   it('should generate regex-based code when calling emit()', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isURL().emit('_v', ctx);
+    const code = isURL().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isURL');
@@ -819,9 +906,9 @@ describe('isUUID', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit()', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isUUID().emit('_v', ctx);
+    const code = isUUID().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
-    expect(code).toContain('_re[0]');
+    expect(code).toContain('re[0]');
     expect(failMock).toHaveBeenCalledWith('isUUID');
   });
 
@@ -862,14 +949,14 @@ describe('isIP', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit()', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isIP().emit('_v', ctx);
+    isIP().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isIP');
   });
 
   it('should generate IPv4-only check code when emit() is called with version 4', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isIP(4).emit('_v', ctx);
+    const code = isIP(4).emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIP');
@@ -877,7 +964,7 @@ describe('isIP', () => {
 
   it('should generate IPv6-only check code when emit() is called with version 6', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isIP(6).emit('_v', ctx);
+    const code = isIP(6).emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIP');
@@ -908,7 +995,7 @@ describe('isHexColor', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isHexColor', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isHexColor.emit('_v', ctx);
+    isHexColor.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHexColor');
     expect(isHexColor.ruleName).toBe('isHexColor');
@@ -935,7 +1022,7 @@ describe('isRgbColor', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isRgbColor', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isRgbColor().emit('_v', ctx);
+    isRgbColor().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isRgbColor');
     expect(isRgbColor().ruleName).toBe('isRgbColor');
@@ -943,8 +1030,9 @@ describe('isRgbColor', () => {
 
   it('should generate percent-regex check code when emit() is called with includePercentValues=true', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isRgbColor(true).emit('_v', ctx);
-    expect(addRegexMock).toHaveBeenCalledTimes(1);
+    const code = isRgbColor(true).emit('v', ctx);
+    // Percent mode registers 4 regex slots: rgb-percent, rgba-percent, rgb-int, rgba-int.
+    expect(addRegexMock).toHaveBeenCalledTimes(4);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isRgbColor');
   });
@@ -963,9 +1051,17 @@ describe('isHSL', () => {
     expect(isHSL('hsl(400,100%,50%)')).toBe(false);
   });
 
+  it('should return false for hsl() carrying an alpha channel (alpha is only valid on hsla())', () => {
+    expect(isHSL('hsl(120,50%,50%,0.5)')).toBe(false);
+  });
+
+  it('should return false for hsla() missing the alpha channel', () => {
+    expect(isHSL('hsla(120,50%,50%)')).toBe(false);
+  });
+
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isHSL', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isHSL.emit('_v', ctx);
+    isHSL.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHSL');
     expect(isHSL.ruleName).toBe('isHSL');
@@ -987,7 +1083,7 @@ describe('isMACAddress', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isMACAddress', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isMACAddress().emit('_v', ctx);
+    isMACAddress().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isMACAddress');
     expect(isMACAddress().ruleName).toBe('isMACAddress');
@@ -995,7 +1091,7 @@ describe('isMACAddress', () => {
 
   it('should generate no-separator regex check code when emit() is called with no_separators:true', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isMACAddress({ no_separators: true }).emit('_v', ctx);
+    const code = isMACAddress({ no_separators: true }).emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isMACAddress');
@@ -1025,7 +1121,7 @@ describe('isISBN', () => {
 
   it('should generate code when calling emit() and have ruleName isISBN', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isISBN().emit('_v', ctx);
+    const code = isISBN().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isISBN');
     expect(isISBN().ruleName).toBe('isISBN');
@@ -1049,10 +1145,10 @@ describe('isISIN', () => {
 
   it('should emit inline regex + Luhn checksum code (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = isISIN.emit('_v', ctx);
+    const code = isISIN.emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('_re[');
-    expect(code).toContain('_isSum');
+    expect(code).toContain('re[');
+    expect(code).toContain('isSum');
     expect(failMock).toHaveBeenCalledWith('isISIN');
     expect(isISIN.ruleName).toBe('isISIN');
   });
@@ -1073,7 +1169,7 @@ describe('isISO8601', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isISO8601', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isISO8601().emit('_v', ctx);
+    isISO8601().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isISO8601');
     expect(isISO8601().ruleName).toBe('isISO8601');
@@ -1091,13 +1187,22 @@ describe('isISO8601', () => {
     expect(isISO8601({ strict: true })('2023-02-30')).toBe(false);
   });
 
+  it('should reject an out-of-range month in a year-month string with strict: true', () => {
+    expect(isISO8601({ strict: true })('2021-13')).toBe(false);
+    expect(isISO8601({ strict: true })('2021-00')).toBe(false);
+  });
+
+  it('should accept a valid year-month string with strict: true', () => {
+    expect(isISO8601({ strict: true })('2021-12')).toBe(true);
+  });
+
   it('strict: true emit uses inline regex + date validation (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = isISO8601({ strict: true }).emit('_v', ctx);
+    const code = isISO8601({ strict: true }).emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('_re[');
-    expect(code).toContain('_mo');
-    expect(code).toContain('_da');
+    expect(code).toContain('re[');
+    expect(code).toContain('mo');
+    expect(code).toContain('da');
     expect(failMock).toHaveBeenCalledWith('isISO8601');
   });
 
@@ -1117,7 +1222,7 @@ describe('isISRC', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isISRC', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isISRC.emit('_v', ctx);
+    isISRC.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isISRC');
     expect(isISRC.ruleName).toBe('isISRC');
@@ -1144,10 +1249,10 @@ describe('isISSN', () => {
 
   it('should emit inline regex + mod-11 checksum code (no addRef)', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    const code = isISSN().emit('_v', ctx);
+    const code = isISSN().emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('_re[');
-    expect(code).toContain('_iss');
+    expect(code).toContain('re[');
+    expect(code).toContain('iss');
     expect(failMock).toHaveBeenCalledWith('isISSN');
     expect(isISSN().ruleName).toBe('isISSN');
   });
@@ -1169,7 +1274,7 @@ describe('isJWT', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isJWT', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isJWT.emit('_v', ctx);
+    isJWT.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isJWT');
     expect(isJWT.ruleName).toBe('isJWT');
@@ -1192,7 +1297,7 @@ describe('isLatLong', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isLatLong', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isLatLong().emit('_v', ctx);
+    isLatLong().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isLatLong');
     expect(isLatLong().ruleName).toBe('isLatLong');
@@ -1214,7 +1319,7 @@ describe('isLocale', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isLocale', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isLocale.emit('_v', ctx);
+    isLocale.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isLocale');
     expect(isLocale.ruleName).toBe('isLocale');
@@ -1236,7 +1341,7 @@ describe('isDataURI', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isDataURI', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isDataURI.emit('_v', ctx);
+    isDataURI.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isDataURI');
     expect(isDataURI.ruleName).toBe('isDataURI');
@@ -1262,7 +1367,7 @@ describe('isFQDN', () => {
 
   it('should generate code when calling emit() and have ruleName isFQDN', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isFQDN().emit('_v', ctx);
+    const code = isFQDN().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isFQDN');
     expect(isFQDN().ruleName).toBe('isFQDN');
@@ -1292,7 +1397,7 @@ describe('isPort', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isPort', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isPort.emit('_v', ctx);
+    isPort.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isPort');
     expect(isPort.ruleName).toBe('isPort');
@@ -1315,7 +1420,7 @@ describe('isEAN', () => {
 
   it('should generate code when calling emit() and have ruleName isEAN', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isEAN.emit('_v', ctx);
+    const code = isEAN.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isEAN');
     expect(isEAN.ruleName).toBe('isEAN');
@@ -1337,7 +1442,7 @@ describe('isISO31661Alpha2', () => {
 
   it('should call ctx.addRef and generate test code when calling emit() and have ruleName isISO31661Alpha2', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    isISO31661Alpha2.emit('_v', ctx);
+    isISO31661Alpha2.emit('v', ctx);
     expect(addRefMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isISO31661Alpha2');
     expect(isISO31661Alpha2.ruleName).toBe('isISO31661Alpha2');
@@ -1355,7 +1460,7 @@ describe('isISO31661Alpha3', () => {
 
   it('should call ctx.addRef and generate test code when calling emit() and have ruleName isISO31661Alpha3', () => {
     const { ctx, addRefMock, failMock } = makeCtx(0);
-    isISO31661Alpha3.emit('_v', ctx);
+    isISO31661Alpha3.emit('v', ctx);
     expect(addRefMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isISO31661Alpha3');
     expect(isISO31661Alpha3.ruleName).toBe('isISO31661Alpha3');
@@ -1377,7 +1482,7 @@ describe('isBIC', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isBIC', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isBIC.emit('_v', ctx);
+    isBIC.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isBIC');
     expect(isBIC.ruleName).toBe('isBIC');
@@ -1395,7 +1500,7 @@ describe('isFirebasePushId', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isFirebasePushId', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isFirebasePushId.emit('_v', ctx);
+    isFirebasePushId.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isFirebasePushId');
     expect(isFirebasePushId.ruleName).toBe('isFirebasePushId');
@@ -1417,7 +1522,7 @@ describe('isSemVer', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isSemVer', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isSemVer.emit('_v', ctx);
+    isSemVer.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isSemVer');
     expect(isSemVer.ruleName).toBe('isSemVer');
@@ -1439,7 +1544,7 @@ describe('isMongoId', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isMongoId', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isMongoId.emit('_v', ctx);
+    isMongoId.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isMongoId');
     expect(isMongoId.ruleName).toBe('isMongoId');
@@ -1460,12 +1565,12 @@ describe('isJSON', () => {
   });
 
   it('should return false for non-string value', () => {
-    expect(isJSON(42 as any)).toBe(false);
+    expect(isJSON(42 as never)).toBe(false);
   });
 
   it('should generate try-catch or ref-based code when calling emit() and have ruleName isJSON', () => {
     const { ctx, failMock } = makeCtx(0);
-    const code = isJSON.emit('_v', ctx);
+    const code = isJSON.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isJSON');
     expect(isJSON.ruleName).toBe('isJSON');
@@ -1473,7 +1578,7 @@ describe('isJSON', () => {
 
   it('should emit inline try/catch JSON.parse code (no addRef)', () => {
     const { ctx, addRefMock } = makeCtx(0);
-    const code = isJSON.emit('_v', ctx);
+    const code = isJSON.emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
     expect(code).toContain('JSON.parse');
     expect(code).toContain('catch');
@@ -1491,7 +1596,7 @@ describe('isBase32', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isBase32', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isBase32().emit('_v', ctx);
+    isBase32().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isBase32');
     expect(isBase32().ruleName).toBe('isBase32');
@@ -1509,7 +1614,7 @@ describe('isBase58', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isBase58', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isBase58.emit('_v', ctx);
+    isBase58.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isBase58');
     expect(isBase58.ruleName).toBe('isBase58');
@@ -1531,7 +1636,7 @@ describe('isBase64', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isBase64', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isBase64().emit('_v', ctx);
+    isBase64().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isBase64');
     expect(isBase64().ruleName).toBe('isBase64');
@@ -1549,7 +1654,7 @@ describe('isDateString', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isDateString', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isDateString().emit('_v', ctx);
+    isDateString().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isDateString');
     expect(isDateString().ruleName).toBe('isDateString');
@@ -1571,7 +1676,7 @@ describe('isMimeType', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isMimeType', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isMimeType.emit('_v', ctx);
+    isMimeType.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isMimeType');
     expect(isMimeType.ruleName).toBe('isMimeType');
@@ -1591,9 +1696,23 @@ describe('isCurrency', () => {
     expect(isCurrency()('abc')).toBe(false);
   });
 
+  it('should return false for double sign', () => {
+    expect(isCurrency()('+-5')).toBe(false);
+    expect(isCurrency()('-$-5')).toBe(false);
+    expect(isCurrency()('+$-5')).toBe(false);
+  });
+
+  it('should return true for a single sign before or after the currency symbol', () => {
+    expect(isCurrency()('-5')).toBe(true);
+    expect(isCurrency()('-$5')).toBe(true);
+    expect(isCurrency()('$-5')).toBe(true);
+    expect(isCurrency()('+$5')).toBe(true);
+    expect(isCurrency()('$5')).toBe(true);
+  });
+
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isCurrency', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isCurrency().emit('_v', ctx);
+    isCurrency().emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isCurrency');
     expect(isCurrency().ruleName).toBe('isCurrency');
@@ -1611,7 +1730,7 @@ describe('isMagnetURI', () => {
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isMagnetURI', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    isMagnetURI.emit('_v', ctx);
+    isMagnetURI.emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isMagnetURI');
     expect(isMagnetURI.ruleName).toBe('isMagnetURI');
@@ -1651,7 +1770,7 @@ describe('isCreditCard', () => {
 
   it('should generate Luhn algorithm inline code when calling emit() and have ruleName isCreditCard', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isCreditCard.emit('_v', ctx);
+    const code = isCreditCard.emit('v', ctx);
     expect(code).toContain('%');
     expect(failMock).toHaveBeenCalledWith('isCreditCard');
     expect(isCreditCard.ruleName).toBe('isCreditCard');
@@ -1678,7 +1797,7 @@ describe('isIBAN', () => {
 
   it('should generate mod-97 algorithm code when calling emit() and have ruleName isIBAN', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isIBAN().emit('_v', ctx);
+    const code = isIBAN().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIBAN');
     expect(isIBAN().ruleName).toBe('isIBAN');
@@ -1729,7 +1848,7 @@ describe('isByteLength', () => {
   it('should generate byte length check code when calling emit() and have ruleName isByteLength', () => {
     const rule = isByteLength(1, 10);
     const { ctx, failMock } = makeCtx();
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isByteLength');
     expect(rule.ruleName).toBe('isByteLength');
@@ -1739,9 +1858,9 @@ describe('isByteLength', () => {
   it('should emit inline Buffer.byteLength check (no addRef)', () => {
     const rule = isByteLength(2, 5);
     const { ctx, addRefMock } = makeCtx(0);
-    const code = rule.emit('_v', ctx);
+    const code = rule.emit('v', ctx);
     expect(addRefMock).not.toHaveBeenCalled();
-    expect(code).toContain('_bl');
+    expect(code).toContain('bl');
     expect(code).toContain('2');
     expect(code).toContain('5');
   });
@@ -1782,12 +1901,15 @@ describe('isHash', () => {
 
   it('should return true for valid sha384 hash', () => {
     // sha384 of empty string = 96 hex chars
-    expect(isHash('sha384')('38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b')).toBe(true);
+    expect(
+      isHash('sha384')('38b060a751ac96384cd9327eb1b1e36a21fdb71114be07434c0cc7bf63f6e1da274edebfe76f65fbd51ad2f14898b95b'),
+    ).toBe(true);
   });
 
   it('should return true for a valid sha512 hash', () => {
     // sha512 of empty string = 128 hex chars (exact)
-    const sha512 = 'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
+    const sha512 =
+      'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e';
     expect(isHash('sha512')(sha512)).toBe(true);
   });
 
@@ -1808,7 +1930,7 @@ describe('isHash', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isHash('md5')(42 as any)).toBe(false);
+    expect(isHash('md5')(42 as never)).toBe(false);
   });
 
   it('should have requiresType string', () => {
@@ -1821,14 +1943,14 @@ describe('isHash', () => {
 
   it('should generate emit code with regex check', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isHash('md5').emit('_v', ctx);
+    const code = isHash('md5').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isHash');
   });
 
   it('should generate immediate fail code for unknown algorithm emit', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isHash('unknownAlgo' as any).emit('_v', ctx);
+    const code = isHash('unknownAlgo' as never).emit('v', ctx);
     expect(code).toContain('isHash');
     expect(failMock).toHaveBeenCalledWith('isHash');
   });
@@ -1862,7 +1984,7 @@ describe('isRFC3339', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isRFC3339(12345 as any)).toBe(false);
+    expect(isRFC3339(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isRFC3339', () => {
@@ -1872,7 +1994,7 @@ describe('isRFC3339', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isRFC3339.emit('_v', ctx);
+    const code = isRFC3339.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isRFC3339');
   });
@@ -1906,7 +2028,7 @@ describe('isMilitaryTime', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isMilitaryTime(1230 as any)).toBe(false);
+    expect(isMilitaryTime(1230 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isMilitaryTime', () => {
@@ -1916,7 +2038,7 @@ describe('isMilitaryTime', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isMilitaryTime.emit('_v', ctx);
+    const code = isMilitaryTime.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isMilitaryTime');
   });
@@ -1966,18 +2088,18 @@ describe('isLatitude', () => {
   });
 
   it('should return false for non-string non-number input', () => {
-    expect(isLatitude(null as any)).toBe(false);
-    expect(isLatitude({} as any)).toBe(false);
+    expect(isLatitude(null as never)).toBe(false);
+    expect(isLatitude({} as never)).toBe(false);
   });
 
   it('should have ruleName isLatitude and requiresType undefined', () => {
     expect(isLatitude.ruleName).toBe('isLatitude');
-    expect((isLatitude as any).requiresType).toBeUndefined();
+    expect(isLatitude.requiresType).toBeUndefined();
   });
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isLatitude.emit('_v', ctx);
+    const code = isLatitude.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isLatitude');
   });
@@ -2019,18 +2141,18 @@ describe('isLongitude', () => {
   });
 
   it('should return false for non-string non-number input', () => {
-    expect(isLongitude(null as any)).toBe(false);
-    expect(isLongitude({} as any)).toBe(false);
+    expect(isLongitude(null as never)).toBe(false);
+    expect(isLongitude({} as never)).toBe(false);
   });
 
   it('should have ruleName isLongitude and requiresType undefined', () => {
     expect(isLongitude.ruleName).toBe('isLongitude');
-    expect((isLongitude as any).requiresType).toBeUndefined();
+    expect(isLongitude.requiresType).toBeUndefined();
   });
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isLongitude.emit('_v', ctx);
+    const code = isLongitude.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isLongitude');
   });
@@ -2060,7 +2182,7 @@ describe('isEthereumAddress', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isEthereumAddress(123 as any)).toBe(false);
+    expect(isEthereumAddress(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isEthereumAddress', () => {
@@ -2070,7 +2192,7 @@ describe('isEthereumAddress', () => {
 
   it('should generate emit code with regex', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isEthereumAddress.emit('_v', ctx);
+    const code = isEthereumAddress.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isEthereumAddress');
   });
@@ -2104,7 +2226,7 @@ describe('isBtcAddress', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isBtcAddress(123 as any)).toBe(false);
+    expect(isBtcAddress(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isBtcAddress', () => {
@@ -2114,7 +2236,7 @@ describe('isBtcAddress', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isBtcAddress.emit('_v', ctx);
+    const code = isBtcAddress.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isBtcAddress');
   });
@@ -2148,7 +2270,7 @@ describe('isISO4217CurrencyCode', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isISO4217CurrencyCode(123 as any)).toBe(false);
+    expect(isISO4217CurrencyCode(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isISO4217CurrencyCode', () => {
@@ -2158,7 +2280,7 @@ describe('isISO4217CurrencyCode', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isISO4217CurrencyCode.emit('_v', ctx);
+    const code = isISO4217CurrencyCode.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isISO4217CurrencyCode');
   });
@@ -2192,7 +2314,7 @@ describe('isPhoneNumber', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPhoneNumber(123 as any)).toBe(false);
+    expect(isPhoneNumber(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPhoneNumber', () => {
@@ -2202,7 +2324,7 @@ describe('isPhoneNumber', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isPhoneNumber.emit('_v', ctx);
+    const code = isPhoneNumber.emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isPhoneNumber');
   });
@@ -2245,7 +2367,7 @@ describe('isStrongPassword', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isStrongPassword()(12345678 as any)).toBe(false);
+    expect(isStrongPassword()(12345678 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isStrongPassword', () => {
@@ -2255,7 +2377,7 @@ describe('isStrongPassword', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isStrongPassword().emit('_v', ctx);
+    const code = isStrongPassword().emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isStrongPassword');
   });
@@ -2303,7 +2425,7 @@ describe('isTaxId', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isTaxId('US')(123 as any)).toBe(false);
+    expect(isTaxId('US')(123 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isTaxId', () => {
@@ -2313,14 +2435,14 @@ describe('isTaxId', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isTaxId('US').emit('_v', ctx);
+    const code = isTaxId('US').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isTaxId');
   });
 
   it('should emit fail-only code for unknown locale (covers L1464 !re branch)', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isTaxId('XX-UNKNOWN').emit('_v', ctx);
+    const code = isTaxId('XX-UNKNOWN').emit('v', ctx);
     expect(code).toContain('isTaxId');
     expect(failMock).toHaveBeenCalledWith('isTaxId');
   });

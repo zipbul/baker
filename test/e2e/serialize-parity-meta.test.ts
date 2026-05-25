@@ -1,28 +1,32 @@
-import { afterEach, describe, expect, it } from 'bun:test';
-import { deserialize, Field, serialize } from '../../index';
-import {
-  isNumber,
-  isString,
-} from '../../src/rules/index';
+import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+
+import { deserialize, Field, Recipe, serialize, seal } from '../../index';
+import { isNumber, isString } from '../../src/rules/index';
+import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+beforeEach(() => seal());
 afterEach(() => unseal());
 
+@Recipe
 class ChildDto {
   @Field(isString)
   name!: string;
 }
 
+@Recipe
 class CatDto {
   @Field(isString)
   breed!: string;
 }
 
+@Recipe
 class DogDto {
   @Field(isString)
   color!: string;
 }
 
+@Recipe
 class ComplexSerializeDto {
   @Field(isString, {
     serializeName: 'display_name',
@@ -41,10 +45,10 @@ class ComplexSerializeDto {
   @Field({ type: () => [ChildDto] })
   children!: (ChildDto | null)[];
 
-  @Field({ type: () => Set as any, setValue: () => ChildDto })
+  @Field({ type: () => Set, setValue: () => ChildDto })
   tags!: Set<ChildDto | null>;
 
-  @Field({ type: () => Map as any, mapValue: () => ChildDto })
+  @Field({ type: () => Map, mapValue: () => ChildDto })
   lookup!: Map<string, ChildDto | null>;
 
   @Field({
@@ -92,6 +96,7 @@ describe('serialize parity meta', () => {
   });
 
   it('roundtrips directional names and serialize output contract together', async () => {
+    @Recipe
     class RoundtripDto {
       @Field(isString, {
         deserializeName: 'full_name',
@@ -106,11 +111,12 @@ describe('serialize parity meta', () => {
       @Field({ type: () => ChildDto, optional: true })
       child?: ChildDto;
     }
+    sealClass(RoundtripDto);
 
-    const parsed = await deserialize<RoundtripDto>(RoundtripDto, {
+    const parsed = (await deserialize<RoundtripDto>(RoundtripDto, {
       full_name: '  Carol  ',
       child: { name: 'Neo' },
-    }) as RoundtripDto;
+    })) as RoundtripDto;
 
     const output = await serialize(parsed);
     expect(output).toEqual({

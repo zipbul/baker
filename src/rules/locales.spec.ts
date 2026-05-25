@@ -1,11 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
+
 import type { EmitContext } from '../types';
-import {
-  isMobilePhone,
-  isPostalCode,
-  isIdentityCard,
-  isPassportNumber,
-} from './locales';
+
+import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
@@ -61,7 +58,7 @@ describe('isMobilePhone', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isMobilePhone('ko-KR')(12345 as any)).toBe(false);
+    expect(isMobilePhone('ko-KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isMobilePhone', () => {
@@ -71,13 +68,13 @@ describe('isMobilePhone', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isMobilePhone('ko-KR').emit('_v', ctx);
+    const code = isMobilePhone('ko-KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isMobilePhone');
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isMobilePhone('xx-XX' as any)).toThrow('Unsupported locale');
+    expect(() => isMobilePhone('xx-XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
@@ -123,7 +120,7 @@ describe('isPostalCode', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPostalCode('KR')(12345 as any)).toBe(false);
+    expect(isPostalCode('KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPostalCode', () => {
@@ -133,13 +130,13 @@ describe('isPostalCode', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isPostalCode('KR').emit('_v', ctx);
+    const code = isPostalCode('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isPostalCode');
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isPostalCode('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isPostalCode('XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {
@@ -178,12 +175,20 @@ describe('isIdentityCard', () => {
     expect(isIdentityCard('US')('12-345-6789')).toBe(false);
   });
 
+  it('should return false for a DE identity card containing a space', () => {
+    expect(isIdentityCard('DE')('LI TOUAEV')).toBe(false);
+  });
+
+  it('should return true for a valid DE identity card (9 letters, no space)', () => {
+    expect(isIdentityCard('DE')('LITOUAEVB')).toBe(true);
+  });
+
   it('should throw for unsupported locale', () => {
     expect(() => isIdentityCard('XX')).toThrow('Unsupported locale');
   });
 
   it('should return false for non-string input', () => {
-    expect(isIdentityCard('KR')(12345 as any)).toBe(false);
+    expect(isIdentityCard('KR')(12345 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isIdentityCard', () => {
@@ -193,13 +198,13 @@ describe('isIdentityCard', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isIdentityCard('KR').emit('_v', ctx);
+    const code = isIdentityCard('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIdentityCard');
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isIdentityCard('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isIdentityCard('XX' as never)).toThrow('Unsupported locale');
   });
 });
 
@@ -232,7 +237,7 @@ describe('isPassportNumber', () => {
   });
 
   it('should return false for non-string input', () => {
-    expect(isPassportNumber('KR')(123456789 as any)).toBe(false);
+    expect(isPassportNumber('KR')(123456789 as never)).toBe(false);
   });
 
   it('should have requiresType string and ruleName isPassportNumber', () => {
@@ -242,13 +247,13 @@ describe('isPassportNumber', () => {
 
   it('should generate emit code', () => {
     const { ctx, failMock } = makeCtx();
-    const code = isPassportNumber('KR').emit('_v', ctx);
+    const code = isPassportNumber('KR').emit('v', ctx);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isPassportNumber');
   });
 
   it('should throw for unknown locale before emit is reachable', () => {
-    expect(() => isPassportNumber('XX' as any)).toThrow('Unsupported locale');
+    expect(() => isPassportNumber('XX' as never)).toThrow('Unsupported locale');
   });
 
   it('should return independent rule objects', () => {

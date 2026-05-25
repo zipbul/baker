@@ -1,10 +1,12 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { SEALED } from '../symbols';
-import { SealError } from '../errors';
-import { globalRegistry } from '../registry';
-import { _resetForTesting } from '../seal/seal';
-import { serialize } from './serialize';
+
 import type { RuntimeOptions } from '../interfaces';
+
+import { BakerError } from '../errors';
+import { setSealed, deleteSealed } from '../meta-access';
+import { globalRegistry } from '../registry';
+import { resetForTesting } from '../seal/seal';
+import { serialize } from './serialize';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -12,8 +14,8 @@ import type { RuntimeOptions } from '../interfaces';
 
 const trackedClasses: Function[] = [];
 
-function makeClass(name = 'TestDto'): new (...args: any[]) => any {
-  const ctor = class {} as any;
+function makeClass(name = 'TestDto'): new (...args: never[]) => object {
+  const ctor = class {};
   Object.defineProperty(ctor, 'name', { value: name });
   trackedClasses.push(ctor);
   return ctor;
@@ -24,12 +26,13 @@ function attachSealed(
   serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>,
   opts?: { isSerializeAsync?: boolean },
 ): void {
-  (ctor as any)[SEALED] = {
-    _deserialize: () => {},
-    _serialize: serializeFn,
-    _isAsync: false,
-    _isSerializeAsync: opts?.isSerializeAsync ?? false,
-  };
+  setSealed(ctor, {
+    deserialize: () => {},
+    serialize: serializeFn,
+    validate: () => null,
+    isAsync: false,
+    isSerializeAsync: opts?.isSerializeAsync ?? false,
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -39,10 +42,10 @@ function attachSealed(
 afterEach(() => {
   for (const ctor of trackedClasses) {
     globalRegistry.delete(ctor);
-    delete (ctor as any)[SEALED];
+    deleteSealed(ctor);
   }
   trackedClasses.length = 0;
-  _resetForTesting();
+  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,7 +55,7 @@ afterEach(() => {
 describe('serialize', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
-  it('should return Record when _serialize returns plain object', async () => {
+  it('should return Record when serialize returns plain object', async () => {
     // Arrange
     const Dto = makeClass();
     const record = { name: 'Alice' };
@@ -64,7 +67,7 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should pass instance and options to _serialize when called', async () => {
+  it('should pass instance and options to serialize when called', async () => {
     // Arrange
     const Dto = makeClass();
     let capturedInstance: unknown;
@@ -85,15 +88,15 @@ describe('serialize', () => {
 
   // ── Negative / Error ───────────────────────────────────────────────────────
 
-  it('should throw SealError when instance class has no [SEALED] executor', () => {
+  it('should throw BakerError when instance class has no [SEALED] executor', () => {
     // Arrange
     const Dto = makeClass('UnsealedDto');
     const instance = new Dto();
     // Act & Assert
-    expect(() => serialize(instance)).toThrow(SealError);
+    expect(() => serialize(instance)).toThrow(BakerError);
   });
 
-  it('should include class name in SealError message when not sealed', () => {
+  it('should include class name in BakerError message when not sealed', () => {
     // Arrange
     const Dto = makeClass('MySerializeDto');
     const instance = new Dto();
@@ -103,7 +106,7 @@ describe('serialize', () => {
 
   // ── Edge ──────────────────────────────────────────────────────────────────
 
-  it('should return empty object when _serialize returns {} for instance with no registered fields', async () => {
+  it('should return empty object when serialize returns {} for instance with no registered fields', async () => {
     // Arrange
     const Dto = makeClass();
     attachSealed(Dto, () => ({}));
@@ -125,7 +128,7 @@ describe('serialize', () => {
     const instance = new Dto();
     await serialize(instance);
     // Simulate re-seal
-    delete (Dto as any)[SEALED];
+    deleteSealed(Dto);
     attachSealed(Dto, () => record2);
     // Act
     const result = await serialize(instance);
@@ -152,7 +155,7 @@ describe('serialize', () => {
 
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
-  it('should return direct value when _isSerializeAsync is false', () => {
+  it('should return direct value when isSerializeAsync is false', () => {
     // Arrange
     const Dto = makeClass();
     const record = { x: 1 };
@@ -164,16 +167,17 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should use async path when _isSerializeAsync is true', async () => {
+  it('should use async path when isSerializeAsync is true', async () => {
     // Arrange
     const Dto = makeClass();
     const record = { y: 2 };
-    (Dto as any)[SEALED] = {
-      _deserialize: () => {},
-      _serialize: () => Promise.resolve(record),
-      _isAsync: false,
-      _isSerializeAsync: true,
-    };
+    setSealed(Dto, {
+      deserialize: () => {},
+      serialize: () => Promise.resolve(record),
+      validate: () => null,
+      isAsync: false,
+      isSerializeAsync: true,
+    });
     trackedClasses.push(Dto);
     const instance = new Dto();
     // Act
@@ -182,11 +186,11 @@ describe('serialize', () => {
     expect(result).toBe(record);
   });
 
-  it('should throw SealError when class is not sealed', () => {
+  it('should throw BakerError when class is not sealed', () => {
     // Arrange
     const Dto = makeClass('NotSealedSerDto');
     const instance = new Dto();
     // Act & Assert
-    expect(() => serialize(instance)).toThrow(SealError);
+    expect(() => serialize(instance)).toThrow(BakerError);
   });
 });

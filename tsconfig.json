@@ -12,9 +12,6 @@
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
-    // Decorators
-    "experimentalDecorators": true,
-
     // Best practices
     "strict": true,
     "skipLibCheck": true,
@@ -22,10 +19,11 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
 
-    // Some stricter flags (disabled by default)
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "exactOptionalPropertyTypes": true,
     "noPropertyAccessFromIndexSignature": false
   },
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "bench"]
 }

@@ -1,13 +1,23 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
+import { type } from 'arktype';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: Simple flat object (5 fields) — valid + invalid
+// (class-validator / class-transformer comparison lives in bench/class-validator — it requires
+//  legacy decorators, which cannot coexist with baker's modern decorators in one process.)
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+import * as v from 'valibot';
+import { z } from 'zod';
+
+import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
+import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize } from '../index';
-import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 
+@Recipe
 class BakerSimple {
   @Field(isString, minLength(2)) name!: string;
   @Field(isString, isEmail()) email!: string;
@@ -15,24 +25,9 @@ class BakerSimple {
   @Field(isBoolean) active!: boolean;
   @Field(isString) tag!: string;
 }
-// warm seal
-await deserialize(BakerSimple, SIMPLE_VALID);
-
-// ── class-validator ──────────────────────────────────────────────────────────
-import 'reflect-metadata';
-import { IsString, IsEmail, IsNumber, IsBoolean, Min, Max, MinLength, validateSync } from 'class-validator';
-import { plainToInstance } from 'class-transformer';
-
-class CvSimple {
-  @IsString() @MinLength(2) name!: string;
-  @IsString() @IsEmail() email!: string;
-  @IsNumber() @Min(0) @Max(150) age!: number;
-  @IsBoolean() active!: boolean;
-  @IsString() tag!: string;
-}
+seal();
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
-import { z } from 'zod';
 
 const zodSimple = z.object({
   name: z.string().min(2),
@@ -43,7 +38,6 @@ const zodSimple = z.object({
 });
 
 // ── Valibot ──────────────────────────────────────────────────────────────────
-import * as v from 'valibot';
 
 const valibotSimple = v.object({
   name: v.pipe(v.string(), v.minLength(2)),
@@ -54,7 +48,6 @@ const valibotSimple = v.object({
 });
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 
 const ajv = new Ajv({ allErrors: true });
 const ajvSimple = ajv.compile({
@@ -71,8 +64,6 @@ const ajvSimple = ajv.compile({
 });
 
 // ── TypeBox + AJV ────────────────────────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbSimple = T.Object({
   name: T.String({ minLength: 2 }),
@@ -84,7 +75,6 @@ const tbSimple = T.Object({
 const tbCheck = TypeCompiler.Compile(tbSimple);
 
 // ── ArkType ──────────────────────────────────────────────────────────────────
-import { type } from 'arktype';
 
 const arkSimple = type({
   name: 'string >= 2',
@@ -98,57 +88,91 @@ const arkSimple = type({
 // Benchmarks
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Sink to prevent dead-code elimination
-let sink: unknown;
+// ─────────────────────────────────────────────────────────────────────────────
+// Fair-comparison helpers
+//
+// Each bench function must perform equivalent effective work:
+//   - valid path: validate + return a typed/successful result
+//   - invalid path: validate + materialise an error list (not just a bool)
+//
+// `sinkNum` accumulates a primitive from every iteration so that JIT cannot
+// dead-code-eliminate the validation call (observed on typebox Check()).
+// ─────────────────────────────────────────────────────────────────────────────
+
+let sinkNum = 0;
 
 group('simple object — valid input', () => {
   bench('baker', () => {
-    sink = deserialize(BakerSimple, SIMPLE_VALID);
+    const r = deserialize(BakerSimple, SIMPLE_VALID) as BakerSimple;
+    sinkNum += r.tag.length;
   });
-  bench('class-validator', async () => {
-    const inst = plainToInstance(CvSimple, SIMPLE_VALID);
-    sink = await validateSync(inst);
+  bench('zod', () => {
+    const r = zodSimple.safeParse(SIMPLE_VALID);
+    sinkNum += r.success ? r.data.tag.length : r.error.issues.length;
   });
-  bench('zod', async () => {
-    sink = await zodSimple.parse(SIMPLE_VALID);
+  bench('valibot', () => {
+    const r = v.safeParse(valibotSimple, SIMPLE_VALID);
+    sinkNum += r.success ? r.output.tag.length : r.issues.length;
   });
-  bench('valibot', async () => {
-    sink = await v.parse(valibotSimple, SIMPLE_VALID);
+  bench('ajv', () => {
+    const ok = ajvSimple(SIMPLE_VALID);
+    sinkNum += ok ? 1 : (ajvSimple.errors?.length ?? 0);
   });
-  bench('ajv', async () => {
-    sink = await ajvSimple(SIMPLE_VALID);
+  bench('typebox', () => {
+    const ok = tbCheck.Check(SIMPLE_VALID);
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(SIMPLE_VALID)) {
+        sinkNum += 1;
+      }
+    }
   });
-  bench('typebox', async () => {
-    sink = await tbCheck.Check(SIMPLE_VALID);
-  });
-  bench('arktype', async () => {
-    sink = await arkSimple(SIMPLE_VALID);
+  bench('arktype', () => {
+    const r = arkSimple(SIMPLE_VALID);
+    sinkNum += r instanceof type.errors ? r.length : (r as { tag: string }).tag.length;
   });
 });
 
 group('simple object — invalid input', () => {
   bench('baker', () => {
-    sink = deserialize(BakerSimple, SIMPLE_INVALID);
+    const r = deserialize(BakerSimple, SIMPLE_INVALID);
+    if (isBakerIssueSet(r)) {
+      sinkNum += r.errors.length;
+    } else {
+      sinkNum += 1;
+    }
   });
-  bench('class-validator', async () => {
-    const inst = plainToInstance(CvSimple, SIMPLE_INVALID);
-    sink = await validateSync(inst);
+  bench('zod', () => {
+    const r = zodSimple.safeParse(SIMPLE_INVALID);
+    sinkNum += r.success ? 1 : r.error.issues.length;
   });
-  bench('zod', async () => {
-    sink = await zodSimple.safeParse(SIMPLE_INVALID);
+  bench('valibot', () => {
+    const r = v.safeParse(valibotSimple, SIMPLE_INVALID);
+    sinkNum += r.success ? 1 : r.issues.length;
   });
-  bench('valibot', async () => {
-    sink = await v.safeParse(valibotSimple, SIMPLE_INVALID);
+  bench('ajv', () => {
+    const ok = ajvSimple(SIMPLE_INVALID);
+    sinkNum += ok ? 1 : (ajvSimple.errors?.length ?? 0);
   });
-  bench('ajv', async () => {
-    sink = await ajvSimple(SIMPLE_INVALID);
+  bench('typebox', () => {
+    const ok = tbCheck.Check(SIMPLE_INVALID);
+    if (ok) {
+      sinkNum += 1;
+    } else {
+      for (const _ of tbCheck.Errors(SIMPLE_INVALID)) {
+        sinkNum += 1;
+      }
+    }
   });
-  bench('typebox', async () => {
-    sink = await tbCheck.Check(SIMPLE_INVALID);
-  });
-  bench('arktype', async () => {
-    sink = arkSimple(SIMPLE_INVALID);
+  bench('arktype', () => {
+    const r = arkSimple(SIMPLE_INVALID);
+    sinkNum += r instanceof type.errors ? r.length : 1;
   });
 });
 
 await run();
+// Force observation of sinkNum so the compiler cannot hoist iterations away.
+if (sinkNum === -1) {
+  console.log('unreachable', sinkNum);
+}

@@ -1,23 +1,30 @@
+import { Type as T } from '@sinclair/typebox';
+import { TypeCompiler } from '@sinclair/typebox/compiler';
+import Ajv from 'ajv';
 // ─────────────────────────────────────────────────────────────────────────────
 // Benchmark: validate() vs deserialize() — prove Object.create elimination
 // ─────────────────────────────────────────────────────────────────────────────
 import { bench, group, run } from 'mitata';
+
+import { Field, Recipe, deserialize, seal, validate } from '../index';
+import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
 // ── Baker ────────────────────────────────────────────────────────────────────
-import { Field, deserialize, validate } from '../index';
-import { isString, isNumber, min, minLength, arrayMinSize } from '../src/rules/index';
 
+@Recipe
 class BkAddr {
   @Field(isString, minLength(1)) street!: string;
   @Field(isString, minLength(1)) city!: string;
   @Field(isString, minLength(1)) zip!: string;
 }
+@Recipe
 class BkCust {
   @Field(isString, minLength(1)) name!: string;
   @Field(isString) email!: string;
   @Field({ type: () => BkAddr }) address!: BkAddr;
 }
+@Recipe
 class BkOrder {
   @Field(isString, minLength(1)) title!: string;
   @Field({ type: () => BkCust }) customer!: BkCust;
@@ -25,22 +32,23 @@ class BkOrder {
 }
 
 // Array benchmark DTO
+@Recipe
 class BkItem {
   @Field(isString, minLength(1)) name!: string;
   @Field(isNumber(), min(0)) price!: number;
 }
+@Recipe
 class BkCart {
   @Field(arrayMinSize(1), { type: () => [BkItem] }) items!: BkItem[];
 }
 
 // Warm seal
+seal();
 deserialize(BkOrder, NESTED_VALID);
 const cartInput = { items: Array.from({ length: 1000 }, (_, i) => ({ name: `item${i}`, price: i })) };
 deserialize(BkCart, cartInput);
 
 // ── TypeBox (validate-only baseline) ─────────────────────────────────────────
-import { Type as T } from '@sinclair/typebox';
-import { TypeCompiler } from '@sinclair/typebox/compiler';
 
 const tbOrder = T.Object({
   title: T.String({ minLength: 1 }),
@@ -58,15 +66,17 @@ const tbOrder = T.Object({
 const tbCheck = TypeCompiler.Compile(tbOrder);
 
 const tbCart = T.Object({
-  items: T.Array(T.Object({
-    name: T.String({ minLength: 1 }),
-    price: T.Number({ minimum: 0 }),
-  }), { minItems: 1 }),
+  items: T.Array(
+    T.Object({
+      name: T.String({ minLength: 1 }),
+      price: T.Number({ minimum: 0 }),
+    }),
+    { minItems: 1 },
+  ),
 });
 const tbCartCheck = TypeCompiler.Compile(tbCart);
 
 // ── AJV ──────────────────────────────────────────────────────────────────────
-import Ajv from 'ajv';
 const ajv = new Ajv({ allErrors: true });
 const ajvCart = ajv.compile({
   type: 'object',
@@ -126,3 +136,6 @@ group('nested 3-level — invalid', () => {
 });
 
 await run();
+
+// Force tsc to treat 'sink' as used (it's a DCE-prevention write-only target).
+void sink;

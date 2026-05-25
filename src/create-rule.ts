@@ -1,4 +1,7 @@
 import type { EmittableRule, EmitContext, InternalRule } from './types';
+
+import { BakerError } from './errors';
+import { defineRuleMetadata } from './rule-metadata';
 import { isAsyncFunction, isPromiseLike } from './utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -36,7 +39,12 @@ export function createRule(
   validateFn?: (value: unknown) => boolean | Promise<boolean>,
 ): EmittableRule {
   const name = typeof nameOrOptions === 'string' ? nameOrOptions : nameOrOptions.name;
-  const validate = typeof nameOrOptions === 'string' ? validateFn! : nameOrOptions.validate;
+  const validate = typeof nameOrOptions === 'string' ? validateFn : nameOrOptions.validate;
+  // The overloads require `validate`; guard the untyped-JS path instead of asserting with `!`,
+  // so misuse fails clearly at creation rather than as a confusing TypeError at validation time.
+  if (typeof validate !== 'function') {
+    throw new BakerError(`createRule(${name}): a validate function is required.`);
+  }
   const constraints = typeof nameOrOptions === 'object' ? nameOrOptions.constraints : undefined;
   const requiresType = typeof nameOrOptions === 'object' ? nameOrOptions.requiresType : undefined;
 
@@ -46,7 +54,9 @@ export function createRule(
   const fn = function (value: unknown): boolean | Promise<boolean> {
     const result = validate(value);
     if (!isAsyncFn && isPromiseLike(result)) {
-      throw new Error(`createRule(${name}): sync rule returned Promise. Declare the validator with async if it is asynchronous.`);
+      throw new BakerError(
+        `createRule(${name}): sync rule returned Promise. Declare the validator with async if it is asynchronous.`,
+      );
     }
     return result;
   } as InternalRule;
@@ -54,13 +64,21 @@ export function createRule(
   // .emit() — generates function call code via the refs array
   fn.emit = function (varName: string, ctx: EmitContext): string {
     const i = ctx.addRef(fn);
-    return `if(!(${isAsyncFn ? 'await ' : ''}_refs[${i}](${varName}))) ${ctx.fail(name)};`;
+    return `if(!(${isAsyncFn ? 'await ' : ''}refs[${i}](${varName}))) ${ctx.fail(name)};`;
   };
 
-  (fn as any).ruleName = name;
-  (fn as any).isAsync = isAsyncFn;
-  if (constraints) (fn as any).constraints = constraints;
-  if (requiresType) (fn as any).requiresType = requiresType;
+  const meta: Parameters<typeof defineRuleMetadata>[1] = {
+    emit: fn.emit,
+    ruleName: name,
+    isAsync: isAsyncFn,
+  };
+  if (constraints !== undefined) {
+    meta.constraints = constraints;
+  }
+  if (requiresType !== undefined) {
+    meta.requiresType = requiresType;
+  }
+  defineRuleMetadata(fn, meta);
 
   return fn;
 }
