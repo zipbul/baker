@@ -29,27 +29,25 @@
   (`1*tchar`), used for HTTP method names and header field-names. Usable as a predicate
   (`isHttpToken(value)`) or as `@Field(isHttpToken)`, and exported from `@zipbul/baker/rules`.
 
-## 3.0.0
-
 ### DX reform — breaking changes
 
-- **Auto-seal removed.** Call `seal()` once at app startup, after every DTO module is loaded. Without it, the first `deserialize` / `serialize` / `validate` call throws `SealError`.
+- **Auto-seal removed.** Call `seal()` once at app startup, after every DTO module is loaded. Without it, the first `deserialize` / `serialize` / `validate` call throws `BakerError`.
   - Migration: import `seal` and call `seal()` once before any deserialize/serialize/validate call. For tests, call `seal()` after each `unseal()` / `configure(...)` reconfiguration.
-- **Per-call options are validated.** Only `groups` is a valid per-call option. Passing any other key (`stopAtFirstError`, `autoConvert`, `allowClassDefaults`, `forbidUnknown`, `debug`, …) throws `SealError`. Move those keys into `configure({...})` before `seal()`.
-- **`@Field` argument validation.** Passing a non-rule value (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) now throws `SealError` immediately with the four valid forms listed in the message.
-- **Map non-string keys.** Serializing a `Map<K, V>` whose key is not a `string` throws `TypeError` — previously the key was silently coerced via `[object Object]` and collided.
+- **Per-call options are validated.** Only `groups` is a valid per-call option. Passing any other key (`stopAtFirstError`, `autoConvert`, `allowClassDefaults`, `forbidUnknown`, `debug`, …) throws `BakerError`. Move those keys into `configure({...})` before `seal()`.
+- **`@Field` argument validation.** Passing a non-rule value (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) now throws `BakerError` immediately with the four valid forms listed in the message.
+- **Map non-string keys.** Serializing a `Map<K, V>` whose key is not a `string` throws `BakerError` — previously the key was silently coerced via `[object Object]` and collided.
 
 ### API additions
 
 - `seal(...classes?)` — explicit AOT seal trigger.
-- `deserializeSync<T>` / `deserializeAsync<T>` / `serializeSync<T>` / `serializeAsync<T>` / `validateSync` / `validateAsync` — strict variants. `*Sync` throws `SealError` when the DTO is async on the relevant direction; `*Async` always returns `Promise`.
+- `deserializeSync<T>` / `deserializeAsync<T>` / `serializeSync<T>` / `serializeAsync<T>` / `validateSync` / `validateAsync` — strict variants. `*Sync` throws `BakerError` when the DTO is async on the relevant direction; `*Async` always returns `Promise`.
 
 ### Defect fixes
 
 - **F-1** `circular-analyzer.walk()` now walks `meta.type.collectionValue` — Set/Map nested DTO cycles are caught at seal time, no more `stack overflow` at runtime.
-- **F-2** Discriminator / Set·Map / inheritance invariants now run before codegen via the new `validate-meta` pass — invalid metadata throws `SealError` with a precise message instead of producing invalid generated JS.
+- **F-2** Discriminator / Set·Map / inheritance invariants now run before codegen via the new `validate-meta` pass — invalid metadata throws `BakerError` with a precise message instead of producing invalid generated JS.
 - **F-3** Discriminator default branch now reports `context: { received, validSubTypes: [...] }` so callers can show the user the allowed values.
-- **F-4** Per-call options other than `groups` are rejected with `SealError` instead of being silently dropped.
+- **F-4** Per-call options other than `groups` are rejected with `BakerError` instead of being silently dropped.
 - **F-8** FR passport regex now anchors both ends (`/^[A-Z0-9]{9}$/i`).
 - **F-9** `MAGNET_URI_RE` is anchored on the trailing end.
 - **N-3** Circular-detection `WeakSet` is now allocated per call via `Symbol.for('baker:circular-seen')` threaded through `_opts` — concurrent async calls no longer false-circular on shared input objects.
