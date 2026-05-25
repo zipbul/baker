@@ -21,8 +21,6 @@
   mode was removed — call a rule directly instead). `configure()` rejects unknown keys and
   post-`seal()` calls, and seal-time options can no longer be passed per-call.
 
-  See `MIGRATION-3.0.md` for the full upgrade guide.
-
 ### Minor Changes
 
 - 421fd54: Add the `isHttpToken` rule — validates the RFC 9110 §5.6.2 HTTP `token` production

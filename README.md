@@ -8,12 +8,15 @@ bun add @zipbul/baker
 
 Zero `reflect-metadata`. Sealed codegen. 99%+ line coverage.
 
+> **Requires Bun ≥ 1.3.13.** baker relies on TC39 decorator metadata (`Symbol.metadata`), which Node does not populate — it is Bun-only.
+
 ## Quick Start
 
 ```typescript
-import { deserialize, isBakerIssueSet, Field, seal } from '@zipbul/baker';
+import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
+@Recipe
 class UserDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0)) age!: number;
@@ -106,9 +109,13 @@ configure({
 });
 ```
 
-### `createRule(name, validate)`
+### `createRule(name, validate)` / `createRule(options)`
 
-Custom validation rule.
+Custom validation rule. Two forms — a `(name, validate)` shorthand or an options object:
+
+```typescript
+const koreanPhone = createRule('koreanPhone', v => /^01[016789]/.test(v as string));
+```
 
 ```typescript
 const isEven = createRule({
@@ -139,6 +146,7 @@ Each rule must be an emittable rule object created via `createRule()` or one of 
 | ----------------- | ------------------------------------------------- | ------------------------------ |
 | `type`            | `() => Dto \| [Dto]`                              | Nested DTO. `[Dto]` for arrays |
 | `discriminator`   | `{ property, subTypes }`                          | Polymorphic dispatch           |
+| `keepDiscriminatorProperty` | `boolean`                               | Keep the discriminator key in the result |
 | `optional`        | `boolean`                                         | Allow undefined                |
 | `nullable`        | `boolean`                                         | Allow null                     |
 | `name`            | `string`                                          | Bidirectional key mapping      |
@@ -215,6 +223,7 @@ email!: string;
 import { luxonTransformer } from '@zipbul/baker/transformers';
 const luxon = await luxonTransformer({ zone: 'Asia/Seoul' });
 
+@Recipe
 class EventDto {
   @Field({ transform: luxon }) startAt!: DateTime;
 }
@@ -269,10 +278,12 @@ const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 ## Nested DTOs
 
 ```typescript
+@Recipe
 class AddressDto {
   @Field(isString) city!: string;
 }
 
+@Recipe
 class UserDto {
   @Field({ type: () => AddressDto }) address!: AddressDto;
   @Field({ type: () => [AddressDto] }) addresses!: AddressDto[];
@@ -282,15 +293,19 @@ class UserDto {
 ## Collections
 
 ```typescript
+@Recipe
 class UserDto {
-  @Field({ type: () => Set as any, setValue: () => TagDto }) tags!: Set<TagDto>;
-  @Field({ type: () => Map as any, mapValue: () => PriceDto }) prices!: Map<string, PriceDto>;
+  @Field({ type: () => Set, setValue: () => TagDto }) tags!: Set<TagDto>;
+  @Field({ type: () => Map, mapValue: () => PriceDto }) prices!: Map<string, PriceDto>;
 }
 ```
+
+> Deserialize input shape: a `Set` field accepts a JSON **array**, a `Map` field accepts a plain **object** keyed by string. Serialize emits the same shapes.
 
 ## Discriminator
 
 ```typescript
+@Recipe
 class PetOwner {
   @Field({
     type: () => CatDto,
@@ -309,10 +324,12 @@ class PetOwner {
 ## Inheritance
 
 ```typescript
+@Recipe
 class BaseDto {
   @Field(isString) id!: string;
 }
 
+@Recipe
 class UserDto extends BaseDto {
   @Field(isString) name!: string;
   // inherits 'id' field with isString rule
@@ -323,11 +340,11 @@ class UserDto extends BaseDto {
 
 ### When should I use baker instead of class-validator?
 
-When performance matters. baker is 163x faster on valid input and 109x faster on invalid input, while providing the same decorator-based DX. baker also eliminates the `reflect-metadata` dependency.
+When performance matters. baker generates optimized validation/serialization code at seal time instead of interpreting rules on every call, so it is substantially faster than class-validator on both valid and invalid input while providing the same decorator-based DX. baker also eliminates the `reflect-metadata` dependency. Run [`bench/`](./bench) to measure the exact difference on your machine.
 
 ### How does baker compare to Zod?
 
-Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker is 16x faster on valid input because it generates optimized code at definition time instead of interpreting schemas at runtime. Choose Zod if you need schema-first design; choose baker if you need class-based DTOs with maximum performance.
+Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker generates optimized code at definition time instead of interpreting schemas at runtime. Choose Zod if you need schema-first design or Node support; choose baker if you need class-based DTOs on Bun with maximum performance.
 
 ### Does baker support async validation?
 
