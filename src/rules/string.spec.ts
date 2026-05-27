@@ -78,6 +78,8 @@ import {
   isStrongPassword,
   isTaxId,
   isHttpToken,
+  isOrigin,
+  isCorsOrigin,
 } from './string';
 
 function makeCtx(refIndex: number = 0) {
@@ -433,6 +435,122 @@ describe('isHttpToken', () => {
     expect(code).toContain('re[0]');
     expect(failMock).toHaveBeenCalledWith('isHttpToken');
     expect(isHttpToken.ruleName).toBe('isHttpToken');
+  });
+});
+
+describe('isOrigin', () => {
+  // RFC 6454 §6.2 serialized origin — WHATWG URL `.origin` byte-equality.
+  it('should return true for canonical serialized origins and the opaque "null" literal', () => {
+    for (const v of [
+      'https://a.com',
+      'https://a.com:8080',
+      'http://localhost',
+      'http://localhost:3000',
+      'https://[::1]',
+      'https://[::1]:8443',
+      'https://xn--bj0bj06e.com', // punycode IDN
+      'ws://a.com', // WebSocket origin (RFC 6455 §10.2) — tuple origin
+      'wss://a.com:8443',
+      'null', // RFC 6454 §6.2 opaque origin literal (does not parse via URL)
+    ]) {
+      expect(isOrigin(v)).toBe(true);
+    }
+  });
+
+  it('should return false for non-canonical forms, parse failures, and the CORS wildcard', () => {
+    for (const v of [
+      '',
+      '  ',
+      'https://a.com/', // trailing slash
+      'https://a.com/path', // path
+      'https://a.com?q=1', // query
+      'https://a.com#h', // fragment
+      'HTTPS://A.COM', // uppercase scheme + host
+      'https://A.com', // mixed-case host
+      'https://a.com:443', // explicit default port (https)
+      'http://a.com:80', // explicit default port (http)
+      'http://[::1]:80', // IPv6 explicit default port
+      'https://user:pass@a.com', // userinfo — URL.origin strips credentials
+      'https://user@a.com', // userinfo (user only)
+      ' https://a.com', // leading whitespace — URL trims, byte-mismatch
+      'https://한글.com', // raw IDN unicode (punycode required)
+      'not-a-url', // parse failure
+      'file:///x', // opaque scheme → URL.origin === 'null'
+      'data:text/plain,foo', // opaque scheme → URL.origin === 'null'
+      'blob:https://a.com/uuid', // blob → URL.origin === 'https://a.com' ≠ input
+      '*', // CORS wildcard — rejected by general isOrigin
+    ]) {
+      expect(isOrigin(v)).toBe(false);
+    }
+  });
+
+  it('should return false for non-string input', () => {
+    expect(isOrigin(42 as unknown as string)).toBe(false);
+    expect(isOrigin(null as unknown as string)).toBe(false);
+    expect(isOrigin(undefined as unknown as string)).toBe(false);
+  });
+
+  it('should generate a refs[] predicate call when calling emit() and have ruleName isOrigin', () => {
+    const { ctx, addRefMock, failMock } = makeCtx(0);
+    const code = isOrigin.emit('v', ctx);
+    expect(addRefMock).toHaveBeenCalledTimes(1);
+    expect(addRefMock.mock.calls[0]?.[0]).toBeInstanceOf(Function);
+    expect(code).toContain('refs[0](v)'); // must actually call the predicate, not just reference it
+    expect(failMock).toHaveBeenCalledWith('isOrigin');
+    expect(isOrigin.ruleName).toBe('isOrigin');
+    expect(isOrigin.requiresType).toBe('string');
+  });
+});
+
+describe('isCorsOrigin', () => {
+  // CORS-only superset of isOrigin: additionally accepts the '*' wildcard literal.
+  it('should return true for everything isOrigin accepts plus the "*" wildcard', () => {
+    for (const v of [
+      'https://a.com',
+      'https://a.com:8080', // non-default port
+      'http://localhost',
+      'https://[::1]',
+      'https://xn--bj0bj06e.com',
+      'ws://a.com', // superset of isOrigin — WebSocket origin
+      'wss://a.com:8443',
+      'null',
+      '*', // CORS wildcard literal
+    ]) {
+      expect(isCorsOrigin(v)).toBe(true);
+    }
+  });
+
+  it('should return false for non-canonical forms and parse failures', () => {
+    for (const v of [
+      '',
+      '  ',
+      'https://a.com/',
+      'HTTPS://A.COM',
+      'https://a.com:443',
+      'https://user:pass@a.com', // userinfo stripped → byte-mismatch
+      'https://한글.com',
+      'not-a-url',
+      'file:///x',
+      '**', // not the bare wildcard
+    ]) {
+      expect(isCorsOrigin(v)).toBe(false);
+    }
+  });
+
+  it('should return false for non-string input', () => {
+    expect(isCorsOrigin(42 as unknown as string)).toBe(false);
+    expect(isCorsOrigin(null as unknown as string)).toBe(false);
+  });
+
+  it('should generate a refs[] predicate call when calling emit() and have ruleName isCorsOrigin', () => {
+    const { ctx, addRefMock, failMock } = makeCtx(0);
+    const code = isCorsOrigin.emit('v', ctx);
+    expect(addRefMock).toHaveBeenCalledTimes(1);
+    expect(addRefMock.mock.calls[0]?.[0]).toBeInstanceOf(Function);
+    expect(code).toContain('refs[0](v)'); // must actually call the predicate, not just reference it
+    expect(failMock).toHaveBeenCalledWith('isCorsOrigin');
+    expect(isCorsOrigin.ruleName).toBe('isCorsOrigin');
+    expect(isCorsOrigin.requiresType).toBe('string');
   });
 });
 

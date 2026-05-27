@@ -16,6 +16,8 @@ export {
   isAlpha,
   isAlphanumeric,
   isHttpToken,
+  isOrigin,
+  isCorsOrigin,
   isBooleanString,
   isNumberString,
   isDecimal,
