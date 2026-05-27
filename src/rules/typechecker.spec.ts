@@ -2,7 +2,19 @@ import { describe, it, expect, mock } from 'bun:test';
 
 import type { EmitContext } from '../types';
 
-import { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject, isRegExp, isFunction } from './typechecker';
+import {
+  isString,
+  isNumber,
+  isBoolean,
+  isDate,
+  isEnum,
+  isInt,
+  isArray,
+  isObject,
+  isRegExp,
+  isFunction,
+  isStatelessRegExp,
+} from './typechecker';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
@@ -639,5 +651,78 @@ describe('isFunction', () => {
     expect(failMock).toHaveBeenCalledWith('isFunction');
     expect(isFunction.ruleName).toBe('isFunction');
     expect(isFunction.requiresType).toBeUndefined();
+  });
+});
+
+// ─── isStatelessRegExp ───────────────────────────────────────────────────────
+
+describe('isStatelessRegExp', () => {
+  it('should return true for a RegExp with no flags', () => {
+    expect(isStatelessRegExp(/^https:\/\/.*$/)).toBe(true);
+  });
+
+  it('should return true for stateless flags in isolation (d/i/m/s/u/v)', () => {
+    for (const re of [/x/d, /x/i, /x/m, /x/s, /x/u, new RegExp('x', 'v')]) {
+      expect(isStatelessRegExp(re)).toBe(true);
+    }
+  });
+
+  it('should return true for combined stateless flags', () => {
+    expect(isStatelessRegExp(/x/imsu)).toBe(true);
+  });
+
+  it('should return true for a constructed RegExp without flags', () => {
+    expect(isStatelessRegExp(new RegExp('foo'))).toBe(true);
+  });
+
+  it('should return true for a constructed RegExp with a stateless flag', () => {
+    expect(isStatelessRegExp(new RegExp('foo', 'i'))).toBe(true);
+  });
+
+  it('should return true for a RegExp subclass instance without g/y', () => {
+    class SubRe extends RegExp {}
+    expect(isStatelessRegExp(new SubRe('foo'))).toBe(true);
+  });
+
+  it('should return true for a non-g/y RegExp with a manually-set lastIndex (test ignores it)', () => {
+    const re = /foo/;
+    re.lastIndex = 99;
+    expect(isStatelessRegExp(re)).toBe(true);
+  });
+
+  it('should return false for the global flag', () => {
+    expect(isStatelessRegExp(/x/g)).toBe(false);
+  });
+
+  it('should return false for the sticky flag', () => {
+    expect(isStatelessRegExp(/x/y)).toBe(false);
+  });
+
+  it('should return false for global+sticky and global+stateless combinations', () => {
+    for (const re of [/x/gy, /x/gi, new RegExp('foo', 'g')]) {
+      expect(isStatelessRegExp(re)).toBe(false);
+    }
+  });
+
+  it('should return false for a RegExp subclass instance with the global flag', () => {
+    class SubRe extends RegExp {}
+    expect(isStatelessRegExp(new SubRe('foo', 'g'))).toBe(false);
+  });
+
+  it('should return false for non-RegExp values', () => {
+    for (const v of ['/x/', 42, null, undefined, {}, [], () => {}]) {
+      expect(isStatelessRegExp(v)).toBe(false);
+    }
+  });
+
+  it('should emit an instanceof + global/sticky check and have ruleName isStatelessRegExp', () => {
+    const { ctx, failMock } = makeCtx();
+    const code = isStatelessRegExp.emit('v', ctx);
+    expect(code).toContain('v instanceof RegExp');
+    expect(code).toContain('v.global');
+    expect(code).toContain('v.sticky');
+    expect(failMock).toHaveBeenCalledWith('isStatelessRegExp');
+    expect(isStatelessRegExp.ruleName).toBe('isStatelessRegExp');
+    expect(isStatelessRegExp.requiresType).toBeUndefined();
   });
 });
