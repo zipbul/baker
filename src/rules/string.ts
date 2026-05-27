@@ -170,6 +170,44 @@ const isHttpToken = makeStringRule(
   },
 );
 
+// RFC 6454 §6.2 serialized origin — a string equal to WHATWG URL `.origin`.
+// The opaque-origin literal 'null' is matched explicitly because `new URL('null')` throws.
+// '*' (CORS wildcard) is rejected here; use isCorsOrigin for the CORS superset.
+const isOriginValue = (value: string): boolean => {
+  if (value === 'null') {
+    return true;
+  }
+  try {
+    return new URL(value).origin === value;
+  } catch {
+    return false;
+  }
+};
+const isOrigin = makeRule({
+  name: 'isOrigin',
+  requiresType: 'string',
+  constraints: { format: 'origin' },
+  validate: value => typeof value === 'string' && isOriginValue(value),
+  emit: (varName: string, ctx: EmitContext): string => {
+    const i = ctx.addRef(isOriginValue);
+    return `if (!(refs[${i}](${varName}))) ${ctx.fail('isOrigin')};`;
+  },
+});
+
+// CORS superset of isOrigin: additionally accepts the '*' wildcard literal
+// (Access-Control-Allow-Origin). Keep '*' out of the general isOrigin.
+const isCorsOriginValue = (value: string): boolean => value === '*' || isOriginValue(value);
+const isCorsOrigin = makeRule({
+  name: 'isCorsOrigin',
+  requiresType: 'string',
+  constraints: { format: 'origin', allowWildcard: true },
+  validate: value => typeof value === 'string' && isCorsOriginValue(value),
+  emit: (varName: string, ctx: EmitContext): string => {
+    const i = ctx.addRef(isCorsOriginValue);
+    return `if (!(refs[${i}](${varName}))) ${ctx.fail('isCorsOrigin')};`;
+  },
+});
+
 // BooleanString: 'true' | 'false' | '1' | '0'
 const isBooleanString = makeRule({
   name: 'isBooleanString',
@@ -2410,6 +2448,8 @@ export {
   isAlpha,
   isAlphanumeric,
   isHttpToken,
+  isOrigin,
+  isCorsOrigin,
   isBooleanString,
   isNumberString,
   isDecimal,

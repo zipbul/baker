@@ -57,6 +57,8 @@ import {
   isDateString,
   isCurrency,
   isHttpToken,
+  isOrigin,
+  isCorsOrigin,
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -90,6 +92,44 @@ describe('isHttpToken', () => {
   });
   it('rejects empty string (1*tchar)', async () => {
     expect(isBakerIssueSet(await deserialize(D, { v: '' }))).toBe(true);
+  });
+});
+
+describe('isOrigin', () => {
+  @Recipe
+  class D {
+    @Field(isOrigin) v!: string;
+  }
+  it('passes for a canonical serialized origin', async () => {
+    expect(((await deserialize(D, { v: 'https://a.com' })) as D).v).toBe('https://a.com');
+  });
+  it('passes for the opaque "null" literal', async () => {
+    expect(((await deserialize(D, { v: 'null' })) as D).v).toBe('null');
+  });
+  it('rejects trailing slash', async () => {
+    expect(isBakerIssueSet(await deserialize(D, { v: 'https://a.com/' }))).toBe(true);
+  });
+  it('rejects explicit default port', async () => {
+    expect(isBakerIssueSet(await deserialize(D, { v: 'https://a.com:443' }))).toBe(true);
+  });
+  it('rejects the CORS wildcard (general rule)', async () => {
+    expect(isBakerIssueSet(await deserialize(D, { v: '*' }))).toBe(true);
+  });
+});
+
+describe('isCorsOrigin', () => {
+  @Recipe
+  class D {
+    @Field(isCorsOrigin) v!: string;
+  }
+  it('passes for a canonical serialized origin', async () => {
+    expect(((await deserialize(D, { v: 'https://a.com' })) as D).v).toBe('https://a.com');
+  });
+  it('passes for the "*" wildcard', async () => {
+    expect(((await deserialize(D, { v: '*' })) as D).v).toBe('*');
+  });
+  it('rejects uppercase scheme/host', async () => {
+    expect(isBakerIssueSet(await deserialize(D, { v: 'HTTPS://A.COM' }))).toBe(true);
   });
 });
 
