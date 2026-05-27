@@ -174,3 +174,26 @@ export const isObject = makeRule({
   emit: (varName: string, ctx: EmitContext): string =>
     `if (typeof ${varName} !== 'object' || ${varName} === null || Array.isArray(${varName})) ${ctx.fail('isObject')};`,
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isRegExp — instanceof RegExp (self-narrowing, no typeof gate needed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const isRegExp = makeRule({
+  name: 'isRegExp',
+  constraints: {},
+  validate: value => value instanceof RegExp,
+  emit: (varName: string, ctx: EmitContext): string => `if (!(${varName} instanceof RegExp)) ${ctx.fail('isRegExp')};`,
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isFunction — typeof check (accepts arrow fns, unlike isInstance(Function))
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const isFunction = makeRule({
+  name: 'isFunction',
+  constraints: {},
+  validate: value => typeof value === 'function',
+  emit: (varName: string, ctx: EmitContext): string =>
+    `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
+});
