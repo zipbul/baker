@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { deserialize, isBakerIssueSet, Field, Recipe, seal, createRule } from '../../index';
-import { oneOf, arrayEvery, isString, isBoolean, isRegExp, isFunction } from '../../src/rules/index';
+import { oneOf, arrayEvery, isString, isBoolean, isRegExp, isFunction, isStatelessRegExp } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
 beforeEach(() => seal());
@@ -138,6 +138,31 @@ describe('isRegExp', () => {
     expect(((await deserialize(D, { v: /x/ })) as D).v).toBeInstanceOf(RegExp);
   });
   it('rejected for a string', async () => {
+    expect(isBakerIssueSet(await deserialize(D, { v: 'x' }))).toBe(true);
+  });
+});
+
+describe('isStatelessRegExp', () => {
+  @Recipe
+  class D {
+    @Field(isStatelessRegExp) v!: RegExp;
+  }
+  it('passes for a stateless RegExp (no g/y)', async () => {
+    expect(((await deserialize(D, { v: /x/i })) as D).v).toBeInstanceOf(RegExp);
+  });
+  it('rejected for a global-flagged RegExp, with code isStatelessRegExp', async () => {
+    const errs = errorsOf(await deserialize(D, { v: /x/g }));
+    expect(errs.some(e => e.code === 'isStatelessRegExp')).toBe(true);
+  });
+  it('rejected for a sticky-flagged RegExp, with code isStatelessRegExp', async () => {
+    const errs = errorsOf(await deserialize(D, { v: /x/y }));
+    expect(errs.some(e => e.code === 'isStatelessRegExp')).toBe(true);
+  });
+  it('rejected for a global+stateless combo (/x/gi), with code isStatelessRegExp', async () => {
+    const errs = errorsOf(await deserialize(D, { v: /x/gi }));
+    expect(errs.some(e => e.code === 'isStatelessRegExp')).toBe(true);
+  });
+  it('rejected for a non-RegExp', async () => {
     expect(isBakerIssueSet(await deserialize(D, { v: 'x' }))).toBe(true);
   });
 });

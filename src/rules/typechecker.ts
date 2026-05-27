@@ -197,3 +197,16 @@ export const isFunction = makeRule({
   emit: (varName: string, ctx: EmitContext): string =>
     `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// isStatelessRegExp — RegExp without g/y (the only flags that mutate lastIndex
+// across repeated test()/exec()). Safe for reuse as a single-shot matcher.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const isStatelessRegExp = makeRule({
+  name: 'isStatelessRegExp',
+  constraints: {},
+  validate: value => value instanceof RegExp && !value.global && !value.sticky,
+  emit: (varName: string, ctx: EmitContext): string =>
+    `if (!(${varName} instanceof RegExp) || ${varName}.global || ${varName}.sticky) ${ctx.fail('isStatelessRegExp')};`,
+});
