@@ -1,5 +1,6 @@
-export { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject } from './typechecker';
+export { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject, isRegExp, isFunction } from './typechecker';
 export type { IsNumberOptions } from './typechecker';
+export { oneOf, arrayEvery } from './combinators';
 export { min, max, isPositive, isNegative, isDivisibleBy } from './number';
 export { minDate, maxDate } from './date';
 export { equals, notEquals, isEmpty, isNotEmpty, isIn, isNotIn } from './common';

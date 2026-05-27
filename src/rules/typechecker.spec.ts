@@ -2,7 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 
 import type { EmitContext } from '../types';
 
-import { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject } from './typechecker';
+import { isString, isNumber, isBoolean, isDate, isEnum, isInt, isArray, isObject, isRegExp, isFunction } from './typechecker';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);
@@ -575,5 +575,69 @@ describe('E-11: emit code compiles and runs correctly via new Function()', () =>
     expect(fn('abcd', regexes, refs)).toEqual([]);
     expect(fn('ab', regexes, refs).length).toBeGreaterThan(0);
     expect(fn('ab', regexes, refs)[0]!.code).toBe('minLength');
+  });
+});
+
+// ─── isRegExp ──────────────────────────────────────────────────────────────────
+
+describe('isRegExp', () => {
+  it('should return true for a RegExp literal', () => {
+    expect(isRegExp(/abc/)).toBe(true);
+  });
+
+  it('should return true for a RegExp constructed instance', () => {
+    expect(isRegExp(new RegExp('abc'))).toBe(true);
+  });
+
+  it('should return false for a string that looks like a pattern', () => {
+    expect(isRegExp('/abc/')).toBe(false);
+  });
+
+  it('should return false for non-RegExp values', () => {
+    for (const v of [null, undefined, 42, {}, [], () => {}, 'abc']) {
+      expect(isRegExp(v)).toBe(false);
+    }
+  });
+
+  it('should emit an instanceof RegExp check and have ruleName isRegExp', () => {
+    const { ctx, failMock } = makeCtx();
+    const code = isRegExp.emit('v', ctx);
+    expect(code).toContain('v instanceof RegExp');
+    expect(failMock).toHaveBeenCalledWith('isRegExp');
+    expect(isRegExp.ruleName).toBe('isRegExp');
+    expect(isRegExp.requiresType).toBeUndefined();
+  });
+});
+
+// ─── isFunction ────────────────────────────────────────────────────────────────
+
+describe('isFunction', () => {
+  it('should return true for a function declaration reference', () => {
+    function f() {}
+    expect(isFunction(f)).toBe(true);
+  });
+
+  it('should return true for an arrow function', () => {
+    expect(isFunction(() => {})).toBe(true);
+  });
+
+  it('should return true for a class constructor', () => {
+    class C {}
+    expect(isFunction(C)).toBe(true);
+  });
+
+  it('should return false for non-function values', () => {
+    for (const v of [null, undefined, 42, {}, [], 'fn', /x/]) {
+      expect(isFunction(v)).toBe(false);
+    }
+  });
+
+  it('should emit a typeof function check and have ruleName isFunction', () => {
+    const { ctx, failMock } = makeCtx();
+    const code = isFunction.emit('v', ctx);
+    expect(code).toContain("typeof v !== 'function'");
+    expect(failMock).toHaveBeenCalledWith('isFunction');
+    expect(isFunction.ruleName).toBe('isFunction');
+    expect(isFunction.requiresType).toBeUndefined();
   });
 });
