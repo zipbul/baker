@@ -322,6 +322,16 @@ function Field(...args: unknown[]): FieldDecorator {
 
     applyValidation(meta, rules, options);
 
+    // Field-level message/context — stored regardless of rules so non-rule failures
+    // (type gate, required-missing, conversion, structural gates) and type-only fields
+    // can carry them, not just rule-body failures.
+    if (options.context !== undefined) {
+      meta.context = options.context;
+    }
+    if (options.message !== undefined) {
+      meta.message = options.message;
+    }
+
     // ── flags ──
     if (options.optional) {
       meta.flags.isOptional = true;

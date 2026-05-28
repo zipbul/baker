@@ -173,6 +173,10 @@ export interface RawPropertyMeta {
   exclude: ExcludeDef | null;
   type: TypeDef | null;
   flags: PropertyFlags;
+  /** Field-level message applied to ALL failures of this field (gate/structural/required/conversion/rule) */
+  message?: string | ((args: MessageArgs) => string);
+  /** Field-level context attached to ALL failures of this field */
+  context?: unknown;
 }
 
 export interface RawClassMeta {
