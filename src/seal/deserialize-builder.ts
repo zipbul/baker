@@ -3,7 +3,7 @@ import type { Result, ResultAsync } from '@zipbul/result';
 import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 
 import type { SealOptions, RuntimeOptions } from '../interfaces';
-import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef } from '../types';
+import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef, MessageArgs } from '../types';
 
 import { BakerError, type BakerIssue } from '../errors';
 import { getSealed } from '../meta-access';
@@ -425,8 +425,10 @@ function generateFieldCode(fieldKey: string, meta: RawPropertyMeta, ctx: FieldCo
   const exposeGroups = getDeserializeExposeGroups(meta.expose);
   const inputObj = ctx.inputExpr || 'input';
 
-  // Create EmitContext
-  const emitCtx = makeEmitCtx(fieldKey, ctx);
+  // Create EmitContext — bake field-level message/context so EVERY field-own-path failure
+  // (gate, required-missing, conversion, structural gates) carries them, not just rule bodies.
+  const fieldExtras = computeFieldExtras(meta, fieldKey, varName, ctx);
+  const emitCtx = makeEmitCtx(fieldKey, ctx, fieldExtras);
 
   let fieldCode = '';
 
@@ -566,27 +568,58 @@ function generateValidationCode(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helper for computing per-rule extra fields (message/context) code strings
+// Helpers for computing message/context extra fields in generated issue objects
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Convert rule's message/context options into extra field strings within generated code */
-function computeRuleExtras(rd: RuleDef, fieldKey: string, varName: string, ctx: FieldCodeContext): string {
+/** Build the `,message:...,context:...` extras string for a generated issue object.
+ *  `getConstraintsArg` produces the JS expression for a message function's `constraints`
+ *  field; it runs AFTER the message ref is pushed, preserving ref-array order. */
+function buildIssueExtras(
+  message: string | ((args: MessageArgs) => string) | undefined,
+  context: unknown,
+  getConstraintsArg: () => string,
+  fieldKey: string,
+  varName: string,
+  ctx: FieldCodeContext,
+): string {
   let extra = '';
-  if (typeof rd.message === 'string') {
-    extra += `,message:${JSON.stringify(rd.message)}`;
-  } else if (typeof rd.message === 'function') {
+  if (typeof message === 'string') {
+    extra += `,message:${JSON.stringify(message)}`;
+  } else if (typeof message === 'function') {
     const msgIdx = ctx.refs.length;
-    ctx.refs.push(rd.message as unknown);
-    const constraintsIdx = ctx.refs.length;
-    ctx.refs.push(rd.rule.constraints ?? {});
-    extra += `,message:refs[${msgIdx}]({property:${JSON.stringify(fieldKey)},value:${varName},constraints:refs[${constraintsIdx}]})`;
+    ctx.refs.push(message as unknown);
+    const constraintsArg = getConstraintsArg();
+    extra += `,message:refs[${msgIdx}]({property:${JSON.stringify(fieldKey)},value:${varName},constraints:${constraintsArg}})`;
   }
-  if (rd.context !== undefined) {
+  if (context !== undefined) {
     const ctxIdx = ctx.refs.length;
-    ctx.refs.push(rd.context);
+    ctx.refs.push(context);
     extra += `,context:refs[${ctxIdx}]`;
   }
   return extra;
+}
+
+/** Per-rule extras — a message function receives the failing rule's `constraints`. */
+function computeRuleExtras(rd: RuleDef, fieldKey: string, varName: string, ctx: FieldCodeContext): string {
+  return buildIssueExtras(
+    rd.message,
+    rd.context,
+    () => {
+      const constraintsIdx = ctx.refs.length;
+      ctx.refs.push(rd.rule.constraints ?? {});
+      return `refs[${constraintsIdx}]`;
+    },
+    fieldKey,
+    varName,
+    ctx,
+  );
+}
+
+/** Field-level extras appended to EVERY failure of a field — including non-rule failures
+ *  (type gate, required-missing, conversion, structural gates) and type-only fields. No
+ *  specific rule applies, so a message function gets `constraints:{}`. */
+function computeFieldExtras(meta: RawPropertyMeta, fieldKey: string, varName: string, ctx: FieldCodeContext): string {
+  return buildIssueExtras(meta.message, meta.context, () => '{}', fieldKey, varName, ctx);
 }
 
 /** Create per-rule EmitContext (with message/context overrides) */
@@ -1139,7 +1172,7 @@ function emitEachRules(
       code += emitCollectionBlock(collections[1]!);
       code += `} else if (${kindVar} === 3) {\n`;
       code += emitCollectionBlock(collections[2]!);
-      code += `} else { ${GEN.errList}.push({path:${pathKey},code:'isArray'}); }\n`;
+      code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
       code += `if (${kindVar} === 0) ${emitCtx.fail('isArray')};\n`;
       code += `if (${kindVar} === 1) {\n`;
@@ -1313,10 +1346,11 @@ function generateCollectionCode(
       code += `  var ${siVar} = 0;\n`;
       code += `  for (var ${svVar} of ${GEN.out}[${JSON.stringify(fieldKey)}]) {\n`;
       for (const rd of eachRules) {
+        const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
         const failFn = (c: string) =>
           collectErrors
-            ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}})`
-            : `return err([{path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}}])`;
+            ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}})`
+            : `return err([{path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}}])`;
         const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
         code += `    ${rd.rule.emit(svVar, colEmitCtx)}\n`;
       }
@@ -1917,7 +1951,7 @@ function generateCollectionCodeValidateOnly(
 // makeEmitCtx — create per-field EmitContext
 // ─────────────────────────────────────────────────────────────────────────────
 
-function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
+function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext, fieldExtras = ''): EmitContext {
   const { collectErrors, regexes, refs, execs, validateOnly, pathPrefix } = ctx;
   const pathExpr = pathPrefix ? `${pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
   return {
@@ -1935,11 +1969,11 @@ function makeEmitCtx(fieldKey: string, ctx: FieldCodeContext): EmitContext {
     },
     fail(code: string): string {
       if (collectErrors) {
-        return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}})`;
+        return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}})`;
       } else if (validateOnly) {
-        return `return [{path:${pathExpr},code:${JSON.stringify(code)}}]`;
+        return `return [{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}]`;
       }
-      return `return err([{path:${pathExpr},code:${JSON.stringify(code)}}])`;
+      return `return err([{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}])`;
     },
     collectErrors,
     pathExpr: pathExpr,
