@@ -107,3 +107,4 @@ export { arrayContains, arrayNotContains, arrayMinSize, arrayMaxSize, arrayUniqu
 export { isNotEmptyObject, isInstance } from './object';
 export type { IsNotEmptyObjectOptions } from './object';
 export { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
+export { isUint8Array, isByteSize } from './binary';

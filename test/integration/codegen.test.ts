@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Field, Recipe, deserialize, seal } from '../../index';
 import { requireSealed } from '../../src/meta-access';
-import { isString, isNumber, isBoolean } from '../../src/rules/index';
+import { isString, isNumber, isBoolean, isUint8Array, isByteSize } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
@@ -35,6 +35,12 @@ class CodegenTransformDto {
     },
   })
   text!: string;
+}
+
+@Recipe
+class CodegenBinaryDto {
+  @Field(isUint8Array, isByteSize(16))
+  key!: Uint8Array;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,5 +98,14 @@ describe('codegen — integration', () => {
   it('transform should be applied in generated deserialize code', async () => {
     const result = (await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' })) as CodegenTransformDto;
     expect(result.text).toBe('trimmed');
+  });
+
+  it('should inline binary rule checks (instanceof Uint8Array, ArrayBuffer.isView) into generated deserialize source', async () => {
+    // Trigger auto-seal
+    await deserialize(CodegenBinaryDto, { key: new Uint8Array(16) });
+    const sealed = requireSealed(CodegenBinaryDto);
+    const src = sealed.deserialize.toString();
+    expect(src).toContain('instanceof Uint8Array');
+    expect(src).toContain('ArrayBuffer.isView');
   });
 });
