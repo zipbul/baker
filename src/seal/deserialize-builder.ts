@@ -1089,17 +1089,30 @@ function emitEachRules(
   fieldGroups?: string[],
 ): string {
   let code = '';
+  if (eachRules.length === 0) {
+    return code;
+  }
+
+  // pathKey must honor ctx.pathPrefix so inlined nested DTOs report full path.
+  // Without this, validate(Parent, ...) returned `tags[1]` while deserialize returned `nested.tags[1]`.
+  const pathKey = ctx.pathPrefix ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
+  const sk = sanitizeKey(fieldKey);
+  const iVar = `${GEN.index}${sk}`;
+  const siVar = `${GEN.setIdx}${sk}`;
+  const svVar = `${GEN.setVal}${sk}`;
+  const miVar = `${GEN.mapIdx}${sk}`;
+  const mvVar = `${GEN.mapVal}${sk}`;
+  const prefixVar = `__bk$ep_${sk}`;
+  const kindVar = `__bk$ck${sk}`;
+
+  // Collection kind + non-collection (isArray) rejection are FIELD-level, not per-rule: compute the
+  // kind once and reject a non-array/Set/Map a single time. Emitting these inside the per-rule loop
+  // pushed a duplicate `isArray` issue for every element rule when a non-collection value was given.
+  code += `var ${kindVar} = Array.isArray(${varName})?1:(${varName} instanceof Set?2:(${varName} instanceof Map?3:0));\n`;
+  code += `var ${prefixVar} = ${pathKey}+'[';\n`;
+  code += `if (${kindVar} === 0) ${emitCtx.fail('isArray')};\n`;
 
   for (const rd of eachRules) {
-    // pathKey must honor ctx.pathPrefix so inlined nested DTOs report full path.
-    // Without this, validate(Parent, ...) returned `tags[1]` while deserialize returned `nested.tags[1]`.
-    const pathKey = ctx.pathPrefix ? `${ctx.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
-    const sk = sanitizeKey(fieldKey);
-    const iVar = `${GEN.index}${sk}`;
-    const siVar = `${GEN.setIdx}${sk}`;
-    const svVar = `${GEN.setVal}${sk}`;
-    const miVar = `${GEN.mapIdx}${sk}`;
-    const mvVar = `${GEN.mapVal}${sk}`;
     const extra = computeRuleExtras(rd, fieldKey, varName, ctx);
     // Cache the groups-guard predicate once — was previously evaluated twice (open + close)
     const rdGroups = rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups) ? rd.groups : null;
@@ -1136,9 +1149,7 @@ function emitEachRules(
       },
     ];
 
-    // Single prefix var shared across all collection branches — only one branch executes
-    // at runtime, so reusing the same identifier avoids 3 hoisted-but-dead var declarations.
-    const prefixVar = `__bk$ep_${sk}`;
+    // prefixVar (path prefix) is declared once at field level and reused by all branches.
     const emitCollectionBlock = (col: (typeof collections)[number]): string => {
       const failFn = (c: string) =>
         collectErrors
@@ -1158,31 +1169,17 @@ function emitEachRules(
       return block;
     };
 
-    // Compute collection kind once via integer dispatch — eliminates 2-3× repeated
-    // Array.isArray / instanceof Set / instanceof Map evaluation.
-    // prefixVar is declared once here and reused by all three branches.
-    const kindVar = `__bk$ck${sk}`;
+    // Element loops per collection kind. The kind dispatch and the non-collection (isArray)
+    // rejection are emitted once at field level above; here we only run the element loop for the
+    // matching kind. kind 0 (non-collection) was already rejected, so no `else` branch is needed.
     code += eachGuardOpen;
-    code += `var ${kindVar} = Array.isArray(${varName})?1:(${varName} instanceof Set?2:(${varName} instanceof Map?3:0));\n`;
-    code += `var ${prefixVar} = ${pathKey}+'[';\n`;
-    if (collectErrors) {
-      code += `if (${kindVar} === 1) {\n`;
-      code += emitCollectionBlock(collections[0]!);
-      code += `} else if (${kindVar} === 2) {\n`;
-      code += emitCollectionBlock(collections[1]!);
-      code += `} else if (${kindVar} === 3) {\n`;
-      code += emitCollectionBlock(collections[2]!);
-      code += `} else { ${emitCtx.fail('isArray')}; }\n`;
-    } else {
-      code += `if (${kindVar} === 0) ${emitCtx.fail('isArray')};\n`;
-      code += `if (${kindVar} === 1) {\n`;
-      code += emitCollectionBlock(collections[0]!);
-      code += `} else if (${kindVar} === 2) {\n`;
-      code += emitCollectionBlock(collections[1]!);
-      code += `} else if (${kindVar} === 3) {\n`;
-      code += emitCollectionBlock(collections[2]!);
-      code += `}\n`;
-    }
+    code += `if (${kindVar} === 1) {\n`;
+    code += emitCollectionBlock(collections[0]!);
+    code += `} else if (${kindVar} === 2) {\n`;
+    code += emitCollectionBlock(collections[1]!);
+    code += `} else if (${kindVar} === 3) {\n`;
+    code += emitCollectionBlock(collections[2]!);
+    code += `}\n`;
     code += eachGuardClose;
   }
 
