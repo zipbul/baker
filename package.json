@@ -71,7 +71,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.build.json && bun scripts/add-js-extensions.ts",
+    "build": "bash scripts/build.sh",
     "changeset": "changeset",
     "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
     "format": "oxfmt",
