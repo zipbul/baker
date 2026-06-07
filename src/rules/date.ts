@@ -1,6 +1,6 @@
 import type { EmittableRule } from '../types';
 
-import { CacheKey } from '../enums';
+import { CacheKey, RuleOp } from '../enums';
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ export function minDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: CacheKey.Time,
-    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '<', planLiteral(timestamp))),
+    failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Lt, planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'minDate',
@@ -30,7 +30,7 @@ export function maxDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: CacheKey.Time,
-    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '>', planLiteral(timestamp))),
+    failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Gt, planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'maxDate',

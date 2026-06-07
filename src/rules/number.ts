@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { RuleOp } from '../enums';
 import { BakerError } from '../errors';
 import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
 
@@ -14,8 +15,8 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), exclusive ? '<=' : '<', planLiteral(n)),
+      planCompare(planValue(), RuleOp.Neq, planValue()),
+      planCompare(planValue(), exclusive ? RuleOp.Lte : RuleOp.Lt, planLiteral(n)),
     ),
   } as const;
   return makePlannedRule({
@@ -38,8 +39,8 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), exclusive ? '>=' : '>', planLiteral(n)),
+      planCompare(planValue(), RuleOp.Neq, planValue()),
+      planCompare(planValue(), exclusive ? RuleOp.Gte : RuleOp.Gt, planLiteral(n)),
     ),
   } as const;
   return makePlannedRule({
@@ -60,7 +61,7 @@ export const isPositive = makePlannedRule({
   requiresType: 'number',
   constraints: { min: 0, exclusive: true },
   plan: {
-    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '<=', planLiteral(0))),
+    failure: planOr(planCompare(planValue(), RuleOp.Neq, planValue()), planCompare(planValue(), RuleOp.Lte, planLiteral(0))),
   },
   validate: value => typeof value === 'number' && value > 0,
 });
@@ -74,7 +75,7 @@ export const isNegative = makePlannedRule({
   requiresType: 'number',
   constraints: { max: 0, exclusive: true },
   plan: {
-    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '>=', planLiteral(0))),
+    failure: planOr(planCompare(planValue(), RuleOp.Neq, planValue()), planCompare(planValue(), RuleOp.Gte, planLiteral(0))),
   },
   validate: value => typeof value === 'number' && value < 0,
 });

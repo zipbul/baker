@@ -1,6 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
-import { CacheKey } from '../enums';
+import { CacheKey, RuleOp } from '../enums';
 import { makePlannedRule, makeRule, planCompare, planLength, planOr } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ function makeStringRule(
 // ─────────────────────────────────────────────────────────────────────────────
 
 function minLength(min: number): EmittableRule {
-  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), '<', min) } as const;
+  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Lt, min) } as const;
   return makePlannedRule({
     name: 'minLength',
     requiresType: 'string',
@@ -39,7 +39,7 @@ function minLength(min: number): EmittableRule {
 }
 
 function maxLength(max: number): EmittableRule {
-  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), '>', max) } as const;
+  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Gt, max) } as const;
   return makePlannedRule({
     name: 'maxLength',
     requiresType: 'string',
@@ -52,7 +52,7 @@ function maxLength(max: number): EmittableRule {
 function length(minLen: number, maxLen: number): EmittableRule {
   const plan = {
     cacheKey: CacheKey.Length,
-    failure: planOr(planCompare(planLength(), '<', minLen), planCompare(planLength(), '>', maxLen)),
+    failure: planOr(planCompare(planLength(), RuleOp.Lt, minLen), planCompare(planLength(), RuleOp.Gt, maxLen)),
   } as const;
   return makePlannedRule({
     name: 'length',

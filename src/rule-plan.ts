@@ -1,5 +1,6 @@
 import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './types';
 
+import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import { defineRuleMetadata } from './rule-metadata';
 
 type RulePlanCache = {
@@ -7,34 +8,30 @@ type RulePlanCache = {
   time?: string;
 };
 
-const planValue = (): RulePlanExpr => ({ kind: 'value' });
+const planValue = (): RulePlanExpr => ({ kind: RulePlanExprKind.Value });
 
 const planLength = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
-  kind: 'member',
+  kind: RulePlanExprKind.Member,
   object,
   property: 'length',
 });
 
 const planTime = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
-  kind: 'call0',
+  kind: RulePlanExprKind.Call0,
   object,
   method: 'getTime',
 });
 
-const planLiteral = (value: number): RulePlanExpr => ({ kind: 'literal', value });
+const planLiteral = (value: number): RulePlanExpr => ({ kind: RulePlanExprKind.Literal, value });
 
-const planCompare = (
-  left: RulePlanExpr,
-  op: '<' | '<=' | '>' | '>=' | '===' | '!==',
-  right: number | RulePlanExpr,
-): RulePlanCheck => ({
-  kind: 'compare',
+const planCompare = (left: RulePlanExpr, op: RuleOp, right: number | RulePlanExpr): RulePlanCheck => ({
+  kind: RulePlanCheckKind.Compare,
   left,
   op,
   right: typeof right === 'number' ? planLiteral(right) : right,
 });
 
-const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: 'or', checks });
+const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: RulePlanCheckKind.Or, checks });
 
 function makePlannedRule(options: {
   name: string;
@@ -98,7 +95,7 @@ function emitRulePlan(
 
 /** Strip `x !== x` / `getTime() !== getTime()` self-comparison guards — redundant inside type gate */
 function stripSelfComparison(check: RulePlanCheck): RulePlanCheck {
-  if (check.kind === 'compare') {
+  if (check.kind === RulePlanCheckKind.Compare) {
     return check;
   }
   const filtered = check.checks.filter(c => !isSelfComparison(c));
@@ -112,7 +109,7 @@ function stripSelfComparison(check: RulePlanCheck): RulePlanCheck {
 }
 
 function isSelfComparison(check: RulePlanCheck): boolean {
-  if (check.kind !== 'compare' || check.op !== '!==') {
+  if (check.kind !== RulePlanCheckKind.Compare || check.op !== RuleOp.Neq) {
     return false;
   }
   return exprEqual(check.left, check.right);
@@ -123,13 +120,13 @@ function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
     return false;
   }
   switch (a.kind) {
-    case 'value':
+    case RulePlanExprKind.Value:
       return true;
-    case 'literal':
+    case RulePlanExprKind.Literal:
       return a.value === (b as typeof a).value;
-    case 'member':
+    case RulePlanExprKind.Member:
       return exprEqual(a.object, (b as typeof a).object);
-    case 'call0':
+    case RulePlanExprKind.Call0:
       return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
     default:
       // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.
@@ -138,22 +135,22 @@ function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
 }
 
 function emitPlanCheck(check: RulePlanCheck, varName: string, cache?: RulePlanCache): string {
-  if (check.kind === 'compare') {
+  if (check.kind === RulePlanCheckKind.Compare) {
     return `${emitPlanExpr(check.left, varName, cache)} ${check.op} ${emitPlanExpr(check.right, varName, cache)}`;
   }
-  const joiner = check.kind === 'and' ? ' && ' : ' || ';
+  const joiner = check.kind === RulePlanCheckKind.And ? ' && ' : ' || ';
   return `(${check.checks.map(part => emitPlanCheck(part, varName, cache)).join(joiner)})`;
 }
 
 function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache): string {
   switch (expr.kind) {
-    case 'value':
+    case RulePlanExprKind.Value:
       return varName;
-    case 'literal':
+    case RulePlanExprKind.Literal:
       return String(expr.value);
-    case 'member':
+    case RulePlanExprKind.Member:
       return cache?.length ?? `${emitPlanExpr(expr.object, varName, cache)}.length`;
-    case 'call0':
+    case RulePlanExprKind.Call0:
       return cache?.time ?? `${emitPlanExpr(expr.object, varName, cache)}.getTime()`;
     default:
       // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.

@@ -1,6 +1,6 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
-import type { CacheKey, CollectionType } from './enums';
+import type { CacheKey, CollectionType, RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import type { BakerIssue } from './errors';
 import type { RuntimeOptions } from './interfaces';
 
@@ -51,14 +51,14 @@ export interface InternalRule extends EmittableRule {
 }
 
 export type RulePlanExpr =
-  | { kind: 'value' }
-  | { kind: 'member'; object: RulePlanExpr; property: 'length' }
-  | { kind: 'call0'; object: RulePlanExpr; method: 'getTime' }
-  | { kind: 'literal'; value: number };
+  | { kind: RulePlanExprKind.Value }
+  | { kind: RulePlanExprKind.Member; object: RulePlanExpr; property: 'length' }
+  | { kind: RulePlanExprKind.Call0; object: RulePlanExpr; method: 'getTime' }
+  | { kind: RulePlanExprKind.Literal; value: number };
 
 export type RulePlanCheck =
-  | { kind: 'compare'; left: RulePlanExpr; op: '<' | '<=' | '>' | '>=' | '===' | '!=='; right: RulePlanExpr }
-  | { kind: 'and' | 'or'; checks: RulePlanCheck[] };
+  | { kind: RulePlanCheckKind.Compare; left: RulePlanExpr; op: RuleOp; right: RulePlanExpr }
+  | { kind: RulePlanCheckKind.And | RulePlanCheckKind.Or; checks: RulePlanCheck[] };
 
 export interface RulePlan {
   cacheKey?: CacheKey;
