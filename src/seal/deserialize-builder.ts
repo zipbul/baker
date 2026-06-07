@@ -10,6 +10,7 @@ import { BakerError, type BakerIssue } from '../errors';
 import { getSealed } from '../meta-access';
 import { emitRulePlan } from '../rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
+import { GuardKey } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generated variable name prefixes — centralised to prevent typo-related bugs
@@ -309,22 +310,20 @@ function buildValidateCode(
 // nullable/optional guard — truth-table strategy pattern (D-3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-type GuardKey = 'nullable+optional' | 'nullable' | 'defined' | 'optional' | 'default';
-
 function resolveGuardKey(isNullable: boolean, useOptionalGuard: boolean, isDefined: boolean): GuardKey {
   if (isNullable && useOptionalGuard) {
-    return 'nullable+optional';
+    return GuardKey.NullableOptional;
   }
   if (isNullable) {
-    return 'nullable';
+    return GuardKey.Nullable;
   }
   if (isDefined) {
-    return 'defined';
+    return GuardKey.Defined;
   }
   if (useOptionalGuard) {
-    return 'optional';
+    return GuardKey.Optional;
   }
-  return 'default';
+  return GuardKey.Default;
 }
 
 interface GuardParams {
@@ -336,7 +335,7 @@ interface GuardParams {
 
 const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
   // Case 4: @IsNullable + @IsOptional — assign null, skip undefined
-  'nullable+optional'({ varName, assignNull, validationCode }) {
+  [GuardKey.NullableOptional]({ varName, assignNull, validationCode }) {
     let code = `if (${varName} === null) { ${assignNull}}\n`;
     code += `else if (${varName} !== undefined) {\n`;
     code += validationCode;
@@ -344,7 +343,7 @@ const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
     return code;
   },
   // Case 3: @IsNullable (+ optional @IsDefined — same behavior)
-  nullable({ varName, emitCtx, assignNull, validationCode }) {
+  [GuardKey.Nullable]({ varName, emitCtx, assignNull, validationCode }) {
     let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
     code += `else if (${varName} !== null) {\n`;
     code += validationCode;
@@ -352,20 +351,20 @@ const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
     return code;
   },
   // @IsDefined — reject only undefined, null/""/0 etc. pass through to subsequent validation
-  defined({ varName, emitCtx, validationCode }) {
+  [GuardKey.Defined]({ varName, emitCtx, validationCode }) {
     let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
     code += validationCode;
     return code;
   },
   // Case 2: @IsOptional — skip entirely on undefined/null
-  optional({ varName, validationCode }) {
+  [GuardKey.Optional]({ varName, validationCode }) {
     let code = `if (${varName} !== undefined && ${varName} !== null) {\n`;
     code += validationCode;
     code += '}\n';
     return code;
   },
   // Case 1: No flags (default) — reject undefined/null
-  default({ varName, emitCtx, validationCode }) {
+  [GuardKey.Default]({ varName, emitCtx, validationCode }) {
     let code = `if (${varName} === undefined || ${varName} === null) ${emitCtx.fail('isDefined')};\n`;
     code += `else {\n`;
     code += validationCode;
