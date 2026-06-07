@@ -1,6 +1,6 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
-import type { CacheKey, CollectionType, RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
+import type { CacheKey, CollectionType, RequiredType, RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import type { BakerIssue } from './errors';
 import type { RuntimeOptions } from './interfaces';
 
@@ -38,7 +38,7 @@ export interface EmittableRule {
    * Only set for rules that assume a specific type (e.g., isEmail → 'string').
    * `@IsString` itself is undefined (it includes its own typeof check).
    */
-  readonly requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  readonly requiresType?: RequiredType;
   /** Expose rule parameters for external reading */
   readonly constraints?: Record<string, unknown>;
   /** true when the rule is explicitly async and must be awaited */

@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { RequiredType } from '../enums';
 import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +144,7 @@ export function isEnum(entity: object): EmittableRule {
 
 export const isInt = makeRule({
   name: 'isInt',
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
   constraints: {},
   validate: value => typeof value === 'number' && Number.isInteger(value),
   emit: (varName: string, ctx: EmitContext): string =>

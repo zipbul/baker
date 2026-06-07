@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { createRule, deserialize, Field, Recipe, isBakerIssueSet, serialize, seal } from '../../index';
+import { createRule, deserialize, Field, Recipe, isBakerIssueSet, RequiredType, serialize, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -11,7 +11,7 @@ afterEach(() => unseal());
 const asyncEven = createRule({
   name: 'asyncEven',
   validate: async value => typeof value === 'number' && value % 2 === 0,
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
 });
 
 const asyncTrimUpper = async ({ value }: { value: unknown }): Promise<unknown> => {
@@ -25,7 +25,7 @@ const passthrough = ({ value }: { value: unknown }): unknown => value;
 const asyncStartsWithA = createRule({
   name: 'asyncStartsWithA',
   validate: async value => typeof value === 'string' && value.startsWith('a'),
-  requiresType: 'string',
+  requiresType: RequiredType.String,
 });
 
 describe('async semantics parity meta', () => {

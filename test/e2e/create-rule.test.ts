@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, createRule, seal } from '../../index';
+import { Field, Recipe, deserialize, createRule, RequiredType, seal } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
@@ -15,7 +15,7 @@ const isEven = createRule({
   name: 'isEven',
   validate: v => typeof v === 'number' && v % 2 === 0,
   constraints: { divisor: 2 },
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
 });
 
 @Recipe

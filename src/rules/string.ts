@@ -1,6 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
-import { CacheKey, RuleOp } from '../enums';
+import { CacheKey, RequiredType, RuleOp } from '../enums';
 import { makePlannedRule, makeRule, planCompare, planLength, planOr } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@ function makeStringRule(
   name: string,
   validate: (v: string) => boolean,
   buildEmit: (varName: string, ctx: EmitContext) => string,
-  requiresType: 'string' | undefined = 'string',
+  requiresType: RequiredType | undefined = RequiredType.String,
   constraints: Record<string, unknown> = {},
 ): EmittableRule {
   return makeRule({
@@ -31,7 +31,7 @@ function minLength(min: number): EmittableRule {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Lt, min) } as const;
   return makePlannedRule({
     name: 'minLength',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { min },
     plan,
     validate: value => typeof value === 'string' && value.length >= min,
@@ -42,7 +42,7 @@ function maxLength(max: number): EmittableRule {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Gt, max) } as const;
   return makePlannedRule({
     name: 'maxLength',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { max },
     plan,
     validate: value => typeof value === 'string' && value.length <= max,
@@ -56,7 +56,7 @@ function length(minLen: number, maxLen: number): EmittableRule {
   } as const;
   return makePlannedRule({
     name: 'length',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { min: minLen, max: maxLen },
     plan,
     validate: value => typeof value === 'string' && value.length >= minLen && value.length <= maxLen,
@@ -66,7 +66,7 @@ function length(minLen: number, maxLen: number): EmittableRule {
 function contains(seed: string): EmittableRule {
   return makeRule({
     name: 'contains',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { seed },
     validate: value => typeof value === 'string' && value.includes(seed),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -79,7 +79,7 @@ function contains(seed: string): EmittableRule {
 function notContains(seed: string): EmittableRule {
   return makeRule({
     name: 'notContains',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { seed },
     validate: value => typeof value === 'string' && !value.includes(seed),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -93,7 +93,7 @@ function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
   const re = pattern instanceof RegExp ? pattern : new RegExp(pattern, modifiers);
   return makeRule({
     name: 'matches',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { pattern: re.source },
     validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -109,7 +109,7 @@ function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
 
 const isLowercase = makeRule({
   name: 'isLowercase',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => typeof value === 'string' && value === value.toLowerCase(),
   emit: (varName: string, ctx: EmitContext): string => `if (${varName} !== ${varName}.toLowerCase()) ${ctx.fail('isLowercase')};`,
@@ -117,7 +117,7 @@ const isLowercase = makeRule({
 
 const isUppercase = makeRule({
   name: 'isUppercase',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => typeof value === 'string' && value === value.toUpperCase(),
   emit: (varName: string, ctx: EmitContext): string => `if (${varName} !== ${varName}.toUpperCase()) ${ctx.fail('isUppercase')};`,
@@ -186,7 +186,7 @@ const isOriginValue = (value: string): boolean => {
 };
 const isOrigin = makeRule({
   name: 'isOrigin',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: { format: 'origin' },
   validate: value => typeof value === 'string' && isOriginValue(value),
   emit: (varName: string, ctx: EmitContext): string => {
@@ -200,7 +200,7 @@ const isOrigin = makeRule({
 const isCorsOriginValue = (value: string): boolean => value === '*' || isOriginValue(value);
 const isCorsOrigin = makeRule({
   name: 'isCorsOrigin',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: { format: 'origin', allowWildcard: true },
   validate: value => typeof value === 'string' && isCorsOriginValue(value),
   emit: (varName: string, ctx: EmitContext): string => {
@@ -212,7 +212,7 @@ const isCorsOrigin = makeRule({
 // BooleanString: 'true' | 'false' | '1' | '0'
 const isBooleanString = makeRule({
   name: 'isBooleanString',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => value === 'true' || value === 'false' || value === '1' || value === '0',
   emit: (varName: string, ctx: EmitContext): string =>
@@ -240,7 +240,7 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
     },
-    'string',
+    RequiredType.String,
     { no_symbols: noSymbols },
   );
 }
@@ -352,7 +352,7 @@ function isEmail(): EmittableRule {
       const i = ctx.addRegex(EMAIL_RE);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isEmail')};`;
     },
-    'string',
+    RequiredType.String,
     { format: 'email' },
   );
 }
@@ -372,7 +372,7 @@ function isURL(options?: IsURLOptions): EmittableRule {
   );
   return makeRule({
     name: 'isURL',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { format: 'uri', protocols },
     validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -401,7 +401,7 @@ function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isUUID')};`;
     },
-    'string',
+    RequiredType.String,
     { format: 'uuid', version },
   );
 }
@@ -415,7 +415,7 @@ const IPV6_RE =
 function isIP(version?: 4 | 6): EmittableRule {
   return makeRule({
     name: 'isIP',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { version },
     validate: value => {
       if (typeof value !== 'string') {
@@ -468,7 +468,7 @@ const RGBA_PERCENT_RE = /^rgba\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d
 function isRgbColor(includePercentValues: boolean = false): EmittableRule {
   return makeRule({
     name: 'isRgbColor',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { includePercentValues },
     validate: value => {
       if (typeof value !== 'string') {
@@ -519,7 +519,7 @@ const MAC_NO_SEP_RE = /^[0-9a-fA-F]{12}$/;
 function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
   return makeRule({
     name: 'isMACAddress',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { no_separators: options?.no_separators },
     validate: value => {
       if (typeof value !== 'string') {
@@ -600,7 +600,7 @@ function isISBN(version?: 10 | 13): EmittableRule {
 
   return makeRule({
     name: 'isISBN',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { version },
     validate: validateFn,
     emit: (varName: string, ctx: EmitContext): string => {
@@ -725,7 +725,7 @@ function isISO8601(options?: IsISO8601Options): EmittableRule {
     const validateStrict = (v: unknown): boolean => typeof v === 'string' && validateISO8601Strict(v);
     return makeRule({
       name: 'isISO8601',
-      requiresType: 'string',
+      requiresType: RequiredType.String,
       constraints: { format: 'date-time', strict: true },
       validate: validateStrict,
       emit: (varName: string, ctx: EmitContext): string => {
@@ -752,7 +752,7 @@ function isISO8601(options?: IsISO8601Options): EmittableRule {
       const i = ctx.addRegex(ISO8601_RE);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isISO8601')};`;
     },
-    'string',
+    RequiredType.String,
     { format: 'date-time', strict: false },
   );
 }
@@ -799,7 +799,7 @@ function isISSN(options?: IsISSNOptions): EmittableRule {
 
   return makeRule({
     name: 'isISSN',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { requireHyphen: options?.requireHyphen },
     validate: validateIssn,
     emit: (varName: string, ctx: EmitContext): string => {
@@ -915,7 +915,7 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
 
   return makeRule({
     name: 'isFQDN',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: {
       require_tld: options?.require_tld,
       allow_underscores: options?.allow_underscores,
@@ -1249,7 +1249,7 @@ const ISO31661A2_CODES = new Set([
 
 const isISO31661Alpha2 = makeRule({
   name: 'isISO31661Alpha2',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => typeof value === 'string' && ISO31661A2_CODES.has(value.toUpperCase()),
   emit: (varName: string, ctx: EmitContext): string => {
@@ -1514,7 +1514,7 @@ const ISO31661A3_CODES = new Set([
 
 const isISO31661Alpha3 = makeRule({
   name: 'isISO31661Alpha3',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => typeof value === 'string' && ISO31661A3_CODES.has(value.toUpperCase()),
   emit: (varName: string, ctx: EmitContext): string => {
@@ -1583,7 +1583,7 @@ const validateJsonString = (value: unknown): boolean => {
 
 const isJSON = makeRule({
   name: 'isJSON',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: validateJsonString,
   emit: (varName: string, ctx: EmitContext): string => `try { JSON.parse(${varName}); } catch { ${ctx.fail('isJSON')}; }`,
@@ -1632,7 +1632,7 @@ function isBase64(options?: IsBase64Options): EmittableRule {
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
     },
-    'string',
+    RequiredType.String,
     { urlSafe: options?.urlSafe },
   );
 }
@@ -1730,7 +1730,7 @@ function luhn(str: string): boolean {
 
 const isCreditCard = makeRule({
   name: 'isCreditCard',
-  requiresType: 'string',
+  requiresType: RequiredType.String,
   constraints: {},
   validate: value => typeof value === 'string' && luhn(value),
   emit: (varName: string, ctx: EmitContext): string => `{
@@ -1859,7 +1859,7 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
   const validateIban = (value: unknown): boolean => typeof value === 'string' && validateIBAN(value, options);
   return makeRule({
     name: 'isIBAN',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { allowSpaces: options?.allowSpaces },
     validate: validateIban,
     emit: (varName: string, ctx: EmitContext): string => {
@@ -1897,7 +1897,7 @@ function isByteLength(min: number, max?: number): EmittableRule {
   };
   return makeRule({
     name: 'isByteLength',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { min, max },
     validate: validateByteLength,
     emit: (varName: string, ctx: EmitContext): string => {
@@ -1942,7 +1942,7 @@ function isHash(algorithm: string): EmittableRule {
   const re = HASH_REGEXES[algorithm];
   return makeRule({
     name: 'isHash',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { algorithm },
     validate: value => typeof value === 'string' && !!re && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -2334,7 +2334,7 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
 
   return makeRule({
     name: 'isStrongPassword',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: {},
     validate: value => typeof value === 'string' && validate(value),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -2385,7 +2385,7 @@ function isTaxId(locale: string): EmittableRule {
   const re = TAX_ID_REGEXES[locale];
   return makeRule({
     name: 'isTaxId',
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { locale },
     validate: value => typeof value === 'string' && !!re && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
@@ -2412,7 +2412,7 @@ function isULID(): EmittableRule {
       const i = ctx.addRegex(ULID_RE);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isULID')};`;
     },
-    'string',
+    RequiredType.String,
     { format: 'ulid' },
   );
 }
@@ -2432,7 +2432,7 @@ function isCUID2(): EmittableRule {
       const i = ctx.addRegex(CUID2_RE);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isCUID2')};`;
     },
-    'string',
+    RequiredType.String,
     { format: 'cuid2' },
   );
 }

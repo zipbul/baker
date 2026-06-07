@@ -1,6 +1,6 @@
 import type { EmittableRule } from '../types';
 
-import { CacheKey, RuleOp } from '../enums';
+import { CacheKey, RequiredType, RuleOp } from '../enums';
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ export function minDate(date: Date): EmittableRule {
   } as const;
   return makePlannedRule({
     name: 'minDate',
-    requiresType: 'date',
+    requiresType: RequiredType.Date,
     constraints: { min: date.toISOString() },
     plan,
     validate: value => value instanceof Date && value.getTime() >= timestamp,
@@ -34,7 +34,7 @@ export function maxDate(date: Date): EmittableRule {
   } as const;
   return makePlannedRule({
     name: 'maxDate',
-    requiresType: 'date',
+    requiresType: RequiredType.Date,
     constraints: { max: date.toISOString() },
     plan,
     validate: value => value instanceof Date && value.getTime() <= timestamp,

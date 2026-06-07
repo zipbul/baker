@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { RequiredType } from '../enums';
 
 import type { EmitContext } from '../types';
 
@@ -399,7 +400,7 @@ describe('isInt', () => {
     expect(code).toContain('Number.isInteger');
     expect(failMock).toHaveBeenCalledWith('isInt');
     expect(isInt.ruleName).toBe('isInt');
-    expect(isInt.requiresType).toBe('number');
+    expect(isInt.requiresType).toBe(RequiredType.Number);
   });
 });
 

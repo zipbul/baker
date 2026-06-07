@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { RequiredType } from '../enums';
 import { BakerError } from '../errors';
 import { makeRule } from '../rule-plan';
 
@@ -252,7 +253,7 @@ function makeLocaleRegexRule(name: string, locale: string, registry: Record<stri
   }
   return makeRule({
     name,
-    requiresType: 'string',
+    requiresType: RequiredType.String,
     constraints: { locale },
     validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {

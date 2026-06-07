@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { RequiredType } from '../enums';
 import { makeRule } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -33,7 +34,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
 
   return makeRule({
     name: 'isNotEmptyObject',
-    requiresType: 'object',
+    requiresType: RequiredType.Object,
     constraints: { nullable: options?.nullable },
     validate,
     // Codegen: for-in with break — measured ~1 ns faster than Object.keys allocation

@@ -1,3 +1,4 @@
+import type { RequiredType } from './enums';
 import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './types';
 
 import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
@@ -35,7 +36,7 @@ const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: RulePlanC
 
 function makePlannedRule(options: {
   name: string;
-  requiresType: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  requiresType: RequiredType;
   constraints?: Record<string, unknown>;
   plan: RulePlan;
   validate: (value: unknown) => boolean;
@@ -57,7 +58,7 @@ function makeRule(options: {
   name: string;
   validate: (value: unknown) => boolean | Promise<boolean>;
   emit: (varName: string, ctx: EmitContext) => string;
-  requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  requiresType?: RequiredType;
   constraints?: Record<string, unknown>;
   isAsync?: boolean;
   plan?: RulePlan;

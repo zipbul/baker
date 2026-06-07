@@ -1,3 +1,4 @@
+import type { RequiredType } from './enums';
 import type { EmittableRule, EmitContext, InternalRule } from './types';
 
 import { BakerError } from './errors';
@@ -16,7 +17,7 @@ export interface CreateRuleOptions {
   /** Rule parameters */
   constraints?: Record<string, unknown>;
   /** Type assumed by this rule — used for type gate optimization */
-  requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  requiresType?: RequiredType;
 }
 
 /**

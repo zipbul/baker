@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { RequiredType } from '../enums';
 
 import type { EmitContext } from '../types';
 
@@ -71,7 +72,7 @@ describe('min', () => {
     // Arrange
     const rule = min(0);
     // Act / Assert
-    expect(rule.requiresType).toBe('number');
+    expect(rule.requiresType).toBe(RequiredType.Number);
   });
 
   it('exclusive: value > n (boundary excluded)', () => {
@@ -153,7 +154,7 @@ describe('max', () => {
     // Arrange
     const rule = max(10);
     // Act / Assert
-    expect(rule.requiresType).toBe('number');
+    expect(rule.requiresType).toBe(RequiredType.Number);
   });
 
   it('exclusive: value < n (boundary excluded)', () => {
@@ -209,7 +210,7 @@ describe('isPositive', () => {
     expect(code).toContain('v <= 0');
     expect(failMock).toHaveBeenCalledWith('isPositive');
     expect(isPositive.ruleName).toBe('isPositive');
-    expect(isPositive.requiresType).toBe('number');
+    expect(isPositive.requiresType).toBe(RequiredType.Number);
   });
 });
 
@@ -245,7 +246,7 @@ describe('isNegative', () => {
     expect(code).toContain('v >= 0');
     expect(failMock).toHaveBeenCalledWith('isNegative');
     expect(isNegative.ruleName).toBe('isNegative');
-    expect(isNegative.requiresType).toBe('number');
+    expect(isNegative.requiresType).toBe(RequiredType.Number);
   });
 });
 
@@ -310,7 +311,7 @@ describe('isDivisibleBy', () => {
     // Arrange
     const rule = isDivisibleBy(2);
     // Act / Assert
-    expect(rule.requiresType).toBe('number');
+    expect(rule.requiresType).toBe(RequiredType.Number);
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
