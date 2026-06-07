@@ -123,8 +123,7 @@ describe('minLength', () => {
     const rule = minLength(3);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
-    expect(code).toContain('3');
+    expect(code).toContain('v.length < 3');
     expect(failMock).toHaveBeenCalledWith('minLength');
   });
 
@@ -166,8 +165,7 @@ describe('maxLength', () => {
     const rule = maxLength(5);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
-    expect(code).toContain('5');
+    expect(code).toContain('v.length > 5');
     expect(failMock).toHaveBeenCalledWith('maxLength');
   });
 
@@ -213,7 +211,8 @@ describe('length', () => {
     const rule = length(3, 5);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
+    expect(code).toContain('v.length < 3');
+    expect(code).toContain('v.length > 5');
     expect(failMock).toHaveBeenCalledWith('length');
   });
 

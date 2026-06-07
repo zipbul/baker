@@ -56,6 +56,7 @@ describe('min', () => {
     const code = rule.emit('v', ctx);
     // Assert
     expect(code).toContain('v < 10');
+    expect(code).toContain('v !== v'); // NaN guard via RuleOp '!=='
     expect(failMock).toHaveBeenCalledWith('min');
   });
 
