@@ -1,6 +1,7 @@
 import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 
 import { ensureMeta } from '../collect';
+import { Direction } from '../enums';
 import { BakerError } from '../errors';
 import { isAsyncFunction, isPromiseLike } from '../utils';
 
@@ -236,7 +237,7 @@ function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
 /** Register Transformer — split into direction-specific TransformDefs */
 function wrapTransform(
   propertyKey: string,
-  direction: 'deserialize' | 'serialize',
+  direction: Direction,
   fn: Transformer['deserialize'] | Transformer['serialize'],
 ): { fn: typeof fn; isAsync: boolean } {
   const isAsync = isAsyncFunction(fn);
@@ -259,8 +260,8 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
   }
   const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
   for (const t of transformers) {
-    const deserialize = wrapTransform(propertyKey, 'deserialize', t.deserialize);
-    const serialize = wrapTransform(propertyKey, 'serialize', t.serialize);
+    const deserialize = wrapTransform(propertyKey, Direction.Deserialize, t.deserialize);
+    const serialize = wrapTransform(propertyKey, Direction.Serialize, t.serialize);
     meta.transform.push(
       { fn: deserialize.fn, isAsync: deserialize.isAsync, options: { deserializeOnly: true } },
       { fn: serialize.fn, isAsync: serialize.isAsync, options: { serializeOnly: true } },

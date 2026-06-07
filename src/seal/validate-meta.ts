@@ -1,5 +1,6 @@
 import type { RawClassMeta } from '../types';
 
+import { CollectionType } from '../enums';
 import { BakerError } from '../errors';
 import { hasRawOwn } from '../meta-access';
 
@@ -58,7 +59,7 @@ export function validateMeta(Class: Function, merged: RawClassMeta): void {
     if (collection !== undefined && meta.type?.resolvedCollectionValue) {
       const target = meta.type.resolvedCollectionValue;
       if (!hasRawOwn(target)) {
-        const accessor = collection === 'Set' ? 'setValue' : 'mapValue';
+        const accessor = collection === CollectionType.Set ? 'setValue' : 'mapValue';
         throw new BakerError(`${className}.${key}: ${accessor} target (${target.name}) has no @Field decorators.`);
       }
     }

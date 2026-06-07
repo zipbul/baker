@@ -3,6 +3,7 @@ import { describe, it, expect, mock } from 'bun:test';
 import type { RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors } from '../types';
 
+import { CollectionType } from '../enums';
 import { setSealed } from '../meta-access';
 import { isString } from '../rules/typechecker';
 import { buildSerializeCode } from './serialize-builder';
@@ -598,7 +599,7 @@ describe('buildSerializeCode', () => {
         transform: [{ fn: transformFn, options: { serializeOnly: true } }],
         expose: [],
         exclude: null,
-        type: { fn: () => Number, collection: 'Set' },
+        type: { fn: () => Number, collection: CollectionType.Set },
         flags: {},
       },
     };

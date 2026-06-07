@@ -5,6 +5,7 @@ import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef, MessageArgs } from '../types';
 
+import { CacheKey, CollectionType } from '../enums';
 import { BakerError, type BakerIssue } from '../errors';
 import { getSealed } from '../meta-access';
 import { emitRulePlan } from '../rule-plan';
@@ -666,9 +667,9 @@ function emitRuleList(
     if (!sameGroups(rd.groups, fieldGroups)) {
       continue;
     }
-    if (rd.rule.plan?.cacheKey === 'length') {
+    if (rd.rule.plan?.cacheKey === CacheKey.Length) {
       lengthCount += 1;
-    } else if (rd.rule.plan?.cacheKey === 'time') {
+    } else if (rd.rule.plan?.cacheKey === CacheKey.Time) {
       timeCount += 1;
     }
   }
@@ -690,10 +691,10 @@ function emitRuleList(
     let emitted: string;
     if (sg && rd.rule.plan && (lengthVar || timeVar)) {
       const cache: { length?: string; time?: string } = {};
-      if (rd.rule.plan.cacheKey === 'length' && lengthVar) {
+      if (rd.rule.plan.cacheKey === CacheKey.Length && lengthVar) {
         cache.length = lengthVar;
       }
-      if (rd.rule.plan.cacheKey === 'time' && timeVar) {
+      if (rd.rule.plan.cacheKey === CacheKey.Time && timeVar) {
         cache.time = timeVar;
       }
       emitted = emitRulePlan(varName, gatedCtx, rd.rule.ruleName, rd.rule.plan, cache, insideTypeGate);
@@ -1294,7 +1295,7 @@ function generateCollectionCode(
 
   let code = '';
 
-  if (collection === 'Set') {
+  if (collection === CollectionType.Set) {
     // input: array → Set
     code += `if (Array.isArray(${varName})) {\n`;
 
@@ -1795,7 +1796,7 @@ function generateCollectionCodeValidateOnly(
 
   let code = '';
 
-  if (collection === 'Set') {
+  if (collection === CollectionType.Set) {
     code += `if (Array.isArray(${varName})) {\n`;
     const nonEachRules = meta.validation.filter(rd => !rd.each);
     code += emitRuleList(fieldKey, varName, nonEachRules, emitCtx, ctx, '  ');

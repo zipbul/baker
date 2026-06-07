@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { CacheKey } from '../enums';
 import { makePlannedRule, makeRule, planCompare, planLength } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ function arrayNotContains(values: unknown[]): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function arrayMinSize(min: number): EmittableRule {
-  const plan = { cacheKey: 'length', failure: planCompare(planLength(), '<', min) } as const;
+  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), '<', min) } as const;
   return makePlannedRule({
     name: 'arrayMinSize',
     requiresType: 'array',
@@ -56,7 +57,7 @@ function arrayMinSize(min: number): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function arrayMaxSize(max: number): EmittableRule {
-  const plan = { cacheKey: 'length', failure: planCompare(planLength(), '>', max) } as const;
+  const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), '>', max) } as const;
   return makePlannedRule({
     name: 'arrayMaxSize',
     requiresType: 'array',
@@ -99,7 +100,7 @@ function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
 // arrayNotEmpty — array is not empty (singleton)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const arrayNotEmptyPlan = { cacheKey: 'length', failure: planCompare(planLength(), '===', 0) } as const;
+const arrayNotEmptyPlan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), '===', 0) } as const;
 const arrayNotEmpty = makePlannedRule({
   name: 'arrayNotEmpty',
   requiresType: 'array',

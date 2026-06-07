@@ -1,5 +1,6 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
+import type { CacheKey, CollectionType } from './enums';
 import type { BakerIssue } from './errors';
 import type { RuntimeOptions } from './interfaces';
 
@@ -60,7 +61,7 @@ export type RulePlanCheck =
   | { kind: 'and' | 'or'; checks: RulePlanCheck[] };
 
 export interface RulePlan {
-  cacheKey?: 'length' | 'time';
+  cacheKey?: CacheKey;
   failure: RulePlanCheck;
 }
 
@@ -136,7 +137,7 @@ export interface TypeDef {
   /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
   resolvedClass?: ClassCtor;
   /** seal() normalization result — Map or Set collection type */
-  collection?: 'Map' | 'Set';
+  collection?: CollectionType;
   /** Nested DTO class thunk for Map value / Set element */
   collectionValue?: () => ClassCtor;
   /** seal() normalization result — cached class after resolving collectionValue */

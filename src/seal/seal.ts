@@ -2,6 +2,7 @@ import type { SealOptions } from '../interfaces';
 import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 
 import { getGlobalOptions } from '../configure';
+import { CollectionType, Direction } from '../enums';
 import { BakerError } from '../errors';
 import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
 import { globalRegistry } from '../registry';
@@ -38,8 +39,8 @@ function circularPlaceholder(className: string): SealedExecutors<unknown> {
 // analyzeAsync — static analysis to determine if a sealed DTO requires an async executor (C1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serialize', visited?: Set<Function>): boolean {
-  const flag = direction === 'deserialize' ? 'isAsync' : 'isSerializeAsync';
+function analyzeAsync(merged: RawClassMeta, direction: Direction, visited?: Set<Function>): boolean {
+  const flag = direction === Direction.Deserialize ? 'isAsync' : 'isSerializeAsync';
   const seen = visited ?? new Set<Function>();
 
   // sealOne seals every nested DTO (step 4) before this runs (step 5). For a fully-sealed nested
@@ -62,12 +63,12 @@ function analyzeAsync(merged: RawClassMeta, direction: 'deserialize' | 'serializ
 
   for (const meta of Object.values(merged)) {
     // 1. createRule may return Promise<boolean> even without `async` syntax (deserialize only).
-    if (direction === 'deserialize' && meta.validation.some(rd => rd.rule.isAsync)) {
+    if (direction === Direction.Deserialize && meta.validation.some(rd => rd.rule.isAsync)) {
       return true;
     }
     // 2. @Transform async — single-pass scan, avoids intermediate filter[] allocation
     for (const td of meta.transform) {
-      if (direction === 'deserialize' ? td.options?.serializeOnly : td.options?.deserializeOnly) {
+      if (direction === Direction.Deserialize ? td.options?.serializeOnly : td.options?.deserializeOnly) {
         continue;
       }
       if (td.isAsync ?? isAsyncFunction(td.fn)) {
@@ -253,7 +254,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
 
       // Detect Map/Set collection
       if (typeResult === Map || typeResult === Set) {
-        const collection = typeResult === Map ? ('Map' as const) : ('Set' as const);
+        const collection = typeResult === Map ? CollectionType.Map : CollectionType.Set;
         const typeCopy = { ...meta.type, collection, isArray: false };
         // collectionValue thunk → cache resolvedCollectionValue
         if (meta.type.collectionValue) {
@@ -321,8 +322,8 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
     }
 
     // 5. Async analysis
-    const isAsync = analyzeAsync(merged, 'deserialize');
-    const isSerializeAsync = analyzeAsync(merged, 'serialize');
+    const isAsync = analyzeAsync(merged, Direction.Deserialize);
+    const isSerializeAsync = analyzeAsync(merged, Direction.Serialize);
 
     // 6. Generate deserialize executor code
     const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
