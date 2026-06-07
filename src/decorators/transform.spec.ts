@@ -4,6 +4,7 @@ import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, Typ
 
 import { assertDefined } from '../../test/integration/helpers/assert';
 import { applyField } from '../../test/integration/helpers/modern-decorator';
+import { ExcludeMode } from '../enums';
 import { deleteRaw, requireRaw } from '../meta-access';
 import { globalRegistry } from '../registry';
 import { Field } from './field';
@@ -77,13 +78,13 @@ describe('@Field — metadata collection', () => {
 
   it('@Field({ exclude: "serializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
-    applyField(Field({ exclude: 'serializeOnly' }), Cls, 'field');
+    applyField(Field({ exclude: ExcludeMode.SerializeOnly }), Cls, 'field');
     expect(fieldMeta(Cls, 'field').exclude?.serializeOnly).toBe(true);
   });
 
   it('@Field({ exclude: "deserializeOnly" }) stored correctly', () => {
     const Cls = makeClass();
-    applyField(Field({ exclude: 'deserializeOnly' }), Cls, 'field');
+    applyField(Field({ exclude: ExcludeMode.DeserializeOnly }), Cls, 'field');
     expect(fieldMeta(Cls, 'field').exclude?.deserializeOnly).toBe(true);
   });
 

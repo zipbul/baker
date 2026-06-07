@@ -1,7 +1,7 @@
 import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 
 import { ensureMeta } from '../collect';
-import { Direction } from '../enums';
+import { Direction, ExcludeMode } from '../enums';
 import { BakerError } from '../errors';
 import { isAsyncFunction, isPromiseLike } from '../utils';
 
@@ -61,7 +61,7 @@ interface FieldOptions {
   /** Serialize direction key mapping (cannot be used with name) */
   serializeName?: string;
   /** Field exclusion — true: bidirectional, 'deserializeOnly': deserialization only, 'serializeOnly': serialization only */
-  exclude?: boolean | 'deserializeOnly' | 'serializeOnly';
+  exclude?: boolean | ExcludeMode;
   /** Groups — field visibility control + conditional validation rule application */
   groups?: string[];
   /** Conditional validation — skip all field validation when false */
@@ -366,9 +366,9 @@ function Field(...args: unknown[]): FieldDecorator {
     if (options.exclude) {
       if (options.exclude === true) {
         meta.exclude = {};
-      } else if (options.exclude === 'deserializeOnly') {
+      } else if (options.exclude === ExcludeMode.DeserializeOnly) {
         meta.exclude = { deserializeOnly: true };
-      } else if (options.exclude === 'serializeOnly') {
+      } else if (options.exclude === ExcludeMode.SerializeOnly) {
         meta.exclude = { serializeOnly: true };
       }
     }

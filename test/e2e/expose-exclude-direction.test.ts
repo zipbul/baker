@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, configure, seal } from '../../index';
+import { ExcludeMode, Field, Recipe, deserialize, serialize, configure, seal } from '../../index';
 import { isString } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -14,10 +14,10 @@ class DirectionDto {
   @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 
-  @Field(isString, { exclude: 'serializeOnly' })
+  @Field(isString, { exclude: ExcludeMode.SerializeOnly })
   password!: string;
 
-  @Field(isString, { exclude: 'deserializeOnly' })
+  @Field(isString, { exclude: ExcludeMode.DeserializeOnly })
   token!: string;
 
   @Field(isString, { exclude: true })

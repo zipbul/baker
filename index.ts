@@ -10,6 +10,9 @@ export { seal } from './src/seal/seal';
 export { Field, arrayOf, Recipe } from './src/decorators/index';
 export type { FieldOptions, ArrayOfMarker } from './src/decorators/index';
 
+// Enums
+export { ExcludeMode } from './src/enums';
+
 // Errors
 export type { BakerIssue, BakerIssueSet } from './src/errors';
 export { isBakerIssueSet, BakerError } from './src/errors';
