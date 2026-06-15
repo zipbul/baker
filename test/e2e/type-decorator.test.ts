@@ -1,25 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, serialize, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
+const baker = new Baker();
+
 beforeEach(() => {
   unseal();
-  seal();
+  baker.seal();
 });
-beforeEach(() => seal());
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class Address {
   @Field(isString) city!: string;
 }
 
-@Recipe
+@baker.Recipe
 class TypeDto {
   @Field({ type: () => Address })
   address!: Address;
@@ -39,19 +41,19 @@ describe('@Type / @Field({ type })', () => {
   });
 
   it('discriminator polymorphism', async () => {
-    @Recipe
+    @baker.Recipe
     class Cat {
       @Field(isString) name!: string;
     }
     sealClass(Cat);
-    @Recipe
+    @baker.Recipe
     class Dog {
       @Field(isString) name!: string;
       @Field(isNumber()) age!: number;
     }
     sealClass(Dog);
 
-    @Recipe
+    @baker.Recipe
     class PetDto {
       @Field({
         type: () => Object,

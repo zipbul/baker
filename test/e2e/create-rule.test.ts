@@ -1,12 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, createRule, RequiredType, seal } from '../../index';
+import { Baker, Field, deserialize, createRule, RequiredType } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +20,7 @@ const isEven = createRule({
   requiresType: RequiredType.Number,
 });
 
-@Recipe
+@baker.Recipe
 class EvenDto {
   @Field(isNumber(), isEven)
   value!: number;
@@ -29,7 +31,7 @@ const asyncIsPositive = createRule({
   validate: async v => typeof v === 'number' && v > 0,
 });
 
-@Recipe
+@baker.Recipe
 class AsyncRuleDto {
   @Field(isNumber(), asyncIsPositive)
   score!: number;
@@ -75,7 +77,7 @@ describe('createRule — async', () => {
       validate: () => Promise.resolve(false),
     });
 
-    @Recipe
+    @baker.Recipe
     class PromiseRuleDto {
       @Field(promiseFalseRule)
       value!: string;

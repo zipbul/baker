@@ -1,13 +1,15 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, seal } from '../../index';
+import { Baker, Field, deserialize, serialize } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { isAsyncFunction } from '../../src/utils';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 const trimIfString = ({ value }: { value: unknown }): unknown => {
@@ -21,7 +23,7 @@ const passthrough = ({ value }: { value: unknown }): unknown => value;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class AsyncTrimDto {
   @Field(isString, {
     transform: {
@@ -32,7 +34,7 @@ class AsyncTrimDto {
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class AsyncSerializeDto {
   @Field(isString, {
     transform: {
@@ -43,7 +45,7 @@ class AsyncSerializeDto {
   tag!: string;
 }
 
-@Recipe
+@baker.Recipe
 class AsyncChainDto {
   @Field(isString, {
     transform: {
@@ -77,7 +79,7 @@ describe('async @Transform — deserialize', () => {
   });
 
   it('promise-returning non-async deserialize transform throws contract error', () => {
-    @Recipe
+    @baker.Recipe
     class PromiseDeserializeDto {
       @Field(isString, {
         transform: {
@@ -103,7 +105,7 @@ describe('async @Transform — serialize', () => {
   });
 
   it('promise-returning non-async serialize transform throws contract error', () => {
-    @Recipe
+    @baker.Recipe
     class PromiseSerializeDto {
       @Field(isString, {
         transform: {
@@ -148,7 +150,7 @@ describe('E-10: isAsyncFunction robustness', () => {
     const mangledAsync = async ({ value }: { value: unknown }) => value;
     Object.defineProperty(mangledAsync, 'name', { value: 'x' });
 
-    @Recipe
+    @baker.Recipe
     class MangledDto {
       @Field(isString, { transform: { deserialize: mangledAsync, serialize: ({ value }: { value: unknown }) => value } })
       val!: string;
@@ -168,92 +170,92 @@ describe('E-10: isAsyncFunction robustness', () => {
 
 describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => {
   it('Set<AsyncDeserItem> makes parent isAsync true', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class AsyncDeserItem {
       @Field(isString, {
         transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
       })
       v!: string;
     }
-    @Recipe
+    @b.Recipe
     class ParentSet {
       @Field({ type: () => Set, setValue: () => AsyncDeserItem })
       items!: Set<AsyncDeserItem>;
     }
-    unseal();
-    seal();
+    b.seal();
     expect(requireSealed(ParentSet).isAsync).toBe(true);
   });
 
   it('Map<string, AsyncDeserVal> makes parent isAsync true', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class AsyncDeserVal {
       @Field(isString, {
         transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
       })
       v!: string;
     }
-    @Recipe
+    @b.Recipe
     class ParentMap {
       @Field({ type: () => Map, setValue: () => AsyncDeserVal })
       entries!: Map<string, AsyncDeserVal>;
     }
-    unseal();
-    seal();
+    b.seal();
     expect(requireSealed(ParentMap).isAsync).toBe(true);
   });
 
   it('Set<AsyncSerItem> makes parent isSerializeAsync true', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class AsyncSerItem {
       @Field(isNumber(), {
         transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },
       })
       score!: number;
     }
-    @Recipe
+    @b.Recipe
     class ParentSerSet {
       @Field({ type: () => Set, setValue: () => AsyncSerItem })
       items!: Set<AsyncSerItem>;
     }
-    unseal();
-    seal();
+    b.seal();
     expect(requireSealed(ParentSerSet).isSerializeAsync).toBe(true);
   });
 
   it('Map<string, AsyncSerVal> makes parent isSerializeAsync true', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class AsyncSerVal {
       @Field(isNumber(), {
         transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },
       })
       n!: number;
     }
-    @Recipe
+    @b.Recipe
     class ParentSerMap {
       @Field({ type: () => Map, setValue: () => AsyncSerVal })
       entries!: Map<string, AsyncSerVal>;
     }
-    unseal();
-    seal();
+    b.seal();
     expect(requireSealed(ParentSerMap).isSerializeAsync).toBe(true);
   });
 
   it('async Set<DTO> deserialize returns Promise and resolves correctly', async () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class AsyncItem2 {
       @Field(isString, {
         transform: { deserialize: async ({ value }) => String(value).toUpperCase(), serialize: ({ value }) => value },
       })
       v!: string;
     }
-    @Recipe
+    @b.Recipe
     class ParentDe {
       @Field({ type: () => Set, setValue: () => AsyncItem2 })
       items!: Set<AsyncItem2>;
     }
-    unseal();
-    seal();
+    b.seal();
     const result = (await deserialize<ParentDe>(ParentDe, { items: [{ v: 'a' }, { v: 'b' }] })) as ParentDe;
     expect(result.items).toBeInstanceOf(Set);
     const values = [...result.items].map(x => x.v).sort();
@@ -266,11 +268,11 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('async serialize Set<DTO>', () => {
-  @Recipe
+  @baker.Recipe
   class SetItemDto {
     @Field(isString) name!: string;
   }
-  @Recipe
+  @baker.Recipe
   class AsyncSerSetDto {
     @Field({ type: () => Set, setValue: () => SetItemDto })
     items!: Set<SetItemDto>;
@@ -293,11 +295,11 @@ describe('async serialize Set<DTO>', () => {
 });
 
 describe('async serialize array of nested DTOs', () => {
-  @Recipe
+  @baker.Recipe
   class ItemDto {
     @Field(isString) name!: string;
   }
-  @Recipe
+  @baker.Recipe
   class AsyncArrayDto {
     @Field({ type: () => [ItemDto] })
     items!: ItemDto[];
@@ -325,42 +327,42 @@ const asyncUpper = {
   serialize: ({ value }: { value: unknown }) => value,
 };
 
-@Recipe
+@baker.Recipe
 class DeepLeaf {
   @Field(isString, { transform: asyncUpper }) v!: string;
 }
-@Recipe
+@baker.Recipe
 class DeepMid {
   @Field({ type: () => DeepLeaf }) c!: DeepLeaf;
 }
-@Recipe
+@baker.Recipe
 class DeepRoot {
   @Field({ type: () => DeepMid }) b!: DeepMid;
 }
 
-@Recipe
+@baker.Recipe
 class CycA {
   @Field(isString, { transform: asyncUpper }) v!: string;
   @Field({ optional: true, type: () => CycB }) b?: CycB;
 }
-@Recipe
+@baker.Recipe
 class CycB {
   @Field(isString) w!: string;
   @Field({ optional: true, type: () => CycA }) a?: CycA;
 }
 
 // 3-cycle Tri1 → Tri2 → Tri3 → Tri1 with async only on the non-adjacent Tri2.
-@Recipe
+@baker.Recipe
 class Tri1 {
   @Field({ optional: true, type: () => Tri2 }) next?: Tri2;
   @Field(isString) id!: string;
 }
-@Recipe
+@baker.Recipe
 class Tri2 {
   @Field(isString, { transform: asyncUpper }) v!: string;
   @Field({ optional: true, type: () => Tri3 }) next?: Tri3;
 }
-@Recipe
+@baker.Recipe
 class Tri3 {
   @Field({ optional: true, type: () => Tri1 }) next?: Tri1;
   @Field(isString) id!: string;

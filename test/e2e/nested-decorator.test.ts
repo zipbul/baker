@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isBoolean, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 const matchPathCode =
@@ -16,7 +18,7 @@ const matchPathCode =
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class AddressDto {
   @Field(isString)
   city!: string;
@@ -25,7 +27,7 @@ class AddressDto {
   street!: string;
 }
 
-@Recipe
+@baker.Recipe
 class UserDto {
   @Field(isString)
   name!: string;
@@ -34,31 +36,31 @@ class UserDto {
   address!: AddressDto;
 }
 
-@Recipe
+@baker.Recipe
 class ItemDto {
   @Field(isString)
   label!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ListDto {
   @Field(arrayMinSize(1), { type: () => [ItemDto] })
   items!: ItemDto[];
 }
 
-@Recipe
+@baker.Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
-@Recipe
+@baker.Recipe
 class PetOwnerDto {
   @Field({
     type: () => DogDto,
@@ -148,7 +150,7 @@ describe('@Nested edge cases', () => {
   });
 
   it('@Nested + optional → missing nested field allowed', async () => {
-    @Recipe
+    @baker.Recipe
     class OptNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
@@ -160,7 +162,7 @@ describe('@Nested edge cases', () => {
   });
 
   it('@Nested + nullable → null nested allowed', async () => {
-    @Recipe
+    @baker.Recipe
     class NullNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;

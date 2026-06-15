@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, Field, isBakerIssueSet } from '../../index';
 import {
   arrayContains,
   arrayMaxSize,
@@ -33,7 +33,9 @@ import {
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 type RuleCase = {
@@ -43,7 +45,7 @@ type RuleCase = {
 };
 
 async function passesWithDto(rule: RuleCase['rule'], value: unknown): Promise<boolean> {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(rule)
     value!: unknown;

@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, Field, isBakerIssueSet } from '../../index';
 import { arrayMinSize, contains, isNumber, isObject, isPositive, minLength } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 function makeRng(seed: number): () => number {
@@ -49,7 +51,7 @@ function randomValue(rng: () => number): unknown {
 }
 
 async function dtoPasses(rule: import('../../src/types').EmittableRule, value: unknown): Promise<boolean> {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(rule)
     value!: unknown;

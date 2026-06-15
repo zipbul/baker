@@ -1,21 +1,23 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isNotEmptyObject, isObject } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class EmptyObjDto {
   @Field(isNotEmptyObject())
   config!: Record<string, unknown>;
 }
 
-@Recipe
+@baker.Recipe
 class ObjDto {
   @Field(isObject)
   data!: object;
@@ -38,7 +40,7 @@ describe('isNotEmptyObject', () => {
   });
 
   it('nullable option — ignores null-valued keys', async () => {
-    @Recipe
+    @baker.Recipe
     class NullableObjDto {
       @Field(isNotEmptyObject({ nullable: true }))
       config!: Record<string, unknown>;

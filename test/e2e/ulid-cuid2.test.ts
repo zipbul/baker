@@ -1,11 +1,13 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isULID, isCUID2 } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 /** Helper: verify pass */
@@ -25,7 +27,7 @@ async function failCode(cls: new (...args: never[]) => unknown, input: unknown):
 // ─── isULID ─────────────────────────────────────────────────────────────────
 
 describe('isULID', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isULID()) v!: string;
   }
@@ -54,7 +56,7 @@ describe('isULID', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    @Recipe
+    @baker.Recipe
     class UlidDto {
       @Field(isULID()) id!: string;
     }
@@ -70,7 +72,7 @@ describe('isULID', () => {
 // ─── isCUID2 ────────────────────────────────────────────────────────────────
 
 describe('isCUID2', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isCUID2()) v!: string;
   }
@@ -96,7 +98,7 @@ describe('isCUID2', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    @Recipe
+    @baker.Recipe
     class Cuid2Dto {
       @Field(isCUID2()) id!: string;
     }

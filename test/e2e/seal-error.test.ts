@@ -2,11 +2,13 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import type { EmittableRule } from '../../src/types';
 
-import { Field, Recipe, deserialize, serialize, BakerError, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, BakerError } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { applyField } from '../integration/helpers/modern-decorator';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
+
+const baker = new Baker();
 
 /** Test-only: cast arbitrary garbage into an EmittableRule slot to exercise @Field's runtime rejection. */
 function asRule(v: unknown): EmittableRule {
@@ -16,7 +18,7 @@ function asRule(v: unknown): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('BakerError', () => {
-  beforeEach(() => seal());
+  beforeEach(() => baker.seal());
   afterEach(() => {
     purgePoisonClasses();
     unseal();
@@ -70,7 +72,7 @@ describe('BakerError', () => {
 
   it('@Field with rule factory not invoked → BakerError with factory hint', () => {
     expect(() => {
-      @Recipe
+      @baker.Recipe
       class BadFactoryDto {
         @Field(asRule(isNumber)) v!: number;
       }
@@ -80,7 +82,7 @@ describe('BakerError', () => {
 
   it('@Field with non-function (number) → BakerError', () => {
     expect(() => {
-      @Recipe
+      @baker.Recipe
       class BadArgDto {
         @Field(asRule(42)) v!: number;
       }
@@ -90,7 +92,7 @@ describe('BakerError', () => {
 
   it('@Field(null) → BakerError', () => {
     expect(() => {
-      @Recipe
+      @baker.Recipe
       class NullArgDto {
         @Field(asRule(null)) v!: number;
       }
