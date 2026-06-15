@@ -228,6 +228,17 @@ function sealOne(
   const cached = getCached(Class, fp);
   if (cached !== undefined) {
     executors.set(Class, cached);
+    // Seed this baker's map with the transitive nested classes too, so resolving a nested-only DTO as
+    // a TOP-LEVEL argument (app.deserialize(Nested, …)) behaves identically whether this baker compiled
+    // fresh or hit the cache. Each nested is itself a cache hit (it was committed when the root was
+    // first sealed); the executors.has guard above terminates circular graphs.
+    if (cached.merged) {
+      for (const meta of Object.values(cached.merged)) {
+        for (const nested of nestedClassesOf(meta)) {
+          sealOne(nested, executors, fp, options, sealedAcc);
+        }
+      }
+    }
     return;
   }
 

@@ -143,8 +143,8 @@ class UserDto {
   displayName!: string;
 }
 
-deserialize(UserDto, input); // `ssn` is skipped
-deserialize(UserDto, input, { groups: ['admin'] }); // `ssn` is included
+baker.deserialize(UserDto, input); // `ssn` is skipped
+baker.deserialize(UserDto, input, { groups: ['admin'] }); // `ssn` is included
 ```
 
 A field with no `groups` is always included; a field tagged with `groups` participates only when a matching group is passed via [runtime options](#runtime-options). See [`RuntimeOptions`](#runtime-options) for the call-site shape.
@@ -457,10 +457,7 @@ Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DT
 
 ```typescript
 import {
-  Baker,
-  deserialize, deserializeSync, deserializeAsync,
-  validate, validateSync, validateAsync,
-  serialize, serializeSync, serializeAsync,
+  Baker, // .deserialize / .validate / .serialize (+ *Sync / *Async) live on the instance
   createRule, Field, arrayOf, isBakerIssueSet, BakerError, RequiredType, ExcludeMode,
 } from '@zipbul/baker';
 import type { Transformer, TransformParams, BakerIssue, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions, BakerConfig } from '@zipbul/baker';

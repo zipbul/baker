@@ -105,6 +105,80 @@ describe('Baker-scoped runtime — per-app config isolation', () => {
     expect(() => b.serialize(dto)).toThrow();
   });
 
+  it('discriminated-union subtypes are isolated per baker config', () => {
+    const strict = new Baker({ autoConvert: false });
+    const loose = new Baker({ autoConvert: true });
+
+    class Dog {
+      @Field(isNumber()) legs!: number;
+    }
+    class Cat {
+      @Field(isNumber()) lives!: number;
+    }
+    @strict.Recipe
+    @loose.Recipe
+    class Owner {
+      @Field({
+        type: () => Dog,
+        discriminator: { property: 'kind', subTypes: [{ value: Dog, name: 'dog' }, { value: Cat, name: 'cat' }] },
+      })
+      pet!: Dog | Cat;
+    }
+
+    strict.seal();
+    loose.seal();
+
+    assertBakerIssueSet(strict.deserialize(Owner, { pet: { kind: 'dog', legs: '4' } }));
+    const ok = loose.deserialize(Owner, { pet: { kind: 'dog', legs: '4' } }) as Owner;
+    expect((ok.pet as Dog).legs).toBe(4);
+  });
+
+  it('Set value classes are isolated per baker config', () => {
+    const strict = new Baker({ autoConvert: false });
+    const loose = new Baker({ autoConvert: true });
+
+    class Item {
+      @Field(isNumber()) q!: number;
+    }
+    @strict.Recipe
+    @loose.Recipe
+    class Bag {
+      @Field({ type: () => Set, setValue: () => Item })
+      items!: Set<Item>;
+    }
+
+    strict.seal();
+    loose.seal();
+
+    assertBakerIssueSet(strict.deserialize(Bag, { items: [{ q: '5' }] }));
+    const ok = loose.deserialize(Bag, { items: [{ q: '5' }] }) as Bag;
+    expect([...ok.items][0]!.q).toBe(5);
+  });
+
+  it('deep (2-level) nesting is isolated per baker config', () => {
+    const strict = new Baker({ autoConvert: false });
+    const loose = new Baker({ autoConvert: true });
+
+    class C {
+      @Field(isNumber()) v!: number;
+    }
+    class B {
+      @Field({ type: () => C }) c!: C;
+    }
+    @strict.Recipe
+    @loose.Recipe
+    class A {
+      @Field({ type: () => B }) b!: B;
+    }
+
+    strict.seal();
+    loose.seal();
+
+    assertBakerIssueSet(strict.deserialize(A, { b: { c: { v: '9' } } }));
+    const ok = loose.deserialize(A, { b: { c: { v: '9' } } }) as A;
+    expect(ok.b.c.v).toBe(9);
+  });
+
   it('deserialize on a class not sealed by this baker throws', () => {
     class NotMine {
       @Field(isNumber()) n!: number;

@@ -127,4 +127,27 @@ describe('(class, config) executor cache', () => {
     // GoodOne compiles before BadOne throws, but setCached runs only after the whole seal succeeds.
     expect(getCached(GoodOne, fp)).toBeUndefined();
   });
+
+  it('a cache-hit baker can resolve a nested-only DTO as a top-level argument (seeds the map)', () => {
+    class Leaf {
+      @Field(isNumber()) k!: number;
+    }
+    class Root {
+      @Field({ type: () => Leaf }) leaf!: Leaf;
+    }
+
+    // First baker compiles fresh — recursion seeds Leaf into its map.
+    const a = new Baker();
+    (a.Recipe as (v: Function) => void)(Root);
+    a.seal();
+    expect((a.deserialize(Leaf, { k: 1 }) as Leaf).k).toBe(1);
+
+    // Second baker (same config) HITS the Root cache entry. It must still resolve Leaf — the cache-hit
+    // path seeds the transitive nested classes into b's map. (Regression guard: this used to throw.)
+    const b = new Baker();
+    (b.Recipe as (v: Function) => void)(Root);
+    b.seal();
+    expect((b.deserialize(Leaf, { k: 2 }) as Leaf).k).toBe(2);
+    expect((b.deserialize(Root, { leaf: { k: 3 } }) as Root).leaf.k).toBe(3);
+  });
 });
