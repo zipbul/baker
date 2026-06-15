@@ -1,36 +1,20 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { deserialize, configure, Field, Recipe, seal } from '../../index';
+import { deserialize, Baker, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
-
-beforeEach(() => unseal());
-afterEach(() => unseal());
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Recipe
-class ProfileDto {
-  @Field(isString)
-  name!: string;
-
-  @Field(isNumber())
-  age!: number;
-}
-
-@Recipe
-class ExposedDto {
-  @Field(isString, { name: 'user_name' })
-  name!: string;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('forbidUnknown (whitelist) configure option', () => {
   it('undeclared field rejected', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ProfileDto {
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
+    }
+    b.seal();
     const result = await deserialize(ProfileDto, { name: 'Alice', age: 25, extra: 'bad' });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'whitelistViolation');
@@ -39,31 +23,49 @@ describe('forbidUnknown (whitelist) configure option', () => {
   });
 
   it('only declared fields → passes', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ProfileDto {
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
+    }
+    b.seal();
     const result = (await deserialize(ProfileDto, { name: 'Bob', age: 30 })) as ProfileDto;
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
   });
 
   it('@Field({ name }) extractKey allowed', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ExposedDto {
+      @Field(isString, { name: 'user_name' }) name!: string;
+    }
+    b.seal();
     const result = (await deserialize(ExposedDto, { user_name: 'Carol' })) as ExposedDto;
     expect(result.name).toBe('Carol');
   });
 
   it('fields outside @Field({ name }) extractKey rejected', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ExposedDto {
+      @Field(isString, { name: 'user_name' }) name!: string;
+    }
+    b.seal();
     const result = await deserialize(ExposedDto, { user_name: 'Carol', hack: 1 });
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
 
   it('collectErrors mode collects multiple undeclared fields', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ProfileDto {
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
+    }
+    b.seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
     assertBakerIssueSet(result);
     const errors = result.errors.filter(e => e.code === 'whitelistViolation');
@@ -71,16 +73,26 @@ describe('forbidUnknown (whitelist) configure option', () => {
   });
 
   it('stopAtFirstError + forbidUnknown → first violation only', async () => {
-    configure({ forbidUnknown: true, stopAtFirstError: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true, stopAtFirstError: true });
+    @b.Recipe
+    class ProfileDto {
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
+    }
+    b.seal();
     const result = await deserialize(ProfileDto, { name: 'X', age: 1, foo: 1, bar: 2 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 
   it('forbidUnknown + validation errors collected together', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ProfileDto {
+      @Field(isString) name!: string;
+      @Field(isNumber()) age!: number;
+    }
+    b.seal();
     const result = await deserialize(ProfileDto, { name: 123, age: 'bad', extra: 'x' });
     assertBakerIssueSet(result);
     const errors = result.errors;

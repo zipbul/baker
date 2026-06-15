@@ -1,21 +1,17 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { deserialize, serialize, configure, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
 import { assertBakerIssueSet, assertNotBakerIssueSet } from '../integration/helpers/assert';
-import { applyField, applyRecipe } from '../integration/helpers/modern-decorator';
-import { sealClass } from '../integration/helpers/seal';
-import { unseal } from '../integration/helpers/unseal';
-
-beforeEach(() => unseal());
-afterEach(() => unseal());
+import { applyField } from '../integration/helpers/modern-decorator';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Empty object to DTO with many required fields
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — empty object to DTO with many required fields', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class ManyFieldsDto {
     @Field(isString) a!: string;
     @Field(isString) b!: string;
@@ -29,8 +25,9 @@ describe('chaos — empty object to DTO with many required fields', () => {
     @Field(isString) j!: string;
   }
 
+  baker.seal();
+
   it('all errors collected for empty input', async () => {
-    seal();
     const result = await deserialize(ManyFieldsDto, {});
     assertBakerIssueSet(result);
     const paths = result.errors.map(e => e.path);
@@ -52,60 +49,61 @@ describe('chaos — empty object to DTO with many required fields', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deeply nested DTO (10+ levels)', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class L10 {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class L9 {
     @Field({ type: () => L10 }) c!: L10;
   }
-  @Recipe
+  @baker.Recipe
   class L8 {
     @Field({ type: () => L9 }) c!: L9;
   }
-  @Recipe
+  @baker.Recipe
   class L7 {
     @Field({ type: () => L8 }) c!: L8;
   }
-  @Recipe
+  @baker.Recipe
   class L6 {
     @Field({ type: () => L7 }) c!: L7;
   }
-  @Recipe
+  @baker.Recipe
   class L5 {
     @Field({ type: () => L6 }) c!: L6;
   }
-  @Recipe
+  @baker.Recipe
   class L4 {
     @Field({ type: () => L5 }) c!: L5;
   }
-  @Recipe
+  @baker.Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
-  @Recipe
+  @baker.Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
-  @Recipe
+  @baker.Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
-  @Recipe
+  @baker.Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
 
+  baker.seal();
+
   it('no stack overflow on 11-level nesting', async () => {
-    seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 'deep' } } } } } } } } } } };
     const result = (await deserialize<Root>(Root, input)) as Root;
     expect(result.c.c.c.c.c.c.c.c.c.c.v).toBe('deep');
   });
 
   it('validation error at deepest level has correct path', async () => {
-    seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 123 } } } } } } } } } } };
     const result = await deserialize(Root, input);
     assertBakerIssueSet(result);
@@ -118,14 +116,16 @@ describe('chaos — deeply nested DTO (10+ levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — 1000+ fields DTO', () => {
+  const baker = new Baker();
   class BigDto {}
   for (let i = 0; i < 1000; i++) {
     applyField(Field(isNumber()), BigDto, `f${i}`);
   }
-  applyRecipe(BigDto);
+  baker.Recipe(BigDto, undefined as never);
+
+  baker.seal();
 
   it('all 1000 fields validate correctly', async () => {
-    seal();
     const input: Record<string, number> = {};
     for (let i = 0; i < 1000; i++) {
       input[`f${i}`] = i;
@@ -137,7 +137,6 @@ describe('chaos — 1000+ fields DTO', () => {
   });
 
   it('all 1000 fields report errors on invalid input', async () => {
-    seal();
     const input: Record<string, string> = {};
     for (let i = 0; i < 1000; i++) {
       input[`f${i}`] = 'bad';
@@ -153,14 +152,16 @@ describe('chaos — 1000+ fields DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — circular reference detection', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class TreeNode {
     @Field(isString) value!: string;
     @Field({ optional: true, type: () => TreeNode }) child?: TreeNode;
   }
 
+  baker.seal();
+
   it('actual circular input detected', async () => {
-    seal();
     const obj: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     obj.child.child = obj;
     const result = await deserialize(TreeNode, obj);
@@ -174,14 +175,16 @@ describe('chaos — circular reference detection', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — 10000 deserializations', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class SimpleDto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
   }
 
+  baker.seal();
+
   it('no memory leak and all results valid', async () => {
-    seal();
     const input = { name: 'test', age: 25 };
     for (let i = 0; i < 10_000; i++) {
       const result = (await deserialize<SimpleDto>(SimpleDto, input)) as SimpleDto;
@@ -196,14 +199,16 @@ describe('chaos — 10000 deserializations', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — concurrent deserialize calls', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class ConcurrentDto {
     @Field(isString) id!: string;
     @Field(isNumber()) val!: number;
   }
 
+  baker.seal();
+
   it('100 concurrent calls all resolve correctly', async () => {
-    seal();
     const promises = Array.from({ length: 100 }, (_, i) =>
       deserialize<ConcurrentDto>(ConcurrentDto, { id: `item-${i}`, val: i }),
     );
@@ -222,20 +227,21 @@ describe('chaos — concurrent deserialize calls', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — every rule type on one field', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class KitchenSinkDto {
     @Field(isString, minLength(5), maxLength(100), matches(/\w+/), contains('@'), isEmail())
     email!: string;
   }
 
+  baker.seal();
+
   it('valid value passes all rules', async () => {
-    seal();
     const result = (await deserialize<KitchenSinkDto>(KitchenSinkDto, { email: 'longuser@example.com' })) as KitchenSinkDto;
     expect(result.email).toBe('longuser@example.com');
   });
 
   it('short string fails minLength among other rules', async () => {
-    seal();
     const result = await deserialize(KitchenSinkDto, { email: 'a@b' });
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
@@ -247,25 +253,27 @@ describe('chaos — every rule type on one field', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — extremely long string (100KB)', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class LongStringDto {
     @Field(isString) content!: string;
   }
 
+  baker.seal();
+
   it('100KB string passes isString', async () => {
-    seal();
     const longStr = 'x'.repeat(100_000);
     const result = (await deserialize<LongStringDto>(LongStringDto, { content: longStr })) as LongStringDto;
     expect(result.content).toHaveLength(100_000);
   });
 
   it('100KB string fails minLength if too short constraint not met', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class D {
       @Field(isString, minLength(200_000)) v!: string;
     }
-    sealClass(D);
+    b.seal();
     const result = await deserialize(D, { v: 'x'.repeat(100_000) });
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
@@ -277,37 +285,35 @@ describe('chaos — extremely long string (100KB)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — extremely large number', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class NumberDto {
     @Field(isNumber()) val!: number;
   }
 
+  baker.seal();
+
   it('MAX_SAFE_INTEGER passes isNumber', async () => {
-    seal();
     const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('MAX_SAFE_INTEGER + 1 still passes isNumber (it is a valid number)', async () => {
-    seal();
     const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER + 1 })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER + 1);
   });
 
   it('NaN fails isNumber by default', async () => {
-    seal();
     const result = await deserialize(NumberDto, { val: NaN });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity fails isNumber by default', async () => {
-    seal();
     const result = await deserialize(NumberDto, { val: Infinity });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity fails isNumber by default', async () => {
-    seal();
     const result = await deserialize(NumberDto, { val: -Infinity });
     expect(isBakerIssueSet(result)).toBe(true);
   });
@@ -318,55 +324,50 @@ describe('chaos — extremely large number', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — special values as top-level input', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Dto {
     @Field(isString) v!: string;
   }
 
+  baker.seal();
+
   it('null input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, null);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('undefined input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, undefined);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('NaN input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, NaN);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, Infinity);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, -Infinity);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('empty string input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, '');
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('0 input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, 0);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('false input produces error', async () => {
-    seal();
     const result = await deserialize(Dto, false);
     expect(isBakerIssueSet(result)).toBe(true);
   });
@@ -377,13 +378,15 @@ describe('chaos — special values as top-level input', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — prototype pollution attempt', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class SafeDto {
     @Field(isString) name!: string;
   }
 
+  baker.seal();
+
   it('__proto__ key does not pollute result', async () => {
-    seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"polluted":true}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
     assertNotBakerIssueSet(result);
@@ -393,7 +396,6 @@ describe('chaos — prototype pollution attempt', () => {
   });
 
   it('constructor key does not pollute result', async () => {
-    seal();
     const malicious = JSON.parse('{"name":"ok","constructor":{"prototype":{"polluted":true}}}');
     const result = await deserialize<SafeDto>(SafeDto, malicious);
     assertNotBakerIssueSet(result);
@@ -402,10 +404,14 @@ describe('chaos — prototype pollution attempt', () => {
   });
 
   it('forbidUnknown mode rejects __proto__ and constructor', async () => {
-    configure({ forbidUnknown: true });
-    seal();
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
+    class ForbidSafeDto {
+      @Field(isString) name!: string;
+    }
+    b.seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"p":true},"constructor":{}}');
-    const result = await deserialize(SafeDto, malicious);
+    const result = await deserialize(ForbidSafeDto, malicious);
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
@@ -416,7 +422,8 @@ describe('chaos — prototype pollution attempt', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — async transform with delay', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class AsyncDelayDto {
     @Field(isString, {
       transform: {
@@ -430,8 +437,9 @@ describe('chaos — async transform with delay', () => {
     name!: string;
   }
 
+  baker.seal();
+
   it('async transform with delay still resolves', async () => {
-    seal();
     const result = (await deserialize<AsyncDelayDto>(AsyncDelayDto, { name: 'hello' })) as AsyncDelayDto;
     expect(result.name).toBe('HELLO');
   });
@@ -442,13 +450,14 @@ describe('chaos — async transform with delay', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('chaos — deserialize then serialize roundtrip', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class AddressDto {
     @Field(isString) city!: string;
     @Field(isString) zip!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class ProfileDto {
     @Field(isString, { name: 'full_name' }) fullName!: string;
     @Field(isNumber(), min(0)) age!: number;
@@ -458,8 +467,9 @@ describe('chaos — deserialize then serialize roundtrip', () => {
     @Field({ type: () => [AddressDto] }) addresses!: AddressDto[];
   }
 
+  baker.seal();
+
   it('full roundtrip preserves data integrity', async () => {
-    seal();
     const input = {
       full_name: 'Alice',
       age: 30,
@@ -492,7 +502,6 @@ describe('chaos — deserialize then serialize roundtrip', () => {
   });
 
   it('roundtrip with null value', async () => {
-    seal();
     const input = {
       full_name: 'Bob',
       age: 25,
@@ -510,7 +519,6 @@ describe('chaos — deserialize then serialize roundtrip', () => {
   });
 
   it('roundtrip with missing optional value', async () => {
-    seal();
     const input = {
       full_name: 'Carol',
       age: 40,

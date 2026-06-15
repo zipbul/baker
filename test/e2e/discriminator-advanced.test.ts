@@ -1,31 +1,26 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, isBakerIssueSet, validate } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => {
-  unseal();
-  seal();
-});
-afterEach(() => unseal());
+const baker = new Baker();
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class DogDto {
   @Field(isString)
   breed!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CatDto {
   @Field(isBoolean)
   indoor!: boolean;
 }
 
-@Recipe
+@baker.Recipe
 class OwnerDto {
   @Field(isString)
   name!: string;
@@ -43,7 +38,7 @@ class OwnerDto {
   pet!: DogDto | CatDto;
 }
 
-@Recipe
+@baker.Recipe
 class OwnerKeepDiscDto {
   @Field({
     type: () => DogDto,
@@ -100,7 +95,7 @@ describe('discriminator — keepDiscriminatorProperty', () => {
 // discriminator serialize — single & array (covers serialize-builder C-8 instanceof chain)
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class OwnerArrayDto {
   @Field(isString)
   name!: string;
@@ -141,31 +136,33 @@ describe('discriminator — serialize', () => {
 // ─── E-23: 2 discriminator fields in same DTO ──────────────────────────────
 
 describe('E-23: 2 discriminator fields in same DTO', () => {
-  @Recipe
+  const e23 = new Baker();
+
+  @e23.Recipe
   class CreditCardPayment {
     @Field(isString)
     cardNumber!: string;
   }
 
-  @Recipe
+  @e23.Recipe
   class BankTransferPayment {
     @Field(isString)
     bankCode!: string;
   }
 
-  @Recipe
+  @e23.Recipe
   class DomesticAddress {
     @Field(isString)
     city!: string;
   }
 
-  @Recipe
+  @e23.Recipe
   class InternationalAddress {
     @Field(isString)
     country!: string;
   }
 
-  @Recipe
+  @e23.Recipe
   class OrderDto {
     @Field(isString)
     orderId!: string;
@@ -194,6 +191,8 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
     })
     address!: DomesticAddress | InternationalAddress;
   }
+
+  e23.seal();
 
   it('both discriminator fields deserialize correctly', async () => {
     const r = (await deserialize(OrderDto, {
@@ -248,18 +247,18 @@ describe('E-23: 2 discriminator fields in same DTO', () => {
 
 describe('discriminator default branch — context payload', () => {
   it('validate() on unknown discriminator value includes received + validSubTypes', async () => {
-    const { validate, configure } = await import('../../index');
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class CatV {
       @Field(isString) kind!: string;
       @Field(isString) meow!: string;
     }
-    @Recipe
+    @b.Recipe
     class DogV {
       @Field(isString) kind!: string;
       @Field(isString) bark!: string;
     }
-    @Recipe
+    @b.Recipe
     class OwnerV {
       @Field({
         type: () => CatV,
@@ -273,9 +272,7 @@ describe('discriminator default branch — context payload', () => {
       })
       pet!: CatV | DogV;
     }
-    unseal();
-    configure({ stopAtFirstError: true });
-    seal();
+    b.seal();
     const r = await validate(OwnerV, { pet: { kind: 'bird' } });
     assertBakerIssueSet(r);
     const err = r.errors.find((e: { code: string }) => e.code === 'invalidDiscriminator');
@@ -289,18 +286,19 @@ describe('discriminator default branch — context payload', () => {
 
 describe('async serialize: discriminator + array (each)', () => {
   it('serializes an array of polymorphic DTOs in async DTO context', async () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class CatA {
       @Field(isString) kind!: string;
       @Field(isString) meow!: string;
     }
-    @Recipe
+    @b.Recipe
     class DogA {
       @Field(isString) kind!: string;
       @Field(isString) bark!: string;
     }
 
-    @Recipe
+    @b.Recipe
     class OwnerA {
       @Field({
         type: () => [CatA],
@@ -321,8 +319,7 @@ describe('async serialize: discriminator + array (each)', () => {
       tag!: string;
     }
 
-    unseal();
-    seal();
+    b.seal();
     const cat = Object.assign(Object.create(CatA.prototype), { kind: 'cat', meow: 'nya' });
     const dog = Object.assign(Object.create(DogA.prototype), { kind: 'dog', bark: 'woof' });
     const owner = Object.assign(Object.create(OwnerA.prototype), { pets: [cat, dog], tag: 'root' });
@@ -333,3 +330,5 @@ describe('async serialize: discriminator + array (each)', () => {
     expect(result.tag).toBe('<root>');
   });
 });
+
+baker.seal();

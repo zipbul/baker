@@ -1,12 +1,9 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { deserialize, validate, Field, Recipe, isBakerIssueSet, configure, seal } from '../../index';
+import { deserialize, validate, Field, Baker, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
-afterEach(() => unseal());
 
 /**
  * Parity test: validate() must return the same errors as deserialize()
@@ -36,27 +33,27 @@ function expectSameErrors(desResult: unknown, valResult: unknown, _label: string
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — flat DTO', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Flat {
     @Field(isString, minLength(1)) name!: string;
     @Field(isNumber(), min(0)) age!: number;
     @Field(isBoolean) active!: boolean;
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = { name: 'Alice', age: 30, active: true };
     expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat valid');
   });
 
   it('all invalid', () => {
-    seal();
     const input = {};
     expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat all invalid');
   });
 
   it('partial invalid', () => {
-    seal();
     const input = { name: '', age: -1, active: 'not bool' };
     expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat partial');
   });
@@ -67,43 +64,41 @@ describe('validate inline parity — flat DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — single nested', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Address {
     @Field(isString) street!: string;
     @Field(isString) city!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Person {
     @Field(isString) name!: string;
     @Field({ type: () => Address }) address!: Address;
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = { name: 'Bob', address: { street: '123 Main', city: 'NYC' } };
     expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested valid');
   });
 
   it('nested field invalid', () => {
-    seal();
     const input = { name: 'Bob', address: { street: 123, city: null } };
     expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested invalid');
   });
 
   it('nested object missing', () => {
-    seal();
     const input = { name: 'Bob' };
     expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested missing');
   });
 
   it('nested object is null', () => {
-    seal();
     const input = { name: 'Bob', address: null };
     expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested null');
   });
 
   it('nested object is non-object', () => {
-    seal();
     const input = { name: 'Bob', address: 'not an object' };
     expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested non-obj');
   });
@@ -114,18 +109,20 @@ describe('validate inline parity — single nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — array of nested', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Item {
     @Field(isString, minLength(1)) name!: string;
     @Field(isNumber(), min(0)) price!: number;
   }
-  @Recipe
+  @baker.Recipe
   class Cart {
     @Field(arrayMinSize(1), { type: () => [Item] }) items!: Item[];
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = {
       items: [
         { name: 'A', price: 10 },
@@ -136,13 +133,11 @@ describe('validate inline parity — array of nested', () => {
   });
 
   it('empty array', () => {
-    seal();
     const input = { items: [] };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array empty');
   });
 
   it('invalid items', () => {
-    seal();
     const input = {
       items: [
         { name: '', price: -1 },
@@ -153,19 +148,16 @@ describe('validate inline parity — array of nested', () => {
   });
 
   it('non-array value', () => {
-    seal();
     const input = { items: 'not array' };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array non-array');
   });
 
   it('null item in array', () => {
-    seal();
     const input = { items: [null, { name: 'ok', price: 1 }] };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array null item');
   });
 
   it('non-object item in array', () => {
-    seal();
     const input = { items: [42, { name: 'ok', price: 1 }] };
     expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array non-obj item');
   });
@@ -176,47 +168,46 @@ describe('validate inline parity — array of nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — deep nesting (5 levels)', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class L4 {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
-  @Recipe
+  @baker.Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
-  @Recipe
+  @baker.Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
-  @Recipe
+  @baker.Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = { c: { c: { c: { c: { v: 'deep' } } } } };
     expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep valid');
   });
 
   it('error at deepest level', () => {
-    seal();
     const input = { c: { c: { c: { c: { v: 123 } } } } };
     expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep error');
   });
 
   it('missing at mid level', () => {
-    seal();
     const input = { c: { c: { c: null } } };
     expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep mid null');
   });
 
   it('missing at top level', () => {
-    seal();
     const input = {};
     expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep missing');
   });
@@ -227,65 +218,65 @@ describe('validate inline parity — deep nesting (5 levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — very deep nesting (11 levels)', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class L10 {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class L9 {
     @Field({ type: () => L10 }) c!: L10;
   }
-  @Recipe
+  @baker.Recipe
   class L8 {
     @Field({ type: () => L9 }) c!: L9;
   }
-  @Recipe
+  @baker.Recipe
   class L7 {
     @Field({ type: () => L8 }) c!: L8;
   }
-  @Recipe
+  @baker.Recipe
   class L6 {
     @Field({ type: () => L7 }) c!: L7;
   }
-  @Recipe
+  @baker.Recipe
   class L5 {
     @Field({ type: () => L6 }) c!: L6;
   }
-  @Recipe
+  @baker.Recipe
   class L4 {
     @Field({ type: () => L5 }) c!: L5;
   }
-  @Recipe
+  @baker.Recipe
   class L3 {
     @Field({ type: () => L4 }) c!: L4;
   }
-  @Recipe
+  @baker.Recipe
   class L2 {
     @Field({ type: () => L3 }) c!: L3;
   }
-  @Recipe
+  @baker.Recipe
   class L1 {
     @Field({ type: () => L2 }) c!: L2;
   }
-  @Recipe
+  @baker.Recipe
   class Root {
     @Field({ type: () => L1 }) c!: L1;
   }
 
+  baker.seal();
+
   it('valid 11-level', () => {
-    seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 'deep' } } } } } } } } } } };
     expectSameErrors(deserialize(Root, input), validate(Root, input), '11-level valid');
   });
 
   it('error at level 11', () => {
-    seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
     expectSameErrors(deserialize(Root, input), validate(Root, input), '11-level error');
   });
 
   it('error path matches c.c.c.c.c.c.c.c.c.c.v', () => {
-    seal();
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
     const result = validate(Root, input);
     assertBakerIssueSet(result);
@@ -298,23 +289,25 @@ describe('validate inline parity — very deep nesting (11 levels)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — nested array within nested object', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Tag {
     @Field(isString) label!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Product {
     @Field(isString) name!: string;
     @Field({ type: () => [Tag] }) tags!: Tag[];
   }
-  @Recipe
+  @baker.Recipe
   class Store {
     @Field(isString) storeName!: string;
     @Field({ type: () => [Product] }) products!: Product[];
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = {
       storeName: 'Shop',
       products: [
@@ -326,7 +319,6 @@ describe('validate inline parity — nested array within nested object', () => {
   });
 
   it('errors in deeply nested items', () => {
-    seal();
     const input = {
       storeName: 'Shop',
       products: [
@@ -343,37 +335,36 @@ describe('validate inline parity — nested array within nested object', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — optional/nullable nested', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Inner {
     @Field(isString) val!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Outer {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => Inner }) opt?: Inner;
     @Field({ nullable: true, type: () => Inner }) nul!: Inner | null;
   }
 
+  baker.seal();
+
   it('all present', () => {
-    seal();
     const input = { name: 'x', opt: { val: 'a' }, nul: { val: 'b' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'opt/nul present');
   });
 
   it('optional absent', () => {
-    seal();
     const input = { name: 'x', nul: { val: 'b' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'opt absent');
   });
 
   it('nullable is null', () => {
-    seal();
     const input = { name: 'x', nul: null };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'nul is null');
   });
 
   it('nullable missing', () => {
-    seal();
     const input = { name: 'x' };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'nul missing');
   });
@@ -384,16 +375,17 @@ describe('validate inline parity — optional/nullable nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — mixed DTO', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Coord {
     @Field(isNumber()) lat!: number;
     @Field(isNumber()) lng!: number;
   }
-  @Recipe
+  @baker.Recipe
   class Label {
     @Field(isString) text!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Marker {
     @Field(isString, minLength(1)) title!: string;
     @Field(isNumber(), min(0), max(100)) priority!: number;
@@ -401,8 +393,9 @@ describe('validate inline parity — mixed DTO', () => {
     @Field({ type: () => [Label] }) labels!: Label[];
   }
 
+  baker.seal();
+
   it('valid', () => {
-    seal();
     const input = {
       title: 'HQ',
       priority: 50,
@@ -413,7 +406,6 @@ describe('validate inline parity — mixed DTO', () => {
   });
 
   it('multiple errors across levels', () => {
-    seal();
     const input = {
       title: '',
       priority: 200,
@@ -429,18 +421,18 @@ describe('validate inline parity — mixed DTO', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — stopAtFirstError', () => {
-  @Recipe
+  const sb = new Baker({ stopAtFirstError: true });
+  @sb.Recipe
   class Inner {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @sb.Recipe
   class Root {
     @Field({ type: () => [Inner] }) items!: Inner[];
   }
+  sb.seal();
 
   it('stopAtFirstError returns single error', () => {
-    configure({ stopAtFirstError: true });
-    seal();
     const input = { items: [{ v: 1 }, { v: 2 }] };
     const desResult = deserialize(Root, input);
     const valResult = validate(Root, input);
@@ -461,29 +453,27 @@ describe('validate inline parity — stopAtFirstError', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — invalidInput', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Dto {
     @Field(isString) x!: string;
   }
 
+  baker.seal();
+
   it('null input', () => {
-    seal();
     expectSameErrors(deserialize(Dto, null), validate(Dto, null), 'null');
   });
   it('undefined input', () => {
-    seal();
     expectSameErrors(deserialize(Dto, undefined), validate(Dto, undefined), 'undefined');
   });
   it('array input', () => {
-    seal();
     expectSameErrors(deserialize(Dto, [1, 2]), validate(Dto, [1, 2]), 'array');
   });
   it('string input', () => {
-    seal();
     expectSameErrors(deserialize(Dto, 'hello'), validate(Dto, 'hello'), 'string');
   });
   it('number input', () => {
-    seal();
     expectSameErrors(deserialize(Dto, 42), validate(Dto, 42), 'number');
   });
 });
@@ -493,15 +483,16 @@ describe('validate inline parity — invalidInput', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Dog {
     @Field(isString) breed!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Cat {
     @Field(isString) color!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Owner {
     @Field(isString) name!: string;
     @Field({
@@ -517,32 +508,29 @@ describe('validate inline parity — discriminator', () => {
     pet!: Dog | Cat;
   }
 
+  baker.seal();
+
   it('valid dog', () => {
-    seal();
     const input = { name: 'Alice', pet: { kind: 'dog', breed: 'poodle' } };
     expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc dog');
   });
 
   it('valid cat', () => {
-    seal();
     const input = { name: 'Bob', pet: { kind: 'cat', color: 'black' } };
     expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc cat');
   });
 
   it('invalid discriminator value', () => {
-    seal();
     const input = { name: 'Eve', pet: { kind: 'fish' } };
     expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc invalid');
   });
 
   it('invalid nested field in discriminated type', () => {
-    seal();
     const input = { name: 'Eve', pet: { kind: 'dog', breed: 123 } };
     expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc nested invalid');
   });
 
   it('missing discriminator property', () => {
-    seal();
     const input = { name: 'Eve', pet: { breed: 'poodle' } };
     expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc missing prop');
   });
@@ -553,11 +541,12 @@ describe('validate inline parity — discriminator', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — transform + nested', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Inner {
     @Field(isNumber()) val!: number;
   }
-  @Recipe
+  @baker.Recipe
   class Outer {
     @Field(isString, {
       transform: {
@@ -569,14 +558,14 @@ describe('validate inline parity — transform + nested', () => {
     @Field({ type: () => Inner }) nested!: Inner;
   }
 
+  baker.seal();
+
   it('valid with transform', () => {
-    seal();
     const input = { name: '  hello  ', nested: { val: 42 } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'transform valid');
   });
 
   it('invalid after transform', () => {
-    seal();
     const input = { name: '  hello  ', nested: { val: 'bad' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'transform invalid');
   });
@@ -587,24 +576,25 @@ describe('validate inline parity — transform + nested', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — @Field name mapping', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Inner {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Outer {
     @Field(isString, { name: 'user_name' }) userName!: string;
     @Field({ type: () => Inner, name: 'nested_obj' }) nested!: Inner;
   }
 
+  baker.seal();
+
   it('valid with mapped names', () => {
-    seal();
     const input = { user_name: 'Alice', nested_obj: { v: 'ok' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'name-map valid');
   });
 
   it('invalid — uses original key (should fail)', () => {
-    seal();
     const input = { userName: 'Alice', nested: { v: 'ok' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'name-map wrong key');
   });
@@ -615,19 +605,21 @@ describe('validate inline parity — @Field name mapping', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — groups', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Inner {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Outer {
     @Field(isString) name!: string;
     @Field(isString, { groups: ['admin'] }) secret!: string;
     @Field({ type: () => Inner }) nested!: Inner;
   }
 
+  baker.seal();
+
   it('with admin group', () => {
-    seal();
     const input = { name: 'A', secret: 'S', nested: { v: 'ok' } };
     expectSameErrors(
       deserialize(Outer, input, { groups: ['admin'] }),
@@ -637,7 +629,6 @@ describe('validate inline parity — groups', () => {
   });
 
   it('without admin group — secret not validated', () => {
-    seal();
     const input = { name: 'A', secret: 123, nested: { v: 'ok' } };
     expectSameErrors(
       deserialize(Outer, input, { groups: ['user'] }),
@@ -647,7 +638,6 @@ describe('validate inline parity — groups', () => {
   });
 
   it('no groups option', () => {
-    seal();
     const input = { name: 'A', secret: 'S', nested: { v: 'ok' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'groups none');
   });
@@ -658,26 +648,24 @@ describe('validate inline parity — groups', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — autoConvert', () => {
-  @Recipe
+  const ab = new Baker({ autoConvert: true });
+  @ab.Recipe
   class Inner {
     @Field(isNumber()) val!: number;
   }
-  @Recipe
+  @ab.Recipe
   class Outer {
     @Field(isNumber()) age!: number;
     @Field({ type: () => Inner }) nested!: Inner;
   }
+  ab.seal();
 
   it('string-to-number conversion', () => {
-    configure({ autoConvert: true });
-    seal();
     const input = { age: '25', nested: { val: '42' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'conversion valid');
   });
 
   it('non-convertible value', () => {
-    configure({ autoConvert: true });
-    seal();
     const input = { age: 'abc', nested: { val: 'xyz' } };
     expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'conversion invalid');
   });
@@ -688,26 +676,26 @@ describe('validate inline parity — autoConvert', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — circular reference', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class TreeNode {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => TreeNode }) child?: TreeNode;
   }
 
+  baker.seal();
+
   it('valid tree', () => {
-    seal();
     const input = { name: 'root', child: { name: 'leaf' } };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular valid');
   });
 
   it('valid deep tree', () => {
-    seal();
     const input = { name: 'a', child: { name: 'b', child: { name: 'c' } } };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular deep');
   });
 
   it('invalid at depth', () => {
-    seal();
     const input = { name: 'a', child: { name: 'b', child: { name: 123 } } };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular invalid');
   });
@@ -718,26 +706,26 @@ describe('validate inline parity — circular reference', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — circular array of self', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class TreeNode {
     @Field(isString) name!: string;
     @Field({ optional: true, type: () => [TreeNode] }) children?: TreeNode[];
   }
 
+  baker.seal();
+
   it('valid tree with children array', () => {
-    seal();
     const input = { name: 'root', children: [{ name: 'a' }, { name: 'b', children: [{ name: 'c' }] }] };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array valid');
   });
 
   it('invalid child in array', () => {
-    seal();
     const input = { name: 'root', children: [{ name: 123 }] };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array invalid');
   });
 
   it('deep circular tree', () => {
-    seal();
     const input = { name: 'a', children: [{ name: 'b', children: [{ name: 'c', children: [{ name: 'd' }] }] }] };
     expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array deep');
   });
@@ -748,15 +736,16 @@ describe('validate inline parity — circular array of self', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate inline parity — discriminator array', () => {
-  @Recipe
+  const baker = new Baker();
+  @baker.Recipe
   class Dog {
     @Field(isString) breed!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Cat {
     @Field(isString) color!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Shelter {
     @Field({
       type: () => [Object],
@@ -771,8 +760,9 @@ describe('validate inline parity — discriminator array', () => {
     animals!: (Dog | Cat)[];
   }
 
+  baker.seal();
+
   it('valid array', () => {
-    seal();
     const input = {
       animals: [
         { kind: 'dog', breed: 'lab' },
@@ -783,8 +773,8 @@ describe('validate inline parity — discriminator array', () => {
   });
 
   it('invalid items', () => {
-    seal();
     const input = { animals: [{ kind: 'dog', breed: 123 }, { kind: 'fish' }] };
     expectSameErrors(deserialize(Shelter, input), validate(Shelter, input), 'disc array invalid');
   });
 });
+

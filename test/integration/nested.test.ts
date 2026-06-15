@@ -1,14 +1,14 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { deserialize, serialize, validate, Field, Recipe, isBakerIssueSet, configure, seal, arrayOf } from '../../index';
+import { deserialize, serialize, validate, Field, Baker, isBakerIssueSet, arrayOf } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
-import { sealClass } from './helpers/seal';
-import { unseal } from './helpers/unseal';
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class AddressDto {
   @Field(isString)
   street!: string;
@@ -17,7 +17,7 @@ class AddressDto {
   city!: string;
 }
 
-@Recipe
+@baker.Recipe
 class UserWithAddressDto {
   @Field(isString)
   name!: string;
@@ -26,17 +26,12 @@ class UserWithAddressDto {
   address!: AddressDto;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+baker.seal();
 
-beforeEach(() => unseal());
-afterEach(() => {
-  unseal();
-  configure({});
-});
+// ─────────────────────────────────────────────────────────────────────────────
 
 describe('nested — integration', () => {
   it('should deserialize nested DTO with valid input', async () => {
-    seal();
     const result = (await deserialize<UserWithAddressDto>(UserWithAddressDto, {
       name: 'Alice',
       address: { street: '123 Main St', city: 'Springfield' },
@@ -48,7 +43,6 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerIssueSet for invalid nested field', async () => {
-    seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Bob',
       address: { street: 123, city: 'Shelbyville' },
@@ -57,7 +51,6 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerIssueSet when nested object has missing required field', async () => {
-    seal();
     const result = await deserialize(UserWithAddressDto, {
       name: 'Carol',
       address: { city: 'Capital City' },
@@ -66,7 +59,6 @@ describe('nested — integration', () => {
   });
 
   it('should serialize instance with nested DTO', async () => {
-    seal();
     const dto = Object.assign(new UserWithAddressDto(), {
       name: 'Dave',
       address: Object.assign(new AddressDto(), { street: '456 Elm St', city: 'Shelbyville' }),
@@ -80,18 +72,17 @@ describe('nested — integration', () => {
   // ─── BUG-1: stopAtFirstError + nested array ────────────────────────────────
 
   it('should deserialize nested array with stopAtFirstError=true and valid items', async () => {
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    sealClass(ItemDto);
-    @Recipe
+    @b.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    configure({ stopAtFirstError: true });
-    seal();
+    b.seal();
     const result = (await deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
     })) as OrderDto;
@@ -101,18 +92,17 @@ describe('nested — integration', () => {
   });
 
   it('should return first error for nested array with stopAtFirstError=true and invalid items', async () => {
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    sealClass(ItemDto);
-    @Recipe
+    @b.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    configure({ stopAtFirstError: true });
-    seal();
+    b.seal();
     const result = await deserialize(OrderDto, {
       items: [{ name: 123 }, { name: 456 }],
     });
@@ -123,36 +113,34 @@ describe('nested — integration', () => {
   });
 
   it('should return isArray error for nested array with stopAtFirstError=true and non-array input', async () => {
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    sealClass(ItemDto);
-    @Recipe
+    @b.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    configure({ stopAtFirstError: true });
-    seal();
+    b.seal();
     const result = await deserialize(OrderDto, { items: 'not an array' });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isArray');
   });
 
   it('should handle empty nested array with stopAtFirstError=true', async () => {
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
-    sealClass(ItemDto);
-    @Recipe
+    @b.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
     }
-    configure({ stopAtFirstError: true });
-    seal();
+    b.seal();
     const result = (await deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
@@ -160,18 +148,16 @@ describe('nested — integration', () => {
   // ─── PB-3: keepDiscriminatorProperty ──────────────────────────────────────
 
   it('should keep discriminator property in output when keepDiscriminatorProperty is true', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class TextContent {
       @Field(isString) body!: string;
     }
-    sealClass(TextContent);
-    @Recipe
+    @b.Recipe
     class ImageContent {
       @Field(isString) url!: string;
     }
-    sealClass(ImageContent);
-    @Recipe
+    @b.Recipe
     class NotificationDto {
       @Field({
         type: () => TextContent,
@@ -186,7 +172,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent | ImageContent;
     }
-    sealClass(NotificationDto);
+    b.seal();
     const result = (await deserialize<NotificationDto>(NotificationDto, {
       content: { type: 'text', body: 'hello' },
     })) as NotificationDto;
@@ -196,13 +182,12 @@ describe('nested — integration', () => {
   });
 
   it('should NOT keep discriminator property when keepDiscriminatorProperty is false/undefined', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class TextContent2 {
       @Field(isString) body!: string;
     }
-    sealClass(TextContent2);
-    @Recipe
+    @b.Recipe
     class NotificationDto2 {
       @Field({
         type: () => TextContent2,
@@ -213,7 +198,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent2;
     }
-    sealClass(NotificationDto2);
+    b.seal();
     const result = (await deserialize<NotificationDto2>(NotificationDto2, {
       content: { type: 'text', body: 'world' },
     })) as NotificationDto2;
@@ -222,13 +207,12 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerIssueSet with invalidDiscriminator for unknown discriminator value', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class TextContent3 {
       @Field(isString) body!: string;
     }
-    sealClass(TextContent3);
-    @Recipe
+    @b.Recipe
     class NotificationDto3 {
       @Field({
         type: () => TextContent3,
@@ -240,7 +224,7 @@ describe('nested — integration', () => {
       })
       content!: TextContent3;
     }
-    sealClass(NotificationDto3);
+    b.seal();
     const result = await deserialize(NotificationDto3, {
       content: { type: 'unknown', body: 'x' },
     });
@@ -251,13 +235,18 @@ describe('nested — integration', () => {
   // ─── PB-4: serialize null nested ────────────────────────────────────────────
 
   it('should handle null nested field in serialize without crashing', async () => {
-    seal();
-    @Recipe
-    class ParentDto {
-      @Field({ type: () => AddressDto })
-      address!: AddressDto | null;
+    const b = new Baker();
+    @b.Recipe
+    class AddressDto2 {
+      @Field(isString) street!: string;
+      @Field(isString) city!: string;
     }
-    sealClass(ParentDto);
+    @b.Recipe
+    class ParentDto {
+      @Field({ type: () => AddressDto2 })
+      address!: AddressDto2 | null;
+    }
+    b.seal();
     const dto = new ParentDto();
     dto.address = null;
     const result = await serialize(dto);
@@ -270,19 +259,20 @@ describe('nested — integration', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('nested — circular DTO error path', () => {
-  @Recipe
+  const cb = new Baker();
+  @cb.Recipe
   class CircA {
     @Field({ optional: true, type: () => CircB }) child?: CircB;
     @Field(isString) v!: string;
   }
-  @Recipe
+  @cb.Recipe
   class CircB {
     @Field({ optional: true, type: () => CircA }) parent?: CircA;
     @Field(isString) w!: string;
   }
+  cb.seal();
 
   it('reports the full path for a deeply nested circular error (deserialize and validate agree)', async () => {
-    seal();
     const input = { v: 'x', child: { w: 'y', parent: { v: 'z', child: { w: 123 } } } };
     const d = await deserialize(CircA, input);
     const v = await validate(CircA, input);
@@ -300,29 +290,31 @@ describe('nested — circular DTO error path', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('nested — validate-only collection error paths carry parent prefix', () => {
-  @Recipe
+  const pb = new Baker();
+  @pb.Recipe
   class SelfLeaf {
     @Field({ optional: true, type: () => [SelfLeaf] }) items?: SelfLeaf[];
     @Field(arrayOf(isString), { optional: true, type: () => Set }) tags?: Set<string>;
     @Field(isString) w!: string;
   }
-  @Recipe
+  @pb.Recipe
   class SetLeaf {
     @Field({ optional: true, type: () => Set, setValue: () => SetLeaf }) kids?: Set<SetLeaf>;
     @Field(isString) w!: string;
   }
-  @Recipe
+  @pb.Recipe
   class MapLeaf {
     @Field({ optional: true, type: () => Map, mapValue: () => MapLeaf }) kids?: Map<string, MapLeaf>;
     @Field(isString) w!: string;
   }
-  @Recipe
+  @pb.Recipe
   class PrefixRoot {
     @Field({ optional: true, type: () => SelfLeaf }) child?: SelfLeaf;
     @Field({ optional: true, type: () => SetLeaf }) sc?: SetLeaf;
     @Field({ optional: true, type: () => MapLeaf }) mc?: MapLeaf;
     @Field(isString) v!: string;
   }
+  pb.seal();
 
   const pathsOf = async (input: object): Promise<string[]> => {
     const r = await validate(PrefixRoot, input);
@@ -331,22 +323,18 @@ describe('nested — validate-only collection error paths carry parent prefix', 
   };
 
   it('circular array fallback', async () => {
-    seal();
     expect(await pathsOf({ v: 'x', child: { w: 'y', items: [{ w: 123 }] } })).toContain('child.items[0].w');
   });
 
   it('scalar each on a nested Set', async () => {
-    seal();
     expect(await pathsOf({ v: 'x', child: { w: 'y', tags: [123] } })).toContain('child.tags[0]');
   });
 
   it('circular Set fallback', async () => {
-    seal();
     expect(await pathsOf({ v: 'x', sc: { w: 'y', kids: [{ w: 123 }] } })).toContain('sc.kids[0].w');
   });
 
   it('circular Map fallback', async () => {
-    seal();
     expect(await pathsOf({ v: 'x', mc: { w: 'y', kids: { a: { w: 123 } } } })).toContain('mc.kids[a].w');
   });
 });

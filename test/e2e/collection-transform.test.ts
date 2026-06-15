@@ -1,103 +1,98 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, configure, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, isNumber, minLength } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { sealClass } from '../integration/helpers/seal';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
-afterEach(() => unseal());
+const baker = new Baker();
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
 // Set<primitive>
-@Recipe
+@baker.Recipe
 class PrimitiveSetDto {
   @Field({ type: () => Set })
   tags!: Set<string>;
 }
 
 // Set<DTO>
-@Recipe
+@baker.Recipe
 class TagDto {
   @Field(isString, minLength(1))
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class NestedSetDto {
   @Field({ type: () => Set, setValue: () => TagDto })
   tags!: Set<TagDto>;
 }
 
 // Map<string, primitive>
-@Recipe
+@baker.Recipe
 class PrimitiveMapDto {
   @Field({ type: () => Map })
   config!: Map<string, unknown>;
 }
 
 // Map<string, DTO>
-@Recipe
+@baker.Recipe
 class PriceDto {
   @Field(isNumber())
   amount!: number;
 }
 
-@Recipe
+@baker.Recipe
 class NestedMapDto {
   @Field({ type: () => Map, mapValue: () => PriceDto })
   prices!: Map<string, PriceDto>;
 }
 
 // Set with validation rules
-@Recipe
+@baker.Recipe
 class ValidatedSetDto {
   @Field(arrayOf(isString, minLength(2)), { type: () => Set })
   items!: Set<string>;
 }
 
 // Optional/nullable collection
-@Recipe
+@baker.Recipe
 class OptionalSetDto {
   @Field({ type: () => Set, optional: true })
   tags?: Set<string>;
 }
 
-@Recipe
+@baker.Recipe
 class NullableMapDto {
   @Field({ type: () => Map, nullable: true })
   data!: Map<string, unknown> | null;
 }
 
+baker.seal();
+
 // ─── Set<primitive> ──────────────────────────────────────────────────────────
 
 describe('Set<primitive> — deserialize', () => {
   it('array → Set conversion', async () => {
-    seal();
     const result = (await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'c'] })) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect([...result.tags]).toEqual(['a', 'b', 'c']);
   });
 
   it('empty array → empty Set', async () => {
-    seal();
     const result = (await deserialize(PrimitiveSetDto, { tags: [] })) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(0);
   });
 
   it('non-array input → error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(PrimitiveSetDto, { tags: 'not-array' }))).toBe(true);
   });
 });
 
 describe('Set<primitive> — serialize', () => {
   it('Set → array conversion', async () => {
-    seal();
     const dto = Object.assign(new PrimitiveSetDto(), { tags: new Set(['x', 'y']) });
     const result = await serialize(dto);
     expect(result['tags']).toEqual(['x', 'y']);
@@ -108,7 +103,6 @@ describe('Set<primitive> — serialize', () => {
 
 describe('Set<DTO> — deserialize', () => {
   it('array of objects → Set of DTO instances', async () => {
-    seal();
     const result = (await deserialize(NestedSetDto, {
       tags: [{ name: 'alpha' }, { name: 'beta' }],
     })) as NestedSetDto;
@@ -121,7 +115,6 @@ describe('Set<DTO> — deserialize', () => {
   });
 
   it('nested DTO validation failure → error with index path', async () => {
-    seal();
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: 'ok' }, { name: '' }],
     });
@@ -134,7 +127,6 @@ describe('Set<DTO> — deserialize', () => {
 
 describe('Set<DTO> — serialize', () => {
   it('Set of DTO → array of plain objects', async () => {
-    seal();
     const tag1 = Object.assign(new TagDto(), { name: 'a' });
     const tag2 = Object.assign(new TagDto(), { name: 'b' });
     const dto = Object.assign(new NestedSetDto(), { tags: new Set([tag1, tag2]) });
@@ -147,7 +139,6 @@ describe('Set<DTO> — serialize', () => {
 
 describe('Map<string, primitive> — deserialize', () => {
   it('plain object → Map conversion', async () => {
-    seal();
     const result = (await deserialize(PrimitiveMapDto, { config: { key1: 'val1', key2: 42 } })) as PrimitiveMapDto;
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.get('key1')).toBe('val1');
@@ -155,26 +146,22 @@ describe('Map<string, primitive> — deserialize', () => {
   });
 
   it('empty object → empty Map', async () => {
-    seal();
     const result = (await deserialize(PrimitiveMapDto, { config: {} })) as PrimitiveMapDto;
     expect(result.config).toBeInstanceOf(Map);
     expect(result.config.size).toBe(0);
   });
 
   it('array input → error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(PrimitiveMapDto, { config: [1, 2] }))).toBe(true);
   });
 
   it('null input → error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(PrimitiveMapDto, { config: null }))).toBe(true);
   });
 });
 
 describe('Map<string, primitive> — serialize', () => {
   it('Map → plain object conversion', async () => {
-    seal();
     const map = new Map<string, unknown>([
       ['a', 1],
       ['b', 'two'],
@@ -189,7 +176,6 @@ describe('Map<string, primitive> — serialize', () => {
 
 describe('Map<string, DTO> — deserialize', () => {
   it('plain object → Map of DTO instances', async () => {
-    seal();
     const result = (await deserialize(NestedMapDto, {
       prices: { USD: { amount: 100 }, KRW: { amount: 130000 } },
     })) as NestedMapDto;
@@ -201,7 +187,6 @@ describe('Map<string, DTO> — deserialize', () => {
   });
 
   it('nested DTO validation failure → error with key path', async () => {
-    seal();
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 100 }, KRW: { amount: 'bad' } },
     });
@@ -214,7 +199,6 @@ describe('Map<string, DTO> — deserialize', () => {
 
 describe('Map<string, DTO> — serialize', () => {
   it('Map of DTO → plain object of plain objects', async () => {
-    seal();
     const usd = Object.assign(new PriceDto(), { amount: 50 });
     const eur = Object.assign(new PriceDto(), { amount: 45 });
     const map = new Map([
@@ -231,14 +215,12 @@ describe('Map<string, DTO> — serialize', () => {
 
 describe('Set with each validation', () => {
   it('each element validation succeeds', async () => {
-    seal();
     const result = (await deserialize(ValidatedSetDto, { items: ['ab', 'cd', 'ef'] })) as ValidatedSetDto;
     expect(result.items).toBeInstanceOf(Set);
     expect(result.items.size).toBe(3);
   });
 
   it('each element validation failure → error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(ValidatedSetDto, { items: ['ok', 'x'] }))).toBe(true);
   });
 });
@@ -247,13 +229,11 @@ describe('Set with each validation', () => {
 
 describe('Optional Set', () => {
   it('undefined → field absent', async () => {
-    seal();
     const result = (await deserialize(OptionalSetDto, {})) as OptionalSetDto;
     expect(result.tags).toBeUndefined();
   });
 
   it('value present → Set conversion', async () => {
-    seal();
     const result = (await deserialize(OptionalSetDto, { tags: ['a'] })) as OptionalSetDto;
     expect(result.tags).toBeInstanceOf(Set);
   });
@@ -261,13 +241,11 @@ describe('Optional Set', () => {
 
 describe('Nullable Map', () => {
   it('null → null assigned', async () => {
-    seal();
     const result = (await deserialize(NullableMapDto, { data: null })) as NullableMapDto;
     expect(result.data).toBeNull();
   });
 
   it('object → Map conversion', async () => {
-    seal();
     const result = (await deserialize(NullableMapDto, { data: { x: 1 } })) as NullableMapDto;
     expect(result.data).toBeInstanceOf(Map);
   });
@@ -277,7 +255,6 @@ describe('Nullable Map', () => {
 
 describe('Set — duplicate value handling', () => {
   it('input array with duplicates → Set auto-deduplicates', async () => {
-    seal();
     const result = (await deserialize(PrimitiveSetDto, { tags: ['a', 'b', 'a', 'c', 'b'] })) as PrimitiveSetDto;
     expect(result.tags).toBeInstanceOf(Set);
     expect(result.tags.size).toBe(3);
@@ -287,28 +264,24 @@ describe('Set — duplicate value handling', () => {
 
 describe('Set<DTO> — null elements', () => {
   it('null element in array → nested deserialize error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(NestedSetDto, { tags: [{ name: 'ok' }, null] }))).toBe(true);
   });
 });
 
 describe('Map<string, DTO> — null value', () => {
   it('null Map value → nested deserialize error', async () => {
-    seal();
     expect(isBakerIssueSet(await deserialize(NestedMapDto, { prices: { USD: { amount: 100 }, KRW: null } }))).toBe(true);
   });
 });
 
 describe('empty collection serialize', () => {
   it('empty Set → empty array', async () => {
-    seal();
     const dto = Object.assign(new PrimitiveSetDto(), { tags: new Set() });
     const result = await serialize(dto);
     expect(result['tags']).toEqual([]);
   });
 
   it('empty Map → empty object', async () => {
-    seal();
     const dto = Object.assign(new PrimitiveMapDto(), { config: new Map() });
     const result = await serialize(dto);
     expect(result['config']).toEqual({});
@@ -317,7 +290,6 @@ describe('empty collection serialize', () => {
 
 describe('Set<DTO> serialize — null elements', () => {
   it('null element in Set → null preserved', async () => {
-    seal();
     const tag = Object.assign(new TagDto(), { name: 'a' });
     const dto = Object.assign(new NestedSetDto(), { tags: new Set<TagDto | null>([tag, null]) });
     const result = await serialize(dto);
@@ -330,7 +302,6 @@ describe('Set<DTO> serialize — null elements', () => {
 
 describe('Map — prototype pollution prevention', () => {
   it('Object.create(null) input → normal conversion', async () => {
-    seal();
     const input = Object.create(null);
     input.key1 = 'val1';
     const result = (await deserialize(PrimitiveMapDto, { config: input })) as PrimitiveMapDto;
@@ -339,7 +310,6 @@ describe('Map — prototype pollution prevention', () => {
   });
 
   it('inherited properties not included in Map', async () => {
-    seal();
     const proto = { inherited: 'should-not-appear' };
     const input = Object.create(proto);
     input.own = 'visible';
@@ -350,17 +320,21 @@ describe('Map — prototype pollution prevention', () => {
 });
 
 describe('stopAtFirstError — collection', () => {
-  afterEach(() => unseal());
-
   it('Set<DTO> stopAtFirstError → only first error returned', async () => {
-    configure({ stopAtFirstError: true });
+    const b = new Baker({ stopAtFirstError: true });
 
-    @Recipe
-    class StopSetDto {
-      @Field({ type: () => Set, setValue: () => TagDto })
-      items!: Set<TagDto>;
+    @b.Recipe
+    class StopTagDto {
+      @Field(isString, minLength(1))
+      name!: string;
     }
-    sealClass(StopSetDto);
+
+    @b.Recipe
+    class StopSetDto {
+      @Field({ type: () => Set, setValue: () => StopTagDto })
+      items!: Set<StopTagDto>;
+    }
+    b.seal();
 
     const result = await deserialize(StopSetDto, {
       items: [{ name: '' }, { name: '' }, { name: '' }],
@@ -371,15 +345,20 @@ describe('stopAtFirstError — collection', () => {
   });
 
   it('Map<string, DTO> stopAtFirstError → only first error returned', async () => {
-    configure({ stopAtFirstError: true });
-    seal();
+    const b = new Baker({ stopAtFirstError: true });
 
-    @Recipe
-    class StopMapDto {
-      @Field({ type: () => Map, mapValue: () => PriceDto })
-      data!: Map<string, PriceDto>;
+    @b.Recipe
+    class StopPriceDto {
+      @Field(isNumber())
+      amount!: number;
     }
-    sealClass(StopMapDto);
+
+    @b.Recipe
+    class StopMapDto {
+      @Field({ type: () => Map, mapValue: () => StopPriceDto })
+      data!: Map<string, StopPriceDto>;
+    }
+    b.seal();
 
     const result = await deserialize(StopMapDto, {
       data: { a: { amount: 'bad' }, b: { amount: 'bad' } },
@@ -391,7 +370,6 @@ describe('stopAtFirstError — collection', () => {
 
 describe('collectErrors — collection', () => {
   it('Set<DTO> all errors collected', async () => {
-    seal();
     const result = await deserialize(NestedSetDto, {
       tags: [{ name: '' }, { name: '' }],
     });
@@ -400,7 +378,6 @@ describe('collectErrors — collection', () => {
   });
 
   it('Map<string, DTO> all errors collected', async () => {
-    seal();
     const result = await deserialize(NestedMapDto, {
       prices: { USD: { amount: 'x' }, EUR: { amount: 'y' } },
     });
@@ -417,18 +394,19 @@ describe('collectErrors — collection', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Map non-string key throws at serialize', () => {
-  @Recipe
+  const w8 = new Baker();
+  @w8.Recipe
   class MapItemDto {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @w8.Recipe
   class NonStringKeyMapDto {
     @Field({ type: () => Map, setValue: () => MapItemDto })
     entries!: Map<unknown, MapItemDto>;
   }
+  w8.seal();
 
   it('number key in Map throws TypeError', () => {
-    seal();
     const m = new Map<unknown, MapItemDto>();
     m.set(1, Object.assign(new MapItemDto(), { v: 'a' }));
     const dto = Object.assign(new NonStringKeyMapDto(), { entries: m });
@@ -436,7 +414,6 @@ describe('Map non-string key throws at serialize', () => {
   });
 
   it('object key in Map throws TypeError', () => {
-    seal();
     const m = new Map<unknown, MapItemDto>();
     m.set({}, Object.assign(new MapItemDto(), { v: 'a' }));
     const dto = Object.assign(new NonStringKeyMapDto(), { entries: m });
@@ -445,14 +422,15 @@ describe('Map non-string key throws at serialize', () => {
 });
 
 describe('primitive Map non-string key throws at serialize', () => {
-  @Recipe
+  const pm = new Baker();
+  @pm.Recipe
   class PrimMapDto {
     @Field({ type: () => Map })
     m!: Map<unknown, string>;
   }
+  pm.seal();
 
   it('number key in primitive Map throws TypeError', () => {
-    seal();
     const m = new Map<unknown, string>();
     m.set(1, 'a');
     const dto = Object.assign(new PrimMapDto(), { m });
@@ -460,7 +438,6 @@ describe('primitive Map non-string key throws at serialize', () => {
   });
 
   it('string key in primitive Map serializes successfully', () => {
-    seal();
     const m = new Map<unknown, string>();
     m.set('a', 'x');
     m.set('b', 'y');

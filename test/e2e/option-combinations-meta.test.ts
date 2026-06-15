@@ -1,27 +1,18 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
-import { arrayOf, configure, deserialize, Field, Recipe, isBakerIssueSet, serialize, seal } from '../../index';
+import { arrayOf, Baker, deserialize, Field, isBakerIssueSet, serialize } from '../../index';
 import { isNumber, isString, min, minLength } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { sealClass } from '../integration/helpers/seal';
-import { unseal } from '../integration/helpers/unseal';
-
-beforeEach(() => unseal());
-afterEach(() => {
-  unseal();
-  configure({});
-});
 
 describe('option combinations meta', () => {
   it('optional + autoConvert: missing value skips, present value converts and validates', async () => {
-    @Recipe
+    const b = new Baker({ autoConvert: true });
+    @b.Recipe
     class Dto {
       @Field(isNumber(), min(0), { optional: true })
       count?: number;
     }
-
-    configure({ autoConvert: true });
-    seal();
+    b.seal();
 
     const missing = (await deserialize<Dto>(Dto, {})) as Dto;
     expect(missing.count).toBeUndefined();
@@ -31,14 +22,13 @@ describe('option combinations meta', () => {
   });
 
   it('nullable + autoConvert: null passes, invalid string still fails', async () => {
-    @Recipe
+    const b = new Baker({ autoConvert: true });
+    @b.Recipe
     class Dto {
       @Field(isNumber(), { nullable: true })
       count!: number | null;
     }
-
-    configure({ autoConvert: true });
-    seal();
+    b.seal();
 
     const nullable = (await deserialize<Dto>(Dto, { count: null })) as Dto;
     expect(nullable.count).toBeNull();
@@ -47,8 +37,8 @@ describe('option combinations meta', () => {
   });
 
   it('when + transform: skipped fields are not assigned, active fields are transformed and validated', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Dto {
       enabled!: boolean;
 
@@ -61,7 +51,7 @@ describe('option combinations meta', () => {
       })
       code!: string;
     }
-    sealClass(Dto);
+    b.seal();
 
     const skipped = (await deserialize<Dto>(Dto, { enabled: false, code: ' x ' })) as Dto;
     expect('code' in skipped).toBe(false);
@@ -71,14 +61,13 @@ describe('option combinations meta', () => {
   });
 
   it('whitelist + directional name mapping only allows mapped input keys', async () => {
-    @Recipe
+    const b = new Baker({ forbidUnknown: true });
+    @b.Recipe
     class Dto {
       @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
       name!: string;
     }
-
-    configure({ forbidUnknown: true });
-    seal();
+    b.seal();
 
     const ok = (await deserialize<Dto>(Dto, { user_name: 'alice' })) as Dto;
     expect(ok.name).toBe('alice');
@@ -89,8 +78,8 @@ describe('option combinations meta', () => {
   });
 
   it('groups affect deserialize visibility and serialize output consistently', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Dto {
       @Field(isString)
       publicName!: string;
@@ -98,7 +87,7 @@ describe('option combinations meta', () => {
       @Field(isString, { groups: ['admin'] })
       secret!: string;
     }
-    sealClass(Dto);
+    b.seal();
 
     const publicParsed = (await deserialize<Dto>(Dto, {
       publicName: 'alice',
@@ -125,13 +114,13 @@ describe('option combinations meta', () => {
   });
 
   it('arrayOf + optional validates only when present', async () => {
-    seal();
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Dto {
       @Field(arrayOf(isString, minLength(2)), { optional: true })
       tags?: string[];
     }
-    sealClass(Dto);
+    b.seal();
 
     const missing = (await deserialize<Dto>(Dto, {})) as Dto;
     expect(missing.tags).toBeUndefined();

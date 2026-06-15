@@ -1,24 +1,21 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { Field, Recipe, deserialize, seal, configure } from '../../index';
+import { Baker, Field, deserialize } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, minLength, isNumber, isInt } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { sealClass } from '../integration/helpers/seal';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class StringMessageDto {
   @Field(isString, minLength(3), { message: 'Name is invalid' })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class FunctionMessageDto {
   @Field(isString, {
     message: ({ property, value }) => `${property} got bad value: ${JSON.stringify(value)}`,
@@ -26,61 +23,61 @@ class FunctionMessageDto {
   email!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ContextDto {
   @Field(isString, { context: { severity: 'warning', field: 'tag' } })
   tag!: string;
 }
 
-@Recipe
+@baker.Recipe
 class MessageAndContextDto {
   @Field(isNumber(), { message: 'Must be a number', context: { hint: 'use integer' } })
   count!: number;
 }
 
-@Recipe
+@baker.Recipe
 class MultiRuleMessageDto {
   @Field(isString, minLength(5), { message: 'Username invalid' })
   username!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ArrayOfMessageDto {
   @Field(arrayOf(isString, minLength(1)), { message: 'Each tag must be a non-empty string' })
   tags!: string[];
 }
 
-@Recipe
+@baker.Recipe
 class NoMessageDto {
   @Field(isString)
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class FalsyContextZeroDto {
   @Field(isString, { context: 0 })
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class FalsyContextFalseDto {
   @Field(isString, { context: false })
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class FalsyContextEmptyStringDto {
   @Field(isString, { context: '' })
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class EmptyStringMessageDto {
   @Field(isString, { message: '' })
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ConstraintsAccessDto {
   @Field(minLength(5), {
     message: ({ property, constraints }) => `${property} must be at least ${constraints['min']} chars`,
@@ -88,43 +85,43 @@ class ConstraintsAccessDto {
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class InnerMsgDto {
   @Field(isString, { message: 'inner msg' })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class OuterMsgDto {
   @Field({ type: () => InnerMsgDto })
   child!: InnerMsgDto;
 }
 
-@Recipe
+@baker.Recipe
 class InnerCtxDto {
   @Field(isNumber(), { message: 'must be number', context: { severity: 'error' } })
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class OuterCtxDto {
   @Field({ type: () => InnerCtxDto })
   nested!: InnerCtxDto;
 }
 
-@Recipe
+@baker.Recipe
 class InnerArrayMsgDto {
   @Field(isString, { message: 'item msg' })
   label!: string;
 }
 
-@Recipe
+@baker.Recipe
 class OuterArrayMsgDto {
   @Field({ type: () => [InnerArrayMsgDto] })
   items!: InnerArrayMsgDto[];
 }
 
-@Recipe
+@baker.Recipe
 class GroupsWithMessageDto {
   @Field(isString, { groups: ['admin'], message: 'Admin field invalid' })
   secret!: string;
@@ -308,31 +305,31 @@ describe('@Field message + groups combination', () => {
 // owns the field's type gate. Gate-level rejections (NaN, wrong typeof) must carry
 // the same context/message as rule-body rejections (e.g. Infinity).
 
-@Recipe
+@baker.Recipe
 class MaxAgeDto {
   @Field(isInt, { context: { reason: 'invalid_max_age' } })
   maxAge!: number;
 }
 
-@Recipe
+@baker.Recipe
 class MaxAgeMsgDto {
   @Field(isInt, { message: 'maxAge must be an integer' })
   maxAge!: number;
 }
 
-@Recipe
+@baker.Recipe
 class MaxAgeNoCtxDto {
   @Field(isInt)
   maxAge!: number;
 }
 
-@Recipe
+@baker.Recipe
 class MinLenCtxDto {
   @Field(minLength(3), { context: { reason: 'too_short_or_wrong_type' } })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class AsserterCtxDto {
   @Field(isString, minLength(3), { context: { reason: 'name_invalid' } })
   name!: string;
@@ -387,15 +384,13 @@ describe('type-gate failures carry field context/message', () => {
   });
 
   it('carries context on the gate failure in stopAtFirstError mode too', async () => {
-    unseal(); // beforeEach already sealed with defaults; reconfigure before re-sealing
-    configure({ stopAtFirstError: true });
-    seal();
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class StopMaxAgeDto {
       @Field(isInt, { context: { reason: 'invalid_max_age' } })
       maxAge!: number;
     }
-    sealClass(StopMaxAgeDto);
+    b.seal();
     const result = await deserialize(StopMaxAgeDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
@@ -408,76 +403,76 @@ describe('type-gate failures carry field context/message', () => {
 // (isDefined), structural array/object gates, and conversion failures must all carry it —
 // while descendant (element/nested-child) failures keep their OWN context.
 
-@Recipe
+@baker.Recipe
 class ChildNameDto {
   @Field(isString) name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class RequiredCtxDto {
   @Field(isString, { context: { reason: 'name_required' } })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ArrayCtxDto {
   @Field(arrayOf(isString), { context: { reason: 'must_be_array' } })
   items!: string[];
 }
 
-@Recipe
+@baker.Recipe
 class TypeOnlyCtxDto {
   @Field({ type: () => ChildNameDto, context: { reason: 'child_must_be_object' } })
   child!: ChildNameDto;
 }
 
-@Recipe
+@baker.Recipe
 class ChildCtxDto {
   @Field(isString, { context: { reason: 'child_name_invalid' } })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ParentCtxDto {
   @Field({ type: () => ChildCtxDto, context: { reason: 'parent_child_invalid' } })
   child!: ChildCtxDto;
 }
 
-@Recipe
+@baker.Recipe
 class ArrayMsgDto {
   @Field(arrayOf(isString), { message: 'items must be an array' })
   items!: string[];
 }
 
-@Recipe
+@baker.Recipe
 class SetCtxDto {
   @Field({ type: () => Set, setValue: () => ChildNameDto, context: { reason: 'must_be_set' } })
   items!: Set<ChildNameDto>;
 }
 
-@Recipe
+@baker.Recipe
 class SetElemCtxDto {
   @Field(arrayOf(isString), { type: () => Set, context: { reason: 'set_elem_invalid' } })
   tags!: Set<string>;
 }
 
-@Recipe
+@baker.Recipe
 class GateMsgFnDto {
   @Field(isInt, { message: ({ property }) => `${property} must be an integer` })
   maxAge!: number;
 }
 
-@Recipe
+@baker.Recipe
 class DiscDogDto {
   @Field(isString) breed!: string;
 }
 
-@Recipe
+@baker.Recipe
 class DiscCatDto {
   @Field(isString) sound!: string;
 }
 
-@Recipe
+@baker.Recipe
 class DiscCtxDto {
   @Field({
     type: () => DiscDogDto,
@@ -521,15 +516,13 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('conversion failure (conversionFailed) carries field context', async () => {
-    unseal();
-    configure({ autoConvert: true });
-    seal();
-    @Recipe
+    const b = new Baker({ autoConvert: true });
+    @b.Recipe
     class ConvCtxDto {
       @Field(isInt, { context: { reason: 'maxage_bad' } })
       maxAge!: number;
     }
-    sealClass(ConvCtxDto);
+    b.seal();
     const result = await deserialize(ConvCtxDto, { maxAge: {} });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'conversionFailed');
@@ -562,15 +555,13 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('structural array gate carries field context in stopAtFirstError mode too', async () => {
-    unseal();
-    configure({ stopAtFirstError: true });
-    seal();
-    @Recipe
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
     class StopArrayCtxDto {
       @Field(arrayOf(isString), { context: { reason: 'must_be_array' } })
       items!: string[];
     }
-    sealClass(StopArrayCtxDto);
+    b.seal();
     const result = await deserialize(StopArrayCtxDto, { items: 'x' });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isArray');
@@ -604,3 +595,5 @@ describe('field context reaches all field-own-path failures', () => {
     expect(result.errors.some(x => reasonOf(x.context) === 'pet_invalid')).toBe(false);
   });
 });
+
+baker.seal();
