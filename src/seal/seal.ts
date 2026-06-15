@@ -148,16 +148,31 @@ function sealAllRegistered(): void {
   if (isSealed()) {
     return;
   }
-  const options = getGlobalOptions();
-  const sealed = new Set<Function>();
+  sealRegistry(globalRegistry, getGlobalOptions(), sealedClasses);
+  markSealed();
+}
 
+/**
+ * Seal every class in `registry` with `options`. Shared core of both the global default `seal()`
+ * and per-scope `createBaker().seal()`. Transactional: on any failure every class sealed by this
+ * call is rolled back. Clears `registry` on success.
+ *
+ * A class already sealed (e.g. a shared value-type DTO reached from another scope's roots) is
+ * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
+ * behaviour. Distinct classes stay fully isolated because each is sealed with its scope's options.
+ *
+ * @param track Optional set recording successfully-sealed classes. The default seal passes the
+ *              global `sealedClasses` so `unseal()` can restore them; instances pass nothing.
+ */
+function sealRegistry(registry: Set<Function>, options: SealOptions, track?: Set<Function>): void {
+  const sealed = new Set<Function>();
   try {
-    for (const Class of globalRegistry) {
+    for (const Class of registry) {
       sealOne(Class, options, sealed);
     }
   } catch (e) {
-    // On failure, roll back every class sealed so far (including nested DTOs) — prevent
-    // partial seal state. The failed class self-cleaned its own placeholder in sealOne.
+    // Roll back every class sealed so far (including nested DTOs) — prevent partial seal state.
+    // The failed class self-cleaned its own placeholder in sealOne.
     for (const Class of sealed) {
       deleteSealed(Class);
     }
@@ -165,11 +180,10 @@ function sealAllRegistered(): void {
   }
 
   for (const Class of sealed) {
-    sealedClasses.add(Class);
+    track?.add(Class);
     freezeRaw(Class);
   }
-  globalRegistry.clear();
-  markSealed();
+  registry.clear();
 }
 
 /**
@@ -221,8 +235,10 @@ function seal(): void {
 
 function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Function>): void {
   if (hasSealedOwn(Class)) {
+    // Already sealed — reuse as-is. Prevents infinite recursion on circular references and lets a
+    // shared value-type DTO reached from multiple scopes' roots reuse its single sealed form.
     return;
-  } // already sealed (prevent recursion during circular references)
+  }
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
@@ -476,5 +492,5 @@ const __testing__ = {
   sealClass: sealOneClass,
 };
 
-export { ensureSealed, seal, mergeInheritance, __testing__ };
+export { ensureSealed, seal, sealRegistry, mergeInheritance, __testing__ };
 export { sealedClasses, resetForTesting } from './seal-state';
