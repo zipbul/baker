@@ -69,6 +69,42 @@ describe('Baker-scoped runtime — per-app config isolation', () => {
     expect(ok.inner.k).toBe(5);
   });
 
+  it('validate is isolated too — same class, different autoConvert per baker', () => {
+    const strict = new Baker({ autoConvert: false });
+    const loose = new Baker({ autoConvert: true });
+
+    @strict.Recipe
+    @loose.Recipe
+    class VDto {
+      @Field(isNumber()) n!: number;
+    }
+
+    strict.seal();
+    loose.seal();
+
+    // strict rejects the string, loose accepts it (coercible) — validate goes through each baker's executor
+    assertBakerIssueSet(strict.validate(VDto, { n: '42' }));
+    expect(loose.validate(VDto, { n: '42' })).toBe(true);
+  });
+
+  it('serialize resolves through the owning baker (and a non-owner throws)', () => {
+    const a = new Baker();
+    const b = new Baker();
+
+    @a.Recipe
+    class SDto {
+      @Field(isNumber()) n!: number;
+    }
+
+    a.seal();
+    b.seal();
+
+    const dto = Object.assign(new SDto(), { n: 7 });
+    expect(a.serialize(dto)).toEqual({ n: 7 });
+    // b never sealed SDto → its serialize map has no entry
+    expect(() => b.serialize(dto)).toThrow();
+  });
+
   it('deserialize on a class not sealed by this baker throws', () => {
     class NotMine {
       @Field(isNumber()) n!: number;

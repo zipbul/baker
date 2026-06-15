@@ -9,8 +9,8 @@ import { checkCallOptions } from './check-call-options';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Forgery check shared by serialize / serializeSync / serializeAsync. Returns the validated
- * constructor; resolution to a sealed executor is done by the caller (global slot or baker map).
+ * Forgery check shared by the Baker serialize methods. Returns the validated constructor; resolution
+ * to a sealed executor is done by the caller from its baker map.
  */
 function resolveSerializeClass(instance: unknown, fnName: string): Function {
   if (instance == null || typeof instance !== 'object') {

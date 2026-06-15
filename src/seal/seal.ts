@@ -129,9 +129,10 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
  * Transactional: on any failure every class sealed by this call is rolled back. Clears `registry`
  * on success.
  *
- * A class already sealed (e.g. a shared value-type DTO reached from another Baker's roots) is
- * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
- * behaviour. Distinct classes stay fully isolated because each is sealed with its Baker's options.
+ * Executors are written into `executors` (the calling Baker's own map), never onto the class, so two
+ * bakers sealing the same class each compile their own executor with their own options — apps never
+ * mix. Within one baker's seal, an already-present class is reused as-is (circular-ref guard + shared
+ * nested DTO dedup for that baker).
  */
 function sealRegistry(
   registry: Set<Function>,
