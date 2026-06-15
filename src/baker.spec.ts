@@ -2,7 +2,6 @@ import { describe, it, expect } from 'bun:test';
 
 import { Baker } from '../index';
 import { Field } from './decorators/field';
-import { getSealed } from './meta-access';
 import { isString } from './rules/typechecker';
 
 describe('Baker.Recipe', () => {
@@ -13,7 +12,10 @@ describe('Baker.Recipe', () => {
       @Field(isString) name!: string;
     }
     baker.seal();
-    expect(getSealed(UserDto)).toBeDefined();
+    // Sealed → the baker can deserialize a valid input into a class instance.
+    const result = baker.deserialize(UserDto, { name: 'Alice' });
+    expect(result).toBeInstanceOf(UserDto);
+    expect((result as UserDto).name).toBe('Alice');
   });
 
   it('seals each class independently across an inheritance chain', () => {
@@ -27,8 +29,9 @@ describe('Baker.Recipe', () => {
       @Field(isString) age!: string;
     }
     baker.seal();
-    expect(getSealed(BaseDto)).toBeDefined();
-    expect(getSealed(ChildDto)).toBeDefined();
+    // Both classes are sealed by this baker → each deserializes its own valid input.
+    expect(baker.deserialize(BaseDto, { id: 'x' })).toBeInstanceOf(BaseDto);
+    expect(baker.deserialize(ChildDto, { id: 'x', age: '10' })).toBeInstanceOf(ChildDto);
   });
 
   it('does NOT seal a class that has @Field but no @baker.Recipe', () => {
@@ -39,6 +42,7 @@ describe('Baker.Recipe', () => {
       @Field(isString) name!: string;
     }
     baker.seal();
-    expect(getSealed(FieldOnlyDto)).toBeUndefined();
+    // Not sealed by this baker → resolving it throws.
+    expect(() => baker.deserialize(FieldOnlyDto, { name: 'Alice' })).toThrow(/not sealed by this baker/);
   });
 });

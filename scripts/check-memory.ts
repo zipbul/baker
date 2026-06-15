@@ -4,7 +4,7 @@
  *
  * Usage: bun run scripts/check-memory.ts
  */
-import { deserialize, validate, Field, Baker } from '../index';
+import { Field, Baker } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 
 // ── DTO setup ────────────────────────────────────────────────────────────────
@@ -19,14 +19,14 @@ class MemDto {
 
 // Seal
 baker.seal();
-deserialize(MemDto, { name: 'Alice', age: 30 });
+baker.deserialize(MemDto, { name: 'Alice', age: 30 });
 
 // ── JIT warmup ───────────────────────────────────────────────────────────────
 
 for (let i = 0; i < 100_000; i++) {
-  deserialize(MemDto, { name: 'Alice', age: 30 });
-  deserialize(MemDto, { name: 'A', age: -1 });
-  validate(MemDto, { name: 'Alice', age: 30 });
+  baker.deserialize(MemDto, { name: 'Alice', age: 30 });
+  baker.deserialize(MemDto, { name: 'A', age: -1 });
+  baker.validate(MemDto, { name: 'Alice', age: 30 });
 }
 
 // ── Measurement ──────────────────────────────────────────────────────────────
@@ -43,25 +43,25 @@ const cases: TestCase[] = [
   {
     label: 'deserialize valid',
     fn: () => {
-      deserialize(MemDto, { name: 'Alice', age: 30 });
+      baker.deserialize(MemDto, { name: 'Alice', age: 30 });
     },
   },
   {
     label: 'deserialize invalid',
     fn: () => {
-      deserialize(MemDto, { name: 'A', age: -1 });
+      baker.deserialize(MemDto, { name: 'A', age: -1 });
     },
   },
   {
     label: 'validate DTO valid',
     fn: () => {
-      validate(MemDto, { name: 'Alice', age: 30 });
+      baker.validate(MemDto, { name: 'Alice', age: 30 });
     },
   },
   {
     label: 'validate DTO invalid',
     fn: () => {
-      validate(MemDto, { name: 'A', age: -1 });
+      baker.validate(MemDto, { name: 'A', age: -1 });
     },
   },
 ];

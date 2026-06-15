@@ -1,16 +1,15 @@
-import type { RawClassMeta, SealedExecutors } from './types';
+import type { RawClassMeta } from './types';
 
-import { RAW, SEALED } from './symbols';
+import { RAW } from './symbols';
 
 // Type boundary — the single place that bridges symbol-keyed storage to typed metadata.
-// All other modules must access RAW/SEALED slots through these helpers only.
+// All other modules must access RAW slots through these helpers only.
 //
 // RAW lives on the TC39 decorator metadata object (Class[Symbol.metadata][RAW]) — that is
 // where modern field decorators can write (they receive `context.metadata`, never the class).
-// SEALED lives directly on the Class (Class[SEALED]); sealing runs with the class in hand.
+// Sealed executors live in each Baker's own map (keyed by class), never on the class itself.
 type MetaObject = Record<PropertyKey, unknown> & { [RAW]?: RawClassMeta };
 type MetaCarrier = Function & { [Symbol.metadata]?: MetaObject | null };
-type SealedCarrier = Function & { [SEALED]?: SealedExecutors<unknown> };
 
 /** Returns the metadata object visible on cls (own or inherited via the class prototype chain). */
 function metaOf(cls: Function): MetaObject | undefined {
@@ -28,31 +27,6 @@ function ensureOwnMeta(cls: Function): MetaObject {
     });
   }
   return (cls as MetaCarrier)[Symbol.metadata]!;
-}
-
-export function getSealed(cls: Function): SealedExecutors<unknown> | undefined {
-  return (cls as SealedCarrier)[SEALED];
-}
-
-/** Same as getSealed but throws if the class is not sealed — for callers that establish the invariant elsewhere. */
-export function requireSealed(cls: Function): SealedExecutors<unknown> {
-  const v = (cls as SealedCarrier)[SEALED];
-  if (v === undefined) {
-    throw new Error(`${cls.name || '<anonymous>'}: class is not sealed`);
-  }
-  return v;
-}
-
-export function setSealed(cls: Function, exec: SealedExecutors<unknown>): void {
-  (cls as SealedCarrier)[SEALED] = exec;
-}
-
-export function hasSealedOwn(cls: Function): boolean {
-  return Object.hasOwn(cls, SEALED);
-}
-
-export function deleteSealed(cls: Function): void {
-  delete (cls as SealedCarrier)[SEALED];
 }
 
 export function deleteRaw(cls: Function): void {
@@ -89,12 +63,4 @@ export function hasRawOwn(cls: Function): boolean {
   }
   const meta = (cls as MetaCarrier)[Symbol.metadata];
   return meta != null && Object.hasOwn(meta, RAW);
-}
-
-export function freezeRaw(cls: Function): void {
-  // Guard on own RAW: an inherited-only subclass must not freeze the parent's RAW.
-  if (!hasRawOwn(cls)) {
-    return;
-  }
-  Object.freeze(getRaw(cls));
 }

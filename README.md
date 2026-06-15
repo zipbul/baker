@@ -27,7 +27,7 @@ Zero `reflect-metadata`. Sealed codegen.
 ## Quick Start
 
 ```typescript
-import { Baker, Field, deserialize, isBakerIssueSet } from '@zipbul/baker';
+import { Baker, Field, isBakerIssueSet } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
 const baker = new Baker();
@@ -43,7 +43,7 @@ class UserDto {
 baker.seal();
 
 // All rules here are sync, so deserialize returns the value directly (no await).
-const result = deserialize(UserDto, {
+const result = baker.deserialize(UserDto, {
   name: 'Alice',
   age: 30,
   email: 'alice@test.com',
@@ -67,7 +67,7 @@ if (isBakerIssueSet(result)) {
 | `@app.Recipe`       | Marks a class as a DTO of that baker. Only `@Field` properties are part of the contract. |
 | `@Field(...rules)`  | Declares a validated field. Global — works with any baker.                     |
 | `app.seal()`        | Compiles that baker's DTOs into executor functions. Call once, at startup.     |
-| `deserialize` / `validate` / `serialize` | Global — run the sealed executors stored on the class: parse+validate, validate-only, or emit a plain object. |
+| `app.deserialize` / `app.validate` / `app.serialize` | Run that baker's compiled executors: parse+validate, validate-only, or emit a plain object. |
 
 > Examples below assume a `const baker = new Baker()` in scope and a single `baker.seal()` after the DTOs are defined.
 
@@ -143,8 +143,8 @@ class UserDto {
   displayName!: string;
 }
 
-deserialize(UserDto, input); // `ssn` is skipped
-deserialize(UserDto, input, { groups: ['admin'] }); // `ssn` is included
+baker.deserialize(UserDto, input); // `ssn` is skipped
+baker.deserialize(UserDto, input, { groups: ['admin'] }); // `ssn` is included
 ```
 
 A field with no `groups` is always included; a field tagged with `groups` participates only when a matching group is passed via [runtime options](#runtime-options). See [`RuntimeOptions`](#runtime-options) for the call-site shape.
@@ -351,9 +351,9 @@ const app = new Baker({
 });
 ```
 
-`deserialize` / `serialize` / `validate` are global — they read the sealed executor off the class — and throw `BakerError` if the class is not sealed.
+`app.deserialize` / `app.serialize` / `app.validate` run that baker's compiled executors and throw `BakerError` if the class was not sealed by this baker.
 
-**Isolation:** distinct classes are fully isolated (each sealed with its baker's config). A class shared across bakers is sealed once (first seal wins) — use separate classes if you need different config.
+**Isolation:** each baker compiles its own executor per class into its own map, so the **same class sealed by two bakers behaves per each baker's config** — apps never mix. (An undecorated subclass resolves to its nearest sealed ancestor within that baker.)
 
 ### `deserialize` / `serialize` / `validate`
 
@@ -418,7 +418,7 @@ baker separates two failure modes:
 - **`BakerIssueSet` (returned)** — a validation failure. `deserialize` and `validate` return it instead of throwing. Guard with `isBakerIssueSet` and read `.errors`.
 
 ```typescript
-const result = deserialize(UserDto, input);
+const result = baker.deserialize(UserDto, input);
 
 if (isBakerIssueSet(result)) {
   for (const issue of result.errors) {
@@ -445,11 +445,11 @@ Yes. If any rule or transformer is async, baker automatically detects it at seal
 
 ### Can I use baker with NestJS?
 
-Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `deserialize()` in a custom validation pipe.
+Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `app.deserialize()` (your `Baker` instance) in a custom validation pipe.
 
 ### How does the AOT code generation work?
 
-Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DTOs), analyzes field metadata, generates optimized JavaScript executor functions, and stores them on each class. Subsequent `deserialize` / `serialize` / `validate` calls run the pre-compiled functions directly. There is no auto-seal — using a DTO before `app.seal()` raises `BakerError`.
+Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DTOs), analyzes field metadata, generates optimized JavaScript executor functions, and stores them in that baker's map. Subsequent `app.deserialize` / `app.serialize` / `app.validate` calls run the pre-compiled functions directly. There is no auto-seal — using a DTO before `app.seal()` raises `BakerError`.
 
 > baker builds its executors with `new Function()`. Under a strict Content-Security-Policy this requires `'unsafe-eval'`; baker will not run in environments that forbid runtime code generation.
 
@@ -457,10 +457,7 @@ Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DT
 
 ```typescript
 import {
-  Baker,
-  deserialize, deserializeSync, deserializeAsync,
-  validate, validateSync, validateAsync,
-  serialize, serializeSync, serializeAsync,
+  Baker, // .deserialize / .validate / .serialize (+ *Sync / *Async) live on the instance
   createRule, Field, arrayOf, isBakerIssueSet, BakerError, RequiredType, ExcludeMode,
 } from '@zipbul/baker';
 import type { Transformer, TransformParams, BakerIssue, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions, BakerConfig } from '@zipbul/baker';

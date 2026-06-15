@@ -3,7 +3,6 @@ import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } fro
 
 import { CollectionType } from '../enums';
 import { BakerError } from '../errors';
-import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,6 +140,7 @@ function buildSerializeCode<T>(
   merged: RawClassMeta,
   options: SealOptions | undefined,
   isAsync: boolean,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
 ): (instance: T, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>> {
   const refs: unknown[] = [];
   const execs: SealedExecutors<unknown>[] = [];
@@ -162,7 +162,7 @@ function buildSerializeCode<T>(
   }
 
   for (const [fieldKey, meta] of Object.entries(merged)) {
-    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, options, Class.name);
+    body += generateSerializeFieldCode(fieldKey, meta, refs, execs, isAsync, resolve, options, Class.name);
   }
 
   body += `return ${GEN.out};\n`;
@@ -194,6 +194,7 @@ function generateSerializeFieldCode(
   refs: unknown[],
   execs: SealedExecutors<unknown>[],
   isAsync: boolean,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
   options?: SealOptions,
   className: string = '',
 ): string {
@@ -248,7 +249,7 @@ function generateSerializeFieldCode(
 
     if (collection === CollectionType.Set) {
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
+        const nestedSealed = resolve(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         if (isAsync) {
@@ -267,7 +268,7 @@ function generateSerializeFieldCode(
       // Map → plain object (W8: keys must be strings — throw otherwise)
       const keyCheck = `if (typeof ${GEN.mapEntry}[0] !== 'string') { throw new BakerError(${JSON.stringify(className)} + ': Map field ' + ${JSON.stringify(fieldKey)} + ' has non-string key (' + typeof ${GEN.mapEntry}[0] + '). Map serialization requires string keys.'); }\n    `;
       if (meta.type.resolvedCollectionValue) {
-        const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
+        const nestedSealed = resolve(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;
         execs.push(nestedSealed);
         const awaitKw = isAsync ? 'await ' : '';
@@ -329,7 +330,7 @@ function generateSerializeFieldCode(
         let code = '';
         for (let i = 0; i < sorted.length; i++) {
           const sub = sorted[i]!;
-          const nestedSealed = getSealed(sub.value) as SealedExecutors<unknown>;
+          const nestedSealed = resolve(sub.value) as SealedExecutors<unknown>;
           const execIdx = execs.length;
           execs.push(nestedSealed);
           const refIdx = refs.length;
@@ -374,7 +375,7 @@ function generateSerializeFieldCode(
     } else {
       // Existing simple nested logic
       const nestedCls = meta.type!.resolvedClass ?? (meta.type!.fn() as Function);
-      const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
+      const nestedSealed = resolve(nestedCls) as SealedExecutors<unknown>;
       const execIdx = execs.length;
       execs.push(nestedSealed);
 

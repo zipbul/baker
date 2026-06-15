@@ -3,7 +3,7 @@ import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '
 
 import { CollectionType, Direction } from '../enums';
 import { BakerError } from '../errors';
-import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
+import { getRaw, hasRawOwn } from '../meta-access';
 import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
@@ -36,7 +36,12 @@ function circularPlaceholder(className: string): SealedExecutors<unknown> {
 // analyzeAsync — static analysis to determine if a sealed DTO requires an async executor (C1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function analyzeAsync(merged: RawClassMeta, direction: Direction, visited?: Set<Function>): boolean {
+function analyzeAsync(
+  merged: RawClassMeta,
+  direction: Direction,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
+  visited?: Set<Function>,
+): boolean {
   const flag = direction === Direction.Deserialize ? 'isAsync' : 'isSerializeAsync';
   const seen = visited ?? new Set<Function>();
 
@@ -51,11 +56,11 @@ function analyzeAsync(merged: RawClassMeta, direction: Direction, visited?: Set<
       return false;
     }
     seen.add(cls);
-    const sealed = getSealed(cls);
+    const sealed = resolve(cls);
     if (sealed?.merged) {
       return sealed[flag] === true;
     }
-    return analyzeAsync(mergeInheritance(cls), direction, seen);
+    return analyzeAsync(mergeInheritance(cls), direction, resolve, seen);
   };
 
   for (const meta of Object.values(merged)) {
@@ -120,47 +125,94 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
 }
 
 /**
- * @internal — used by serialize/deserialize. Returns the sealed executor.
- * Throws if the class was never sealed. Seal a class via `new Baker().seal()` first.
- */
-function ensureSealed(Class: Function): SealedExecutors<unknown> {
-  const sealed = getSealed(Class);
-  if (!sealed) {
-    const name = Class.name || '<anonymous class>';
-    throw new BakerError(
-      `${name} is not sealed. Call your baker's seal() (new Baker().seal()) at app startup before deserialize/validate/serialize. ` +
-        `(If ${name} has no @Field decorators, decorate at least one property.)`,
-    );
-  }
-  return sealed;
-}
-
-/**
  * Seal every class in `registry` with `options`. The core used by `new Baker().seal()`.
  * Transactional: on any failure every class sealed by this call is rolled back. Clears `registry`
  * on success.
  *
- * A class already sealed (e.g. a shared value-type DTO reached from another Baker's roots) is
- * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
- * behaviour. Distinct classes stay fully isolated because each is sealed with its Baker's options.
+ * Executors are written into `executors` (the calling Baker's own map), never onto the class, so two
+ * bakers sealing the same class each compile their own executor with their own options — apps never
+ * mix. Within one baker's seal, an already-present class is reused as-is (circular-ref guard + shared
+ * nested DTO dedup for that baker).
  */
-function sealRegistry(registry: Set<Function>, options: SealOptions): void {
+// ─────────────────────────────────────────────────────────────────────────────
+// (class, config) executor cache — content-addressed sharing across bakers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A class's generated executor is a pure function of (its RAW metadata, the seal config). So two
+ * bakers with the SAME config compile byte-identical executors — memoize globally by
+ * `(class, configFingerprint)` so they share one executor (compiled once) instead of N copies, while
+ * different-config bakers stay isolated (distinct fingerprint → distinct entry). Behaviour is
+ * unchanged either way: executors are pure (no per-call mutable state), so sharing is invisible.
+ *
+ * `WeakMap<class>` so an entry is reclaimed when its class is GC'd. The inner `Map` retains one
+ * executor per (class, config) for the class's lifetime — bounded for a fixed DTO/config set (the
+ * intended "seal once at startup" usage); a program that dynamically generates classes/configs would
+ * grow it without eviction.
+ */
+let compileCache = new WeakMap<Function, Map<string, SealedExecutors<unknown>>>();
+
+/** Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
+ * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key. */
+function configFingerprint(o: SealOptions): string {
+  return (
+    (o.enableImplicitConversion ? '1' : '0') +
+    (o.exposeDefaultValues ? '1' : '0') +
+    (o.stopAtFirstError ? '1' : '0') +
+    (o.whitelist ? '1' : '0') +
+    (o.debug ? '1' : '0')
+  );
+}
+
+function getCached(cls: Function, fp: string): SealedExecutors<unknown> | undefined {
+  return compileCache.get(cls)?.get(fp);
+}
+
+/** Test-only: drop a single class's cached executors so a re-seal recompiles it. */
+function clearCached(cls: Function): void {
+  compileCache.delete(cls);
+}
+
+/**
+ * Test-only: drop the ENTIRE cache. Used by `unseal()` so a test that re-seals classes starts from a
+ * clean slate — a whole-cache reset (vs per-class) is the only way to avoid the partial-clear state
+ * where a cached root still references a nested whose entry was dropped (a root + its nested are always
+ * compiled together, so they must be invalidated together).
+ */
+function clearAllCached(): void {
+  compileCache = new WeakMap();
+}
+
+function setCached(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
+  let m = compileCache.get(cls);
+  if (m === undefined) {
+    m = new Map();
+    compileCache.set(cls, m);
+  }
+  m.set(fp, exec);
+}
+
+function sealRegistry(
+  registry: Set<Function>,
+  options: SealOptions,
+  executors: Map<Function, SealedExecutors<unknown>>,
+): void {
+  const fp = configFingerprint(options);
   const sealed = new Set<Function>();
   try {
     for (const Class of registry) {
-      sealOne(Class, options, sealed);
+      sealOne(Class, executors, fp, options, sealed);
     }
   } catch (e) {
-    // Roll back every class sealed so far (including nested DTOs) — prevent partial seal state.
-    // The failed class self-cleaned its own placeholder in sealOne.
-    for (const Class of sealed) {
-      deleteSealed(Class);
-    }
+    // Roll back the whole map — seal is one-shot, so `executors` was empty at entry; clearing it
+    // removes both freshly-compiled placeholders and any cache-reused entries from this attempt.
+    executors.clear();
     throw e;
   }
 
+  // Commit only the classes compiled by THIS seal to the shared cache (cache hits are already there).
   for (const Class of sealed) {
-    freezeRaw(Class);
+    setCached(Class, fp, executors.get(Class)!);
   }
   registry.clear();
 }
@@ -169,16 +221,42 @@ function sealRegistry(registry: Set<Function>, options: SealOptions): void {
 // sealOne() — seal an individual class (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Function>): void {
-  if (hasSealedOwn(Class)) {
-    // Already sealed — reuse as-is. Prevents infinite recursion on circular references and lets a
-    // shared value-type DTO reached from multiple scopes' roots reuse its single sealed form.
+function sealOne(
+  Class: Function,
+  executors: Map<Function, SealedExecutors<unknown>>,
+  fp: string,
+  options?: SealOptions,
+  sealedAcc?: Set<Function>,
+): void {
+  if (executors.has(Class)) {
+    // Already in THIS baker's map (placeholder mid-seal, freshly compiled, or cache-reused). Prevents
+    // infinite recursion on circular references and dedups a shared nested DTO within this seal.
+    return;
+  }
+
+  // Cache hit: another baker already compiled this class under the SAME config — reuse its executor.
+  const cached = getCached(Class, fp);
+  if (cached !== undefined) {
+    executors.set(Class, cached);
+    // Seed this baker's map with the transitive nested classes too, so resolving a nested-only DTO as
+    // a TOP-LEVEL argument (app.deserialize(Nested, …)) behaves identically whether this baker compiled
+    // fresh or hit the cache. Each nested is itself a cache hit (it was committed when the root was
+    // first sealed); the executors.has guard above terminates circular graphs.
+    if (cached.merged) {
+      for (const meta of Object.values(cached.merged)) {
+        for (const nested of nestedClassesOf(meta)) {
+          sealOne(nested, executors, fp, options, sealedAcc);
+        }
+      }
+    }
     return;
   }
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
-  setSealed(Class, placeholder);
+  executors.set(Class, placeholder);
+
+  const resolve = (cls: Function): SealedExecutors<unknown> | undefined => executors.get(cls);
 
   try {
     // 1. Merge inheritance metadata
@@ -261,30 +339,30 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
     // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
     for (const meta of Object.values(merged)) {
       if (meta.type?.resolvedClass) {
-        sealOne(meta.type.resolvedClass, options, sealedAcc);
+        sealOne(meta.type.resolvedClass, executors, fp, options, sealedAcc);
       }
       if (meta.type?.resolvedCollectionValue) {
-        sealOne(meta.type.resolvedCollectionValue, options, sealedAcc);
+        sealOne(meta.type.resolvedCollectionValue, executors, fp, options, sealedAcc);
       }
       if (meta.type?.discriminator) {
         for (const sub of meta.type.discriminator.subTypes) {
-          sealOne(sub.value, options, sealedAcc);
+          sealOne(sub.value, executors, fp, options, sealedAcc);
         }
       }
     }
 
     // 5. Async analysis
-    const isAsync = analyzeAsync(merged, Direction.Deserialize);
-    const isSerializeAsync = analyzeAsync(merged, Direction.Serialize);
+    const isAsync = analyzeAsync(merged, Direction.Deserialize, resolve);
+    const isSerializeAsync = analyzeAsync(merged, Direction.Serialize, resolve);
 
     // 6. Generate deserialize executor code
-    const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
+    const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, resolve);
 
     // 6b. Generate validate-only executor code (no Object.create, no assignments)
-    const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync);
+    const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync, resolve);
 
     // 7. Generate serialize executor code
-    const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
+    const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync, resolve);
 
     // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
     Object.assign(placeholder, {
@@ -298,7 +376,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
   } catch (e) {
     // Self-clean this class's placeholder so a failed seal leaves no broken state —
     // including nested DTOs reached by recursion that are not in the registry.
-    deleteSealed(Class);
+    executors.delete(Class);
     throw e;
   }
 
@@ -337,25 +415,23 @@ function mergeInheritance(Class: Function): RawClassMeta {
 
   // child-first merge
   const merged: RawClassMeta = Object.create(null) as RawClassMeta;
-  // When the prototype chain has only the class itself (no decorated parent), no merging happens
-  // and we never mutate the metadata arrays — skip the shallow copy entirely.
-  const needsCopy = chain.length > 1;
 
   for (const ctor of chain) {
     const raw = getRaw(ctor)!;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
-        // First occurrence of field → copy only when subsequent ancestors might mutate
-        merged[key] = needsCopy
-          ? {
-              validation: [...meta.validation],
-              transform: [...meta.transform],
-              expose: [...meta.expose],
-              exclude: meta.exclude,
-              type: meta.type,
-              flags: { ...meta.flags },
-            }
-          : meta;
+        // Always copy each meta (incl. a fresh `flags` object and fresh arrays). RAW is shared
+        // across bakers and re-sealed per baker; normalization in sealOne mutates `meta.flags`,
+        // so it must operate on a copy and never touch the pristine RAW.
+        merged[key] = {
+          ...meta,
+          validation: [...meta.validation],
+          transform: [...meta.transform],
+          expose: [...meta.expose],
+          exclude: meta.exclude,
+          type: meta.type,
+          flags: { ...meta.flags },
+        };
       } else {
         // Already exists in child → independent merge per category (§4.2)
         const m = merged[key];
@@ -416,4 +492,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-export { ensureSealed, sealRegistry, mergeInheritance, circularPlaceholder };
+export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint, clearCached, clearAllCached };

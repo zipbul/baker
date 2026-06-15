@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Baker, deserialize, serialize, isBakerIssueSet, Field } from '../../index';
+import { Baker, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -31,13 +31,13 @@ class TypeDto {
 
 describe('@Type / @Field({ type })', () => {
   it('converts nested object to instance', async () => {
-    const r = (await deserialize(TypeDto, { address: { city: 'Seoul' } })) as TypeDto;
+    const r = (await baker.deserialize(TypeDto, { address: { city: 'Seoul' } })) as TypeDto;
     expect(r.address).toBeInstanceOf(Address);
     expect(r.address.city).toBe('Seoul');
   });
 
   it('nested validation failure', async () => {
-    expect(isBakerIssueSet(await deserialize(TypeDto, { address: { city: 123 } }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(TypeDto, { address: { city: 123 } }))).toBe(true);
   });
 
   it('discriminator polymorphism', async () => {
@@ -65,20 +65,20 @@ describe('@Type / @Field({ type })', () => {
       })
       pet!: Cat | Dog;
     }
-    sealClass(PetDto);
+    const petBaker = sealClass(PetDto);
 
-    const catResult = (await deserialize(PetDto, { pet: { type: 'cat', name: 'Whiskers' } })) as PetDto;
+    const catResult = (await petBaker.deserialize(PetDto, { pet: { type: 'cat', name: 'Whiskers' } })) as PetDto;
     expect(catResult.pet).toBeInstanceOf(Cat);
     expect(catResult.pet.name).toBe('Whiskers');
 
-    const dogResult = (await deserialize(PetDto, { pet: { type: 'dog', name: 'Buddy', age: 3 } })) as PetDto;
+    const dogResult = (await petBaker.deserialize(PetDto, { pet: { type: 'dog', name: 'Buddy', age: 3 } })) as PetDto;
     expect(dogResult.pet).toBeInstanceOf(Dog);
     expect((dogResult.pet as Dog).age).toBe(3);
   });
 
   it('serializes nested object on serialize', async () => {
-    const r = (await deserialize(TypeDto, { address: { city: 'Seoul' } })) as TypeDto;
-    const s = await serialize(r);
+    const r = (await baker.deserialize(TypeDto, { address: { city: 'Seoul' } })) as TypeDto;
+    const s = await baker.serialize(r);
     expect(s).toEqual({ address: { city: 'Seoul' } });
   });
 });

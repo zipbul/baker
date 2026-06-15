@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
-import { createRule, deserialize, Field, isBakerIssueSet, RequiredType, serialize } from '../../index';
+import { createRule, Field, isBakerIssueSet, RequiredType } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -33,13 +33,13 @@ describe('async semantics parity meta', () => {
       @Field(isNumber(), asyncEven)
       value!: number;
     }
-    sealClass(Dto);
+    const baker = sealClass(Dto);
 
     const samples = [2, 3, '2', null];
 
     for (const sample of samples) {
       const rulePass = await asyncEven(sample);
-      const dto = await deserialize(Dto, { value: sample });
+      const dto = await baker.deserialize(Dto, { value: sample });
       expect(isBakerIssueSet(dto)).toBe(!rulePass);
     }
   });
@@ -49,13 +49,13 @@ describe('async semantics parity meta', () => {
       @Field(isString, asyncStartsWithA)
       value!: string;
     }
-    sealClass(Dto);
+    const baker = sealClass(Dto);
 
     const samples = ['alice', 'bob', 1, null];
 
     for (const sample of samples) {
       const rulePass = await asyncStartsWithA(sample);
-      const dto = await deserialize(Dto, { value: sample });
+      const dto = await baker.deserialize(Dto, { value: sample });
       expect(isBakerIssueSet(dto)).toBe(!rulePass);
     }
   });
@@ -70,9 +70,9 @@ describe('async semantics parity meta', () => {
       })
       value!: string;
     }
-    sealClass(Dto);
+    const baker = sealClass(Dto);
 
-    const result = (await deserialize<Dto>(Dto, { value: '  alice  ' })) as Dto;
+    const result = (await baker.deserialize<Dto>(Dto, { value: '  alice  ' })) as Dto;
     expect(result.value).toBe('ALICE');
   });
 
@@ -95,14 +95,14 @@ describe('async semantics parity meta', () => {
       })
       label!: string;
     }
-    sealClass(ParentDto);
+    const parentBaker = sealClass(ParentDto);
 
     const parent = Object.assign(new ParentDto(), {
       child: Object.assign(new ChildDto(), { name: 'neo' }),
       label: 'root',
     });
 
-    const output = await serialize(parent);
+    const output = await parentBaker.serialize(parent);
     expect(output).toEqual({
       child: { name: 'neo' },
       label: '<root>',

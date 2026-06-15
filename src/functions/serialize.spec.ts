@@ -1,149 +1,79 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
 import type { RuntimeOptions } from '../interfaces';
+import type { SealedExecutors } from '../types';
 
+import { Baker } from '../baker';
+import { Field } from '../decorators/field';
 import { BakerError } from '../errors';
-import { setSealed, deleteSealed } from '../meta-access';
-import { serialize } from './serialize';
+import { isString } from '../rules/typechecker';
+import { resolveSerializeClass, runSerialize } from './serialize';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Helpers
+// Helpers — build a minimal SealedExecutors to drive runSerialize's dispatch.
+// runSerialize takes a sealed executor directly (the Baker resolves it from its map);
+// these specs exercise that post-resolution dispatch in isolation.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const trackedClasses: Function[] = [];
-
-function makeClass(name = 'TestDto'): new (...args: never[]) => object {
-  const ctor = class {};
-  Object.defineProperty(ctor, 'name', { value: name });
-  trackedClasses.push(ctor);
-  return ctor;
-}
-
-function attachSealed(
-  ctor: Function,
+function sealedFor(
   serializeFn: (instance: unknown, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>>,
   opts?: { isSerializeAsync?: boolean },
-): void {
-  setSealed(ctor, {
-    deserialize: () => {},
+): SealedExecutors<unknown> {
+  return {
+    deserialize: () => ({}) as never,
     serialize: serializeFn,
     validate: () => null,
     isAsync: false,
     isSerializeAsync: opts?.isSerializeAsync ?? false,
-  });
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Cleanup
+// Tests — runSerialize dispatch
 // ─────────────────────────────────────────────────────────────────────────────
 
-afterEach(() => {
-  for (const ctor of trackedClasses) {
-    deleteSealed(ctor);
-  }
-  trackedClasses.length = 0;
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Tests
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('serialize', () => {
+describe('runSerialize', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
   it('should return Record when serialize returns plain object', async () => {
-    // Arrange
-    const Dto = makeClass();
     const record = { name: 'Alice' };
-    attachSealed(Dto, () => record);
-    const instance = new Dto();
-    // Act
-    const result = await serialize(instance);
-    // Assert
+    const result = await runSerialize(sealedFor(() => record), {});
     expect(result).toBe(record);
   });
 
   it('should pass instance and options to serialize when called', async () => {
-    // Arrange
-    const Dto = makeClass();
     let capturedInstance: unknown;
     let capturedOpts: RuntimeOptions | undefined;
-    attachSealed(Dto, (inst, opts) => {
-      capturedInstance = inst;
-      capturedOpts = opts;
-      return { name: 'x' };
-    });
-    const instance = new Dto();
+    const instance = { id: 1 };
     const opts: RuntimeOptions = { groups: ['public'] };
-    // Act
-    await serialize(instance, opts);
-    // Assert
+    await runSerialize(
+      sealedFor((inst, o) => {
+        capturedInstance = inst;
+        capturedOpts = o;
+        return { name: 'x' };
+      }),
+      instance,
+      opts,
+    );
     expect(capturedInstance).toBe(instance);
     expect(capturedOpts).toBe(opts);
-  });
-
-  // ── Negative / Error ───────────────────────────────────────────────────────
-
-  it('should throw BakerError when instance class has no [SEALED] executor', () => {
-    // Arrange
-    const Dto = makeClass('UnsealedDto');
-    const instance = new Dto();
-    // Act & Assert
-    expect(() => serialize(instance)).toThrow(BakerError);
-  });
-
-  it('should include class name in BakerError message when not sealed', () => {
-    // Arrange
-    const Dto = makeClass('MySerializeDto');
-    const instance = new Dto();
-    // Act & Assert
-    expect(() => serialize(instance)).toThrow('MySerializeDto');
   });
 
   // ── Edge ──────────────────────────────────────────────────────────────────
 
   it('should return empty object when serialize returns {} for instance with no registered fields', async () => {
-    // Arrange
-    const Dto = makeClass();
-    attachSealed(Dto, () => ({}));
-    const instance = new Dto();
-    // Act
-    const result = await serialize(instance);
-    // Assert
+    const result = await runSerialize(sealedFor(() => ({})), {});
     expect(result).toEqual({});
-  });
-
-  // ── State Transition ───────────────────────────────────────────────────────
-
-  it('should work after sealed is re-attached following deletion', async () => {
-    // Arrange
-    const Dto = makeClass();
-    const record1 = { a: 1 };
-    const record2 = { b: 2 };
-    attachSealed(Dto, () => record1);
-    const instance = new Dto();
-    await serialize(instance);
-    // Simulate re-seal
-    deleteSealed(Dto);
-    attachSealed(Dto, () => record2);
-    // Act
-    const result = await serialize(instance);
-    // Assert
-    expect(result).toBe(record2);
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
 
   it('should return identical Record on repeated calls with same instance', async () => {
-    // Arrange
-    const Dto = makeClass();
     const record = { name: 'Bob' };
-    attachSealed(Dto, () => record);
-    const instance = new Dto();
-    // Act
-    const r1 = await serialize(instance);
-    const r2 = await serialize(instance);
-    // Assert
+    const sealed = sealedFor(() => record);
+    const instance = {};
+    const r1 = await runSerialize(sealed, instance);
+    const r2 = await runSerialize(sealed, instance);
     expect(r1).toBe(record);
     expect(r2).toBe(record);
     expect(r1).toBe(r2);
@@ -152,41 +82,62 @@ describe('serialize', () => {
   // ── Sync/Async branching ─────────────────────────────────────────────────
 
   it('should return direct value when isSerializeAsync is false', () => {
-    // Arrange
-    const Dto = makeClass();
     const record = { x: 1 };
-    attachSealed(Dto, () => record, { isSerializeAsync: false });
-    const instance = new Dto();
-    // Act
-    const result = serialize(instance);
-    // Assert
+    const result = runSerialize(sealedFor(() => record, { isSerializeAsync: false }), {});
     expect(result).toBe(record);
   });
 
   it('should use async path when isSerializeAsync is true', async () => {
-    // Arrange
-    const Dto = makeClass();
     const record = { y: 2 };
-    setSealed(Dto, {
-      deserialize: () => {},
-      serialize: () => Promise.resolve(record),
-      validate: () => null,
-      isAsync: false,
-      isSerializeAsync: true,
-    });
-    trackedClasses.push(Dto);
-    const instance = new Dto();
-    // Act
-    const result = await serialize(instance);
-    // Assert
+    const result = await runSerialize(sealedFor(() => Promise.resolve(record), { isSerializeAsync: true }), {});
     expect(result).toBe(record);
   });
+});
 
-  it('should throw BakerError when class is not sealed', () => {
-    // Arrange
-    const Dto = makeClass('NotSealedSerDto');
-    const instance = new Dto();
-    // Act & Assert
-    expect(() => serialize(instance)).toThrow(BakerError);
+// ─────────────────────────────────────────────────────────────────────────────
+// resolveSerializeClass — forgery rejection (boundary shared by Baker.serialize*)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('resolveSerializeClass', () => {
+  it('should return the constructor for a real class instance', () => {
+    class RealDto {}
+    const instance = new RealDto();
+    expect(resolveSerializeClass(instance, 'serialize')).toBe(RealDto);
+  });
+
+  it('should throw BakerError for a plain object', () => {
+    expect(() => resolveSerializeClass({ name: 'x' }, 'serialize')).toThrow(BakerError);
+  });
+
+  it('should throw BakerError for null', () => {
+    expect(() => resolveSerializeClass(null, 'serialize')).toThrow(BakerError);
+  });
+
+  it('should throw BakerError for a forged constructor reference', () => {
+    class RealDto {}
+    // `{ constructor: RealDto }` is not `instanceof RealDto` → forgery rejected.
+    expect(() => resolveSerializeClass({ constructor: RealDto }, 'serialize')).toThrow(BakerError);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resolution boundary — an instance of a class not sealed by this baker throws.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('Baker.serialize resolution', () => {
+  it('should throw BakerError when instance class is not sealed by this baker', () => {
+    const baker = new Baker();
+    class UnsealedDto {
+      @Field(isString) name!: string;
+    }
+    expect(() => baker.serialize(new UnsealedDto())).toThrow(BakerError);
+  });
+
+  it('should include class name in BakerError message when not sealed', () => {
+    const baker = new Baker();
+    class MySerializeDto {
+      @Field(isString) name!: string;
+    }
+    expect(() => baker.serialize(new MySerializeDto())).toThrow('MySerializeDto');
   });
 });

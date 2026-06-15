@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'bun:test';
 
-import { BakerError, Baker, deserialize, Field, isBakerIssueSet } from '../../index';
+import { BakerError, Baker, Field, isBakerIssueSet } from '../../index';
 import { min } from '../../src/rules/number';
 import { isNumber, isString } from '../../src/rules/typechecker';
 
-// Each test defines its DTO classes locally so the global SEALED marker (stored on the class)
-// is fresh per test — no cross-test leakage. Classes here are sealed via each instance's own
-// `app.seal()`, which unseal() does not touch, so there is no shared state to reset between tests.
+// Each test defines its DTO classes locally so each test starts fresh — no cross-test leakage.
+// Classes here are sealed via each instance's own `app.seal()`; sealed executors live only in that
+// baker's private map, so there is no shared/global state to reset between tests.
 
 describe('Baker — multi-app isolation', () => {
   it('seals and deserializes a class registered to an instance, without a global seal()', () => {
@@ -19,7 +19,7 @@ describe('Baker — multi-app isolation', () => {
 
     app.seal();
 
-    const result = deserialize(UserDto, { name: 'Alice' });
+    const result = app.deserialize(UserDto, { name: 'Alice' });
     expect(isBakerIssueSet(result)).toBe(false);
     expect((result as UserDto).name).toBe('Alice');
   });
@@ -39,8 +39,8 @@ describe('Baker — multi-app isolation', () => {
 
     appA.seal(); // only A's roots
 
-    expect(isBakerIssueSet(deserialize(A_Dto, { a: 'x' }))).toBe(false);
-    expect(() => deserialize(B_Dto, { b: 'y' })).toThrow(BakerError); // B never sealed
+    expect(isBakerIssueSet(appA.deserialize(A_Dto, { a: 'x' }))).toBe(false);
+    expect(() => appB.deserialize(B_Dto, { b: 'y' })).toThrow(BakerError); // B never sealed
   });
 
   it('isolates config per instance — same field shape, different autoConvert', () => {
@@ -59,8 +59,8 @@ describe('Baker — multi-app isolation', () => {
     lenient.seal();
     strict.seal();
 
-    const lenientResult = deserialize(LenientDto, { age: '123' });
-    const strictResult = deserialize(StrictDto, { age: '123' });
+    const lenientResult = lenient.deserialize(LenientDto, { age: '123' });
+    const strictResult = strict.deserialize(StrictDto, { age: '123' });
 
     expect(isBakerIssueSet(lenientResult)).toBe(false);
     expect((lenientResult as LenientDto).age).toBe(123); // coerced
@@ -81,7 +81,7 @@ describe('Baker — multi-app isolation', () => {
     expect(() => appB.seal()).not.toThrow(); // shared class is reused, not re-sealed
 
     // One class = one sealed behavior (first seal wins): "123" is coerced.
-    const result = deserialize(SharedDto, { age: '123' });
+    const result = appA.deserialize(SharedDto, { age: '123' });
     expect(isBakerIssueSet(result)).toBe(false);
     expect((result as SharedDto).age).toBe(123);
   });
@@ -105,8 +105,8 @@ describe('Baker — multi-app isolation', () => {
     appA.seal(); // seals RootA + the shared AddressDto
     expect(() => appB.seal()).not.toThrow(); // RootB seals; AddressDto reused
 
-    expect(isBakerIssueSet(deserialize(RootA, { addr: { city: 'x' } }))).toBe(false);
-    expect(isBakerIssueSet(deserialize(RootB, { addr: { city: 'y' } }))).toBe(false);
+    expect(isBakerIssueSet(appA.deserialize(RootA, { addr: { city: 'x' } }))).toBe(false);
+    expect(isBakerIssueSet(appB.deserialize(RootB, { addr: { city: 'y' } }))).toBe(false);
   });
 
   it('app.seal() is idempotent — a second call is a no-op', () => {
@@ -119,7 +119,7 @@ describe('Baker — multi-app isolation', () => {
 
     app.seal();
     expect(() => app.seal()).not.toThrow();
-    expect(isBakerIssueSet(deserialize(IdemDto, { x: 'a' }))).toBe(false);
+    expect(isBakerIssueSet(app.deserialize(IdemDto, { x: 'a' }))).toBe(false);
   });
 
   it('new Baker() rejects an unknown config key', () => {

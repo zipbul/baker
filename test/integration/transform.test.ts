@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, deserialize, serialize, Field } from '../../index';
+import { Baker, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -43,23 +43,23 @@ beforeEach(() => baker.seal());
 
 describe('transform — integration', () => {
   it('should apply transform function during deserialization', async () => {
-    const result = (await deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' })) as TrimmedDto;
+    const result = (await baker.deserialize<TrimmedDto>(TrimmedDto, { name: '  Alice  ' })) as TrimmedDto;
     expect(result.name).toBe('Alice');
   });
 
   it('should apply uppercase transform during deserialization', async () => {
-    const result = (await deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' })) as ToUpperDto;
+    const result = (await baker.deserialize<ToUpperDto>(ToUpperDto, { code: 'abc' })) as ToUpperDto;
     expect(result.code).toBe('ABC');
   });
 
   it('should apply serialize-only transform only during serialize', async () => {
     const dto = Object.assign(new SerializeTransformDto(), { price: 9 });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['price']).toBe(900);
   });
 
   it('should not apply serialize-only transform during deserialize', async () => {
-    const result = (await deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 })) as SerializeTransformDto;
+    const result = (await baker.deserialize<SerializeTransformDto>(SerializeTransformDto, { price: 9 })) as SerializeTransformDto;
     expect(result.price).toBe(9); // transform not applied during deserialize
   });
 });

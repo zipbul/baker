@@ -4,9 +4,16 @@ import type { RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors } from '../types';
 
 import { CollectionType } from '../enums';
-import { setSealed } from '../meta-access';
 import { isString } from '../rules/typechecker';
 import { buildSerializeCode } from './serialize-builder';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers — nested-executor fixtures live in a local map; `resolve` is passed explicitly to every
+// builder call (the builder no longer defaults to a global Class[SEALED] slot).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const execMap = new Map<Function, SealedExecutors<unknown>>();
+const resolve = (cls: Function): SealedExecutors<unknown> | undefined => execMap.get(cls);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tests
@@ -23,7 +30,7 @@ describe('buildSerializeCode', () => {
     const merged: RawClassMeta = {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     };
-    const exec = buildSerializeCode(SimpleDto, merged, undefined, false);
+    const exec = buildSerializeCode(SimpleDto, merged, undefined, false, resolve);
     const instance = new SimpleDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -46,7 +53,7 @@ describe('buildSerializeCode', () => {
         flags: { isOptional: true },
       },
     };
-    const exec = buildSerializeCode(OptDto, merged, undefined, false);
+    const exec = buildSerializeCode(OptDto, merged, undefined, false, resolve);
     const instance = new OptDto(); // age is undefined
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -69,7 +76,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(ExposedDto, merged, undefined, false);
+    const exec = buildSerializeCode(ExposedDto, merged, undefined, false, resolve);
     const instance = new ExposedDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -93,7 +100,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(ExclDto, merged, undefined, false);
+    const exec = buildSerializeCode(ExclDto, merged, undefined, false, resolve);
     const instance = new ExclDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -116,7 +123,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(GroupDto, merged, undefined, false);
+    const exec = buildSerializeCode(GroupDto, merged, undefined, false, resolve);
     const instance = new GroupDto();
     const opts: RuntimeOptions = { groups: ['admin'] };
     // Act
@@ -140,7 +147,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(GroupDto2, merged, undefined, false);
+    const exec = buildSerializeCode(GroupDto2, merged, undefined, false, resolve);
     const instance = new GroupDto2();
     // Act — no groups in opts
     const result = exec(instance, {}) as Record<string, unknown>;
@@ -164,7 +171,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(TransDto, merged, undefined, false);
+    const exec = buildSerializeCode(TransDto, merged, undefined, false, resolve);
     const instance = new TransDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -191,7 +198,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(MultiTransDto, merged, undefined, false);
+    const exec = buildSerializeCode(MultiTransDto, merged, undefined, false, resolve);
     const instance = new MultiTransDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -218,7 +225,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(TriTransDto, merged, undefined, false);
+    const exec = buildSerializeCode(TriTransDto, merged, undefined, false, resolve);
     // Act
     const result = exec(new TriTransDto()) as Record<string, unknown>;
     // Assert — reverse order: 'hello' → t3('[hello]') → t2('[hello]!') → t1('[HELLO]!')
@@ -230,7 +237,7 @@ describe('buildSerializeCode', () => {
   it('should return empty object when DTO has no fields', () => {
     // Arrange
     class NoFields {}
-    const exec = buildSerializeCode(NoFields, {}, undefined, false);
+    const exec = buildSerializeCode(NoFields, {}, undefined, false, resolve);
     // Act
     const result = exec(new NoFields());
     // Assert
@@ -252,7 +259,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(ValidationOnlyDto, merged, undefined, false);
+    const exec = buildSerializeCode(ValidationOnlyDto, merged, undefined, false, resolve);
     const instance = new ValidationOnlyDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -277,7 +284,7 @@ describe('buildSerializeCode', () => {
         flags: { isOptional: true },
       },
     };
-    const exec = buildSerializeCode(ComboDto, merged, undefined, false);
+    const exec = buildSerializeCode(ComboDto, merged, undefined, false, resolve);
     const defInstance = new ComboDto(); // alias is undefined
     const valInstance = Object.assign(new ComboDto(), { alias: 'hello' });
     // Act
@@ -294,7 +301,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class AddressDto {}
     const mockNestedSerialize = mock((_instance: unknown, _opts?: RuntimeOptions) => ({ city: 'Seoul' }));
-    setSealed(AddressDto, {
+    execMap.set(AddressDto, {
       deserialize: mock(() => {}),
       serialize: mockNestedSerialize,
       validate: mock(() => null),
@@ -315,7 +322,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true },
       },
     };
-    const exec = buildSerializeCode(UserDto, merged, undefined, false);
+    const exec = buildSerializeCode(UserDto, merged, undefined, false, resolve);
     const instance = new UserDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -328,7 +335,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class ItemDto {}
     const mockItemSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
-    setSealed(ItemDto, {
+    execMap.set(ItemDto, {
       deserialize: mock(() => {}),
       serialize: mockItemSerialize,
       validate: mock(() => null),
@@ -349,7 +356,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true },
       },
     };
-    const exec = buildSerializeCode(OrderDto, merged, undefined, false);
+    const exec = buildSerializeCode(OrderDto, merged, undefined, false, resolve);
     const instance = new OrderDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -361,7 +368,7 @@ describe('buildSerializeCode', () => {
   it('should omit optional nested field when value is undefined (H4 + @IsOptional)', () => {
     // Arrange
     class ProfileDto {}
-    setSealed(ProfileDto, {
+    execMap.set(ProfileDto, {
       deserialize: mock(() => {}),
       serialize: mock(() => ({ bio: 'test' })),
       validate: mock(() => null),
@@ -382,7 +389,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true, isOptional: true },
       },
     };
-    const exec = buildSerializeCode(MemberDto, merged, undefined, false);
+    const exec = buildSerializeCode(MemberDto, merged, undefined, false, resolve);
     const instance = new MemberDto(); // profile is undefined
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -404,7 +411,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(UserDto, merged, undefined, false);
+    const exec = buildSerializeCode(UserDto, merged, undefined, false, resolve);
     const instance = new UserDto();
     instance.name = 'Alice';
     const result = exec(instance) as Record<string, unknown>;
@@ -418,7 +425,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class AsyncItemDto {}
     const mockItemSerialize = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
-    setSealed(AsyncItemDto, {
+    execMap.set(AsyncItemDto, {
       deserialize: mock(() => {}),
       serialize: mockItemSerialize,
       validate: mock(() => null),
@@ -439,7 +446,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true },
       },
     };
-    const exec = buildSerializeCode(AsyncOrderDto, merged, undefined, true);
+    const exec = buildSerializeCode(AsyncOrderDto, merged, undefined, true, resolve);
     const instance = new AsyncOrderDto();
     // Act
     const result = (await exec(instance)) as Record<string, unknown>;
@@ -452,7 +459,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class AsyncItemDto2 {}
     const mockItemSerialize2 = mock(async (_inst: unknown, _opts?: RuntimeOptions) => ({ id: 1 }));
-    setSealed(AsyncItemDto2, {
+    execMap.set(AsyncItemDto2, {
       deserialize: mock(() => {}),
       serialize: mockItemSerialize2,
       validate: mock(() => null),
@@ -473,7 +480,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true },
       },
     };
-    const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true);
+    const exec = buildSerializeCode(EmptyOrderDto, merged, undefined, true, resolve);
     const instance = new EmptyOrderDto();
     // Act
     const result = (await exec(instance)) as Record<string, unknown>;
@@ -488,7 +495,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class AddressDto {}
     const mockNestedSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ city: 'Seoul', zip: '12345' }));
-    setSealed(AddressDto, {
+    execMap.set(AddressDto, {
       deserialize: mock(() => {}),
       serialize: mockNestedSerialize,
       validate: mock(() => null),
@@ -517,7 +524,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true },
       },
     };
-    const exec = buildSerializeCode(UserDto, merged, undefined, false);
+    const exec = buildSerializeCode(UserDto, merged, undefined, false, resolve);
     const instance = new UserDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;
@@ -534,7 +541,7 @@ describe('buildSerializeCode', () => {
     // Arrange
     class ProfileDto {}
     const mockProfileSerialize = mock((_inst: unknown, _opts?: RuntimeOptions) => ({ bio: 'hello' }));
-    setSealed(ProfileDto, {
+    execMap.set(ProfileDto, {
       deserialize: mock(() => {}),
       serialize: mockProfileSerialize,
       validate: mock(() => null),
@@ -562,7 +569,7 @@ describe('buildSerializeCode', () => {
         flags: { validateNested: true, isOptional: true },
       },
     };
-    const exec = buildSerializeCode(MemberDto, merged, undefined, false);
+    const exec = buildSerializeCode(MemberDto, merged, undefined, false, resolve);
 
     // Act — undefined case
     const undefinedInstance = new MemberDto(); // profile is undefined
@@ -603,7 +610,7 @@ describe('buildSerializeCode', () => {
         flags: {},
       },
     };
-    const exec = buildSerializeCode(TagsDto, merged, undefined, false);
+    const exec = buildSerializeCode(TagsDto, merged, undefined, false, resolve);
     const instance = new TagsDto();
     // Act
     const result = exec(instance) as Record<string, unknown>;

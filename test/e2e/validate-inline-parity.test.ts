@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { deserialize, validate, Field, Baker, isBakerIssueSet } from '../../index';
+import { Field, Baker, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -45,17 +45,17 @@ describe('validate inline parity — flat DTO', () => {
 
   it('valid', () => {
     const input = { name: 'Alice', age: 30, active: true };
-    expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat valid');
+    expectSameErrors(baker.deserialize(Flat, input), baker.validate(Flat, input), 'flat valid');
   });
 
   it('all invalid', () => {
     const input = {};
-    expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat all invalid');
+    expectSameErrors(baker.deserialize(Flat, input), baker.validate(Flat, input), 'flat all invalid');
   });
 
   it('partial invalid', () => {
     const input = { name: '', age: -1, active: 'not bool' };
-    expectSameErrors(deserialize(Flat, input), validate(Flat, input), 'flat partial');
+    expectSameErrors(baker.deserialize(Flat, input), baker.validate(Flat, input), 'flat partial');
   });
 });
 
@@ -80,27 +80,27 @@ describe('validate inline parity — single nested', () => {
 
   it('valid', () => {
     const input = { name: 'Bob', address: { street: '123 Main', city: 'NYC' } };
-    expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested valid');
+    expectSameErrors(baker.deserialize(Person, input), baker.validate(Person, input), 'nested valid');
   });
 
   it('nested field invalid', () => {
     const input = { name: 'Bob', address: { street: 123, city: null } };
-    expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested invalid');
+    expectSameErrors(baker.deserialize(Person, input), baker.validate(Person, input), 'nested invalid');
   });
 
   it('nested object missing', () => {
     const input = { name: 'Bob' };
-    expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested missing');
+    expectSameErrors(baker.deserialize(Person, input), baker.validate(Person, input), 'nested missing');
   });
 
   it('nested object is null', () => {
     const input = { name: 'Bob', address: null };
-    expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested null');
+    expectSameErrors(baker.deserialize(Person, input), baker.validate(Person, input), 'nested null');
   });
 
   it('nested object is non-object', () => {
     const input = { name: 'Bob', address: 'not an object' };
-    expectSameErrors(deserialize(Person, input), validate(Person, input), 'nested non-obj');
+    expectSameErrors(baker.deserialize(Person, input), baker.validate(Person, input), 'nested non-obj');
   });
 });
 
@@ -129,12 +129,12 @@ describe('validate inline parity — array of nested', () => {
         { name: 'B', price: 20 },
       ],
     };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array valid');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array valid');
   });
 
   it('empty array', () => {
     const input = { items: [] };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array empty');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array empty');
   });
 
   it('invalid items', () => {
@@ -144,22 +144,22 @@ describe('validate inline parity — array of nested', () => {
         { name: 'ok', price: 'bad' },
       ],
     };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array invalid items');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array invalid items');
   });
 
   it('non-array value', () => {
     const input = { items: 'not array' };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array non-array');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array non-array');
   });
 
   it('null item in array', () => {
     const input = { items: [null, { name: 'ok', price: 1 }] };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array null item');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array null item');
   });
 
   it('non-object item in array', () => {
     const input = { items: [42, { name: 'ok', price: 1 }] };
-    expectSameErrors(deserialize(Cart, input), validate(Cart, input), 'array non-obj item');
+    expectSameErrors(baker.deserialize(Cart, input), baker.validate(Cart, input), 'array non-obj item');
   });
 });
 
@@ -194,22 +194,22 @@ describe('validate inline parity — deep nesting (5 levels)', () => {
 
   it('valid', () => {
     const input = { c: { c: { c: { c: { v: 'deep' } } } } };
-    expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep valid');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), 'deep valid');
   });
 
   it('error at deepest level', () => {
     const input = { c: { c: { c: { c: { v: 123 } } } } };
-    expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep error');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), 'deep error');
   });
 
   it('missing at mid level', () => {
     const input = { c: { c: { c: null } } };
-    expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep mid null');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), 'deep mid null');
   });
 
   it('missing at top level', () => {
     const input = {};
-    expectSameErrors(deserialize(Root, input), validate(Root, input), 'deep missing');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), 'deep missing');
   });
 });
 
@@ -268,17 +268,17 @@ describe('validate inline parity — very deep nesting (11 levels)', () => {
 
   it('valid 11-level', () => {
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 'deep' } } } } } } } } } } };
-    expectSameErrors(deserialize(Root, input), validate(Root, input), '11-level valid');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), '11-level valid');
   });
 
   it('error at level 11', () => {
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
-    expectSameErrors(deserialize(Root, input), validate(Root, input), '11-level error');
+    expectSameErrors(baker.deserialize(Root, input), baker.validate(Root, input), '11-level error');
   });
 
   it('error path matches c.c.c.c.c.c.c.c.c.c.v', () => {
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 999 } } } } } } } } } } };
-    const result = validate(Root, input);
+    const result = baker.validate(Root, input);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
@@ -315,7 +315,7 @@ describe('validate inline parity — nested array within nested object', () => {
         { name: 'Gadget', tags: [{ label: 'new' }, { label: 'sale' }] },
       ],
     };
-    expectSameErrors(deserialize(Store, input), validate(Store, input), 'nested-array valid');
+    expectSameErrors(baker.deserialize(Store, input), baker.validate(Store, input), 'nested-array valid');
   });
 
   it('errors in deeply nested items', () => {
@@ -326,7 +326,7 @@ describe('validate inline parity — nested array within nested object', () => {
         { name: 'Gadget', tags: [{ label: 'ok' }, { label: null }] },
       ],
     };
-    expectSameErrors(deserialize(Store, input), validate(Store, input), 'nested-array errors');
+    expectSameErrors(baker.deserialize(Store, input), baker.validate(Store, input), 'nested-array errors');
   });
 });
 
@@ -351,22 +351,22 @@ describe('validate inline parity — optional/nullable nested', () => {
 
   it('all present', () => {
     const input = { name: 'x', opt: { val: 'a' }, nul: { val: 'b' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'opt/nul present');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'opt/nul present');
   });
 
   it('optional absent', () => {
     const input = { name: 'x', nul: { val: 'b' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'opt absent');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'opt absent');
   });
 
   it('nullable is null', () => {
     const input = { name: 'x', nul: null };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'nul is null');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'nul is null');
   });
 
   it('nullable missing', () => {
     const input = { name: 'x' };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'nul missing');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'nul missing');
   });
 });
 
@@ -402,7 +402,7 @@ describe('validate inline parity — mixed DTO', () => {
       position: { lat: 37.7, lng: -122.4 },
       labels: [{ text: 'main' }, { text: 'office' }],
     };
-    expectSameErrors(deserialize(Marker, input), validate(Marker, input), 'mixed valid');
+    expectSameErrors(baker.deserialize(Marker, input), baker.validate(Marker, input), 'mixed valid');
   });
 
   it('multiple errors across levels', () => {
@@ -412,7 +412,7 @@ describe('validate inline parity — mixed DTO', () => {
       position: { lat: 'bad', lng: null },
       labels: [{ text: 42 }, {}],
     };
-    expectSameErrors(deserialize(Marker, input), validate(Marker, input), 'mixed errors');
+    expectSameErrors(baker.deserialize(Marker, input), baker.validate(Marker, input), 'mixed errors');
   });
 });
 
@@ -434,8 +434,8 @@ describe('validate inline parity — stopAtFirstError', () => {
 
   it('stopAtFirstError returns single error', () => {
     const input = { items: [{ v: 1 }, { v: 2 }] };
-    const desResult = deserialize(Root, input);
-    const valResult = validate(Root, input);
+    const desResult = sb.deserialize(Root, input);
+    const valResult = sb.validate(Root, input);
     expect(isBakerIssueSet(desResult)).toBe(true);
     expect(isBakerIssueSet(valResult)).toBe(true);
     assertBakerIssueSet(desResult);
@@ -462,19 +462,19 @@ describe('validate inline parity — invalidInput', () => {
   baker.seal();
 
   it('null input', () => {
-    expectSameErrors(deserialize(Dto, null), validate(Dto, null), 'null');
+    expectSameErrors(baker.deserialize(Dto, null), baker.validate(Dto, null), 'null');
   });
   it('undefined input', () => {
-    expectSameErrors(deserialize(Dto, undefined), validate(Dto, undefined), 'undefined');
+    expectSameErrors(baker.deserialize(Dto, undefined), baker.validate(Dto, undefined), 'undefined');
   });
   it('array input', () => {
-    expectSameErrors(deserialize(Dto, [1, 2]), validate(Dto, [1, 2]), 'array');
+    expectSameErrors(baker.deserialize(Dto, [1, 2]), baker.validate(Dto, [1, 2]), 'array');
   });
   it('string input', () => {
-    expectSameErrors(deserialize(Dto, 'hello'), validate(Dto, 'hello'), 'string');
+    expectSameErrors(baker.deserialize(Dto, 'hello'), baker.validate(Dto, 'hello'), 'string');
   });
   it('number input', () => {
-    expectSameErrors(deserialize(Dto, 42), validate(Dto, 42), 'number');
+    expectSameErrors(baker.deserialize(Dto, 42), baker.validate(Dto, 42), 'number');
   });
 });
 
@@ -512,27 +512,27 @@ describe('validate inline parity — discriminator', () => {
 
   it('valid dog', () => {
     const input = { name: 'Alice', pet: { kind: 'dog', breed: 'poodle' } };
-    expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc dog');
+    expectSameErrors(baker.deserialize(Owner, input), baker.validate(Owner, input), 'disc dog');
   });
 
   it('valid cat', () => {
     const input = { name: 'Bob', pet: { kind: 'cat', color: 'black' } };
-    expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc cat');
+    expectSameErrors(baker.deserialize(Owner, input), baker.validate(Owner, input), 'disc cat');
   });
 
   it('invalid discriminator value', () => {
     const input = { name: 'Eve', pet: { kind: 'fish' } };
-    expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc invalid');
+    expectSameErrors(baker.deserialize(Owner, input), baker.validate(Owner, input), 'disc invalid');
   });
 
   it('invalid nested field in discriminated type', () => {
     const input = { name: 'Eve', pet: { kind: 'dog', breed: 123 } };
-    expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc nested invalid');
+    expectSameErrors(baker.deserialize(Owner, input), baker.validate(Owner, input), 'disc nested invalid');
   });
 
   it('missing discriminator property', () => {
     const input = { name: 'Eve', pet: { breed: 'poodle' } };
-    expectSameErrors(deserialize(Owner, input), validate(Owner, input), 'disc missing prop');
+    expectSameErrors(baker.deserialize(Owner, input), baker.validate(Owner, input), 'disc missing prop');
   });
 });
 
@@ -562,12 +562,12 @@ describe('validate inline parity — transform + nested', () => {
 
   it('valid with transform', () => {
     const input = { name: '  hello  ', nested: { val: 42 } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'transform valid');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'transform valid');
   });
 
   it('invalid after transform', () => {
     const input = { name: '  hello  ', nested: { val: 'bad' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'transform invalid');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'transform invalid');
   });
 });
 
@@ -591,12 +591,12 @@ describe('validate inline parity — @Field name mapping', () => {
 
   it('valid with mapped names', () => {
     const input = { user_name: 'Alice', nested_obj: { v: 'ok' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'name-map valid');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'name-map valid');
   });
 
   it('invalid — uses original key (should fail)', () => {
     const input = { userName: 'Alice', nested: { v: 'ok' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'name-map wrong key');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'name-map wrong key');
   });
 });
 
@@ -622,8 +622,8 @@ describe('validate inline parity — groups', () => {
   it('with admin group', () => {
     const input = { name: 'A', secret: 'S', nested: { v: 'ok' } };
     expectSameErrors(
-      deserialize(Outer, input, { groups: ['admin'] }),
-      validate(Outer, input, { groups: ['admin'] }),
+      baker.deserialize(Outer, input, { groups: ['admin'] }),
+      baker.validate(Outer, input, { groups: ['admin'] }),
       'groups admin',
     );
   });
@@ -631,15 +631,15 @@ describe('validate inline parity — groups', () => {
   it('without admin group — secret not validated', () => {
     const input = { name: 'A', secret: 123, nested: { v: 'ok' } };
     expectSameErrors(
-      deserialize(Outer, input, { groups: ['user'] }),
-      validate(Outer, input, { groups: ['user'] }),
+      baker.deserialize(Outer, input, { groups: ['user'] }),
+      baker.validate(Outer, input, { groups: ['user'] }),
       'groups user',
     );
   });
 
   it('no groups option', () => {
     const input = { name: 'A', secret: 'S', nested: { v: 'ok' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'groups none');
+    expectSameErrors(baker.deserialize(Outer, input), baker.validate(Outer, input), 'groups none');
   });
 });
 
@@ -662,12 +662,12 @@ describe('validate inline parity — autoConvert', () => {
 
   it('string-to-number conversion', () => {
     const input = { age: '25', nested: { val: '42' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'conversion valid');
+    expectSameErrors(ab.deserialize(Outer, input), ab.validate(Outer, input), 'conversion valid');
   });
 
   it('non-convertible value', () => {
     const input = { age: 'abc', nested: { val: 'xyz' } };
-    expectSameErrors(deserialize(Outer, input), validate(Outer, input), 'conversion invalid');
+    expectSameErrors(ab.deserialize(Outer, input), ab.validate(Outer, input), 'conversion invalid');
   });
 });
 
@@ -687,17 +687,17 @@ describe('validate inline parity — circular reference', () => {
 
   it('valid tree', () => {
     const input = { name: 'root', child: { name: 'leaf' } };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular valid');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular valid');
   });
 
   it('valid deep tree', () => {
     const input = { name: 'a', child: { name: 'b', child: { name: 'c' } } };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular deep');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular deep');
   });
 
   it('invalid at depth', () => {
     const input = { name: 'a', child: { name: 'b', child: { name: 123 } } };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular invalid');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular invalid');
   });
 });
 
@@ -717,17 +717,17 @@ describe('validate inline parity — circular array of self', () => {
 
   it('valid tree with children array', () => {
     const input = { name: 'root', children: [{ name: 'a' }, { name: 'b', children: [{ name: 'c' }] }] };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array valid');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular array valid');
   });
 
   it('invalid child in array', () => {
     const input = { name: 'root', children: [{ name: 123 }] };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array invalid');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular array invalid');
   });
 
   it('deep circular tree', () => {
     const input = { name: 'a', children: [{ name: 'b', children: [{ name: 'c', children: [{ name: 'd' }] }] }] };
-    expectSameErrors(deserialize(TreeNode, input), validate(TreeNode, input), 'circular array deep');
+    expectSameErrors(baker.deserialize(TreeNode, input), baker.validate(TreeNode, input), 'circular array deep');
   });
 });
 
@@ -769,12 +769,12 @@ describe('validate inline parity — discriminator array', () => {
         { kind: 'cat', color: 'white' },
       ],
     };
-    expectSameErrors(deserialize(Shelter, input), validate(Shelter, input), 'disc array valid');
+    expectSameErrors(baker.deserialize(Shelter, input), baker.validate(Shelter, input), 'disc array valid');
   });
 
   it('invalid items', () => {
     const input = { animals: [{ kind: 'dog', breed: 123 }, { kind: 'fish' }] };
-    expectSameErrors(deserialize(Shelter, input), validate(Shelter, input), 'disc array invalid');
+    expectSameErrors(baker.deserialize(Shelter, input), baker.validate(Shelter, input), 'disc array invalid');
   });
 });
 

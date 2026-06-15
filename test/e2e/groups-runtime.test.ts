@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, ExcludeMode, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
+import { Baker, ExcludeMode, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -27,7 +27,7 @@ class GroupDto {
 
 describe('groups — deserialize', () => {
   it('group match → field included', async () => {
-    const result = (await deserialize<GroupDto>(
+    const result = (await baker.deserialize<GroupDto>(
       GroupDto,
       {
         name: 'Alice',
@@ -40,7 +40,7 @@ describe('groups — deserialize', () => {
   });
 
   it('group mismatch → field excluded', async () => {
-    const result = (await deserialize<GroupDto>(
+    const result = (await baker.deserialize<GroupDto>(
       GroupDto,
       {
         name: 'Alice',
@@ -53,7 +53,7 @@ describe('groups — deserialize', () => {
   });
 
   it('no groups → expose groups field excluded', async () => {
-    const result = (await deserialize<GroupDto>(GroupDto, {
+    const result = (await baker.deserialize<GroupDto>(GroupDto, {
       name: 'Bob',
       secret: 'x',
       score: 50,
@@ -63,11 +63,11 @@ describe('groups — deserialize', () => {
 
   it('rule groups — create group → @Min applied, @Max not applied', async () => {
     expect(
-      isBakerIssueSet(await deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] })),
+      isBakerIssueSet(await baker.deserialize(GroupDto, { name: 'X', secret: 'x', score: -1 }, { groups: ['admin', 'create'] })),
     ).toBe(true);
 
     // Max not applied → 200 passes
-    const r = (await deserialize<GroupDto>(
+    const r = (await baker.deserialize<GroupDto>(
       GroupDto,
       {
         name: 'Y',
@@ -83,13 +83,13 @@ describe('groups — deserialize', () => {
 describe('groups — serialize', () => {
   it('group match → field output', async () => {
     const dto = Object.assign(new GroupDto(), { name: 'Alice', secret: 'top', score: 50 });
-    const result = await serialize(dto, { groups: ['admin'] });
+    const result = await baker.serialize(dto, { groups: ['admin'] });
     expect(result['secret']).toBe('top');
   });
 
   it('group mismatch → field not output', async () => {
     const dto = Object.assign(new GroupDto(), { name: 'Bob', secret: 'top', score: 50 });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['secret']).toBeUndefined();
   });
 });
@@ -110,7 +110,7 @@ describe('E-22: groups + directional exclude combo', () => {
   }
 
   it('admin group deserialize → adminSecret visible', async () => {
-    const r = (await deserialize<AdminExcludeDto>(
+    const r = (await baker.deserialize<AdminExcludeDto>(
       AdminExcludeDto,
       {
         name: 'Alice',
@@ -128,7 +128,7 @@ describe('E-22: groups + directional exclude combo', () => {
       adminSecret: 'secret123',
       label: 'hello',
     });
-    const result = await serialize(dto, { groups: ['admin', 'public'] });
+    const result = await baker.serialize(dto, { groups: ['admin', 'public'] });
     expect(result['adminSecret']).toBeUndefined();
     expect(result['name']).toBe('Alice');
   });
@@ -139,13 +139,13 @@ describe('E-22: groups + directional exclude combo', () => {
       adminSecret: 'sec',
       label: 'world',
     });
-    const result = await serialize(dto, { groups: ['public'] });
+    const result = await baker.serialize(dto, { groups: ['public'] });
     expect(result['x']).toBe('world');
     expect(result['label']).toBeUndefined();
   });
 
   it('no groups → adminSecret and label excluded', async () => {
-    const r = (await deserialize<AdminExcludeDto>(AdminExcludeDto, {
+    const r = (await baker.deserialize<AdminExcludeDto>(AdminExcludeDto, {
       name: 'Carol',
       adminSecret: 'sec',
       label: 'test',

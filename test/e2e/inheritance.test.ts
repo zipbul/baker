@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -31,14 +31,14 @@ class GrandChildDto extends ChildDto {
 
 describe('inheritance — deserialize', () => {
   it('child → includes parent fields', async () => {
-    const result = (await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 })) as ChildDto;
+    const result = (await baker.deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 })) as ChildDto;
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
   });
 
   it('grandchild → includes all ancestor fields', async () => {
-    const result = (await deserialize<GrandChildDto>(GrandChildDto, {
+    const result = (await baker.deserialize<GrandChildDto>(GrandChildDto, {
       name: 'Bob',
       age: 30,
       active: true,
@@ -51,7 +51,7 @@ describe('inheritance — deserialize', () => {
 
   it('parent rule violation → error in child too', async () => {
     // age: -1 violates min(0) from ChildDto
-    const result = await deserialize(GrandChildDto, { name: 'X', age: -1, active: true });
+    const result = await baker.deserialize(GrandChildDto, { name: 'X', age: -1, active: true });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -59,13 +59,13 @@ describe('inheritance — deserialize', () => {
 describe('inheritance — serialize', () => {
   it('child → serializes parent fields', async () => {
     const dto = Object.assign(new ChildDto(), { name: 'Carol', age: 40 });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result).toEqual({ name: 'Carol', age: 40 });
   });
 
   it('grandchild → serializes all fields', async () => {
     const dto = Object.assign(new GrandChildDto(), { name: 'Dave', age: 35, active: false });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result).toEqual({ name: 'Dave', age: 35, active: false });
   });
 });

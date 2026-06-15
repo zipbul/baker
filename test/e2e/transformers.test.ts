@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isDate } from '../../src/rules/index';
 import {
   trimTransformer,
@@ -28,19 +28,19 @@ describe('trimTransformer', () => {
   }
 
   it('deserialize trims whitespace', async () => {
-    const result = (await deserialize<TrimDto>(TrimDto, { value: '  hello  ' })) as TrimDto;
+    const result = (await baker.deserialize<TrimDto>(TrimDto, { value: '  hello  ' })) as TrimDto;
     expect(result.value).toBe('hello');
   });
 
   it('serialize trims whitespace', async () => {
     const dto = Object.assign(new TrimDto(), { value: '  hello  ' });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     expect(plain.value).toBe('hello');
   });
 
   it('roundtrip', async () => {
-    const result = (await deserialize<TrimDto>(TrimDto, { value: '  hello  ' })) as TrimDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<TrimDto>(TrimDto, { value: '  hello  ' })) as TrimDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe('hello');
   });
 });
@@ -55,13 +55,13 @@ describe('toLowerCaseTransformer', () => {
   }
 
   it('deserialize lowercases', async () => {
-    const result = (await deserialize<LowerDto>(LowerDto, { value: 'HELLO' })) as LowerDto;
+    const result = (await baker.deserialize<LowerDto>(LowerDto, { value: 'HELLO' })) as LowerDto;
     expect(result.value).toBe('hello');
   });
 
   it('serialize lowercases', async () => {
     const dto = Object.assign(new LowerDto(), { value: 'HELLO' });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     expect(plain.value).toBe('hello');
   });
 });
@@ -76,13 +76,13 @@ describe('toUpperCaseTransformer', () => {
   }
 
   it('deserialize uppercases', async () => {
-    const result = (await deserialize<UpperDto>(UpperDto, { value: 'hello' })) as UpperDto;
+    const result = (await baker.deserialize<UpperDto>(UpperDto, { value: 'hello' })) as UpperDto;
     expect(result.value).toBe('HELLO');
   });
 
   it('serialize uppercases', async () => {
     const dto = Object.assign(new UpperDto(), { value: 'hello' });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     expect(plain.value).toBe('HELLO');
   });
 });
@@ -97,13 +97,13 @@ describe('roundTransformer(2)', () => {
   }
 
   it('deserialize rounds to 2 decimals', async () => {
-    const result = (await deserialize<RoundDto>(RoundDto, { value: 10.456 })) as RoundDto;
+    const result = (await baker.deserialize<RoundDto>(RoundDto, { value: 10.456 })) as RoundDto;
     expect(result.value).toBe(10.46);
   });
 
   it('serialize rounds to 2 decimals', async () => {
     const dto = Object.assign(new RoundDto(), { value: 10.456 });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     expect(plain.value).toBe(10.46);
   });
 });
@@ -121,14 +121,14 @@ describe('unixSecondsTransformer', () => {
   const expectedDate = new Date(epoch * 1000);
 
   it('deserialize: unix seconds → Date', async () => {
-    const result = (await deserialize<UnixSecDto>(UnixSecDto, { value: epoch })) as UnixSecDto;
+    const result = (await baker.deserialize<UnixSecDto>(UnixSecDto, { value: epoch })) as UnixSecDto;
     expect(result.value).toBeInstanceOf(Date);
     expect(result.value.getTime()).toBe(expectedDate.getTime());
   });
 
   it('roundtrip: unix seconds → Date → unix seconds', async () => {
-    const result = (await deserialize<UnixSecDto>(UnixSecDto, { value: epoch })) as UnixSecDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<UnixSecDto>(UnixSecDto, { value: epoch })) as UnixSecDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe(epoch);
   });
 });
@@ -146,14 +146,14 @@ describe('unixMillisTransformer', () => {
   const expectedDate = new Date(epochMs);
 
   it('deserialize: unix millis → Date', async () => {
-    const result = (await deserialize<UnixMillisDto>(UnixMillisDto, { value: epochMs })) as UnixMillisDto;
+    const result = (await baker.deserialize<UnixMillisDto>(UnixMillisDto, { value: epochMs })) as UnixMillisDto;
     expect(result.value).toBeInstanceOf(Date);
     expect(result.value.getTime()).toBe(expectedDate.getTime());
   });
 
   it('roundtrip: unix millis → Date → unix millis', async () => {
-    const result = (await deserialize<UnixMillisDto>(UnixMillisDto, { value: epochMs })) as UnixMillisDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<UnixMillisDto>(UnixMillisDto, { value: epochMs })) as UnixMillisDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe(epochMs);
   });
 });
@@ -170,14 +170,14 @@ describe('isoStringTransformer', () => {
   const iso = '2024-01-01T00:00:00.000Z';
 
   it('deserialize: ISO string → Date', async () => {
-    const result = (await deserialize<IsoDto>(IsoDto, { value: iso })) as IsoDto;
+    const result = (await baker.deserialize<IsoDto>(IsoDto, { value: iso })) as IsoDto;
     expect(result.value).toBeInstanceOf(Date);
     expect(result.value.toISOString()).toBe(iso);
   });
 
   it('roundtrip: ISO string → Date → ISO string', async () => {
-    const result = (await deserialize<IsoDto>(IsoDto, { value: iso })) as IsoDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<IsoDto>(IsoDto, { value: iso })) as IsoDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe(iso);
   });
 });
@@ -192,13 +192,13 @@ describe('csvTransformer', () => {
   }
 
   it('deserialize: CSV string → array', async () => {
-    const result = (await deserialize<CsvDto>(CsvDto, { value: 'a,b,c' })) as CsvDto;
+    const result = (await baker.deserialize<CsvDto>(CsvDto, { value: 'a,b,c' })) as CsvDto;
     expect(result.value).toEqual(['a', 'b', 'c']);
   });
 
   it('roundtrip: CSV string → array → CSV string', async () => {
-    const result = (await deserialize<CsvDto>(CsvDto, { value: 'a,b,c' })) as CsvDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<CsvDto>(CsvDto, { value: 'a,b,c' })) as CsvDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe('a,b,c');
   });
 });
@@ -213,13 +213,13 @@ describe('jsonTransformer', () => {
   }
 
   it('deserialize: JSON string → object', async () => {
-    const result = (await deserialize<JsonDto>(JsonDto, { value: '{"a":1}' })) as JsonDto;
+    const result = (await baker.deserialize<JsonDto>(JsonDto, { value: '{"a":1}' })) as JsonDto;
     expect(result.value).toEqual({ a: 1 });
   });
 
   it('roundtrip: JSON string → object → JSON string', async () => {
-    const result = (await deserialize<JsonDto>(JsonDto, { value: '{"a":1}' })) as JsonDto;
-    const plain = await serialize(result);
+    const result = (await baker.deserialize<JsonDto>(JsonDto, { value: '{"a":1}' })) as JsonDto;
+    const plain = await baker.serialize(result);
     expect(plain.value).toBe('{"a":1}');
   });
 
@@ -244,13 +244,13 @@ describe('transform array (pipeline)', () => {
   }
 
   it('deserialize applies transforms in order: trim then lowercase', async () => {
-    const result = (await deserialize<PipeDto>(PipeDto, { value: '  HELLO  ' })) as PipeDto;
+    const result = (await baker.deserialize<PipeDto>(PipeDto, { value: '  HELLO  ' })) as PipeDto;
     expect(result.value).toBe('hello');
   });
 
   it('serialize applies transforms in reverse: lowercase then trim', async () => {
     const dto = Object.assign(new PipeDto(), { value: '  HELLO  ' });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     expect(plain.value).toBe('hello');
   });
 });
@@ -271,7 +271,7 @@ describe('type + transform combo (jsonTransformer + nested DTO)', () => {
   }
 
   it('deserialize: JSON string → parse → DTO instance with validation', async () => {
-    const result = (await deserialize<WrapperDto>(WrapperDto, {
+    const result = (await baker.deserialize<WrapperDto>(WrapperDto, {
       nested: '{"name":"alice"}',
     })) as WrapperDto;
     expect(result.nested).toBeInstanceOf(NestedDto);
@@ -279,7 +279,7 @@ describe('type + transform combo (jsonTransformer + nested DTO)', () => {
   });
 
   it('deserialize: invalid nested field returns BakerIssue', async () => {
-    const result = await deserialize(WrapperDto, {
+    const result = await baker.deserialize(WrapperDto, {
       nested: '{"name":123}',
     });
     expect(isBakerIssueSet(result)).toBe(true);
@@ -288,7 +288,7 @@ describe('type + transform combo (jsonTransformer + nested DTO)', () => {
   it('serialize: DTO instance → JSON string', async () => {
     const nested = Object.assign(new NestedDto(), { name: 'bob' });
     const dto = Object.assign(new WrapperDto(), { nested });
-    const plain = await serialize(dto);
+    const plain = await baker.serialize(dto);
     // After serialize, nested is serialized to plain object first, then jsonTransformer stringifies
     expect(typeof plain.nested).toBe('string');
     expect(JSON.parse(plain.nested as string)).toEqual({ name: 'bob' });

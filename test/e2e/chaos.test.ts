@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, maxLength, matches, contains } from '../../src/rules/index';
 import { assertBakerIssueSet, assertNotBakerIssueSet } from '../integration/helpers/assert';
 import { applyField } from '../integration/helpers/modern-decorator';
@@ -28,7 +28,7 @@ describe('chaos — empty object to DTO with many required fields', () => {
   baker.seal();
 
   it('all errors collected for empty input', async () => {
-    const result = await deserialize(ManyFieldsDto, {});
+    const result = await baker.deserialize(ManyFieldsDto, {});
     assertBakerIssueSet(result);
     const paths = result.errors.map(e => e.path);
     expect(paths).toContain('a');
@@ -99,13 +99,13 @@ describe('chaos — deeply nested DTO (10+ levels)', () => {
 
   it('no stack overflow on 11-level nesting', async () => {
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 'deep' } } } } } } } } } } };
-    const result = (await deserialize<Root>(Root, input)) as Root;
+    const result = (await baker.deserialize<Root>(Root, input)) as Root;
     expect(result.c.c.c.c.c.c.c.c.c.c.v).toBe('deep');
   });
 
   it('validation error at deepest level has correct path', async () => {
     const input = { c: { c: { c: { c: { c: { c: { c: { c: { c: { c: { v: 123 } } } } } } } } } } };
-    const result = await deserialize(Root, input);
+    const result = await baker.deserialize(Root, input);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('c.c.c.c.c.c.c.c.c.c.v');
   });
@@ -130,7 +130,7 @@ describe('chaos — 1000+ fields DTO', () => {
     for (let i = 0; i < 1000; i++) {
       input[`f${i}`] = i;
     }
-    const result = await deserialize<BigDto>(BigDto, input);
+    const result = await baker.deserialize<BigDto>(BigDto, input);
     expect(isBakerIssueSet(result)).toBe(false);
     expect((result as Record<string, number>)['f0']).toBe(0);
     expect((result as Record<string, number>)['f999']).toBe(999);
@@ -141,7 +141,7 @@ describe('chaos — 1000+ fields DTO', () => {
     for (let i = 0; i < 1000; i++) {
       input[`f${i}`] = 'bad';
     }
-    const result = await deserialize(BigDto, input);
+    const result = await baker.deserialize(BigDto, input);
     assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1000);
   });
@@ -164,7 +164,7 @@ describe('chaos — circular reference detection', () => {
   it('actual circular input detected', async () => {
     const obj: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     obj.child.child = obj;
-    const result = await deserialize(TreeNode, obj);
+    const result = await baker.deserialize(TreeNode, obj);
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'circular')).toBe(true);
   });
@@ -187,7 +187,7 @@ describe('chaos — 10000 deserializations', () => {
   it('no memory leak and all results valid', async () => {
     const input = { name: 'test', age: 25 };
     for (let i = 0; i < 10_000; i++) {
-      const result = (await deserialize<SimpleDto>(SimpleDto, input)) as SimpleDto;
+      const result = (await baker.deserialize<SimpleDto>(SimpleDto, input)) as SimpleDto;
       expect(result.name).toBe('test');
       expect(result.age).toBe(25);
     }
@@ -210,7 +210,7 @@ describe('chaos — concurrent deserialize calls', () => {
 
   it('100 concurrent calls all resolve correctly', async () => {
     const promises = Array.from({ length: 100 }, (_, i) =>
-      deserialize<ConcurrentDto>(ConcurrentDto, { id: `item-${i}`, val: i }),
+      baker.deserialize<ConcurrentDto>(ConcurrentDto, { id: `item-${i}`, val: i }),
     );
     const results = await Promise.all(promises);
     for (let i = 0; i < 100; i++) {
@@ -237,12 +237,12 @@ describe('chaos — every rule type on one field', () => {
   baker.seal();
 
   it('valid value passes all rules', async () => {
-    const result = (await deserialize<KitchenSinkDto>(KitchenSinkDto, { email: 'longuser@example.com' })) as KitchenSinkDto;
+    const result = (await baker.deserialize<KitchenSinkDto>(KitchenSinkDto, { email: 'longuser@example.com' })) as KitchenSinkDto;
     expect(result.email).toBe('longuser@example.com');
   });
 
   it('short string fails minLength among other rules', async () => {
-    const result = await deserialize(KitchenSinkDto, { email: 'a@b' });
+    const result = await baker.deserialize(KitchenSinkDto, { email: 'a@b' });
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
@@ -263,7 +263,7 @@ describe('chaos — extremely long string (100KB)', () => {
 
   it('100KB string passes isString', async () => {
     const longStr = 'x'.repeat(100_000);
-    const result = (await deserialize<LongStringDto>(LongStringDto, { content: longStr })) as LongStringDto;
+    const result = (await baker.deserialize<LongStringDto>(LongStringDto, { content: longStr })) as LongStringDto;
     expect(result.content).toHaveLength(100_000);
   });
 
@@ -274,7 +274,7 @@ describe('chaos — extremely long string (100KB)', () => {
       @Field(isString, minLength(200_000)) v!: string;
     }
     b.seal();
-    const result = await deserialize(D, { v: 'x'.repeat(100_000) });
+    const result = await b.deserialize(D, { v: 'x'.repeat(100_000) });
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'minLength')).toBe(true);
   });
@@ -294,27 +294,27 @@ describe('chaos — extremely large number', () => {
   baker.seal();
 
   it('MAX_SAFE_INTEGER passes isNumber', async () => {
-    const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER })) as NumberDto;
+    const result = (await baker.deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('MAX_SAFE_INTEGER + 1 still passes isNumber (it is a valid number)', async () => {
-    const result = (await deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER + 1 })) as NumberDto;
+    const result = (await baker.deserialize<NumberDto>(NumberDto, { val: Number.MAX_SAFE_INTEGER + 1 })) as NumberDto;
     expect(result.val).toBe(Number.MAX_SAFE_INTEGER + 1);
   });
 
   it('NaN fails isNumber by default', async () => {
-    const result = await deserialize(NumberDto, { val: NaN });
+    const result = await baker.deserialize(NumberDto, { val: NaN });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity fails isNumber by default', async () => {
-    const result = await deserialize(NumberDto, { val: Infinity });
+    const result = await baker.deserialize(NumberDto, { val: Infinity });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity fails isNumber by default', async () => {
-    const result = await deserialize(NumberDto, { val: -Infinity });
+    const result = await baker.deserialize(NumberDto, { val: -Infinity });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -333,42 +333,42 @@ describe('chaos — special values as top-level input', () => {
   baker.seal();
 
   it('null input produces error', async () => {
-    const result = await deserialize(Dto, null);
+    const result = await baker.deserialize(Dto, null);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('undefined input produces error', async () => {
-    const result = await deserialize(Dto, undefined);
+    const result = await baker.deserialize(Dto, undefined);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('NaN input produces error', async () => {
-    const result = await deserialize(Dto, NaN);
+    const result = await baker.deserialize(Dto, NaN);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('Infinity input produces error', async () => {
-    const result = await deserialize(Dto, Infinity);
+    const result = await baker.deserialize(Dto, Infinity);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('-Infinity input produces error', async () => {
-    const result = await deserialize(Dto, -Infinity);
+    const result = await baker.deserialize(Dto, -Infinity);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('empty string input produces error', async () => {
-    const result = await deserialize(Dto, '');
+    const result = await baker.deserialize(Dto, '');
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('0 input produces error', async () => {
-    const result = await deserialize(Dto, 0);
+    const result = await baker.deserialize(Dto, 0);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('false input produces error', async () => {
-    const result = await deserialize(Dto, false);
+    const result = await baker.deserialize(Dto, false);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -388,7 +388,7 @@ describe('chaos — prototype pollution attempt', () => {
 
   it('__proto__ key does not pollute result', async () => {
     const malicious = JSON.parse('{"name":"ok","__proto__":{"polluted":true}}');
-    const result = await deserialize<SafeDto>(SafeDto, malicious);
+    const result = await baker.deserialize<SafeDto>(SafeDto, malicious);
     assertNotBakerIssueSet(result);
     expect(result.name).toBe('ok');
     expect((result as SafeDto & { polluted?: unknown }).polluted).toBeUndefined();
@@ -397,7 +397,7 @@ describe('chaos — prototype pollution attempt', () => {
 
   it('constructor key does not pollute result', async () => {
     const malicious = JSON.parse('{"name":"ok","constructor":{"prototype":{"polluted":true}}}');
-    const result = await deserialize<SafeDto>(SafeDto, malicious);
+    const result = await baker.deserialize<SafeDto>(SafeDto, malicious);
     assertNotBakerIssueSet(result);
     expect(result.name).toBe('ok');
     expect(({} as Record<string, unknown>)['polluted']).toBeUndefined();
@@ -411,7 +411,7 @@ describe('chaos — prototype pollution attempt', () => {
     }
     b.seal();
     const malicious = JSON.parse('{"name":"ok","__proto__":{"p":true},"constructor":{}}');
-    const result = await deserialize(ForbidSafeDto, malicious);
+    const result = await b.deserialize(ForbidSafeDto, malicious);
     assertBakerIssueSet(result);
     expect(result.errors.some(e => e.code === 'whitelistViolation')).toBe(true);
   });
@@ -440,7 +440,7 @@ describe('chaos — async transform with delay', () => {
   baker.seal();
 
   it('async transform with delay still resolves', async () => {
-    const result = (await deserialize<AsyncDelayDto>(AsyncDelayDto, { name: 'hello' })) as AsyncDelayDto;
+    const result = (await baker.deserialize<AsyncDelayDto>(AsyncDelayDto, { name: 'hello' })) as AsyncDelayDto;
     expect(result.name).toBe('HELLO');
   });
 });
@@ -481,18 +481,18 @@ describe('chaos — deserialize then serialize roundtrip', () => {
         { city: 'Daegu', zip: '41000' },
       ],
     };
-    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
+    const obj = (await baker.deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.fullName).toBe('Alice');
     expect(obj.age).toBe(30);
     expect(obj.active).toBe(true);
     expect(obj.address.city).toBe('Seoul');
 
-    const plain = await serialize(obj);
+    const plain = await baker.serialize(obj);
     expect(plain['full_name']).toBe('Alice');
     expect(plain['age']).toBe(30);
     expect(plain['active']).toBe(true);
 
-    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
+    const obj2 = (await baker.deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.fullName).toBe('Alice');
     expect(obj2.age).toBe(30);
     expect(obj2.address.city).toBe('Seoul');
@@ -510,11 +510,11 @@ describe('chaos — deserialize then serialize roundtrip', () => {
       bio: null,
       addresses: [],
     };
-    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
+    const obj = (await baker.deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.bio).toBeNull();
 
-    const plain = await serialize(obj);
-    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
+    const plain = await baker.serialize(obj);
+    const obj2 = (await baker.deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.bio).toBeNull();
   });
 
@@ -526,11 +526,11 @@ describe('chaos — deserialize then serialize roundtrip', () => {
       address: { city: 'Osaka', zip: '53000' },
       addresses: [],
     };
-    const obj = (await deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
+    const obj = (await baker.deserialize<ProfileDto>(ProfileDto, input)) as ProfileDto;
     expect(obj.bio).toBeUndefined();
 
-    const plain = await serialize(obj);
-    const obj2 = (await deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
+    const plain = await baker.serialize(obj);
+    const obj2 = (await baker.deserialize<ProfileDto>(ProfileDto, plain)) as ProfileDto;
     expect(obj2.bio).toBeUndefined();
   });
 });

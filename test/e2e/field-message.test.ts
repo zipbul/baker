@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, Field, deserialize } from '../../index';
+import { Baker, Field } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
 import { isString, minLength, isNumber, isInt } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
@@ -134,14 +134,14 @@ class GroupsWithMessageDto {
 
 describe('@Field message option — string', () => {
   it('validation failure includes string in BakerIssue.message', async () => {
-    const result = await deserialize(StringMessageDto, { name: 42 });
+    const result = await baker.deserialize(StringMessageDto, { name: 42 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.message).toBe('Name is invalid');
   });
 
   it('minLength failure also includes message', async () => {
-    const result = await deserialize(StringMessageDto, { name: 'ab' });
+    const result = await baker.deserialize(StringMessageDto, { name: 'ab' });
     assertBakerIssueSet(result);
     const minLenErr = result.errors.find(e => e.code === 'minLength');
     expect(minLenErr).toBeDefined();
@@ -151,7 +151,7 @@ describe('@Field message option — string', () => {
 
 describe('@Field message option — function', () => {
   it('validation failure calls function for dynamic message', async () => {
-    const result = await deserialize(FunctionMessageDto, { email: 123 });
+    const result = await baker.deserialize(FunctionMessageDto, { email: 123 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.message).toBe('email got bad value: 123');
@@ -160,7 +160,7 @@ describe('@Field message option — function', () => {
 
 describe('@Field context option', () => {
   it('validation failure includes value in BakerIssue.context', async () => {
-    const result = await deserialize(ContextDto, { tag: 999 });
+    const result = await baker.deserialize(ContextDto, { tag: 999 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.context).toEqual({ severity: 'warning', field: 'tag' });
@@ -169,7 +169,7 @@ describe('@Field context option', () => {
 
 describe('@Field message + context used together', () => {
   it('both message and context included in error', async () => {
-    const result = await deserialize(MessageAndContextDto, { count: 'not a number' });
+    const result = await baker.deserialize(MessageAndContextDto, { count: 'not a number' });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.message).toBe('Must be a number');
@@ -179,7 +179,7 @@ describe('@Field message + context used together', () => {
 
 describe('@Field message — applied to all rules uniformly', () => {
   it('same message applied to all rule failures for the field', async () => {
-    const result = await deserialize(MultiRuleMessageDto, { username: 42 });
+    const result = await baker.deserialize(MultiRuleMessageDto, { username: 42 });
     assertBakerIssueSet(result);
     for (const error of result.errors) {
       expect(error.message).toBe('Username invalid');
@@ -189,7 +189,7 @@ describe('@Field message — applied to all rules uniformly', () => {
 
 describe('@Field message — used with arrayOf', () => {
   it('message applied to each rule failures', async () => {
-    const result = await deserialize(ArrayOfMessageDto, { tags: ['valid', '', 42] });
+    const result = await baker.deserialize(ArrayOfMessageDto, { tags: ['valid', '', 42] });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     for (const error of result.errors) {
@@ -200,13 +200,13 @@ describe('@Field message — used with arrayOf', () => {
 
 describe('@Field message not set', () => {
   it('error object does not have message property', async () => {
-    const result = await deserialize(NoMessageDto, { name: 42 });
+    const result = await baker.deserialize(NoMessageDto, { name: 42 });
     assertBakerIssueSet(result);
     expect('message' in result.errors[0]!).toBe(false);
   });
 
   it('error object does not have context property', async () => {
-    const result = await deserialize(NoMessageDto, { name: 42 });
+    const result = await baker.deserialize(NoMessageDto, { name: 42 });
     assertBakerIssueSet(result);
     expect('context' in result.errors[0]!).toBe(false);
   });
@@ -214,19 +214,19 @@ describe('@Field message not set', () => {
 
 describe('@Field context — falsy value handling', () => {
   it('context: 0 → 0 included in error', async () => {
-    const result = await deserialize(FalsyContextZeroDto, { value: 42 });
+    const result = await baker.deserialize(FalsyContextZeroDto, { value: 42 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.context).toBe(0);
   });
 
   it('context: false → false included in error', async () => {
-    const result = await deserialize(FalsyContextFalseDto, { value: 42 });
+    const result = await baker.deserialize(FalsyContextFalseDto, { value: 42 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.context).toBe(false);
   });
 
   it('context: "" → empty string included in error', async () => {
-    const result = await deserialize(FalsyContextEmptyStringDto, { value: 42 });
+    const result = await baker.deserialize(FalsyContextEmptyStringDto, { value: 42 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.context).toBe('');
   });
@@ -234,7 +234,7 @@ describe('@Field context — falsy value handling', () => {
 
 describe('@Field message — empty string', () => {
   it('message: "" → empty string included in error', async () => {
-    const result = await deserialize(EmptyStringMessageDto, { value: 42 });
+    const result = await baker.deserialize(EmptyStringMessageDto, { value: 42 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.message).toBe('');
   });
@@ -242,7 +242,7 @@ describe('@Field message — empty string', () => {
 
 describe('@Field message function — constraints access', () => {
   it('reads rule parameters from constraints object', async () => {
-    const result = await deserialize(ConstraintsAccessDto, { name: 'ab' });
+    const result = await baker.deserialize(ConstraintsAccessDto, { name: 'ab' });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThan(0);
     expect(result.errors[0]!.message).toContain('5');
@@ -251,7 +251,7 @@ describe('@Field message function — constraints access', () => {
 
 describe('nested DTO error — message propagation', () => {
   it('should preserve message from nested DTO validation errors', async () => {
-    const result = await deserialize(OuterMsgDto, { child: { name: 42 } });
+    const result = await baker.deserialize(OuterMsgDto, { child: { name: 42 } });
     assertBakerIssueSet(result);
     const childErr = result.errors.find(e => e.path.startsWith('child.'));
     expect(childErr).toBeDefined();
@@ -261,7 +261,7 @@ describe('nested DTO error — message propagation', () => {
 
 describe('nested DTO error — context propagation', () => {
   it('should preserve message and context from nested DTO validation errors', async () => {
-    const result = await deserialize(OuterCtxDto, { nested: { age: 'not a number' } });
+    const result = await baker.deserialize(OuterCtxDto, { nested: { age: 'not a number' } });
     assertBakerIssueSet(result);
     const nestedErr = result.errors.find(e => e.path.startsWith('nested.'));
     expect(nestedErr).toBeDefined();
@@ -272,7 +272,7 @@ describe('nested DTO error — context propagation', () => {
 
 describe('nested DTO array error — message propagation', () => {
   it('should preserve message from nested array DTO validation errors', async () => {
-    const result = await deserialize(OuterArrayMsgDto, { items: [{ label: 42 }] });
+    const result = await baker.deserialize(OuterArrayMsgDto, { items: [{ label: 42 }] });
     assertBakerIssueSet(result);
     const itemErr = result.errors.find(e => e.path.startsWith('items['));
     expect(itemErr).toBeDefined();
@@ -282,7 +282,7 @@ describe('nested DTO array error — message propagation', () => {
 
 describe('@Field message + groups combination', () => {
   it('groups match → message included', async () => {
-    const result = await deserialize(GroupsWithMessageDto, { secret: 42, id: 1 }, { groups: ['admin'] });
+    const result = await baker.deserialize(GroupsWithMessageDto, { secret: 42, id: 1 }, { groups: ['admin'] });
     assertBakerIssueSet(result);
     const secretErr = result.errors.find(e => e.path === 'secret');
     expect(secretErr).toBeDefined();
@@ -290,7 +290,7 @@ describe('@Field message + groups combination', () => {
   });
 
   it('groups mismatch → field itself excluded → no error', async () => {
-    const result = (await deserialize(
+    const result = (await baker.deserialize(
       GroupsWithMessageDto,
       { secret: 42, id: 1 },
       { groups: ['viewer'] },
@@ -337,47 +337,47 @@ class AsserterCtxDto {
 
 describe('type-gate failures carry field context/message', () => {
   it('isInt gate rejection (NaN) includes context — matches Infinity', async () => {
-    const result = await deserialize(MaxAgeDto, { maxAge: NaN });
+    const result = await baker.deserialize(MaxAgeDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
     expect(result.errors[0]!.context).toEqual({ reason: 'invalid_max_age' });
   });
 
   it('isInt rule-body rejection (Infinity) includes context — regression guard', async () => {
-    const result = await deserialize(MaxAgeDto, { maxAge: Infinity });
+    const result = await baker.deserialize(MaxAgeDto, { maxAge: Infinity });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
     expect(result.errors[0]!.context).toEqual({ reason: 'invalid_max_age' });
   });
 
   it('isInt gate rejection (non-number) includes context', async () => {
-    const result = await deserialize(MaxAgeDto, { maxAge: 'abc' });
+    const result = await baker.deserialize(MaxAgeDto, { maxAge: 'abc' });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
     expect(result.errors[0]!.context).toEqual({ reason: 'invalid_max_age' });
   });
 
   it('isInt gate rejection (NaN) includes message', async () => {
-    const result = await deserialize(MaxAgeMsgDto, { maxAge: NaN });
+    const result = await baker.deserialize(MaxAgeMsgDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.message).toBe('maxAge must be an integer');
   });
 
   it('generalizes to a non-asserter string rule (minLength) on wrong type', async () => {
-    const result = await deserialize(MinLenCtxDto, { name: 123 });
+    const result = await baker.deserialize(MinLenCtxDto, { name: 123 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('minLength');
     expect(result.errors[0]!.context).toEqual({ reason: 'too_short_or_wrong_type' });
   });
 
   it('asserter-owned gate still carries context (no regression)', async () => {
-    const result = await deserialize(AsserterCtxDto, { name: 123 });
+    const result = await baker.deserialize(AsserterCtxDto, { name: 123 });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.context).toEqual({ reason: 'name_invalid' });
   });
 
   it('a field without context produces no context key on gate failure (fix is inert)', async () => {
-    const result = await deserialize(MaxAgeNoCtxDto, { maxAge: NaN });
+    const result = await baker.deserialize(MaxAgeNoCtxDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
     expect(result.errors[0]!.context).toBeUndefined();
@@ -391,7 +391,7 @@ describe('type-gate failures carry field context/message', () => {
       maxAge!: number;
     }
     b.seal();
-    const result = await deserialize(StopMaxAgeDto, { maxAge: NaN });
+    const result = await b.deserialize(StopMaxAgeDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isInt');
     expect(result.errors[0]!.context).toEqual({ reason: 'invalid_max_age' });
@@ -492,7 +492,7 @@ const reasonOf = (c: unknown): string | undefined => (c as { reason?: string } |
 
 describe('field context reaches all field-own-path failures', () => {
   it('required-missing (isDefined) carries field context', async () => {
-    const result = await deserialize(RequiredCtxDto, {});
+    const result = await baker.deserialize(RequiredCtxDto, {});
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isDefined');
     expect(e).toBeDefined();
@@ -500,7 +500,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('structural array gate (non-array) carries field context', async () => {
-    const result = await deserialize(ArrayCtxDto, { items: 'not-an-array' });
+    const result = await baker.deserialize(ArrayCtxDto, { items: 'not-an-array' });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isArray');
     expect(e).toBeDefined();
@@ -508,7 +508,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('type-only field structural object gate (non-object) carries field context', async () => {
-    const result = await deserialize(TypeOnlyCtxDto, { child: 42 });
+    const result = await baker.deserialize(TypeOnlyCtxDto, { child: 42 });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isObject');
     expect(e).toBeDefined();
@@ -523,7 +523,7 @@ describe('field context reaches all field-own-path failures', () => {
       maxAge!: number;
     }
     b.seal();
-    const result = await deserialize(ConvCtxDto, { maxAge: {} });
+    const result = await b.deserialize(ConvCtxDto, { maxAge: {} });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'conversionFailed');
     expect(e).toBeDefined();
@@ -531,14 +531,14 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('descendant child failure keeps ITS OWN context, not the parent field context', async () => {
-    const result = await deserialize(ParentCtxDto, { child: { name: 42 } });
+    const result = await baker.deserialize(ParentCtxDto, { child: { name: 42 } });
     assertBakerIssueSet(result);
     expect(result.errors.some(x => reasonOf(x.context) === 'child_name_invalid')).toBe(true);
     expect(result.errors.some(x => reasonOf(x.context) === 'parent_child_invalid')).toBe(false);
   });
 
   it('structural array gate carries field message (not just context)', async () => {
-    const result = await deserialize(ArrayMsgDto, { items: 'not-an-array' });
+    const result = await baker.deserialize(ArrayMsgDto, { items: 'not-an-array' });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isArray');
     expect(e).toBeDefined();
@@ -546,7 +546,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('Set-typed field structural gate (non-collection input) carries field context', async () => {
-    const result = await deserialize(SetCtxDto, { items: 42 });
+    const result = await baker.deserialize(SetCtxDto, { items: 42 });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isArray');
     expect(e).toBeDefined();
@@ -562,7 +562,7 @@ describe('field context reaches all field-own-path failures', () => {
       items!: string[];
     }
     b.seal();
-    const result = await deserialize(StopArrayCtxDto, { items: 'x' });
+    const result = await b.deserialize(StopArrayCtxDto, { items: 'x' });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isArray');
     expect(e).toBeDefined();
@@ -570,7 +570,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('field MESSAGE FUNCTION is invoked on a gate (non-rule) failure', async () => {
-    const result = await deserialize(GateMsgFnDto, { maxAge: NaN });
+    const result = await baker.deserialize(GateMsgFnDto, { maxAge: NaN });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isInt');
     expect(e).toBeDefined();
@@ -578,7 +578,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('Set each-element failure carries field context (element path)', async () => {
-    const result = await deserialize(SetElemCtxDto, { tags: ['ok', 42] });
+    const result = await baker.deserialize(SetElemCtxDto, { tags: ['ok', 42] });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'isString');
     expect(e).toBeDefined();
@@ -587,7 +587,7 @@ describe('field context reaches all field-own-path failures', () => {
   });
 
   it('invalidDiscriminator keeps its OWN context — field context must NOT leak in', async () => {
-    const result = await deserialize(DiscCtxDto, { pet: { type: 'fish' } });
+    const result = await baker.deserialize(DiscCtxDto, { pet: { type: 'fish' } });
     assertBakerIssueSet(result);
     const e = result.errors.find(x => x.code === 'invalidDiscriminator');
     expect(e).toBeDefined();

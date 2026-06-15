@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, arrayOf, deserialize } from '../../index';
+import { Baker, Field, arrayOf } from '../../index';
 import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -10,7 +10,7 @@ beforeEach(() => baker.seal());
 
 /** Helper: extracts errors array from BakerIssueSet */
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
-  const result = await deserialize(cls, input);
+  const result = await baker.deserialize(cls, input);
   assertBakerIssueSet(result);
   return [...result.errors];
 }
@@ -194,7 +194,7 @@ describe('BakerIssueSet from deserialize', () => {
   }
 
   it('errors array accessible via isBakerIssueSet', async () => {
-    const result = await deserialize(UserProfile, { name: 123 });
+    const result = await baker.deserialize(UserProfile, { name: 123 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(1);
   });

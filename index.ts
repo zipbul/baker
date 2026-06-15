@@ -1,7 +1,4 @@
 // Public API — Core
-export { deserialize, deserializeSync, deserializeAsync } from './src/functions/deserialize';
-export { validate, validateSync, validateAsync } from './src/functions/validate';
-export { serialize, serializeSync, serializeAsync } from './src/functions/serialize';
 export { createRule } from './src/create-rule';
 
 // Decorators

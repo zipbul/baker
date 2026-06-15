@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { Baker, deserialize, ExcludeMode, Field, serialize } from '../../index';
+import { Baker, ExcludeMode, Field } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -85,7 +85,7 @@ describe('serialize parity meta', () => {
       pet,
     });
 
-    const publicResult = await serialize(dto);
+    const publicResult = await baker.serialize(dto);
     expect(publicResult.display_name).toBe('ALICE');
     expect(publicResult.version).toBe(3);
     expect(publicResult.children).toEqual([{ name: 'alpha' }, null, { name: 'beta' }]);
@@ -93,7 +93,7 @@ describe('serialize parity meta', () => {
     expect(publicResult.lookup).toEqual({ first: { name: 'alpha' }, second: null });
     expect(publicResult.pet).toBeUndefined();
 
-    const adminResult = await serialize(dto, { groups: ['admin'] });
+    const adminResult = await baker.serialize(dto, { groups: ['admin'] });
     expect(adminResult.pet).toEqual({ color: 'black', kind: 'dog' });
   });
 
@@ -112,14 +112,14 @@ describe('serialize parity meta', () => {
       @Field({ type: () => ChildDto, optional: true })
       child?: ChildDto;
     }
-    sealClass(RoundtripDto);
+    const roundtripBaker = sealClass(RoundtripDto);
 
-    const parsed = (await deserialize<RoundtripDto>(RoundtripDto, {
+    const parsed = (await roundtripBaker.deserialize<RoundtripDto>(RoundtripDto, {
       full_name: '  Carol  ',
       child: { name: 'Neo' },
     })) as RoundtripDto;
 
-    const output = await serialize(parsed);
+    const output = await roundtripBaker.serialize(parsed);
     expect(output).toEqual({
       fullName: '[Carol]',
       child: { name: 'Neo' },

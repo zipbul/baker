@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isNumber, isBoolean, isDate, min, isNotEmpty } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -28,23 +28,23 @@ describe('enableImplicitConversion (autoConvert: true)', () => {
   baker.seal();
 
   it('string → number', async () => {
-    const result = (await deserialize<ConvDto>(ConvDto, { age: '25', active: true, createdAt: new Date() })) as ConvDto;
+    const result = (await baker.deserialize<ConvDto>(ConvDto, { age: '25', active: true, createdAt: new Date() })) as ConvDto;
     expect(result.age).toBe(25);
     expect(typeof result.age).toBe('number');
   });
 
   it('string → boolean', async () => {
-    const result = (await deserialize<ConvDto>(ConvDto, { age: 30, active: 'true', createdAt: new Date() })) as ConvDto;
+    const result = (await baker.deserialize<ConvDto>(ConvDto, { age: 30, active: 'true', createdAt: new Date() })) as ConvDto;
     expect(result.active).toBe(true);
   });
 
   it('"false" → false', async () => {
-    const result = (await deserialize<ConvDto>(ConvDto, { age: 30, active: 'false', createdAt: new Date() })) as ConvDto;
+    const result = (await baker.deserialize<ConvDto>(ConvDto, { age: 30, active: 'false', createdAt: new Date() })) as ConvDto;
     expect(result.active).toBe(false);
   });
 
   it('string → Date', async () => {
-    const result = (await deserialize<ConvDto>(ConvDto, {
+    const result = (await baker.deserialize<ConvDto>(ConvDto, {
       age: 30,
       active: true,
       createdAt: '2024-01-01T00:00:00.000Z',
@@ -54,16 +54,16 @@ describe('enableImplicitConversion (autoConvert: true)', () => {
   });
 
   it('unconvertible value → conversionFailed', async () => {
-    expect(isBakerIssueSet(await deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
   });
 
   it('explicit @Field transform present → conversion skipped', async () => {
-    const result = (await deserialize<ConvWithTransformDto>(ConvWithTransformDto, { score: '42' })) as ConvWithTransformDto;
+    const result = (await baker.deserialize<ConvWithTransformDto>(ConvWithTransformDto, { score: '42' })) as ConvWithTransformDto;
     expect(result.score).toBe(42);
   });
 
   it('typed deps present (isNumber + min) → conversion works', async () => {
-    const result = (await deserialize<ConvWithMinDto>(ConvWithMinDto, { count: '5' })) as ConvWithMinDto;
+    const result = (await baker.deserialize<ConvWithMinDto>(ConvWithMinDto, { count: '5' })) as ConvWithMinDto;
     expect(result.count).toBe(5);
   });
 });
@@ -81,7 +81,7 @@ describe('enableImplicitConversion (autoConvert: false)', () => {
   baker.seal();
 
   it('autoConvert: false → type error without conversion', async () => {
-    expect(isBakerIssueSet(await deserialize(NoConvDto, { age: '25', active: true, createdAt: new Date() }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(NoConvDto, { age: '25', active: true, createdAt: new Date() }))).toBe(true);
   });
 });
 
@@ -94,7 +94,7 @@ describe('@Type hint implicit conversion', () => {
       value!: number;
     }
     baker.seal();
-    const result = (await deserialize<TypeHintDto>(TypeHintDto, { value: '10' })) as TypeHintDto;
+    const result = (await baker.deserialize<TypeHintDto>(TypeHintDto, { value: '10' })) as TypeHintDto;
     expect(result.value).toBe(10);
   });
 
@@ -106,7 +106,7 @@ describe('@Type hint implicit conversion', () => {
       value!: number;
     }
     baker.seal();
-    const result = await deserialize(TypeHintFailDto, { value: 'abc' });
+    const result = await baker.deserialize(TypeHintFailDto, { value: 'abc' });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('conversionFailed');
   });
@@ -120,7 +120,7 @@ describe('stopAtFirstError + autoConvert', () => {
       @Field(isNumber(), min(0)) count!: number;
     }
     baker.seal();
-    const result = (await deserialize<StopConvDto>(StopConvDto, { count: '10' })) as StopConvDto;
+    const result = (await baker.deserialize<StopConvDto>(StopConvDto, { count: '10' })) as StopConvDto;
     expect(result.count).toBe(10);
   });
 
@@ -132,7 +132,7 @@ describe('stopAtFirstError + autoConvert', () => {
       @Field(isBoolean) second!: boolean;
     }
     baker.seal();
-    const result = await deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
+    const result = await baker.deserialize(StopConvFailDto, { first: 'abc', second: 'notbool' });
     assertBakerIssueSet(result);
     expect(result.errors).toHaveLength(1);
   });
