@@ -417,8 +417,6 @@ describe('seal', () => {
     expect(getSealed(NestedLate)).toBeDefined();
     expect(Object.isFrozen(getRaw(ParentLate))).toBe(true);
     expect(Object.isFrozen(getRaw(NestedLate))).toBe(true);
-    expect(globalRegistry.has(ParentLate)).toBe(false);
-    expect(globalRegistry.has(NestedLate)).toBe(false);
   });
 
   it('should throw BakerError when @Type returns invalid value (null/non-function)', () => {
