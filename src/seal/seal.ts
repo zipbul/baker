@@ -168,6 +168,11 @@ function getCached(cls: Function, fp: string): SealedExecutors<unknown> | undefi
   return compileCache.get(cls)?.get(fp);
 }
 
+/** Test-only: drop a class's cached executors so a re-seal recompiles (keeps `unseal()` honest). */
+function clearCached(cls: Function): void {
+  compileCache.delete(cls);
+}
+
 function setCached(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
   let m = compileCache.get(cls);
   if (m === undefined) {
@@ -466,4 +471,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint };
+export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint, clearCached };

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { Baker, Field } from '../../index';
-import { isNumber } from '../rules/index';
+import { isNumber, isString } from '../rules/index';
 import { getCached, configFingerprint } from './seal';
 
 // The (class, config) cache: same-config bakers share one compiled executor; different-config
@@ -62,5 +62,69 @@ describe('(class, config) executor cache', () => {
         debug: false,
       }),
     ).toBe('00000');
+  });
+
+  it('nested DTOs are cached too — a root cache-hit transitively reuses cached nested executors', () => {
+    const fp = configFingerprint({});
+    const a = new Baker();
+    class Inner {
+      @Field(isNumber()) k!: number;
+    }
+    @a.Recipe
+    class Outer {
+      @Field({ type: () => Inner }) inner!: Inner;
+    }
+    a.seal();
+
+    const cachedOuter = getCached(Outer, fp);
+    const cachedInner = getCached(Inner, fp);
+    expect(cachedOuter).toBeDefined();
+    expect(cachedInner).toBeDefined(); // nested sealed into the same cache under the same fingerprint
+
+    const b = new Baker();
+    (b.Recipe as (v: Function) => void)(Outer);
+    b.seal();
+
+    // root is a hit (entry unchanged) and the nested executor is the same shared object
+    expect(getCached(Outer, fp)).toBe(cachedOuter!);
+    expect(getCached(Inner, fp)).toBe(cachedInner!);
+  });
+
+  it('circular graph caches fully back-patched executors (not throwing placeholders)', () => {
+    const fp = configFingerprint({});
+    const a = new Baker();
+    @a.Recipe
+    class Node {
+      @Field(isString) id!: string;
+      @Field({ type: () => Node }) next?: Node; // self-reference → circular seal
+    }
+    a.seal();
+
+    // A bare circularPlaceholder has no `merged`; a fully sealed executor does. Cached entry must be the
+    // back-patched one, never a placeholder that throws "circular dependency during seal".
+    expect(getCached(Node, fp)?.merged).toBeDefined();
+  });
+
+  it('a failed seal does not pollute the cache (commit is post-success)', () => {
+    const fp = configFingerprint({});
+    const x = new Baker();
+    @x.Recipe
+    class GoodOne {
+      @Field(isNumber()) n!: number;
+    }
+    @x.Recipe
+    class BadOne {
+      @Field({
+        type: () => {
+          throw new Error('boom');
+        },
+      })
+      bad!: unknown;
+    }
+
+    void BadOne; // registered via @x.Recipe; bound only to be sealed (and to fail the seal)
+    expect(() => x.seal()).toThrow();
+    // GoodOne compiles before BadOne throws, but setCached runs only after the whole seal succeeds.
+    expect(getCached(GoodOne, fp)).toBeUndefined();
   });
 });
