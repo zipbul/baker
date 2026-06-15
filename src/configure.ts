@@ -33,6 +33,9 @@ let globalOptionsState: SealOptions = Object.freeze({});
 /**
  * Baker global configuration. Call before `seal()`.
  * If not called, defaults are applied.
+ *
+ * @internal Not part of the public API — pass config to `new Baker(config)`. Retained for internal
+ * use and the test suite; stripped from published type declarations.
  */
 function configure(config: BakerConfig): void {
   if (isSealed()) {

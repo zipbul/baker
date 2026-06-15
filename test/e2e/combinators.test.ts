@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal, createRule } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field, createRule } from '../../index';
 import { oneOf, arrayEvery, isString, isBoolean, isRegExp, isFunction, isStatelessRegExp } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 function errorsOf(result: unknown): readonly { path: string; code: string }[] {
@@ -15,7 +17,7 @@ function errorsOf(result: unknown): readonly { path: string; code: string }[] {
 }
 
 describe('oneOf', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(oneOf(isBoolean, isString)) v!: boolean | string;
   }
@@ -32,7 +34,7 @@ describe('oneOf', () => {
 });
 
 describe('oneOf error model', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(oneOf(isBoolean, isString)) a!: boolean | string;
     @Field(oneOf(isBoolean, isString)) b!: boolean | string;
@@ -45,7 +47,7 @@ describe('oneOf error model', () => {
 });
 
 describe('arrayEvery', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(arrayEvery(isString)) v!: string[];
   }
@@ -66,7 +68,7 @@ describe('arrayEvery', () => {
 
 describe('arrayEvery with an async element rule (executor must go async)', () => {
   const asyncEl = createRule('asyncEl', async (v: unknown) => typeof v === 'string' && v.startsWith('ok'));
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(arrayEvery(asyncEl)) v!: string[];
   }
@@ -80,7 +82,7 @@ describe('arrayEvery with an async element rule (executor must go async)', () =>
 });
 
 describe('oneOf + arrayEvery union (cors-style origin)', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(oneOf(isBoolean, isString, isRegExp, arrayEvery(oneOf(isString, isRegExp)), isFunction), { optional: true })
     origin?: boolean | string | RegExp | Array<string | RegExp> | ((o: string) => boolean);
@@ -113,7 +115,7 @@ describe('oneOf + arrayEvery union (cors-style origin)', () => {
 
 describe('oneOf with an async branch (executor must go async)', () => {
   const asyncOrigin = createRule('asyncOrigin', async (v: unknown) => v === 'https://async.ok');
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(oneOf(asyncOrigin, isString)) v!: string;
   }
@@ -130,7 +132,7 @@ describe('oneOf with an async branch (executor must go async)', () => {
 });
 
 describe('isRegExp', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isRegExp) v!: RegExp;
   }
@@ -143,7 +145,7 @@ describe('isRegExp', () => {
 });
 
 describe('isStatelessRegExp', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isStatelessRegExp) v!: RegExp;
   }
@@ -168,7 +170,7 @@ describe('isStatelessRegExp', () => {
 });
 
 describe('isFunction', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isFunction) v!: (...args: unknown[]) => unknown;
   }

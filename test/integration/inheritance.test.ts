@@ -1,24 +1,26 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
+const baker = new Baker();
+
 // ─── DTOs: inheritance chain ──────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class BaseDto {
   @Field(isString)
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ChildDto extends BaseDto {
   @Field(isNumber())
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class GrandChildDto extends ChildDto {
   @Field(isBoolean)
   active!: boolean;
@@ -26,7 +28,7 @@ class GrandChildDto extends ChildDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-beforeEach(() => seal());
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 describe('inheritance — integration', () => {

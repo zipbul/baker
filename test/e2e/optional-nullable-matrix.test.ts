@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber, isBoolean, minLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 type TryResult<T> = { ok: true; value: T } | { ok: false; codes: string[] };
@@ -52,7 +54,7 @@ function expectFailureCodes<T>(r: TryResult<T>): string[] {
 // ─── A: @Field(isString) (no Optional, no Nullable) ──────────────────────
 
 describe('A: isString only', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString) v!: string;
   }
@@ -83,7 +85,7 @@ describe('A: isString only', () => {
 // ─── B: optional + isString ───────────────────────────────────────────────
 
 describe('B: optional + isString', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString, { optional: true })
     v?: string;
@@ -116,7 +118,7 @@ describe('B: optional + isString', () => {
 // ─── C: nullable + isString ──────────────────────────────────────────────
 
 describe('C: nullable + isString', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString, { nullable: true })
     v!: string | null;
@@ -149,7 +151,7 @@ describe('C: nullable + isString', () => {
 // ─── D: optional + nullable + isString ──────────────────────────────────
 
 describe('D: optional + nullable + isString', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString, { optional: true, nullable: true })
     v?: string | null;
@@ -183,7 +185,7 @@ describe('D: optional + nullable + isString', () => {
 // ─── E: nullable + isString (isDefined is default) ─────────────────────
 
 describe('E: nullable + isString (required by default)', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString, { nullable: true })
     v!: string | null;
@@ -216,11 +218,11 @@ describe('E: nullable + isString (required by default)', () => {
 // ─── G: empty string ("") handling ────────────────────────────────────────
 
 describe('empty string ("") handling', () => {
-  @Recipe
+  @baker.Recipe
   class StrDto {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class MinLenDto {
     @Field(isString, minLength(1)) v!: string;
   }
@@ -241,11 +243,11 @@ describe('empty string ("") handling', () => {
 // ─── H: false, 0 and other falsy value handling ──────────────────────────
 
 describe('falsy value handling', () => {
-  @Recipe
+  @baker.Recipe
   class NumDto {
     @Field(isNumber()) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class BoolDto {
     @Field(isBoolean) v!: boolean;
   }

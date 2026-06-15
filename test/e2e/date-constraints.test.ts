@@ -1,10 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isDate, minDate, maxDate } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -12,13 +14,13 @@ afterEach(() => unseal());
 const MIN = new Date('2020-01-01T00:00:00.000Z');
 const MAX = new Date('2025-12-31T23:59:59.999Z');
 
-@Recipe
+@baker.Recipe
 class DateRangeDto {
   @Field(isDate, minDate(MIN), maxDate(MAX))
   eventDate!: Date;
 }
 
-@Recipe
+@baker.Recipe
 class DateOnlyMinDto {
   @Field(isDate, minDate(MIN))
   start!: Date;

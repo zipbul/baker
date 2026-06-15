@@ -1,15 +1,17 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, serialize, Field } from '../../index';
 import { isString, isNumber, isBoolean, isEmail, min, minLength, arrayMinSize } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─── 1. simple flat DTO roundtrip ────────────────────────────────────────────
 
 describe('flat DTO roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class FlatDto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
@@ -30,13 +32,13 @@ describe('flat DTO roundtrip', () => {
 // ─── 2. nested DTO roundtrip ────────────────────────────────────────────────
 
 describe('nested DTO roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class Address {
     @Field(isString) city!: string;
     @Field(isString) zip!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class PersonDto {
     @Field(isString) name!: string;
     @Field({ type: () => Address }) address!: Address;
@@ -56,7 +58,7 @@ describe('nested DTO roundtrip', () => {
 // ─── 3. @Field({ name }) mapping roundtrip ──────────────────────────────────
 
 describe('@Field({ name }) mapping roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class MappedDto {
     @Field(isString, { name: 'user_name' })
     userName!: string;
@@ -81,7 +83,7 @@ describe('@Field({ name }) mapping roundtrip', () => {
 // ─── 4. @Transform roundtrip ────────────────────────────────────────────────
 
 describe('@Transform roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class TrimDto {
     @Field(isString, {
       transform: {
@@ -111,7 +113,7 @@ describe('@Transform roundtrip', () => {
 // ─── 5. optional + nullable roundtrip ────────────────────────────────────
 
 describe('optional + nullable roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class NullableDto {
     @Field(isString) name!: string;
     @Field(isString, { optional: true, nullable: true }) nickname?: string | null;
@@ -147,13 +149,13 @@ describe('optional + nullable roundtrip', () => {
 // ─── 6. nested array roundtrip ──────────────────────────────────────────────
 
 describe('nested array roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class LineItem {
     @Field(isString) product!: string;
     @Field(isNumber(), min(1)) qty!: number;
   }
 
-  @Recipe
+  @baker.Recipe
   class OrderDto {
     @Field(isString) orderId!: string;
     @Field(arrayMinSize(1), { type: () => [LineItem] })
@@ -183,7 +185,7 @@ describe('nested array roundtrip', () => {
 // ─── 7. @Exclude field roundtrip ────────────────────────────────────────────
 
 describe('@Exclude field roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class SecretDto {
     @Field(isString) username!: string;
     @Field(isString, { exclude: true }) password!: string;
@@ -201,13 +203,13 @@ describe('@Exclude field roundtrip', () => {
 // ─── 8. complex DTO full roundtrip ──────────────────────────────────────────
 
 describe('complex DTO full roundtrip', () => {
-  @Recipe
+  @baker.Recipe
   class ContactInfo {
     @Field(isEmail()) email!: string;
     @Field(isString, { optional: true }) phone?: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class ProfileDto {
     @Field(isString, minLength(2), { name: 'full_name' })
     fullName!: string;

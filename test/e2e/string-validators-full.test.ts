@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import {
   isAscii,
   isAlpha,
@@ -62,12 +62,14 @@ import {
 } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('isAscii', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isAscii) v!: string;
   }
@@ -80,7 +82,7 @@ describe('isAscii', () => {
 });
 
 describe('isHttpToken', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHttpToken) v!: string;
   }
@@ -96,7 +98,7 @@ describe('isHttpToken', () => {
 });
 
 describe('isOrigin', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isOrigin) v!: string;
   }
@@ -118,7 +120,7 @@ describe('isOrigin', () => {
 });
 
 describe('isCorsOrigin', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isCorsOrigin) v!: string;
   }
@@ -134,7 +136,7 @@ describe('isCorsOrigin', () => {
 });
 
 describe('isAlpha', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isAlpha) v!: string;
   }
@@ -147,7 +149,7 @@ describe('isAlpha', () => {
 });
 
 describe('isAlphanumeric', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isAlphanumeric) v!: string;
   }
@@ -160,7 +162,7 @@ describe('isAlphanumeric', () => {
 });
 
 describe('isNumberString', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isNumberString()) v!: string;
   }
@@ -173,7 +175,7 @@ describe('isNumberString', () => {
 });
 
 describe('isNumberString({ no_symbols: true })', () => {
-  @Recipe
+  @baker.Recipe
   class NumStrictDto {
     @Field(isNumberString({ no_symbols: true })) v!: string;
   }
@@ -192,7 +194,7 @@ describe('isNumberString({ no_symbols: true })', () => {
 });
 
 describe('isDecimal', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isDecimal()) v!: string;
   }
@@ -205,7 +207,7 @@ describe('isDecimal', () => {
 });
 
 describe('isFullWidth', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isFullWidth) v!: string;
   }
@@ -218,7 +220,7 @@ describe('isFullWidth', () => {
 });
 
 describe('isHalfWidth', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHalfWidth) v!: string;
   }
@@ -231,7 +233,7 @@ describe('isHalfWidth', () => {
 });
 
 describe('isMultibyte', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMultibyte) v!: string;
   }
@@ -244,7 +246,7 @@ describe('isMultibyte', () => {
 });
 
 describe('isHexadecimal', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHexadecimal) v!: string;
   }
@@ -257,7 +259,7 @@ describe('isHexadecimal', () => {
 });
 
 describe('isOctal', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isOctal) v!: string;
   }
@@ -270,7 +272,7 @@ describe('isOctal', () => {
 });
 
 describe('isHexColor', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHexColor) v!: string;
   }
@@ -283,7 +285,7 @@ describe('isHexColor', () => {
 });
 
 describe('isRgbColor', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isRgbColor()) v!: string;
   }
@@ -296,7 +298,7 @@ describe('isRgbColor', () => {
 });
 
 describe('isHSL', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHSL) v!: string;
   }
@@ -309,7 +311,7 @@ describe('isHSL', () => {
 });
 
 describe('isMACAddress', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMACAddress()) v!: string;
   }
@@ -322,7 +324,7 @@ describe('isMACAddress', () => {
 });
 
 describe('isISBN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISBN(13)) v!: string;
   }
@@ -335,7 +337,7 @@ describe('isISBN', () => {
 });
 
 describe('isISIN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISIN) v!: string;
   }
@@ -348,7 +350,7 @@ describe('isISIN', () => {
 });
 
 describe('isISRC', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISRC) v!: string;
   }
@@ -361,7 +363,7 @@ describe('isISRC', () => {
 });
 
 describe('isISSN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISSN()) v!: string;
   }
@@ -374,7 +376,7 @@ describe('isISSN', () => {
 });
 
 describe('isJWT', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isJWT) v!: string;
   }
@@ -388,7 +390,7 @@ describe('isJWT', () => {
 });
 
 describe('isLatLong', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isLatLong()) v!: string;
   }
@@ -401,7 +403,7 @@ describe('isLatLong', () => {
 });
 
 describe('isLocale', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isLocale) v!: string;
   }
@@ -414,7 +416,7 @@ describe('isLocale', () => {
 });
 
 describe('isDataURI', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isDataURI) v!: string;
   }
@@ -427,7 +429,7 @@ describe('isDataURI', () => {
 });
 
 describe('isFQDN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isFQDN()) v!: string;
   }
@@ -440,7 +442,7 @@ describe('isFQDN', () => {
 });
 
 describe('isFQDN({ require_tld: false })', () => {
-  @Recipe
+  @baker.Recipe
   class HostDto {
     @Field(isFQDN({ require_tld: false })) host!: string;
   }
@@ -454,7 +456,7 @@ describe('isFQDN({ require_tld: false })', () => {
 });
 
 describe('isPort', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isPort) v!: string;
   }
@@ -467,7 +469,7 @@ describe('isPort', () => {
 });
 
 describe('isISO31661Alpha2', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISO31661Alpha2) v!: string;
   }
@@ -480,7 +482,7 @@ describe('isISO31661Alpha2', () => {
 });
 
 describe('isISO31661Alpha3', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISO31661Alpha3) v!: string;
   }
@@ -493,7 +495,7 @@ describe('isISO31661Alpha3', () => {
 });
 
 describe('isBIC', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isBIC) v!: string;
   }
@@ -506,7 +508,7 @@ describe('isBIC', () => {
 });
 
 describe('isSemVer', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isSemVer) v!: string;
   }
@@ -519,7 +521,7 @@ describe('isSemVer', () => {
 });
 
 describe('isMongoId', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMongoId) v!: string;
   }
@@ -532,7 +534,7 @@ describe('isMongoId', () => {
 });
 
 describe('isBase64', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isBase64()) v!: string;
   }
@@ -545,7 +547,7 @@ describe('isBase64', () => {
 });
 
 describe('isBase58', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isBase58) v!: string;
   }
@@ -558,7 +560,7 @@ describe('isBase58', () => {
 });
 
 describe('isMimeType', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMimeType) v!: string;
   }
@@ -571,7 +573,7 @@ describe('isMimeType', () => {
 });
 
 describe('isCreditCard', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isCreditCard) v!: string;
   }
@@ -584,7 +586,7 @@ describe('isCreditCard', () => {
 });
 
 describe('isByteLength', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isByteLength(1, 10)) v!: string;
   }
@@ -597,7 +599,7 @@ describe('isByteLength', () => {
 });
 
 describe('isHash', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isHash('md5')) v!: string;
   }
@@ -610,7 +612,7 @@ describe('isHash', () => {
 });
 
 describe('isRFC3339', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isRFC3339) v!: string;
   }
@@ -623,7 +625,7 @@ describe('isRFC3339', () => {
 });
 
 describe('isMilitaryTime', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMilitaryTime) v!: string;
   }
@@ -636,7 +638,7 @@ describe('isMilitaryTime', () => {
 });
 
 describe('isLatitude', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isLatitude) v!: string;
   }
@@ -649,7 +651,7 @@ describe('isLatitude', () => {
 });
 
 describe('isLongitude', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isLongitude) v!: string;
   }
@@ -662,7 +664,7 @@ describe('isLongitude', () => {
 });
 
 describe('isEthereumAddress', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isEthereumAddress) v!: string;
   }
@@ -677,7 +679,7 @@ describe('isEthereumAddress', () => {
 });
 
 describe('isBtcAddress', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isBtcAddress) v!: string;
   }
@@ -692,7 +694,7 @@ describe('isBtcAddress', () => {
 });
 
 describe('isISO4217CurrencyCode', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isISO4217CurrencyCode) v!: string;
   }
@@ -705,7 +707,7 @@ describe('isISO4217CurrencyCode', () => {
 });
 
 describe('isPhoneNumber', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isPhoneNumber) v!: string;
   }
@@ -718,7 +720,7 @@ describe('isPhoneNumber', () => {
 });
 
 describe('isStrongPassword', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isStrongPassword()) v!: string;
   }
@@ -731,7 +733,7 @@ describe('isStrongPassword', () => {
 });
 
 describe('isFirebasePushId', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isFirebasePushId) v!: string;
   }
@@ -744,7 +746,7 @@ describe('isFirebasePushId', () => {
 });
 
 describe('isEAN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isEAN) v!: string;
   }
@@ -757,7 +759,7 @@ describe('isEAN', () => {
 });
 
 describe('isMagnetURI', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isMagnetURI) v!: string;
   }
@@ -772,7 +774,7 @@ describe('isMagnetURI', () => {
 });
 
 describe('isDateString', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isDateString()) v!: string;
   }
@@ -785,7 +787,7 @@ describe('isDateString', () => {
 });
 
 describe('isCurrency', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isCurrency()) v!: string;
   }
@@ -798,7 +800,7 @@ describe('isCurrency', () => {
 });
 
 describe('isVariableWidth', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isVariableWidth) v!: string;
   }
@@ -811,7 +813,7 @@ describe('isVariableWidth', () => {
 });
 
 describe('isSurrogatePair', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isSurrogatePair) v!: string;
   }
@@ -824,7 +826,7 @@ describe('isSurrogatePair', () => {
 });
 
 describe('isBase32', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isBase32()) v!: string;
   }
@@ -837,7 +839,7 @@ describe('isBase32', () => {
 });
 
 describe('isIBAN', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isIBAN()) v!: string;
   }
@@ -850,7 +852,7 @@ describe('isIBAN', () => {
 });
 
 describe('isTaxId', () => {
-  @Recipe
+  @baker.Recipe
   class D {
     @Field(isTaxId('US')) v!: string;
   }

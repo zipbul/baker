@@ -18,6 +18,9 @@ import { globalRegistry } from '../registry';
  * }
  * seal();
  * ```
+ *
+ * @internal Not part of the public API — use `new Baker().Recipe`. Retained for internal use and
+ * the test suite; stripped from published type declarations.
  */
 function Recipe<T extends Function>(value: T, _context: ClassDecoratorContext): void {
   globalRegistry.add(value);

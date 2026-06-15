@@ -1,12 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { serialize, Field, Recipe, seal } from '../../index';
+import { Baker, serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
+const baker = new Baker();
+
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class SimpleSerializeDto {
   @Field(isString)
   name!: string;
@@ -15,7 +17,7 @@ class SimpleSerializeDto {
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class ExposedDto {
   @Field(isString, { name: 'full_name' })
   name!: string;
@@ -24,7 +26,7 @@ class ExposedDto {
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class ExcludedDto {
   @Field(isString)
   public!: string;
@@ -35,7 +37,7 @@ class ExcludedDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-beforeEach(() => seal());
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 describe('serialize — integration', () => {

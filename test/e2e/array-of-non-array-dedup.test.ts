@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, Recipe, arrayOf, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, arrayOf, deserialize, isBakerIssueSet } from '../../index';
 import { isNotEmpty, isByteLength } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
-@Recipe
+@baker.Recipe
 class MultiRuleArray {
   @Field(arrayOf(isNotEmpty, isByteLength(32)))
   secrets!: string[];

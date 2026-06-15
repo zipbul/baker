@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { ExcludeMode, Field, Recipe, deserialize, serialize, seal } from '../../index';
+import { Baker, ExcludeMode, Field, deserialize, serialize } from '../../index';
 import {
   isString,
   isNumber,
@@ -17,7 +17,9 @@ import {
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
@@ -34,7 +36,7 @@ const matchPathCode =
 // ─── 1. @IsString + @MinLength + @MaxLength + @Matches ─────────────────────
 
 describe('@IsString + @MinLength + @MaxLength + @Matches stack', () => {
-  @Recipe
+  @baker.Recipe
   class UsernameDto {
     @Field(isString, minLength(3), maxLength(20), matches(/^[a-z0-9_]+$/))
     username!: string;
@@ -78,7 +80,7 @@ describe('@IsString + @MinLength + @MaxLength + @Matches stack', () => {
 // ─── 2. @IsOptional + @Min + @Transform ────────────────────────────────────
 
 describe('@IsOptional + @Min + @Transform combination', () => {
-  @Recipe
+  @baker.Recipe
   class ScoreDto {
     @Field(isNumber(), min(0), {
       optional: true,
@@ -109,7 +111,7 @@ describe('@IsOptional + @Min + @Transform combination', () => {
 // ─── 3. @IsDefined + @IsNullable (null OK, undefined NOT OK) ──────────────
 
 describe('@IsDefined + @IsNullable combination', () => {
-  @Recipe
+  @baker.Recipe
   class RequiredNullableDto {
     @Field(isString, { nullable: true })
     value!: string | null;
@@ -139,7 +141,7 @@ describe('@Transform + @IsEnum combination', () => {
     Inactive = 'inactive',
   }
 
-  @Recipe
+  @baker.Recipe
   class StatusDto {
     @Field(isEnum(Status), {
       transform: {
@@ -164,7 +166,7 @@ describe('@Transform + @IsEnum combination', () => {
 // ─── 5. @ValidateIf + @IsNumber combination ──────────────────────────────
 
 describe('@ValidateIf + @IsNumber combination', () => {
-  @Recipe
+  @baker.Recipe
   class ConditionalDto {
     @Field(isBoolean) hasDiscount!: boolean;
 
@@ -199,7 +201,7 @@ describe('@ValidateIf + @IsNumber combination', () => {
 // ─── 6. @Exclude(deserializeOnly) + @Transform(serializeOnly) ─────────────
 
 describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () => {
-  @Recipe
+  @baker.Recipe
   class MixedDto {
     @Field(isString) name!: string;
 
@@ -224,12 +226,12 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () 
 // ─── 7. @IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional ───────
 
 describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
-  @Recipe
+  @baker.Recipe
   class Tag {
     @Field(isString) label!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class ArticleDto {
     @Field(isString) title!: string;
 
@@ -271,7 +273,7 @@ describe('@IsArray + @Nested(each:true) + @ArrayMinSize + @IsOptional', () => {
 // ─── 8. deep stack: @Expose + @Transform + @IsString + @MinLength ──────────
 
 describe('@Expose + @Transform + @IsString + @MinLength deep stack', () => {
-  @Recipe
+  @baker.Recipe
   class DeepStackDto {
     @Field(isString, minLength(2), {
       name: 'raw_input',
@@ -303,7 +305,7 @@ describe('@Expose + @Transform + @IsString + @MinLength deep stack', () => {
 // ─── 9. @ValidateIf + @Transform interaction ─────────────────────────────
 
 describe('@ValidateIf + @Transform interaction', () => {
-  @Recipe
+  @baker.Recipe
   class CondTransformDto {
     @Field(isBoolean) enabled!: boolean;
 
@@ -332,13 +334,13 @@ describe('@ValidateIf + @Transform interaction', () => {
 // ─── E-21: 4-level inheritance + mid-level override ─────────────────────────
 
 describe('E-21: 4-level inheritance + mid-level override', () => {
-  @Recipe
+  @baker.Recipe
   class Base {
     @Field(isString)
     name!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class Child extends Base {
     @Field(isString, minLength(3))
     // @ts-expect-error TS2612: overwriting base property is intentional for decorator test

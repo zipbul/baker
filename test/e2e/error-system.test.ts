@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { serialize, seal, Field, Recipe, BakerError } from '../../index';
+import { Baker, serialize, Field, BakerError } from '../../index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
-@Recipe
+@baker.Recipe
 class MapDto {
   @Field({ type: () => Map }) m!: Map<unknown, unknown>;
 }

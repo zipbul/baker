@@ -10,9 +10,8 @@ export { seal } from './src/seal/seal';
 export { Field, arrayOf, Recipe } from './src/decorators/index';
 export type { FieldOptions, ArrayOfMarker } from './src/decorators/index';
 
-// Baker scopes (multi-app isolation)
-export { createBaker } from './src/baker';
-export type { Baker } from './src/baker';
+// Baker — multi-app isolation boundary (`new Baker(config?)`)
+export { Baker } from './src/baker';
 
 // Enums
 export { ExcludeMode, RequiredType } from './src/enums';

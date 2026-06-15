@@ -1,34 +1,36 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class PhoneKRDto {
   @Field(isMobilePhone('ko-KR')) phone!: string;
 }
-@Recipe
+@baker.Recipe
 class PhoneUSDto {
   @Field(isMobilePhone('en-US')) phone!: string;
 }
-@Recipe
+@baker.Recipe
 class PostalUSDto {
   @Field(isPostalCode('US')) code!: string;
 }
-@Recipe
+@baker.Recipe
 class PostalKRDto {
   @Field(isPostalCode('KR')) code!: string;
 }
-@Recipe
+@baker.Recipe
 class IdentityUSDto {
   @Field(isIdentityCard('US')) ssn!: string;
 }
-@Recipe
+@baker.Recipe
 class PassportUSDto {
   @Field(isPassportNumber('US')) passport!: string;
 }

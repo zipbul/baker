@@ -1,16 +1,18 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, seal } from '../../index';
+import { Baker, Field, deserialize } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class TreeNode {
   @Field(isString)
   value!: string;

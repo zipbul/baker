@@ -224,6 +224,9 @@ function sealOneClass(Class: Function): void {
  *
  * Baker requires this call before any deserialize/serialize/validate. There is no implicit seal.
  * All DTOs must be imported before this call — baker has no lazy/on-demand sealing.
+ *
+ * @internal Not part of the public API — use `new Baker().seal()`. Retained for internal use and
+ * the test suite; stripped from published type declarations.
  */
 function seal(): void {
   sealAllRegistered();

@@ -1,14 +1,16 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber, min } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class ConditionalDto {
   @Field(isString)
   type!: string;
@@ -17,7 +19,7 @@ class ConditionalDto {
   companyName!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ConditionalWithMinDto {
   @Field(isNumber())
   role!: number;

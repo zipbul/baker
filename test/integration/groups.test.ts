@@ -1,12 +1,14 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { unseal } from './helpers/unseal';
 
+const baker = new Baker();
+
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class AdminDto {
   @Field(isString)
   name!: string;
@@ -15,7 +17,7 @@ class AdminDto {
   internalCode?: string;
 }
 
-@Recipe
+@baker.Recipe
 class GroupedSerialDto {
   @Field(isString)
   name!: string;
@@ -26,7 +28,7 @@ class GroupedSerialDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-beforeEach(() => seal());
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 describe('groups — integration', () => {

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import {
   isArray,
   isString,
@@ -14,32 +14,34 @@ import {
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class MinSizeDto {
   @Field(isArray, arrayMinSize(2)) items!: unknown[];
 }
-@Recipe
+@baker.Recipe
 class MaxSizeDto {
   @Field(isArray, arrayMaxSize(3)) items!: unknown[];
 }
-@Recipe
+@baker.Recipe
 class UniqueDto {
   @Field(isArray, arrayUnique()) items!: unknown[];
 }
-@Recipe
+@baker.Recipe
 class NotEmptyDto {
   @Field(arrayNotEmpty) items!: unknown[];
 }
-@Recipe
+@baker.Recipe
 class ContainsDto {
   @Field(arrayContains(['a', 'b'])) items!: string[];
 }
-@Recipe
+@baker.Recipe
 class NotContainsDto {
   @Field(arrayNotContains(['z'])) items!: string[];
 }
@@ -130,12 +132,12 @@ describe('@ArrayNotContains', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Set collection + array-level rules', () => {
-  @Recipe
+  @baker.Recipe
   class SetItem {
     @Field(isString) name!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class SetWithMinDto {
     @Field(arrayMinSize(2), { type: () => Set, setValue: () => SetItem })
     items!: Set<SetItem>;
