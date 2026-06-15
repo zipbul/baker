@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import {
   isString,
   notContains,
@@ -11,33 +11,33 @@ import {
   arrayNotContains,
   isArray,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class NotContainsDto {
   @Field(isString, notContains('bad')) val!: string;
 }
-@Recipe
+@baker.Recipe
 class LowercaseDto {
   @Field(isLowercase) val!: string;
 }
-@Recipe
+@baker.Recipe
 class UppercaseDto {
   @Field(isUppercase) val!: string;
 }
-@Recipe
+@baker.Recipe
 class BoolStringDto {
   @Field(isBooleanString) val!: string;
 }
-@Recipe
+@baker.Recipe
 class JsonDto {
   @Field(isJSON) val!: string;
 }
-@Recipe
+@baker.Recipe
 class ArrNotContainsDto {
   @Field(isArray, arrayNotContains([99])) items!: number[];
 }

@@ -1,32 +1,34 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, ExcludeMode, Field, Recipe, serialize, seal } from '../../index';
+import { Baker, deserialize, ExcludeMode, Field, serialize } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
-@Recipe
+@baker.Recipe
 class ChildDto {
   @Field(isString)
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CatDto {
   @Field(isString)
   breed!: string;
 }
 
-@Recipe
+@baker.Recipe
 class DogDto {
   @Field(isString)
   color!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ComplexSerializeDto {
   @Field(isString, {
     serializeName: 'display_name',
@@ -96,7 +98,6 @@ describe('serialize parity meta', () => {
   });
 
   it('roundtrips directional names and serialize output contract together', async () => {
-    @Recipe
     class RoundtripDto {
       @Field(isString, {
         deserializeName: 'full_name',

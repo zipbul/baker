@@ -1,17 +1,16 @@
-import { afterEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
 
-import { BakerError, createBaker, deserialize, Field, isBakerIssueSet, Recipe, seal } from '../../index';
+import { BakerError, Baker, deserialize, Field, isBakerIssueSet } from '../../index';
 import { min } from '../../src/rules/number';
 import { isNumber, isString } from '../../src/rules/typechecker';
-import { unseal } from '../integration/helpers/unseal';
 
 // Each test defines its DTO classes locally so the global SEALED marker (stored on the class)
-// is fresh per test — no cross-test leakage. The default instance is reset via unseal().
-afterEach(() => unseal());
+// is fresh per test — no cross-test leakage. Classes here are sealed via each instance's own
+// `app.seal()`, which unseal() does not touch, so there is no shared state to reset between tests.
 
-describe('createBaker — multi-app isolation', () => {
-  it('seals and deserializes a class registered to an instance, without calling global seal()', () => {
-    const app = createBaker();
+describe('Baker — multi-app isolation', () => {
+  it('seals and deserializes a class registered to an instance, without a global seal()', () => {
+    const app = new Baker();
 
     @app.Recipe
     class UserDto {
@@ -26,8 +25,8 @@ describe('createBaker — multi-app isolation', () => {
   });
 
   it('does not seal another instance\'s class — each app seals only its own roots', () => {
-    const appA = createBaker();
-    const appB = createBaker();
+    const appA = new Baker();
+    const appB = new Baker();
 
     @appA.Recipe
     class A_Dto {
@@ -45,8 +44,8 @@ describe('createBaker — multi-app isolation', () => {
   });
 
   it('isolates config per instance — same field shape, different autoConvert', () => {
-    const lenient = createBaker({ autoConvert: true });
-    const strict = createBaker({ autoConvert: false });
+    const lenient = new Baker({ autoConvert: true });
+    const strict = new Baker({ autoConvert: false });
 
     @lenient.Recipe
     class LenientDto {
@@ -69,8 +68,8 @@ describe('createBaker — multi-app isolation', () => {
   });
 
   it('shares a class sealed by another scope — reused (first seal wins), no throw', () => {
-    const appA = createBaker({ autoConvert: true });
-    const appB = createBaker({ autoConvert: false });
+    const appA = new Baker({ autoConvert: true });
+    const appB = new Baker({ autoConvert: false });
 
     @appA.Recipe
     @appB.Recipe
@@ -88,8 +87,8 @@ describe('createBaker — multi-app isolation', () => {
   });
 
   it('reuses a shared nested DTO across scopes without bricking the second scope', () => {
-    const appA = createBaker();
-    const appB = createBaker();
+    const appA = new Baker();
+    const appB = new Baker();
 
     class AddressDto {
       @Field(isString) city!: string;
@@ -111,7 +110,7 @@ describe('createBaker — multi-app isolation', () => {
   });
 
   it('app.seal() is idempotent — a second call is a no-op', () => {
-    const app = createBaker();
+    const app = new Baker();
 
     @app.Recipe
     class IdemDto {
@@ -123,22 +122,7 @@ describe('createBaker — multi-app isolation', () => {
     expect(isBakerIssueSet(deserialize(IdemDto, { x: 'a' }))).toBe(false);
   });
 
-  it('createBaker rejects an unknown config key', () => {
-    expect(() => createBaker({ bogus: true } as never)).toThrow(BakerError);
-  });
-});
-
-describe('default global API — unchanged (regression)', () => {
-  it('still seals and deserializes via global @Recipe + argless seal()', () => {
-    @Recipe
-    class GlobalDto {
-      @Field(isString) name!: string;
-    }
-
-    seal();
-
-    const result = deserialize(GlobalDto, { name: 'Bob' });
-    expect(isBakerIssueSet(result)).toBe(false);
-    expect((result as GlobalDto).name).toBe('Bob');
+  it('new Baker() rejects an unknown config key', () => {
+    expect(() => new Baker({ bogus: true } as never)).toThrow(BakerError);
   });
 });

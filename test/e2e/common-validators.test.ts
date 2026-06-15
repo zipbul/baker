@@ -1,35 +1,35 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { equals, notEquals, isIn, isNotIn, isEmpty, isNotEmpty, isEnum } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class EqualsDto {
   @Field(equals('yes')) answer!: string;
 }
-@Recipe
+@baker.Recipe
 class NotEqualsDto {
   @Field(notEquals('no')) answer!: string;
 }
-@Recipe
+@baker.Recipe
 class IsInDto {
   @Field(isIn(['a', 'b', 'c'])) choice!: string;
 }
-@Recipe
+@baker.Recipe
 class IsNotInDto {
   @Field(isNotIn([1, 2, 3])) val!: number;
 }
-@Recipe
+@baker.Recipe
 class IsEmptyDto {
   @Field(isEmpty) field!: unknown;
 }
-@Recipe
+@baker.Recipe
 class IsNotEmptyDto {
   @Field(isNotEmpty) field!: unknown;
 }
@@ -39,7 +39,7 @@ enum Color {
   Green = 'green',
   Blue = 'blue',
 }
-@Recipe
+@baker.Recipe
 class EnumDto {
   @Field(isEnum(Color)) color!: Color;
 }

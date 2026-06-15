@@ -1,18 +1,20 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isInstance } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class MyDate extends Date {}
 
-@Recipe
+@baker.Recipe
 class InstanceDto {
   @Field(isInstance(MyDate), {
     transform: {
@@ -37,7 +39,6 @@ describe('@IsInstance', () => {
   });
 
   it('wrong type rejected', async () => {
-    @Recipe
     class WrongDto {
       @Field(isInstance(MyDate))
       date!: MyDate;

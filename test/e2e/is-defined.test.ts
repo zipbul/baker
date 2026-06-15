@@ -1,28 +1,28 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class DefinedDto {
   @Field(isString)
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class OptionalDto {
   @Field(isString, { optional: true })
   nickname?: string;
 }
 
-@Recipe
+@baker.Recipe
 class DefinedOverrideDto {
   @Field(isString)
   tag!: string;

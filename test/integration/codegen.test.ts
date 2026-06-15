@@ -1,14 +1,15 @@
 import { isErr } from '@zipbul/result';
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, seal } from '../../index';
+import { Baker, Field, deserialize } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isBoolean, isUint8Array, isByteSize } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
+
+const baker = new Baker();
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class CodegenSimpleDto {
   @Field(isString)
   name!: string;
@@ -17,7 +18,7 @@ class CodegenSimpleDto {
   value!: number;
 }
 
-@Recipe
+@baker.Recipe
 class CodegenOptionalDto {
   @Field(isString)
   required!: string;
@@ -26,7 +27,7 @@ class CodegenOptionalDto {
   flag?: boolean;
 }
 
-@Recipe
+@baker.Recipe
 class CodegenTransformDto {
   @Field(isString, {
     transform: {
@@ -37,7 +38,7 @@ class CodegenTransformDto {
   text!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CodegenBinaryDto {
   @Field(isUint8Array, isByteSize(16))
   key!: Uint8Array;
@@ -45,8 +46,7 @@ class CodegenBinaryDto {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+beforeEach(() => baker.seal());
 
 describe('codegen — integration', () => {
   it('should generate deserialize and serialize functions after auto-seal', async () => {

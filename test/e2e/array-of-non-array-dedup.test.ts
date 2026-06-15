@@ -1,13 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, arrayOf, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, arrayOf, deserialize } from '../../index';
 import { isNotEmpty, isByteLength } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
 
-@Recipe
+beforeEach(() => baker.seal());
+
+@baker.Recipe
 class MultiRuleArray {
   @Field(arrayOf(isNotEmpty, isByteLength(32)))
   secrets!: string[];
@@ -16,9 +17,8 @@ class MultiRuleArray {
 describe('arrayOf — non-array rejection is field-level, not per-rule', () => {
   it('emits a single isArray issue when the value is not an array, regardless of how many element rules are given', async () => {
     const r = await deserialize(MultiRuleArray, { secrets: 'not-an-array' });
-    expect(isBakerIssueSet(r)).toBe(true);
-    const issues = isBakerIssueSet(r) ? r.errors : [];
-    const isArrayIssues = issues.filter(e => e.code === 'isArray');
+    assertBakerIssueSet(r);
+    const isArrayIssues = r.errors.filter(e => e.code === 'isArray');
     expect(isArrayIssues).toHaveLength(1);
     expect(isArrayIssues[0]!.path).toBe('secrets');
   });

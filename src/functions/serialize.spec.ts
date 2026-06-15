@@ -4,8 +4,6 @@ import type { RuntimeOptions } from '../interfaces';
 
 import { BakerError } from '../errors';
 import { setSealed, deleteSealed } from '../meta-access';
-import { globalRegistry } from '../registry';
-import { resetForTesting } from '../seal/seal';
 import { serialize } from './serialize';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -41,11 +39,9 @@ function attachSealed(
 
 afterEach(() => {
   for (const ctor of trackedClasses) {
-    globalRegistry.delete(ctor);
     deleteSealed(ctor);
   }
   trackedClasses.length = 0;
-  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,32 +1,32 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isNumber, isInt, isPositive, isNegative, isDivisibleBy } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class PositiveDto {
   @Field(isPositive) val!: number;
 }
-@Recipe
+@baker.Recipe
 class NegativeDto {
   @Field(isNegative) val!: number;
 }
-@Recipe
+@baker.Recipe
 class DivisibleDto {
   @Field(isDivisibleBy(3)) val!: number;
 }
-@Recipe
+@baker.Recipe
 class IntDto {
   @Field(isInt) val!: number;
 }
 
-@Recipe
+@baker.Recipe
 class NumberOptsDto {
   @Field(isNumber({ allowNaN: true }))
   nanOk!: number;

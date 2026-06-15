@@ -1,6 +1,6 @@
 # @zipbul/baker
 
-The fastest decorator-based DTO validation library for TypeScript. baker generates optimized validation and serialization code once at `seal()` time, then reuses the sealed executors on every call.
+The fastest decorator-based DTO validation library for TypeScript. baker generates optimized validation and serialization code once at seal time, then reuses the sealed executors on every call.
 
 ```bash
 bun add @zipbul/baker
@@ -27,18 +27,20 @@ Zero `reflect-metadata`. Sealed codegen.
 ## Quick Start
 
 ```typescript
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '@zipbul/baker';
+import { Baker, Field, deserialize, isBakerIssueSet } from '@zipbul/baker';
 import { isString, isNumber, isEmail, min, minLength } from '@zipbul/baker/rules';
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class UserDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0)) age!: number;
   @Field(isString, isEmail()) email!: string;
 }
 
-// Call once at app startup, after every DTO has been imported.
-seal();
+// Call once at startup, after this baker's DTOs are defined.
+baker.seal();
 
 // All rules here are sync, so deserialize returns the value directly (no await).
 const result = deserialize(UserDto, {
@@ -61,10 +63,13 @@ if (isBakerIssueSet(result)) {
 
 | Concept | What it does |
 | ------------------- | ------------------------------------------------------------------------------ |
-| `@Recipe`           | Marks a class as a DTO and registers it with baker.                            |
-| `@Field(...rules)`  | Declares a validated field. Only `@Field` properties are part of the contract. |
-| `seal()`            | Compiles every registered DTO into executor functions. Call once, at startup.  |
-| `deserialize` / `validate` / `serialize` | Run the sealed executors: parse+validate, validate-only, or emit a plain object. |
+| `new Baker(config?)` | An isolated registration + seal scope. Multiple bakers never mix. Use `@app.Recipe` and `app.seal()`. |
+| `@app.Recipe`       | Marks a class as a DTO of that baker. Only `@Field` properties are part of the contract. |
+| `@Field(...rules)`  | Declares a validated field. Global — works with any baker.                     |
+| `app.seal()`        | Compiles that baker's DTOs into executor functions. Call once, at startup.     |
+| `deserialize` / `validate` / `serialize` | Global — run the sealed executors stored on the class: parse+validate, validate-only, or emit a plain object. |
+
+> Examples below assume a `const baker = new Baker()` in scope and a single `baker.seal()` after the DTOs are defined.
 
 ## Why baker?
 
@@ -122,7 +127,7 @@ Most fields need only rules. The options below cover nested, conditional, collec
 ### Conditional fields & custom messages
 
 ```typescript
-@Recipe
+@baker.Recipe
 class UserDto {
   @Field(isString) name!: string;
 
@@ -250,7 +255,7 @@ email!: string;
 import { luxonTransformer } from '@zipbul/baker/transformers';
 const luxon = await luxonTransformer({ zone: 'Asia/Seoul' });
 
-@Recipe
+@baker.Recipe
 class EventDto {
   @Field({ transform: luxon }) startAt!: DateTime;
 }
@@ -269,12 +274,12 @@ const mt = await momentTransformer({ format: 'YYYY-MM-DD' });
 ### Nested DTOs
 
 ```typescript
-@Recipe
+@baker.Recipe
 class AddressDto {
   @Field(isString) city!: string;
 }
 
-@Recipe
+@baker.Recipe
 class UserDto {
   @Field({ type: () => AddressDto }) address!: AddressDto;
   @Field({ type: () => [AddressDto] }) addresses!: AddressDto[];
@@ -284,7 +289,7 @@ class UserDto {
 ### Collections
 
 ```typescript
-@Recipe
+@baker.Recipe
 class UserDto {
   @Field({ type: () => Set, setValue: () => TagDto }) tags!: Set<TagDto>;
   @Field({ type: () => Map, mapValue: () => PriceDto }) prices!: Map<string, PriceDto>;
@@ -296,7 +301,7 @@ class UserDto {
 ### Discriminator
 
 ```typescript
-@Recipe
+@baker.Recipe
 class PetOwner {
   @Field({
     type: () => CatDto,
@@ -315,12 +320,12 @@ class PetOwner {
 ### Inheritance
 
 ```typescript
-@Recipe
+@baker.Recipe
 class BaseDto {
   @Field(isString) id!: string;
 }
 
-@Recipe
+@baker.Recipe
 class UserDto extends BaseDto {
   @Field(isString) name!: string;
   // inherits 'id' field with isString rule
@@ -329,11 +334,26 @@ class UserDto extends BaseDto {
 
 ## Runtime API
 
-### `seal()`
+### `new Baker(config?)`
 
-**Required.** Call once at app startup, after every DTO module has been imported. Takes no arguments — seals every class registered via `@Recipe` so far, plus any nested DTOs they reach. Idempotent: a second call is a no-op.
+A `Baker` is an isolated registration + seal scope. Construct one per app/library; multiple bakers in one process never mix.
 
-`deserialize` / `serialize` / `validate` throw `BakerError` if the DTO is not sealed.
+- `@app.Recipe` — class decorator; registers the class as one of this baker's DTOs.
+- `app.seal()` — **required.** Compiles the baker's DTOs (and any nested DTOs they reach) into executor functions. Call once at startup, after the baker's DTOs are defined. Idempotent.
+- Config is passed to the constructor:
+
+```typescript
+const app = new Baker({
+  autoConvert: true, // coerce "123" → 123
+  allowClassDefaults: true, // use class field initializers for missing keys
+  stopAtFirstError: true, // return on first validation failure
+  forbidUnknown: true, // reject undeclared fields
+});
+```
+
+`deserialize` / `serialize` / `validate` are global — they read the sealed executor off the class — and throw `BakerError` if the class is not sealed.
+
+**Isolation:** distinct classes are fully isolated (each sealed with its baker's config). A class shared across bakers is sealed once (first seal wins) — use separate classes if you need different config.
 
 ### `deserialize` / `serialize` / `validate`
 
@@ -368,19 +388,6 @@ interface RuntimeOptions {
 
 Groups are passed at call time (not on `@Field`) because the active set typically varies per request.
 
-### `configure(config)`
-
-Global configuration. Must be called **before** `seal()`. After seal, `configure(...)` throws `BakerError`.
-
-```typescript
-configure({
-  autoConvert: true, // coerce "123" → 123
-  allowClassDefaults: true, // use class field initializers for missing keys
-  stopAtFirstError: true, // return on first validation failure
-  forbidUnknown: true, // reject undeclared fields
-});
-```
-
 ### `createRule(name, validate)` / `createRule(options)`
 
 Custom validation rule. Two forms — a `(name, validate)` shorthand or an options object:
@@ -390,10 +397,12 @@ const koreanPhone = createRule('koreanPhone', v => /^01[016789]/.test(v as strin
 ```
 
 ```typescript
+import { RequiredType } from '@zipbul/baker';
+
 const isEven = createRule({
   name: 'isEven',
   validate: v => typeof v === 'number' && v % 2 === 0,
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
 });
 ```
 
@@ -405,7 +414,7 @@ Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ p
 
 baker separates two failure modes:
 
-- **`BakerError` (thrown)** — a programming mistake: using a DTO before `seal()`, passing a raw rule function, calling `configure()` after seal, or calling a strict `*Sync` variant on an async DTO. Fix the code; don't catch it in request handlers.
+- **`BakerError` (thrown)** — a programming mistake: using a DTO before `app.seal()`, passing a raw rule function, an unknown config key, or calling a strict `*Sync` variant on an async DTO. Fix the code; don't catch it in request handlers.
 - **`BakerIssueSet` (returned)** — a validation failure. `deserialize` and `validate` return it instead of throwing. Guard with `isBakerIssueSet` and read `.errors`.
 
 ```typescript
@@ -440,7 +449,7 @@ Yes. baker's `@Field` decorator works alongside NestJS pipes. Use `deserialize()
 
 ### How does the AOT code generation work?
 
-Calling `seal()` once at app startup walks every registered DTO, analyzes field metadata, generates optimized JavaScript executor functions, and caches them. Subsequent `deserialize` / `serialize` / `validate` calls run the pre-compiled functions directly. There is no auto-seal — forgetting to call `seal()` raises `BakerError` on first use.
+Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DTOs), analyzes field metadata, generates optimized JavaScript executor functions, and stores them on each class. Subsequent `deserialize` / `serialize` / `validate` calls run the pre-compiled functions directly. There is no auto-seal — using a DTO before `app.seal()` raises `BakerError`.
 
 > baker builds its executors with `new Function()`. Under a strict Content-Security-Policy this requires `'unsafe-eval'`; baker will not run in environments that forbid runtime code generation.
 
@@ -448,13 +457,13 @@ Calling `seal()` once at app startup walks every registered DTO, analyzes field 
 
 ```typescript
 import {
-  seal,
+  Baker,
   deserialize, deserializeSync, deserializeAsync,
   validate, validateSync, validateAsync,
   serialize, serializeSync, serializeAsync,
-  configure, createRule, Field, Recipe, arrayOf, isBakerIssueSet, BakerError,
+  createRule, Field, arrayOf, isBakerIssueSet, BakerError, RequiredType, ExcludeMode,
 } from '@zipbul/baker';
-import type { Transformer, TransformParams, BakerIssue, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions } from '@zipbul/baker';
+import type { Transformer, TransformParams, BakerIssue, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions, BakerConfig } from '@zipbul/baker';
 import { isString, isEmail, isULID, isCUID2 /* …114 rules */ } from '@zipbul/baker/rules';
 import { trimTransformer, jsonTransformer /* …and more */ } from '@zipbul/baker/transformers';
 ```

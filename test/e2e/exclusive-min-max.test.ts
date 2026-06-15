@@ -1,21 +1,21 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class ExclusiveDto {
   @Field(isNumber(), min(0, { exclusive: true }), max(100, { exclusive: true }))
   score!: number;
 }
 
-@Recipe
+@baker.Recipe
 class InclusiveDto {
   @Field(isNumber(), min(0), max(100))
   value!: number;

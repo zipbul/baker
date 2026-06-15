@@ -1,27 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import {
-  Field,
-  Recipe,
-  deserializeSync,
-  deserializeAsync,
-  validateSync,
-  validateAsync,
-  serializeSync,
-  serializeAsync,
-  BakerError,
-  seal,
-  isBakerIssueSet,
-} from '../../index';
+import { Baker, Field, deserializeSync, deserializeAsync, validateSync, validateAsync, serializeSync, serializeAsync, BakerError, isBakerIssueSet } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class SyncDto {
   @Field(isString) name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class AsyncDeserDto {
   @Field(isString, {
     transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value },
@@ -29,7 +18,7 @@ class AsyncDeserDto {
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class AsyncSerDto {
   @Field(isNumber(), {
     transform: { deserialize: ({ value }) => value, serialize: async ({ value }) => value },
@@ -37,8 +26,7 @@ class AsyncSerDto {
   price!: number;
 }
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+beforeEach(() => baker.seal());
 
 describe('deserializeSync / deserializeAsync', () => {
   it('deserializeSync on sync DTO returns value directly', () => {

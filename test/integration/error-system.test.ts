@@ -1,17 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
 import type { Transformer } from '../../src/types';
 
-import { deserialize, validate, configure, seal, Field, Recipe, BakerError, isBakerIssueSet } from '../../index';
+import { deserialize, validate, Baker, Field, BakerError, isBakerIssueSet } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
-import { purgePoisonClasses, unseal } from './helpers/unseal';
-
-beforeEach(() => unseal());
-afterEach(() => {
-  purgePoisonClasses();
-  unseal();
-});
 
 /** Capture the thrown value so its `.cause`/type can be asserted (toThrow cannot inspect the instance). */
 function thrown(fn: () => void): unknown {
@@ -25,31 +18,28 @@ function thrown(fn: () => void): unknown {
 
 describe('throw channel — runtime API misuse throws BakerError', () => {
   it('deserialize() on an unsealed class throws BakerError', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Unsealed {
       @Field(isString) v!: string;
     }
+    void b;
     expect(() => deserialize(Unsealed, { v: 'x' })).toThrow(BakerError);
     expect(() => deserialize(Unsealed, { v: 'x' })).toThrow(/not sealed/);
   });
 
-  it('configure() after seal() throws BakerError', () => {
-    seal();
-    expect(() => configure({})).toThrow(BakerError);
-    expect(() => configure({})).toThrow(/after seal/);
-  });
-
-  it('configure() with an unknown key throws BakerError', () => {
-    expect(() => (configure as (c: unknown) => void)({ nope: true })).toThrow(BakerError);
-    expect(() => (configure as (c: unknown) => void)({ nope: true })).toThrow(/unknown key/);
+  it('new Baker() with an unknown config key throws BakerError', () => {
+    expect(() => new Baker({ nope: true } as never)).toThrow(BakerError);
+    expect(() => new Baker({ nope: true } as never)).toThrow(/unknown key/);
   });
 
   it('an unknown per-call option throws BakerError', () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Called {
       @Field(isString) v!: string;
     }
-    seal();
+    b.seal();
     expect(() => deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(BakerError);
     expect(() => deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(/Unknown per-call option/);
   });
@@ -61,11 +51,12 @@ describe('throw channel — sync transform returning a Promise throws BakerError
       deserialize: ({ value }) => Promise.resolve(value),
       serialize: ({ value }) => value,
     };
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Transformed {
       @Field({ transform: promiseTransform }) v!: string;
     }
-    seal();
+    b.seal();
     expect(() => deserialize(Transformed, { v: 'x' })).toThrow(BakerError);
     expect(() => deserialize(Transformed, { v: 'x' })).toThrow(/transform returned Promise/);
   });
@@ -74,7 +65,8 @@ describe('throw channel — sync transform returning a Promise throws BakerError
 describe('throw channel — seal preserves the original error as cause', () => {
   it('a throwing @Field type function surfaces as BakerError with cause', () => {
     const boom = new Error('type-fn boom');
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class BadType {
       @Field({
         type: () => {
@@ -85,14 +77,15 @@ describe('throw channel — seal preserves the original error as cause', () => {
       @Field(isString) v!: string;
     }
     void BadType;
-    const caught = thrown(() => seal());
+    const caught = thrown(() => b.seal());
     expect(caught).toBeInstanceOf(BakerError);
     expect((caught as { cause?: unknown }).cause).toBe(boom);
   });
 
   it('a throwing collectionValue function surfaces as BakerError with cause', () => {
     const boom = new Error('collectionValue boom');
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class BadCollection {
       @Field({
         type: () => Set,
@@ -104,7 +97,7 @@ describe('throw channel — seal preserves the original error as cause', () => {
       @Field(isString) v!: string;
     }
     void BadCollection;
-    const caught = thrown(() => seal());
+    const caught = thrown(() => b.seal());
     expect(caught).toBeInstanceOf(BakerError);
     expect((caught as { cause?: unknown }).cause).toBe(boom);
   });
@@ -112,11 +105,12 @@ describe('throw channel — seal preserves the original error as cause', () => {
 
 describe('result channel — external input failures return a BakerIssueSet', () => {
   it('deserialize() returns a BakerIssueSet on invalid input', async () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Target {
       @Field(isString) v!: string;
     }
-    seal();
+    b.seal();
     const result = await deserialize(Target, { v: 123 });
     expect(isBakerIssueSet(result)).toBe(true);
     assertBakerIssueSet(result);
@@ -125,11 +119,12 @@ describe('result channel — external input failures return a BakerIssueSet', ()
   });
 
   it('validate() returns a BakerIssueSet on invalid input', async () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class Target {
       @Field(isString) v!: string;
     }
-    seal();
+    b.seal();
     const result = await validate(Target, { v: 123 });
     expect(isBakerIssueSet(result)).toBe(true);
   });

@@ -1,20 +1,16 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
-import { unseal } from './helpers/unseal';
 
-beforeEach(() => {
-  unseal();
-  seal();
-});
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class SimpleDto {
   @Field(isString)
   name!: string;
@@ -23,7 +19,7 @@ class SimpleDto {
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class OptionalFieldDto {
   @Field(isString)
   required!: string;
@@ -32,19 +28,19 @@ class OptionalFieldDto {
   optional?: string;
 }
 
-@Recipe
+@baker.Recipe
 class BooleanDto {
   @Field(isBoolean)
   active!: boolean;
 }
 
-@Recipe
+@baker.Recipe
 class IsinDto {
   @Field(isISIN)
   isin!: string;
 }
 
-@Recipe
+@baker.Recipe
 class IssnDto {
   @Field(isISSN())
   issn!: string;
@@ -52,19 +48,19 @@ class IssnDto {
 
 // ── H1: Internal variable name collision DTOs ────────────────────────────
 
-@Recipe
+@baker.Recipe
 class CollisionOutDto {
   @Field(isString)
   out!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CollisionErrorsDto {
   @Field(isString)
   errors!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CollisionGroupsDto {
   @Field(isString)
   groups!: string;
@@ -72,20 +68,20 @@ class CollisionGroupsDto {
 
 // ── C2: @IsDefined DTOs ───────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class IsDefinedStringDto {
   @Field(isString)
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class IsDefinedNumberDto {
   @Field(isNumber())
   value!: number;
 }
 
 /** `@Field` alone — no other validation */
-@Recipe
+@baker.Recipe
 class IsDefinedOnlyDto {
   @Field()
   value!: unknown;
@@ -93,31 +89,31 @@ class IsDefinedOnlyDto {
 
 // ── C4: NaN/Infinity gate DTOs ───────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class IsNumberOnlyDto {
   @Field(isNumber())
   value!: number;
 }
 
-@Recipe
+@baker.Recipe
 class IsNumberAllowNaNDto {
   @Field(isNumber({ allowNaN: true }))
   value!: number;
 }
 
-@Recipe
+@baker.Recipe
 class IsNumberAllowInfinityDto {
   @Field(isNumber({ allowInfinity: true }))
   value!: number;
 }
 
-@Recipe
+@baker.Recipe
 class MinOnlyDto {
   @Field(min(0))
   value!: number;
 }
 
-@Recipe
+@baker.Recipe
 class IsNumberAndMinDto {
   @Field(isNumber(), min(0))
   value!: number;
@@ -250,7 +246,7 @@ describe('deserialize — integration', () => {
 // M4: validation groups runtime filtering
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class AdminOnlyDto {
   @Field(isString, { groups: ['admin'] })
   secret!: string;
@@ -264,11 +260,6 @@ class AdminOnlyDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('deserialize — public sync/async path', () => {
-  afterEach(() => {
-    unseal();
-    seal();
-  });
-
   it('deserialize is a regular function', () => {
     expect(deserialize.constructor.name).toBe('Function');
   });
@@ -288,24 +279,19 @@ describe('deserialize — public sync/async path', () => {
 // @Field message/context — integration test
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class MessageIntegrationDto {
   @Field(isString, { message: 'Invalid name field' })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ContextIntegrationDto {
   @Field(isNumber(), { context: { errorCode: 'E001' } })
   value!: number;
 }
 
 describe('deserialize — @Field message integration', () => {
-  afterEach(() => {
-    unseal();
-    seal();
-  });
-
   it('should include field-level message in BakerIssue.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
     assertBakerIssueSet(result);
@@ -320,11 +306,6 @@ describe('deserialize — @Field message integration', () => {
 });
 
 describe('deserialize — @Field context integration', () => {
-  afterEach(() => {
-    unseal();
-    seal();
-  });
-
   it('should include value in BakerIssue.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
     assertBakerIssueSet(result);
@@ -334,11 +315,6 @@ describe('deserialize — @Field context integration', () => {
 });
 
 describe('M4 — validation groups runtime filtering', () => {
-  afterEach(() => {
-    unseal();
-    seal();
-  });
-
   it('no groups provided → group-gated fields excluded (visibility control)', async () => {
     const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 })) as AdminOnlyDto;
     expect((result as AdminOnlyDto & { secret?: unknown })['secret']).toBeUndefined();

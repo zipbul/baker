@@ -1,27 +1,27 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class BaseDto {
   @Field(isString)
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ChildDto extends BaseDto {
   @Field(isNumber(), min(0))
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class GrandChildDto extends ChildDto {
   @Field(isBoolean)
   active!: boolean;

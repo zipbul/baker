@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerIssueSet, ExcludeMode, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, serialize, isBakerIssueSet, ExcludeMode, Field } from '../../index';
 import {
   isString,
   isNumber,
@@ -13,10 +13,10 @@ import {
   maxLength,
   arrayMinSize,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role {
@@ -25,7 +25,7 @@ enum Role {
   Guest = 'guest',
 }
 
-@Recipe
+@baker.Recipe
 class AddressDto {
   @Field(isString, minLength(1))
   city!: string;
@@ -37,7 +37,7 @@ class AddressDto {
   zipCode?: string;
 }
 
-@Recipe
+@baker.Recipe
 class CreateUserDto {
   @Field(isString, minLength(2), maxLength(50), { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;

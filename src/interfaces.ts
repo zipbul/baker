@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// SealOptions — seal() global options (§1.4)
+// SealOptions — seal-time options resolved from a Baker's config (§1.4)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SealOptions {

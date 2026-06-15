@@ -1,31 +1,33 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { validate, deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, validate, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber, isEmail, min, max, minLength } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DTO-level validation
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class SimpleDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0), max(150)) age!: number;
   @Field(isString, isEmail()) email!: string;
 }
 
-@Recipe
+@baker.Recipe
 class NestedAddressDto {
   @Field(isString, minLength(1)) city!: string;
 }
 
-@Recipe
+@baker.Recipe
 class NestedUserDto {
   @Field(isString) name!: string;
   @Field({ type: () => NestedAddressDto }) address!: NestedAddressDto;
@@ -134,7 +136,7 @@ describe('validate DTO — consistency with deserialize', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('validate DTO — groups', () => {
-  @Recipe
+  @baker.Recipe
   class GroupDto {
     @Field(isString) name!: string;
     @Field(isString, { groups: ['admin'] }) secret!: string;
@@ -155,7 +157,7 @@ describe('validate DTO — groups', () => {
 });
 
 describe('validate DTO — optional/nullable', () => {
-  @Recipe
+  @baker.Recipe
   class OptionalDto {
     @Field(isString, { optional: true }) nickname?: string;
     @Field(isString) name!: string;
@@ -172,7 +174,7 @@ describe('validate DTO — optional/nullable', () => {
 });
 
 describe('validate DTO — async', () => {
-  @Recipe
+  @baker.Recipe
   class AsyncDto {
     @Field(isString, {
       transform: { deserialize: async ({ value }) => (value as string).trim(), serialize: ({ value }) => value },

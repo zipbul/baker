@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import {
   isString,
   isEmail,
@@ -14,59 +14,59 @@ import {
   contains,
   length,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class EmailDto {
   @Field(isEmail()) email!: string;
 }
-@Recipe
+@baker.Recipe
 class UUIDDto {
   @Field(isUUID()) id!: string;
 }
-@Recipe
+@baker.Recipe
 class IPv4Dto {
   @Field(isIP(4)) ip!: string;
 }
-@Recipe
+@baker.Recipe
 class IPv6Dto {
   @Field(isIP(6)) ip!: string;
 }
-@Recipe
+@baker.Recipe
 class URLDto {
   @Field(isURL()) url!: string;
 }
-@Recipe
+@baker.Recipe
 class ISO8601Dto {
   @Field(isISO8601()) ts!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ISO8601StrictDto {
   @Field(isISO8601({ strict: true })) ts!: string;
 }
 
-@Recipe
+@baker.Recipe
 class MinLenDto {
   @Field(isString, minLength(3)) name!: string;
 }
-@Recipe
+@baker.Recipe
 class MaxLenDto {
   @Field(isString, maxLength(5)) code!: string;
 }
-@Recipe
+@baker.Recipe
 class LengthDto {
   @Field(isString, length(2, 10)) tag!: string;
 }
-@Recipe
+@baker.Recipe
 class MatchesDto {
   @Field(isString, matches(/^[a-z]+$/)) slug!: string;
 }
-@Recipe
+@baker.Recipe
 class ContainsDto {
   @Field(isString, contains('hello')) greeting!: string;
 }
@@ -193,12 +193,12 @@ describe('length', () => {
   // Multi-length-rule field exercises insideTypeGate=true codegen path where
   // stripSelfComparison keeps 2+ non-self-comparison checks on length(min,max).
   it('length(2,10) + minLength(1) on same field — codegen shares length var', async () => {
-    @Recipe
+    const b = new Baker();
+    @b.Recipe
     class MultiLenDto {
       @Field(isString, length(2, 10), minLength(1)) v!: string;
     }
-    unseal();
-    seal();
+    b.seal();
     const ok = (await deserialize<MultiLenDto>(MultiLenDto, { v: 'hello' })) as MultiLenDto;
     expect(ok.v).toBe('hello');
     expect(isBakerIssueSet(await deserialize(MultiLenDto, { v: 'x' }))).toBe(true);

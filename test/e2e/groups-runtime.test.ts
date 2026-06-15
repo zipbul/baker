@@ -1,19 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { ExcludeMode, Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, ExcludeMode, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => {
-  unseal();
-  seal();
-});
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class GroupDto {
   @Field(isString)
   name!: string;
@@ -101,7 +97,7 @@ describe('groups — serialize', () => {
 // ─── E-22: groups + directional exclude combo ───────────────────────────────
 
 describe('E-22: groups + directional exclude combo', () => {
-  @Recipe
+  @baker.Recipe
   class AdminExcludeDto {
     @Field(isString)
     name!: string;

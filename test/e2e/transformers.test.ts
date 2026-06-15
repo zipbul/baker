@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isDate } from '../../src/rules/index';
 import {
   trimTransformer,
@@ -13,15 +13,15 @@ import {
   csvTransformer,
   jsonTransformer,
 } from '../../src/transformers/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 // ─── 1. trimTransformer ─────────────────────────────────────────────────────
 
 describe('trimTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class TrimDto {
     @Field(isString, { transform: trimTransformer })
     value!: string;
@@ -48,7 +48,7 @@ describe('trimTransformer', () => {
 // ─── 2. toLowerCaseTransformer ──────────────────────────────────────────────
 
 describe('toLowerCaseTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class LowerDto {
     @Field(isString, { transform: toLowerCaseTransformer })
     value!: string;
@@ -69,7 +69,7 @@ describe('toLowerCaseTransformer', () => {
 // ─── 3. toUpperCaseTransformer ──────────────────────────────────────────────
 
 describe('toUpperCaseTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class UpperDto {
     @Field(isString, { transform: toUpperCaseTransformer })
     value!: string;
@@ -90,7 +90,7 @@ describe('toUpperCaseTransformer', () => {
 // ─── 4. roundTransformer ────────────────────────────────────────────────────
 
 describe('roundTransformer(2)', () => {
-  @Recipe
+  @baker.Recipe
   class RoundDto {
     @Field(isNumber(), { transform: roundTransformer(2) })
     value!: number;
@@ -111,7 +111,7 @@ describe('roundTransformer(2)', () => {
 // ─── 5. unixSecondsTransformer ──────────────────────────────────────────────
 
 describe('unixSecondsTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class UnixSecDto {
     @Field(isDate, { transform: unixSecondsTransformer })
     value!: Date;
@@ -136,7 +136,7 @@ describe('unixSecondsTransformer', () => {
 // ─── 6. unixMillisTransformer ───────────────────────────────────────────────
 
 describe('unixMillisTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class UnixMillisDto {
     @Field(isDate, { transform: unixMillisTransformer })
     value!: Date;
@@ -161,7 +161,7 @@ describe('unixMillisTransformer', () => {
 // ─── 7. isoStringTransformer ────────────────────────────────────────────────
 
 describe('isoStringTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class IsoDto {
     @Field(isDate, { transform: isoStringTransformer })
     value!: Date;
@@ -185,7 +185,7 @@ describe('isoStringTransformer', () => {
 // ─── 8. csvTransformer ──────────────────────────────────────────────────────
 
 describe('csvTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class CsvDto {
     @Field({ transform: csvTransformer(',') })
     value!: string[];
@@ -206,7 +206,7 @@ describe('csvTransformer', () => {
 // ─── 9. jsonTransformer ─────────────────────────────────────────────────────
 
 describe('jsonTransformer', () => {
-  @Recipe
+  @baker.Recipe
   class JsonDto {
     @Field({ transform: jsonTransformer })
     value!: Record<string, unknown>;
@@ -237,7 +237,7 @@ describe('jsonTransformer', () => {
 // ─── transform array ────────────────────────────────────────────────────────
 
 describe('transform array (pipeline)', () => {
-  @Recipe
+  @baker.Recipe
   class PipeDto {
     @Field({ transform: [trimTransformer, toLowerCaseTransformer] })
     value!: string;
@@ -258,13 +258,13 @@ describe('transform array (pipeline)', () => {
 // ─── type + transform combo ─────────────────────────────────────────────────
 
 describe('type + transform combo (jsonTransformer + nested DTO)', () => {
-  @Recipe
+  @baker.Recipe
   class NestedDto {
     @Field(isString)
     name!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class WrapperDto {
     @Field({ transform: jsonTransformer, type: () => NestedDto })
     nested!: NestedDto;

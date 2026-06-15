@@ -1,15 +1,17 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { serialize, deserialize, Field, Recipe, seal } from '../../index';
+import { Baker, serialize, deserialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
-import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
+import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class NameMappedDto {
   @Field(isString, { name: 'full_name' })
   name!: string;
@@ -18,7 +20,7 @@ class NameMappedDto {
   age!: number;
 }
 
-@Recipe
+@baker.Recipe
 class ExcludeSerDto {
   @Field(isString)
   visible!: string;
@@ -27,7 +29,7 @@ class ExcludeSerDto {
   hidden!: string;
 }
 
-@Recipe
+@baker.Recipe
 class SerOnlyTransformDto {
   @Field(isNumber(), {
     transform: { deserialize: ({ value }) => value, serialize: ({ value }) => (value as number) * 100 },
@@ -35,7 +37,7 @@ class SerOnlyTransformDto {
   price!: number;
 }
 
-@Recipe
+@baker.Recipe
 class DeserOnlyTransformDto {
   @Field(isString, {
     transform: { deserialize: ({ value }) => (value as string).trim(), serialize: ({ value }) => value },
@@ -43,13 +45,13 @@ class DeserOnlyTransformDto {
   tag!: string;
 }
 
-@Recipe
+@baker.Recipe
 class DirectionExposeDto {
   @Field(isString, { deserializeName: 'user_name', serializeName: 'userName' })
   name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class PipelineDto {
   @Field(isString, {
     serializeName: 'display_name',
@@ -130,13 +132,13 @@ describe('serialize pipeline — @Expose + @Transform combination', () => {
 
 // ─── E-19: nested array null element serialize ──────────────────────────────
 
-@Recipe
+@baker.Recipe
 class ChildDto {
   @Field(isString)
   label!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ParentWithArrayDto {
   @Field(isString)
   name!: string;
@@ -178,7 +180,7 @@ describe('E-19: nested array with null elements — serialize', () => {
 // `{ constructor: Dto }` plain object is not, and must be rejected).
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class ForgeTarget {
   @Field(isString) name!: string;
 }
@@ -200,20 +202,16 @@ describe('serialize — forged instance rejection', () => {
 // must become an own property, never mutate the output object's prototype.
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class ProtoMapDto {
   @Field({ type: () => Map }) m!: Map<string, unknown>;
 }
 
 describe('serialize — prototype pollution safety', () => {
-  afterEach(() => {
-    purgePoisonClasses();
-    unseal();
-  });
+  afterEach(() => unseal());
 
   it('rejects a reserved __proto__ expose name at seal', () => {
     expect(() => {
-      @Recipe
       class ProtoExposeDto {
         @Field({ name: '__proto__' }) obj!: unknown;
       }
@@ -223,7 +221,6 @@ describe('serialize — prototype pollution safety', () => {
 
   it('rejects a reserved constructor expose name at seal', () => {
     expect(() => {
-      @Recipe
       class CtorExposeDto {
         @Field({ name: 'constructor' }) v!: unknown;
       }
@@ -233,7 +230,6 @@ describe('serialize — prototype pollution safety', () => {
 
   it('rejects a reserved prototype expose name at seal', () => {
     expect(() => {
-      @Recipe
       class ProtoNameDto {
         @Field({ name: 'prototype' }) v!: unknown;
       }
@@ -242,7 +238,7 @@ describe('serialize — prototype pollution safety', () => {
   });
 
   it('does not pollute a serialized Map object via a __proto__ key', () => {
-    seal();
+    baker.seal();
     const inst = Object.create(ProtoMapDto.prototype) as ProtoMapDto;
     inst.m = new Map<string, unknown>([['__proto__', { polluted: true }]]);
     const out = serialize(inst) as { m: Record<string, unknown> };

@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import {
   isString,
   isNumber,
@@ -58,10 +58,10 @@ import {
   isPort,
   isFQDN,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 /** Helper: extracts the error code for a specific path from BakerIssueSet */
 async function getErrorCode(cls: new (...args: never[]) => unknown, input: unknown, path?: string): Promise<string> {
@@ -79,31 +79,31 @@ async function getErrorCode(cls: new (...args: never[]) => unknown, input: unkno
 // ─── type checker error codes ────────────────────────────────────────────────
 
 describe('type checker error codes', () => {
-  @Recipe
+  @baker.Recipe
   class StringDto {
     @Field(isString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class NumberDto {
     @Field(isNumber()) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class BooleanDto {
     @Field(isBoolean) v!: boolean;
   }
-  @Recipe
+  @baker.Recipe
   class DateDto {
     @Field(isDate) v!: Date;
   }
-  @Recipe
+  @baker.Recipe
   class IntDto {
     @Field(isInt) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class ArrayDto {
     @Field(isArray) v!: unknown[];
   }
-  @Recipe
+  @baker.Recipe
   class ObjectDto {
     @Field(isObject) v!: object;
   }
@@ -111,7 +111,7 @@ describe('type checker error codes', () => {
     Red = 'red',
     Blue = 'blue',
   }
-  @Recipe
+  @baker.Recipe
   class EnumDto {
     @Field(isEnum(Color)) v!: Color;
   }
@@ -145,31 +145,31 @@ describe('type checker error codes', () => {
 // ─── common decorator error codes ──────────────────────────────────────────
 
 describe('common decorator error codes', () => {
-  @Recipe
+  @baker.Recipe
   class DefinedDto {
     @Field() v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class EqualsDto {
     @Field(equals('yes')) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class NotEqualsDto {
     @Field(notEquals('no')) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class IsInDto {
     @Field(isIn(['a', 'b'])) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class IsNotInDto {
     @Field(isNotIn(['x'])) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class EmptyDto {
     @Field(isEmpty) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class NotEmptyDto {
     @Field(isNotEmpty) v!: string;
   }
@@ -200,23 +200,23 @@ describe('common decorator error codes', () => {
 // ─── number decorator error codes ──────────────────────────────────────────
 
 describe('number decorator error codes', () => {
-  @Recipe
+  @baker.Recipe
   class MinDto {
     @Field(min(5)) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class MaxDto {
     @Field(max(10)) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class PositiveDto {
     @Field(isPositive) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class NegativeDto {
     @Field(isNegative) v!: number;
   }
-  @Recipe
+  @baker.Recipe
   class DivisibleDto {
     @Field(isDivisibleBy(3)) v!: number;
   }
@@ -241,107 +241,107 @@ describe('number decorator error codes', () => {
 // ─── string decorator error codes ────────────────────────────────────────
 
 describe('string decorator error codes', () => {
-  @Recipe
+  @baker.Recipe
   class MinLenDto {
     @Field(minLength(3)) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class MaxLenDto {
     @Field(maxLength(5)) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class LenDto {
     @Field(length(2, 4)) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class ContainsDto {
     @Field(contains('foo')) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class NotContainsDto {
     @Field(notContains('bar')) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class MatchesDto {
     @Field(matches(/^\d+$/)) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class LowercaseDto {
     @Field(isLowercase) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class UppercaseDto {
     @Field(isUppercase) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class AsciiDto {
     @Field(isAscii) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class AlphaDto {
     @Field(isAlpha) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class AlphanumDto {
     @Field(isAlphanumeric) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class NumStrDto {
     @Field(isNumberString()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class DecimalDto {
     @Field(isDecimal()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class BoolStrDto {
     @Field(isBooleanString) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class JsonDto {
     @Field(isJSON) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class EmailDto {
     @Field(isEmail()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class UrlDto {
     @Field(isURL()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class UuidDto {
     @Field(isUUID()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class IpDto {
     @Field(isIP()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class Iso8601Dto {
     @Field(isISO8601()) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class HexColorDto {
     @Field(isHexColor) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class SemVerDto {
     @Field(isSemVer) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class MongoIdDto {
     @Field(isMongoId) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class CreditCardDto {
     @Field(isCreditCard) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class PortDto {
     @Field(isPort) v!: string;
   }
-  @Recipe
+  @baker.Recipe
   class FqdnDto {
     @Field(isFQDN()) v!: string;
   }
@@ -432,11 +432,11 @@ describe('date decorator error codes', () => {
   const now = new Date();
   const past = new Date('2000-01-01');
   const future = new Date('2100-01-01');
-  @Recipe
+  @baker.Recipe
   class MinDateDto {
     @Field(minDate(future)) v!: Date;
   }
-  @Recipe
+  @baker.Recipe
   class MaxDateDto {
     @Field(maxDate(past)) v!: Date;
   }
@@ -452,27 +452,27 @@ describe('date decorator error codes', () => {
 // ─── array decorator error codes ──────────────────────────────────────────
 
 describe('array decorator error codes', () => {
-  @Recipe
+  @baker.Recipe
   class ArrMinDto {
     @Field(arrayMinSize(3)) v!: number[];
   }
-  @Recipe
+  @baker.Recipe
   class ArrMaxDto {
     @Field(arrayMaxSize(2)) v!: number[];
   }
-  @Recipe
+  @baker.Recipe
   class ArrUniqueDto {
     @Field(arrayUnique()) v!: number[];
   }
-  @Recipe
+  @baker.Recipe
   class ArrNotEmptyDto {
     @Field(arrayNotEmpty) v!: number[];
   }
-  @Recipe
+  @baker.Recipe
   class ArrContainsDto {
     @Field(arrayContains([1, 2])) v!: number[];
   }
-  @Recipe
+  @baker.Recipe
   class ArrNotContainsDto {
     @Field(arrayNotContains([99])) v!: number[];
   }
@@ -500,11 +500,11 @@ describe('array decorator error codes', () => {
 // ─── object decorator error codes ──────────────────────────────────────────
 
 describe('object decorator error codes', () => {
-  @Recipe
+  @baker.Recipe
   class NotEmptyObjDto {
     @Field(isNotEmptyObject()) v!: object;
   }
-  @Recipe
+  @baker.Recipe
   class InstanceDto {
     @Field(isInstance(Date)) v!: Date;
   }
@@ -520,7 +520,7 @@ describe('object decorator error codes', () => {
 // ─── reserved error codes ─────────────────────────────────────────────────
 
 describe('reserved error codes', () => {
-  @Recipe
+  @baker.Recipe
   class SimpleDto {
     @Field(isString) v!: string;
   }

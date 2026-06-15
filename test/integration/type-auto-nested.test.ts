@@ -1,24 +1,26 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { deserialize, serialize, Field, Recipe, isBakerIssueSet, seal } from '../../index';
+import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─── @Type(() => Dto) alone — auto nested ───────────────────────────────────
 
 describe('@Type auto-nested', () => {
   it('should deserialize nested DTO with @Type alone', async () => {
-    @Recipe
+    @baker.Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
     sealClass(InnerDto);
-    @Recipe
+    @baker.Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
@@ -33,12 +35,12 @@ describe('@Type auto-nested', () => {
   });
 
   it('should serialize nested DTO with @Type alone', async () => {
-    @Recipe
+    @baker.Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
     sealClass(InnerDto);
-    @Recipe
+    @baker.Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
@@ -52,12 +54,12 @@ describe('@Type auto-nested', () => {
   });
 
   it('should return BakerIssueSet for invalid nested field with @Type alone', async () => {
-    @Recipe
+    @baker.Recipe
     class InnerDto {
       @Field(isNumber()) num!: number;
     }
     sealClass(InnerDto);
-    @Recipe
+    @baker.Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
@@ -74,12 +76,12 @@ describe('@Type auto-nested', () => {
 
 describe('@Type(() => [Dto]) — array auto nested', () => {
   it('should deserialize array of nested DTOs', async () => {
-    @Recipe
+    @baker.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
     sealClass(ItemDto);
-    @Recipe
+    @baker.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
@@ -95,12 +97,12 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should serialize array of nested DTOs', async () => {
-    @Recipe
+    @baker.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
     sealClass(ItemDto);
-    @Recipe
+    @baker.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
@@ -117,12 +119,12 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should return BakerIssueSet with isArray error when non-array passed to @Type(() => [Dto])', async () => {
-    @Recipe
+    @baker.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
     sealClass(ItemDto);
-    @Recipe
+    @baker.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
@@ -134,12 +136,12 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should validate each element in the array', async () => {
-    @Recipe
+    @baker.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
     sealClass(ItemDto);
-    @Recipe
+    @baker.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
@@ -153,12 +155,12 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
   });
 
   it('should handle empty array', async () => {
-    @Recipe
+    @baker.Recipe
     class ItemDto {
       @Field(isString) name!: string;
     }
     sealClass(ItemDto);
-    @Recipe
+    @baker.Recipe
     class OrderDto {
       @Field({ type: () => [ItemDto] })
       items!: ItemDto[];
@@ -173,7 +175,7 @@ describe('@Type(() => [Dto]) — array auto nested', () => {
 
 describe('primitive @Type — no auto nested', () => {
   it('@Type(() => Number) should not trigger nested validation', async () => {
-    @Recipe
+    @baker.Recipe
     class PrimDto {
       @Field(isNumber(), { type: () => Number })
       value!: number;
@@ -184,7 +186,7 @@ describe('primitive @Type — no auto nested', () => {
   });
 
   it('@Type(() => String) should not trigger nested validation', async () => {
-    @Recipe
+    @baker.Recipe
     class PrimDto {
       @Field(isString, { type: () => String })
       value!: string;
@@ -198,23 +200,21 @@ describe('primitive @Type — no auto nested', () => {
 // ─── unseal + re-seal ───────────────────────────────────────────────────────
 
 describe('unseal + re-seal with @Type auto-nested', () => {
-  it('should work correctly after unseal and re-deserialize', async () => {
-    @Recipe
+  it('seals @Type auto-nested and re-deserializes correctly', async () => {
+    const b = new Baker();
+    @b.Recipe
     class InnerDto {
       @Field(isString) value!: string;
     }
-    sealClass(InnerDto);
-    @Recipe
+    @b.Recipe
     class OuterDto {
       @Field({ type: () => InnerDto })
       inner!: InnerDto;
     }
-    sealClass(OuterDto);
+    b.seal();
     const result1 = (await deserialize<OuterDto>(OuterDto, { inner: { value: 'first' } })) as OuterDto;
     expect(result1.inner.value).toBe('first');
 
-    unseal();
-    seal();
     const result2 = (await deserialize<OuterDto>(OuterDto, { inner: { value: 'second' } })) as OuterDto;
     expect(result2.inner.value).toBe('second');
   });

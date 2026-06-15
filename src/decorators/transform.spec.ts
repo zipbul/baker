@@ -6,7 +6,6 @@ import { assertDefined } from '../../test/integration/helpers/assert';
 import { applyField } from '../../test/integration/helpers/modern-decorator';
 import { ExcludeMode } from '../enums';
 import { deleteRaw, requireRaw } from '../meta-access';
-import { globalRegistry } from '../registry';
 import { Field } from './field';
 
 const createdCtors: Function[] = [];
@@ -43,7 +42,6 @@ function fieldTransform(ctor: Function, key: string, idx: number): TransformDef 
 
 afterEach(() => {
   for (const ctor of createdCtors) {
-    globalRegistry.delete(ctor);
     deleteRaw(ctor);
   }
   createdCtors.length = 0;

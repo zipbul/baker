@@ -1,8 +1,13 @@
-// Test-only: seal a single class in isolation. Production code uses argless `seal()` only;
-// `seal(Class)` is not part of the public API. Tests use this to seal one DTO without sealing
-// the whole registry — needed for targeted error-path assertions and per-test isolation.
-import { __testing__ } from '../../../src/seal/seal';
+// Test-only: seal a single class in isolation via a fresh Baker, tracking it so `unseal()` can
+// restore it. Lets a test seal one DTO (often defined in the test) without a shared registry.
+import { Baker } from '../../../index';
+
+/** Classes sealed via `sealClass`, so `unseal()` can roll them back between tests. */
+export const trackedSealed = new Set<Function>();
 
 export function sealClass(cls: Function): void {
-  __testing__.sealClass(cls);
+  const baker = new Baker();
+  (baker.Recipe as (value: Function) => void)(cls);
+  baker.seal();
+  trackedSealed.add(cls);
 }

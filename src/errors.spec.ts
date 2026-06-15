@@ -97,7 +97,7 @@ describe('BakerError (throw channel)', () => {
   });
 
   it('should expose the passed message when accessing .message', () => {
-    const msg = 'already sealed: seal() must be called exactly once';
+    const msg = 'UserDto is not sealed';
     const err = new BakerError(msg);
     expect(err.message).toBe(msg);
   });

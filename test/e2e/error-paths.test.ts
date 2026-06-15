@@ -1,12 +1,12 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Field, Recipe, arrayOf, deserialize, seal } from '../../index';
+import { Baker, Field, arrayOf, deserialize } from '../../index';
 import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 
 /** Helper: extracts errors array from BakerIssueSet */
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {
@@ -18,7 +18,7 @@ async function getErrors(cls: new (...args: never[]) => unknown, input: unknown)
 // ─── basic field paths ─────────────────────────────────────────────────────
 
 describe('single field error paths', () => {
-  @Recipe
+  @baker.Recipe
   class Dto {
     @Field(isString) name!: string;
     @Field(isNumber()) age!: number;
@@ -41,13 +41,13 @@ describe('single field error paths', () => {
 // ─── nested object error paths ──────────────────────────────────────────────
 
 describe('nested object error paths', () => {
-  @Recipe
+  @baker.Recipe
   class Address {
     @Field(isString) city!: string;
     @Field(isString) street!: string;
   }
 
-  @Recipe
+  @baker.Recipe
   class UserDto {
     @Field(isString) name!: string;
     @Field({ type: () => Address }) address!: Address;
@@ -78,15 +78,15 @@ describe('nested object error paths', () => {
 // ─── deep nesting (3 levels) ────────────────────────────────────────────────
 
 describe('deep nesting error paths (3 levels)', () => {
-  @Recipe
+  @baker.Recipe
   class Zip {
     @Field(isString) code!: string;
   }
-  @Recipe
+  @baker.Recipe
   class City {
     @Field({ type: () => Zip }) zip!: Zip;
   }
-  @Recipe
+  @baker.Recipe
   class Company {
     @Field({ type: () => City }) city!: City;
   }
@@ -102,7 +102,7 @@ describe('deep nesting error paths (3 levels)', () => {
 // ─── array each:true error paths ─────────────────────────────────────────────
 
 describe('array each:true error paths', () => {
-  @Recipe
+  @baker.Recipe
   class TagsDto {
     @Field(arrayOf(isString)) tags!: string[];
   }
@@ -125,13 +125,13 @@ describe('array each:true error paths', () => {
 // ─── nested array error paths ────────────────────────────────────────────────
 
 describe('nested array error paths', () => {
-  @Recipe
+  @baker.Recipe
   class Item {
     @Field(isString) label!: string;
     @Field(isNumber()) price!: number;
   }
 
-  @Recipe
+  @baker.Recipe
   class OrderDto {
     @Field(arrayMinSize(1), { type: () => [Item] })
     items!: Item[];
@@ -169,7 +169,7 @@ describe('nested array error paths', () => {
 // ─── multiple errors per field ──────────────────────────────────────────────
 
 describe('multiple errors per field (collectErrors mode)', () => {
-  @Recipe
+  @baker.Recipe
   class MultiDto {
     @Field(isInt, min(10))
     v!: number;
@@ -188,7 +188,7 @@ describe('multiple errors per field (collectErrors mode)', () => {
 // ─── error paths — BakerIssueSet ──────────────────────────────────────────────
 
 describe('BakerIssueSet from deserialize', () => {
-  @Recipe
+  @baker.Recipe
   class UserProfile {
     @Field(isString) name!: string;
   }

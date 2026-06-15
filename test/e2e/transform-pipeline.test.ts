@@ -1,12 +1,14 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, serialize, isBakerIssueSet, Field } from '../../index';
 import { isString, minLength, maxLength, matches } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 const passthrough = ({ value }: { value: unknown }): unknown => value;
@@ -31,7 +33,7 @@ const upperIfString = ({ value }: { value: unknown }): unknown => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class TrimLowerDto {
   @Field(isString, {
     transform: {
@@ -50,7 +52,7 @@ class TrimLowerDto {
   email!: string;
 }
 
-@Recipe
+@baker.Recipe
 class DirectionTransformDto {
   @Field(isString, {
     transform: {
@@ -61,7 +63,7 @@ class DirectionTransformDto {
   tag!: string;
 }
 
-@Recipe
+@baker.Recipe
 class TypeAwareDto {
   @Field(isString, {
     transform: {
@@ -115,7 +117,7 @@ describe('@Transform — stacking serialize', () => {
 // ─── @Transform additional edge cases ────────────────────────────────────────
 
 describe('@Transform callback parameters', () => {
-  @Recipe
+  @baker.Recipe
   class CallbackDto {
     @Field(isString, {
       transform: {
@@ -139,7 +141,6 @@ describe('@Transform callback parameters', () => {
 
 describe('E-24: async transform failure error path', () => {
   it('async transform returns invalid value → subsequent validation error has correct path/code', async () => {
-    @Recipe
     class AsyncInvalidDto {
       @Field(isString, {
         transform: {
@@ -158,7 +159,6 @@ describe('E-24: async transform failure error path', () => {
   });
 
   it('async transform throws → error propagated', async () => {
-    @Recipe
     class AsyncThrowDto {
       @Field(isString, {
         transform: {
@@ -181,7 +181,6 @@ describe('@Transform null return behavior', () => {
   // Therefore if Transform returns null, the subsequent type check will fail
 
   it('Transform → null return causes isString failure (guard runs on original input)', async () => {
-    @Recipe
     class NullTransformDto {
       @Field(isString, {
         transform: {
@@ -197,7 +196,6 @@ describe('@Transform null return behavior', () => {
   });
 
   it('Transform returning valid value → validation passes', async () => {
-    @Recipe
     class TransformDto {
       @Field(isString, {
         transform: {
@@ -213,7 +211,6 @@ describe('@Transform null return behavior', () => {
   });
 
   it('original is null + nullable → guard skips null → Transform not executed', async () => {
-    @Recipe
     class NullableDto {
       @Field(isString, {
         nullable: true,
@@ -236,7 +233,7 @@ describe('@Transform null return behavior', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('field with 3+ rules and 3+ transforms (codec stack)', () => {
-  @Recipe
+  @baker.Recipe
   class TripleDto {
     @Field(isString, minLength(2), maxLength(20), matches(/^[a-z]+$/), {
       transform: [

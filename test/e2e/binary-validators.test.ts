@@ -1,35 +1,37 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
 import { isUint8Array, isByteSize } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => seal());
+const baker = new Baker();
+
+beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class TypeDto {
   @Field(isUint8Array)
   bytes!: Uint8Array;
 }
 
-@Recipe
+@baker.Recipe
 class SizeDto {
   @Field(isByteSize(16))
   view!: Uint8Array;
 }
 
-@Recipe
+@baker.Recipe
 class RangeDto {
   @Field(isByteSize(16, 32))
   view!: Uint8Array;
 }
 
 // The @zipbul/cookie kdfSalt shape — type guard + byte floor, optional.
-@Recipe
+@baker.Recipe
 class SaltDto {
   @Field(isUint8Array, isByteSize(16), { optional: true })
   kdfSalt?: Uint8Array;
@@ -87,7 +89,6 @@ describe('isByteSize (e2e)', () => {
   });
 
   it('16-byte DataView passes (any ArrayBufferView counts)', async () => {
-    @Recipe
     class DataViewDto {
       @Field(isByteSize(16))
       view!: ArrayBufferView;

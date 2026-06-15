@@ -6,8 +6,6 @@ import type { RuntimeOptions } from '../interfaces';
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { isBakerIssueSet, BakerError } from '../errors';
 import { setSealed, deleteSealed } from '../meta-access';
-import { globalRegistry } from '../registry';
-import { resetForTesting } from '../seal/seal';
 import { deserialize } from './deserialize';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -43,11 +41,9 @@ function attachSealed(
 
 afterEach(() => {
   for (const ctor of trackedClasses) {
-    globalRegistry.delete(ctor);
     deleteSealed(ctor);
   }
   trackedClasses.length = 0;
-  resetForTesting();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

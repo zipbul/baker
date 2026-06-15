@@ -1,18 +1,18 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../../src/interfaces';
 
-import { Field, Recipe, deserialize, serialize, validate, BakerError, seal } from '../../index';
+import { Baker, Field, deserialize, serialize, validate, BakerError } from '../../index';
 import { isString } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class CallOptDto {
   @Field(isString) name!: string;
 }
 
-beforeEach(() => seal());
-afterEach(() => unseal());
+beforeEach(() => baker.seal());
 
 /** Test-only wrappers: accept options as `unknown` so we can pass invalid options to exercise checkCallOptions. */
 function deserializeBad<T>(cls: new (...args: never[]) => T, input: unknown, opts: unknown): unknown {
