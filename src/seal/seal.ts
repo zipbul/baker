@@ -143,10 +143,8 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
  * A class already sealed (e.g. a shared value-type DTO reached from another Baker's roots) is
  * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
  * behaviour. Distinct classes stay fully isolated because each is sealed with its Baker's options.
- *
- * @param track Optional set recording successfully-sealed classes (e.g. test helpers that roll back).
  */
-function sealRegistry(registry: Set<Function>, options: SealOptions, track?: Set<Function>): void {
+function sealRegistry(registry: Set<Function>, options: SealOptions): void {
   const sealed = new Set<Function>();
   try {
     for (const Class of registry) {
@@ -162,7 +160,6 @@ function sealRegistry(registry: Set<Function>, options: SealOptions, track?: Set
   }
 
   for (const Class of sealed) {
-    track?.add(Class);
     freezeRaw(Class);
   }
   registry.clear();
