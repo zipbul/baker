@@ -1,7 +1,7 @@
 # @zipbul/baker — Refactoring Plan
 
-Goal: a precise, SRP-compliant module and type structure. Behavior-preserving except for
-one explicit correctness fix (multi-instance global state). The 2340-test suite (99%+ line
+Goal: a precise, SRP-compliant module and type structure. Behavior-preserving except for the
+multi-app isolation feature in Phase 1 (shipped via `createBaker()`). The test suite (99%+ line
 coverage) pins behavior; every phase must keep `tsc` clean and all tests green. Hot codegen
 paths run once at `seal()` (never per call), so module splits are runtime-perf-neutral; the
 only carve-outs needing a benchmark check are the generated `new Function` bodies, which must
@@ -28,62 +28,42 @@ Literal/union → enum conversion is complete and committed on `refactor/literal
 
 ---
 
-## Phase 1 — Multi-instance global state fix (CORRECTNESS, not behavior-preserving)
+## Phase 1 — Multi-app isolation + multi-instance seal fix (DONE — commit 3815de7)
 
 ### Problem
-`src/symbols.ts` deliberately uses **global** symbols (`Symbol.for('baker:raw' | 'baker:sealed')`)
-so AOT and runtime code share markers across module instances. But the seal **index and seal
-flag are module-local**, contradicting that intent:
+The argless `seal()` iterated a module-local `globalRegistry`. When a bundler duplicated baker
+(app inlines it; a library ships it `--packages external`), each copy had its own registry, so the
+app's `seal()` never sealed the library copy's `@Recipe` DTOs → `"<Class> is not sealed"`. The same
+module-local design gave no way to isolate multiple apps in one process.
 
-```ts
-// src/registry.ts
-export const globalRegistry = new Set<Function>();      // module-local
-// src/seal/seal-state.ts
-let sealed = false;                                     // module-local
-export const sealedClasses = new Set<Function>();       // module-local
-```
+### Solution — explicit scopes, class-identity isolation
+`createBaker(config?) -> { Recipe, seal }`: an isolated scope owning its own registry + config. Each
+app/library seals its OWN roots, so nothing depends on a shared module-global registry.
 
-When two baker instances load in one runtime (e.g. an app inlines baker while a middleware lib
-ships it `--packages external`), `@Recipe` registers a DTO into instance B's `globalRegistry`,
-but the app's argless `seal()` (instance A) only iterates A's registry. B's DTO is never sealed
-— the `SEALED` marker (global) is never attached to it — so `deserialize/validate/serialize`
-throws `"<Class> is not sealed"` forever. The same split affects the `sealed` flag and
-`sealedClasses`.
+- `@app.Recipe` collects a class into that scope; `app.seal()` seals the scope's roots (and their
+  nested DTOs) with the scope's config. `@Field`, rules, and `deserialize/serialize/validate` stay
+  global — they read the metadata/executor stored on the class via global `Symbol.for`.
+- Isolation boundary = **class identity**. Distinct classes are fully isolated (each sealed with its
+  scope's config). A shared value-type DTO reached from multiple scopes' roots is **reused** (one
+  sealed form, first seal wins) — sharing is legitimate, not a dev mistake, so there is no
+  cross-scope error. `seal()` keeps baker's contract: throw `BakerError` on dev errors, return
+  `BakerIssueSet` on validation.
+- The reported duplication bug dissolves: no shared mutable registry to fragment; the only durable
+  state is on the class via global `Symbol.for`, so duplicate copies converge.
 
-### Fix
-Apply the `symbols.ts` principle (global symbol key + single instance on `globalThis`) to the
-registry and seal state:
+Single-app code is unchanged — global `@Recipe` / `seal()` / `configure()` remain the default path.
 
-```ts
-// src/registry.ts (after core reorg this lives in the chosen home; logic identical)
-const REGISTRY_KEY = Symbol.for('baker:registry');
-const g = globalThis as Record<symbol, unknown>;
-g[REGISTRY_KEY] ??= new Set<Function>();
-export const globalRegistry = g[REGISTRY_KEY] as Set<Function>;
-```
+### Implementation
+- `src/baker.ts` — `createBaker()`.
+- `src/seal/seal.ts` — `sealRegistry(registry, options, track?)` shared by default `seal()` and scopes.
+- `src/configure.ts` — single `normalizeConfig()` validation path (shared by `configure()` + scopes).
+- `index.ts` — exports `createBaker` + `Baker`.
+- `test/e2e/multi-app-isolation.test.ts` — 8 tests (scope seal, distinct-class isolation, config
+  isolation, shared-class reuse, shared-nested reuse, idempotency, invalid config, default-API regression).
 
-```ts
-// src/seal/seal-state.ts — share both the flag and the set
-const STATE_KEY = Symbol.for('baker:seal-state');
-const g = globalThis as Record<symbol, unknown>;
-g[STATE_KEY] ??= { sealed: false, sealedClasses: new Set<Function>() };
-const state = g[STATE_KEY] as { sealed: boolean; sealedClasses: Set<Function> };
-
-export const sealedClasses = state.sealedClasses;
-export function isSealed(): boolean { return state.sealed; }
-export function markSealed(): void { state.sealed = true; }
-export function resetForTesting(): void { state.sealed = false; state.sealedClasses.clear(); }
-```
-
-### Tests (RED-first)
-- A unit test asserting `globalRegistry` and the seal-state object are identity-shared via the
-  `Symbol.for` keys on `globalThis` (simulates a second instance reading the same key).
-- An integration test: register a class, mark sealed, and confirm a freshly-imported view of the
-  state module observes `isSealed() === true` and the same `sealedClasses` membership.
-
-This phase ships as its own commit + changeset (it is a user-visible bug fix). Do it before the
-structural moves so `registry.ts`/`seal-state.ts` are correct before they relocate.
-
+Rejected en route: a `globalThis`-shared registry (merges apps → violates no-mix) and an
+owner-tracking `BakerError` throw on shared classes (bricked the second scope on a shared nested
+DTO, and miscategorised legitimate sharing as a dev error).
 ---
 
 ## Phase 2 — CORE type/responsibility split (root `src/`)
@@ -202,7 +182,7 @@ Do NOT split the already-cohesive `circular-analyzer.ts`, `expose-validator.ts`,
 
 ## Execution order (each step = one commit, `tsc` + 2340 tests green)
 
-1. Phase 1 multi-instance fix (+ changeset).
+1. ~~Phase 1 — multi-app isolation via `createBaker()`~~ (DONE, commit 3815de7; changeset pending).
 2. Core leaf splits: `errors/`, `config/`, relocate `RuntimeOptions`/`SealOptions`, delete root `interfaces.ts`.
 3. Carve domain types: `transformers/types.ts`, `decorators/types.ts`, `rules/types.ts`, `seal/types.ts`; reduce root `types.ts` to `Raw*Meta`; move `rule-plan`/`rule-metadata`/`create-rule` into `rules/`.
 4. `string.ts` split (finance → datetime → encoding → format → identifier → basic), then `rule-plan` factory split.
@@ -221,3 +201,21 @@ Each phase is independently revertible; regressions isolate to one domain.
   except the additive enum exports already shipped and any intentional fix documented here.
 - `verbatimModuleSyntax` respected (enums plain-imported, types `import type`).
 - No new dependency cycles (`deps:check`), no unused exports (`knip`).
+
+---
+
+## Forward-looking note — schema scope (OpenAPI 3.0)
+
+A future "derive an OpenAPI 3.0 schema" feature needs per-app isolation: in a multi-app project
+each app wants only *its own* DTOs in its schema. The `createBaker()` scope shipped in Phase 1 is
+already the right boundary for this — a scope owns exactly the roots registered via its `@app.Recipe`.
+
+Recommended design when the feature lands:
+- **Primary — derive from a scope:** `app.toOpenAPI()` walks the type graph from the roots that
+  scope collected. Perfect per-app isolation falls out of the scope; no global enumeration, no
+  reliance on module-instance identity (the very thing the Phase-1 bug came from).
+- **Or from explicit roots:** `toOpenAPI([UserDto, OrderDto])` for callers that don't use a scope.
+
+Class identity stays the isolation boundary (consistent with sealing): a DTO shared across scopes
+appears in each scope's schema as the same definition. The default global `@Recipe`/`seal()` map to
+a built-in default scope, so single-app `toOpenAPI()` works without `createBaker()`.
