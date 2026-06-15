@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import { Baker, Field } from '../../index';
 import { isNumber, isString } from '../rules/index';
-import { getCached, configFingerprint } from './seal';
+import { getCached, configFingerprint, clearCached } from './seal';
 
 // The (class, config) cache: same-config bakers share one compiled executor; different-config
 // bakers get distinct entries. Sharing is invisible behaviourally — verified via the cache itself.
@@ -149,5 +149,47 @@ describe('(class, config) executor cache', () => {
     b.seal();
     expect((b.deserialize(Leaf, { k: 2 }) as Leaf).k).toBe(2);
     expect((b.deserialize(Root, { leaf: { k: 3 } }) as Root).leaf.k).toBe(3);
+  });
+
+  it('cache-hit seeding recompiles a nested whose cache entry was cleared (still resolves)', () => {
+    class Leaf {
+      @Field(isNumber()) k!: number;
+    }
+    class Root {
+      @Field({ type: () => Leaf }) leaf!: Leaf;
+    }
+
+    const a = new Baker();
+    (a.Recipe as (v: Function) => void)(Root);
+    a.seal();
+
+    // Clear ONLY the nested entry; Root stays cached.
+    clearCached(Leaf);
+
+    // b hits Root's cache; seeding finds Leaf uncached and recompiles it fresh into b's map.
+    const b = new Baker();
+    (b.Recipe as (v: Function) => void)(Root);
+    b.seal();
+
+    expect((b.deserialize(Leaf, { k: 7 }) as Leaf).k).toBe(7); // top-level resolves
+    expect((b.deserialize(Root, { leaf: { k: 8 } }) as Root).leaf.k).toBe(8); // nested field resolves
+  });
+
+  it('cache-hit seeding of a circular graph terminates and resolves top-level', () => {
+    class Node {
+      @Field(isString) id!: string;
+      @Field({ optional: true, type: () => Node }) next?: Node;
+    }
+
+    const a = new Baker();
+    (a.Recipe as (v: Function) => void)(Node);
+    a.seal();
+
+    // b hits Node's cache; the seeding loop walks Node->Node and must terminate via the map guard.
+    const b = new Baker();
+    (b.Recipe as (v: Function) => void)(Node);
+    b.seal();
+
+    expect((b.deserialize(Node, { id: 'x' }) as Node).id).toBe('x');
   });
 });
