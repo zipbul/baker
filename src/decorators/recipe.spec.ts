@@ -1,54 +1,44 @@
-import { describe, it, expect, afterEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { globalRegistry } from '../registry';
+import { Baker } from '../../index';
+import { getSealed } from '../meta-access';
+import { isString } from '../rules/typechecker';
 import { Field } from './field';
-import { Recipe } from './recipe';
 
-const created: Function[] = [];
-function track<T extends Function>(c: T): T {
-  created.push(c);
-  return c;
-}
-
-afterEach(() => {
-  for (const c of created) {
-    globalRegistry.delete(c);
-  }
-  created.length = 0;
-});
-
-describe('@Recipe', () => {
-  it('registers the decorated class in the global registry', () => {
-    @Recipe
+describe('Baker.Recipe', () => {
+  it('seals a class decorated with @baker.Recipe after baker.seal()', () => {
+    const baker = new Baker();
+    @baker.Recipe
     class UserDto {
-      @Field() name!: string;
+      @Field(isString) name!: string;
     }
-    track(UserDto);
-    expect(globalRegistry.has(UserDto)).toBe(true);
+    baker.seal();
+    expect(getSealed(UserDto)).toBeDefined();
   });
 
-  it('registers each class independently across an inheritance chain', () => {
-    @Recipe
+  it('seals each class independently across an inheritance chain', () => {
+    const baker = new Baker();
+    @baker.Recipe
     class BaseDto {
-      @Field() id!: string;
+      @Field(isString) id!: string;
     }
-    @Recipe
+    @baker.Recipe
     class ChildDto extends BaseDto {
-      @Field() age!: number;
+      @Field(isString) age!: string;
     }
-    track(BaseDto);
-    track(ChildDto);
-    expect(globalRegistry.has(BaseDto)).toBe(true);
-    expect(globalRegistry.has(ChildDto)).toBe(true);
+    baker.seal();
+    expect(getSealed(BaseDto)).toBeDefined();
+    expect(getSealed(ChildDto)).toBeDefined();
   });
 
-  it('does NOT register a class that has @Field but no @Recipe', () => {
-    // @Field alone never touches the registry — registration is @Recipe's sole job. This is the
-    // contract that makes argless seal() discover only @Recipe-marked DTOs.
+  it('does NOT seal a class that has @Field but no @baker.Recipe', () => {
+    // @Field alone never registers the class with the baker — registration is @Recipe's sole job,
+    // so seal() only seals @Recipe-marked roots (and their nested DTOs).
+    const baker = new Baker();
     class FieldOnlyDto {
-      @Field() name!: string;
+      @Field(isString) name!: string;
     }
-    track(FieldOnlyDto);
-    expect(globalRegistry.has(FieldOnlyDto)).toBe(false);
+    baker.seal();
+    expect(getSealed(FieldOnlyDto)).toBeUndefined();
   });
 });
