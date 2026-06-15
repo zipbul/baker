@@ -1,67 +1,56 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 
-import { Field, Recipe, deserialize, configure, isBakerIssueSet, seal } from '../../index';
+import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
-beforeEach(() => unseal());
-afterEach(() => {
-  unseal();
-  configure({});
-});
+const baker = new Baker();
 
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Recipe
+@baker.Recipe
 class MultiDto {
-  @Field(isString)
-  a!: string;
-
-  @Field(isString)
-  b!: string;
-
-  @Field(isString)
-  c!: string;
+  @Field(isString) a!: string;
+  @Field(isString) b!: string;
+  @Field(isString) c!: string;
 }
 
-@Recipe
+@baker.Recipe
 class MessageDto {
-  @Field(isString, { message: 'name must be a string' })
-  name!: string;
+  @Field(isString, { message: 'name must be a string' }) name!: string;
 }
 
-@Recipe
+@baker.Recipe
 class MessageFnDto {
-  @Field(isNumber(), { message: ({ property, value }) => `${property}(${value}) is not a number` })
-  score!: number;
+  @Field(isNumber(), { message: ({ property, value }) => `${property}(${value}) is not a number` }) score!: number;
 }
 
-@Recipe
+@baker.Recipe
 class ContextDto {
-  @Field(isEmail(), { context: { severity: 'critical' } })
-  email!: string;
+  @Field(isEmail(), { context: { severity: 'critical' } }) email!: string;
 }
 
-@Recipe
+@baker.Recipe
 class ClassNameDto {
-  @Field(isString)
-  field!: string;
+  @Field(isString) field!: string;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+baker.seal();
 
 describe('error handling — stopAtFirstError', () => {
   it('stopAtFirstError: true → only 1 error', async () => {
-    configure({ stopAtFirstError: true });
-    seal();
-    const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
+    const b = new Baker({ stopAtFirstError: true });
+    @b.Recipe
+    class MultiStopDto {
+      @Field(isString) a!: string;
+      @Field(isString) b!: string;
+      @Field(isString) c!: string;
+    }
+    b.seal();
+    const result = await deserialize(MultiStopDto, { a: 1, b: 2, c: 3 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 
   it('stopAtFirstError: false (default) → collects all errors', async () => {
-    seal();
     const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(3);
@@ -70,7 +59,6 @@ describe('error handling — stopAtFirstError', () => {
 
 describe('error handling — custom message', () => {
   it('string message', async () => {
-    seal();
     const result = await deserialize(MessageDto, { name: 123 });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'name');
@@ -78,7 +66,6 @@ describe('error handling — custom message', () => {
   });
 
   it('function message', async () => {
-    seal();
     const result = await deserialize(MessageFnDto, { score: 'abc' });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'score');
@@ -89,7 +76,6 @@ describe('error handling — custom message', () => {
 
 describe('error handling — context', () => {
   it('includes context object', async () => {
-    seal();
     const result = await deserialize(ContextDto, { email: 'not-email' });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'email');
@@ -99,7 +85,6 @@ describe('error handling — context', () => {
 
 describe('error handling — className', () => {
   it('validation fails for ClassNameDto', async () => {
-    seal();
     const result = await deserialize(ClassNameDto, { field: 42 });
     expect(isBakerIssueSet(result)).toBe(true);
   });
