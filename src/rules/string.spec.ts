@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { RequiredType } from '../enums';
 
 import type { EmitContext } from '../types';
 
@@ -123,15 +124,14 @@ describe('minLength', () => {
     const rule = minLength(3);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
-    expect(code).toContain('3');
+    expect(code).toContain('v.length < 3');
     expect(failMock).toHaveBeenCalledWith('minLength');
   });
 
   it('should have ruleName minLength and requiresType string', () => {
     const rule = minLength(3);
     expect(rule.ruleName).toBe('minLength');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
@@ -166,15 +166,14 @@ describe('maxLength', () => {
     const rule = maxLength(5);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
-    expect(code).toContain('5');
+    expect(code).toContain('v.length > 5');
     expect(failMock).toHaveBeenCalledWith('maxLength');
   });
 
   it('should have ruleName maxLength and requiresType string', () => {
     const rule = maxLength(5);
     expect(rule.ruleName).toBe('maxLength');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -213,14 +212,15 @@ describe('length', () => {
     const rule = length(3, 5);
     const { ctx, failMock } = makeCtx();
     const code = rule.emit('v', ctx);
-    expect(code).toContain('v.length');
+    expect(code).toContain('v.length < 3');
+    expect(code).toContain('v.length > 5');
     expect(failMock).toHaveBeenCalledWith('length');
   });
 
   it('should have ruleName length and requiresType string', () => {
     const rule = length(3, 5);
     expect(rule.ruleName).toBe('length');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -248,7 +248,7 @@ describe('contains', () => {
   it('should have ruleName contains and requiresType string', () => {
     const rule = contains('foo');
     expect(rule.ruleName).toBe('contains');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -307,7 +307,7 @@ describe('matches', () => {
   it('should have ruleName matches and requiresType string', () => {
     const rule = matches(/^[a-z]+$/);
     expect(rule.ruleName).toBe('matches');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 
   it('should return false for empty string when pattern requires content', () => {
@@ -333,7 +333,7 @@ describe('isLowercase', () => {
     expect(code).toContain('toLowerCase');
     expect(failMock).toHaveBeenCalledWith('isLowercase');
     expect(isLowercase.ruleName).toBe('isLowercase');
-    expect(isLowercase.requiresType).toBe('string');
+    expect(isLowercase.requiresType).toBe(RequiredType.String);
   });
 
   it('should return true for empty string', () => {
@@ -498,7 +498,7 @@ describe('isOrigin', () => {
     expect(code).toContain('refs[0](v)'); // must actually call the predicate, not just reference it
     expect(failMock).toHaveBeenCalledWith('isOrigin');
     expect(isOrigin.ruleName).toBe('isOrigin');
-    expect(isOrigin.requiresType).toBe('string');
+    expect(isOrigin.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -550,7 +550,7 @@ describe('isCorsOrigin', () => {
     expect(code).toContain('refs[0](v)'); // must actually call the predicate, not just reference it
     expect(failMock).toHaveBeenCalledWith('isCorsOrigin');
     expect(isCorsOrigin.ruleName).toBe('isCorsOrigin');
-    expect(isCorsOrigin.requiresType).toBe('string');
+    expect(isCorsOrigin.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -895,7 +895,7 @@ describe('isHexadecimal', () => {
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHexadecimal');
     expect(isHexadecimal.ruleName).toBe('isHexadecimal');
-    expect(isHexadecimal.requiresType).toBe('string');
+    expect(isHexadecimal.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -958,7 +958,7 @@ describe('isEmail', () => {
 
   it('should have ruleName isEmail and requiresType string', () => {
     expect(isEmail().ruleName).toBe('isEmail');
-    expect(isEmail().requiresType).toBe('string');
+    expect(isEmail().requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -997,7 +997,7 @@ describe('isURL', () => {
 
   it('should have ruleName isURL and requiresType string', () => {
     expect(isURL().ruleName).toBe('isURL');
-    expect(isURL().requiresType).toBe('string');
+    expect(isURL().requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1032,7 +1032,7 @@ describe('isUUID', () => {
 
   it('should have ruleName isUUID and requiresType string', () => {
     expect(isUUID().ruleName).toBe('isUUID');
-    expect(isUUID().requiresType).toBe('string');
+    expect(isUUID().requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1090,7 +1090,7 @@ describe('isIP', () => {
 
   it('should have ruleName isIP and requiresType string', () => {
     expect(isIP().ruleName).toBe('isIP');
-    expect(isIP().requiresType).toBe('string');
+    expect(isIP().requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1117,7 +1117,7 @@ describe('isHexColor', () => {
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isHexColor');
     expect(isHexColor.ruleName).toBe('isHexColor');
-    expect(isHexColor.requiresType).toBe('string');
+    expect(isHexColor.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1243,7 +1243,7 @@ describe('isISBN', () => {
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isISBN');
     expect(isISBN().ruleName).toBe('isISBN');
-    expect(isISBN().requiresType).toBe('string');
+    expect(isISBN().requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1396,7 +1396,7 @@ describe('isJWT', () => {
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(failMock).toHaveBeenCalledWith('isJWT');
     expect(isJWT.ruleName).toBe('isJWT');
-    expect(isJWT.requiresType).toBe('string');
+    expect(isJWT.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1519,7 +1519,7 @@ describe('isPort', () => {
     expect(addRegexMock).toHaveBeenCalled();
     expect(failMock).toHaveBeenCalledWith('isPort');
     expect(isPort.ruleName).toBe('isPort');
-    expect(isPort.requiresType).toBe('string');
+    expect(isPort.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1892,7 +1892,7 @@ describe('isCreditCard', () => {
     expect(code).toContain('%');
     expect(failMock).toHaveBeenCalledWith('isCreditCard');
     expect(isCreditCard.ruleName).toBe('isCreditCard');
-    expect(isCreditCard.requiresType).toBe('string');
+    expect(isCreditCard.requiresType).toBe(RequiredType.String);
   });
 });
 
@@ -1919,7 +1919,7 @@ describe('isIBAN', () => {
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isIBAN');
     expect(isIBAN().ruleName).toBe('isIBAN');
-    expect(isIBAN().requiresType).toBe('string');
+    expect(isIBAN().requiresType).toBe(RequiredType.String);
   });
 
   it('should return independent rule objects on multiple factory calls', () => {
@@ -1970,7 +1970,7 @@ describe('isByteLength', () => {
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isByteLength');
     expect(rule.ruleName).toBe('isByteLength');
-    expect(rule.requiresType).toBe('string');
+    expect(rule.requiresType).toBe(RequiredType.String);
   });
 
   it('should emit inline Buffer.byteLength check (no addRef)', () => {
@@ -2052,7 +2052,7 @@ describe('isHash', () => {
   });
 
   it('should have requiresType string', () => {
-    expect(isHash('md5').requiresType).toBe('string');
+    expect(isHash('md5').requiresType).toBe(RequiredType.String);
   });
 
   it('should have ruleName isHash', () => {
@@ -2106,7 +2106,7 @@ describe('isRFC3339', () => {
   });
 
   it('should have requiresType string and ruleName isRFC3339', () => {
-    expect(isRFC3339.requiresType).toBe('string');
+    expect(isRFC3339.requiresType).toBe(RequiredType.String);
     expect(isRFC3339.ruleName).toBe('isRFC3339');
   });
 
@@ -2150,7 +2150,7 @@ describe('isMilitaryTime', () => {
   });
 
   it('should have requiresType string and ruleName isMilitaryTime', () => {
-    expect(isMilitaryTime.requiresType).toBe('string');
+    expect(isMilitaryTime.requiresType).toBe(RequiredType.String);
     expect(isMilitaryTime.ruleName).toBe('isMilitaryTime');
   });
 
@@ -2304,7 +2304,7 @@ describe('isEthereumAddress', () => {
   });
 
   it('should have requiresType string and ruleName isEthereumAddress', () => {
-    expect(isEthereumAddress.requiresType).toBe('string');
+    expect(isEthereumAddress.requiresType).toBe(RequiredType.String);
     expect(isEthereumAddress.ruleName).toBe('isEthereumAddress');
   });
 
@@ -2348,7 +2348,7 @@ describe('isBtcAddress', () => {
   });
 
   it('should have requiresType string and ruleName isBtcAddress', () => {
-    expect(isBtcAddress.requiresType).toBe('string');
+    expect(isBtcAddress.requiresType).toBe(RequiredType.String);
     expect(isBtcAddress.ruleName).toBe('isBtcAddress');
   });
 
@@ -2392,7 +2392,7 @@ describe('isISO4217CurrencyCode', () => {
   });
 
   it('should have requiresType string and ruleName isISO4217CurrencyCode', () => {
-    expect(isISO4217CurrencyCode.requiresType).toBe('string');
+    expect(isISO4217CurrencyCode.requiresType).toBe(RequiredType.String);
     expect(isISO4217CurrencyCode.ruleName).toBe('isISO4217CurrencyCode');
   });
 
@@ -2436,7 +2436,7 @@ describe('isPhoneNumber', () => {
   });
 
   it('should have requiresType string and ruleName isPhoneNumber', () => {
-    expect(isPhoneNumber.requiresType).toBe('string');
+    expect(isPhoneNumber.requiresType).toBe(RequiredType.String);
     expect(isPhoneNumber.ruleName).toBe('isPhoneNumber');
   });
 
@@ -2489,7 +2489,7 @@ describe('isStrongPassword', () => {
   });
 
   it('should have requiresType string and ruleName isStrongPassword', () => {
-    expect(isStrongPassword().requiresType).toBe('string');
+    expect(isStrongPassword().requiresType).toBe(RequiredType.String);
     expect(isStrongPassword().ruleName).toBe('isStrongPassword');
   });
 
@@ -2547,7 +2547,7 @@ describe('isTaxId', () => {
   });
 
   it('should have requiresType string and ruleName isTaxId', () => {
-    expect(isTaxId('US').requiresType).toBe('string');
+    expect(isTaxId('US').requiresType).toBe(RequiredType.String);
     expect(isTaxId('US').ruleName).toBe('isTaxId');
   });
 

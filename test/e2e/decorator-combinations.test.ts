@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, seal } from '../../index';
+import { ExcludeMode, Field, Recipe, deserialize, serialize, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -204,7 +204,7 @@ describe('@Exclude(deserializeOnly) + @Transform(serializeOnly) same field', () 
     @Field(isString) name!: string;
 
     @Field(isString, {
-      exclude: 'deserializeOnly',
+      exclude: ExcludeMode.DeserializeOnly,
       transform: {
         deserialize: ({ value }) => value,
         serialize: ({ value }) => `***${value}***`,

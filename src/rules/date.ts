@@ -1,5 +1,6 @@
 import type { EmittableRule } from '../types';
 
+import { CacheKey, RequiredType, RuleOp } from '../enums';
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -9,12 +10,12 @@ import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../
 export function minDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
-    cacheKey: 'time',
-    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '<', planLiteral(timestamp))),
+    cacheKey: CacheKey.Time,
+    failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Lt, planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'minDate',
-    requiresType: 'date',
+    requiresType: RequiredType.Date,
     constraints: { min: date.toISOString() },
     plan,
     validate: value => value instanceof Date && value.getTime() >= timestamp,
@@ -28,12 +29,12 @@ export function minDate(date: Date): EmittableRule {
 export function maxDate(date: Date): EmittableRule {
   const timestamp = date.getTime();
   const plan = {
-    cacheKey: 'time',
-    failure: planOr(planCompare(planTime(), '!==', planTime()), planCompare(planTime(), '>', planLiteral(timestamp))),
+    cacheKey: CacheKey.Time,
+    failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Gt, planLiteral(timestamp))),
   } as const;
   return makePlannedRule({
     name: 'maxDate',
-    requiresType: 'date',
+    requiresType: RequiredType.Date,
     constraints: { max: date.toISOString() },
     plan,
     validate: value => value instanceof Date && value.getTime() <= timestamp,

@@ -1,6 +1,7 @@
 import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } from '../types';
 
+import { CollectionType } from '../enums';
 import { BakerError } from '../errors';
 import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
@@ -245,7 +246,7 @@ function generateSerializeFieldCode(
     const collection = meta.type.collection;
     let nestedCode: string;
 
-    if (collection === 'Set') {
+    if (collection === CollectionType.Set) {
       if (meta.type.resolvedCollectionValue) {
         const nestedSealed = getSealed(meta.type.resolvedCollectionValue) as SealedExecutors<unknown>;
         const execIdx = execs.length;

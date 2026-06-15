@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
 
-import { deserialize, Field, Recipe, serialize, seal } from '../../index';
+import { deserialize, ExcludeMode, Field, Recipe, serialize, seal } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -38,7 +38,7 @@ class ComplexSerializeDto {
   name!: string;
 
   @Field(isNumber(), {
-    exclude: 'deserializeOnly',
+    exclude: ExcludeMode.DeserializeOnly,
   })
   version!: number;
 

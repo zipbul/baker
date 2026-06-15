@@ -40,17 +40,26 @@ function configure(config: BakerConfig): void {
       '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
     );
   }
+  globalOptionsState = normalizeConfig(config);
+}
+
+/**
+ * Validate a BakerConfig and map it to the internal SealOptions. Shared by `configure()`
+ * (default instance) and `createBaker()` (per-scope instances). Does NOT check seal state —
+ * that gate is specific to the global `configure()`.
+ */
+function normalizeConfig(config: BakerConfig): SealOptions {
   if (config === null || typeof config !== 'object' || Array.isArray(config)) {
     throw new BakerError(
-      `[baker] configure() requires a plain object. Received: ${config === null ? 'null' : Array.isArray(config) ? 'array' : typeof config}.`,
+      `[baker] config requires a plain object. Received: ${config === null ? 'null' : Array.isArray(config) ? 'array' : typeof config}.`,
     );
   }
   for (const key of Object.keys(config)) {
     if (!BAKER_CONFIG_KEYS.has(key as keyof BakerConfig)) {
-      throw new BakerError(`[baker] configure(): unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
+      throw new BakerError(`[baker] unknown key '${key}'. ` + `Valid keys: ${[...BAKER_CONFIG_KEYS].join(', ')}.`);
     }
   }
-  globalOptionsState = Object.freeze({
+  return Object.freeze({
     enableImplicitConversion: config.autoConvert ?? false,
     exposeDefaultValues: config.allowClassDefaults ?? false,
     stopAtFirstError: config.stopAtFirstError ?? false,
@@ -68,5 +77,5 @@ function getGlobalOptions(): SealOptions {
 function resetConfigForTesting(): void {
   globalOptionsState = Object.freeze({});
 }
-export { configure, getGlobalOptions, resetConfigForTesting };
+export { configure, getGlobalOptions, resetConfigForTesting, normalizeConfig };
 export type { BakerConfig };

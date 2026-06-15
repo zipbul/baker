@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { deserialize, serialize, isBakerIssueSet, Field, Recipe, seal } from '../../index';
+import { deserialize, serialize, isBakerIssueSet, ExcludeMode, Field, Recipe, seal } from '../../index';
 import {
   isString,
   isNumber,
@@ -63,7 +63,7 @@ class CreateUserDto {
   @Field(arrayMinSize(1), { type: () => [AddressDto], optional: true })
   addresses?: AddressDto[];
 
-  @Field(isString, { exclude: 'serializeOnly' })
+  @Field(isString, { exclude: ExcludeMode.SerializeOnly })
   password!: string;
 
   @Field(isString, {

@@ -1,5 +1,6 @@
 import type { RawClassMeta, ExposeDef } from '../types';
 
+import { Direction } from '../enums';
 import { BakerError } from '../errors';
 
 /**
@@ -36,15 +37,15 @@ function validateExposeStacks(merged: RawClassMeta, className?: string): void {
     // serialize direction: !deserializeOnly (includes bidirectional + serializeOnly)
     const serEntries = meta.expose.filter(e => !e.deserializeOnly);
 
-    checkDirectionOverlap(prefix + key, desEntries, 'deserialize');
-    checkDirectionOverlap(prefix + key, serEntries, 'serialize');
+    checkDirectionOverlap(prefix + key, desEntries, Direction.Deserialize);
+    checkDirectionOverlap(prefix + key, serEntries, Direction.Serialize);
   }
 }
 
 /**
  * Check for groups overlap between each pair of @Expose entries within the same direction
  */
-function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: string): void {
+function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: Direction): void {
   for (let i = 0; i < entries.length; i++) {
     for (let j = i + 1; j < entries.length; j++) {
       const aGroups = entries[i]!.groups ?? [];

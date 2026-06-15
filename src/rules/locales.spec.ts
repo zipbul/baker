@@ -1,4 +1,5 @@
 import { describe, it, expect, mock } from 'bun:test';
+import { RequiredType } from '../enums';
 
 import type { EmitContext } from '../types';
 
@@ -62,7 +63,7 @@ describe('isMobilePhone', () => {
   });
 
   it('should have requiresType string and ruleName isMobilePhone', () => {
-    expect(isMobilePhone('ko-KR').requiresType).toBe('string');
+    expect(isMobilePhone('ko-KR').requiresType).toBe(RequiredType.String);
     expect(isMobilePhone('ko-KR').ruleName).toBe('isMobilePhone');
   });
 
@@ -124,7 +125,7 @@ describe('isPostalCode', () => {
   });
 
   it('should have requiresType string and ruleName isPostalCode', () => {
-    expect(isPostalCode('KR').requiresType).toBe('string');
+    expect(isPostalCode('KR').requiresType).toBe(RequiredType.String);
     expect(isPostalCode('KR').ruleName).toBe('isPostalCode');
   });
 
@@ -192,7 +193,7 @@ describe('isIdentityCard', () => {
   });
 
   it('should have requiresType string and ruleName isIdentityCard', () => {
-    expect(isIdentityCard('KR').requiresType).toBe('string');
+    expect(isIdentityCard('KR').requiresType).toBe(RequiredType.String);
     expect(isIdentityCard('KR').ruleName).toBe('isIdentityCard');
   });
 
@@ -241,7 +242,7 @@ describe('isPassportNumber', () => {
   });
 
   it('should have requiresType string and ruleName isPassportNumber', () => {
-    expect(isPassportNumber('KR').requiresType).toBe('string');
+    expect(isPassportNumber('KR').requiresType).toBe(RequiredType.String);
     expect(isPassportNumber('KR').ruleName).toBe('isPassportNumber');
   });
 

@@ -1,5 +1,6 @@
 import type { EmitContext, EmittableRule } from '../types';
 
+import { RequiredType, RuleOp } from '../enums';
 import { BakerError } from '../errors';
 import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
 
@@ -14,13 +15,13 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), exclusive ? '<=' : '<', planLiteral(n)),
+      planCompare(planValue(), RuleOp.Neq, planValue()),
+      planCompare(planValue(), exclusive ? RuleOp.Lte : RuleOp.Lt, planLiteral(n)),
     ),
   } as const;
   return makePlannedRule({
     name: 'min',
-    requiresType: 'number',
+    requiresType: RequiredType.Number,
     constraints: exclusive ? { min: n, exclusive: true } : { min: n },
     plan,
     validate: exclusive ? value => typeof value === 'number' && value > n : value => typeof value === 'number' && value >= n,
@@ -38,13 +39,13 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
   const exclusive = opts?.exclusive ?? false;
   const plan = {
     failure: planOr(
-      planCompare(planValue(), '!==', planValue()),
-      planCompare(planValue(), exclusive ? '>=' : '>', planLiteral(n)),
+      planCompare(planValue(), RuleOp.Neq, planValue()),
+      planCompare(planValue(), exclusive ? RuleOp.Gte : RuleOp.Gt, planLiteral(n)),
     ),
   } as const;
   return makePlannedRule({
     name: 'max',
-    requiresType: 'number',
+    requiresType: RequiredType.Number,
     constraints: exclusive ? { max: n, exclusive: true } : { max: n },
     plan,
     validate: exclusive ? value => typeof value === 'number' && value < n : value => typeof value === 'number' && value <= n,
@@ -57,10 +58,10 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 
 export const isPositive = makePlannedRule({
   name: 'isPositive',
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
   constraints: { min: 0, exclusive: true },
   plan: {
-    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '<=', planLiteral(0))),
+    failure: planOr(planCompare(planValue(), RuleOp.Neq, planValue()), planCompare(planValue(), RuleOp.Lte, planLiteral(0))),
   },
   validate: value => typeof value === 'number' && value > 0,
 });
@@ -71,10 +72,10 @@ export const isPositive = makePlannedRule({
 
 export const isNegative = makePlannedRule({
   name: 'isNegative',
-  requiresType: 'number',
+  requiresType: RequiredType.Number,
   constraints: { max: 0, exclusive: true },
   plan: {
-    failure: planOr(planCompare(planValue(), '!==', planValue()), planCompare(planValue(), '>=', planLiteral(0))),
+    failure: planOr(planCompare(planValue(), RuleOp.Neq, planValue()), planCompare(planValue(), RuleOp.Gte, planLiteral(0))),
   },
   validate: value => typeof value === 'number' && value < 0,
 });
@@ -89,7 +90,7 @@ export function isDivisibleBy(n: number): EmittableRule {
   }
   return makeRule({
     name: 'isDivisibleBy',
-    requiresType: 'number',
+    requiresType: RequiredType.Number,
     constraints: { divisor: n },
     validate: value => typeof value === 'number' && value % n === 0,
     emit: (varName: string, ctx: EmitContext): string => `if (${varName} % ${n} !== 0) ${ctx.fail('isDivisibleBy')};`,

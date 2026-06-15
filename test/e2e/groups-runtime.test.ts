@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
+import { ExcludeMode, Field, Recipe, deserialize, serialize, isBakerIssueSet, seal } from '../../index';
 import { isString, isNumber, min, max } from '../../src/rules/index';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -106,7 +106,7 @@ describe('E-22: groups + directional exclude combo', () => {
     @Field(isString)
     name!: string;
 
-    @Field(isString, { groups: ['admin'], exclude: 'serializeOnly' })
+    @Field(isString, { groups: ['admin'], exclude: ExcludeMode.SerializeOnly })
     adminSecret!: string;
 
     @Field(isString, { groups: ['public'], serializeName: 'x' })

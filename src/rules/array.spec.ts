@@ -215,7 +215,7 @@ describe('arrayNotEmpty', () => {
   it('should generate length > 0 check code when calling emit() and have ruleName arrayNotEmpty', () => {
     const { ctx, failMock } = makeCtx(0);
     const code = arrayNotEmpty.emit('v', ctx);
-    expect(code).toContain('v.length');
+    expect(code).toContain('v.length === 0');
     expect(failMock).toHaveBeenCalledWith('arrayNotEmpty');
     expect(arrayNotEmpty.ruleName).toBe('arrayNotEmpty');
   });

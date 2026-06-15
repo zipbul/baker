@@ -1,5 +1,6 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
+import type { CacheKey, CollectionType, RequiredType, RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import type { BakerIssue } from './errors';
 import type { RuntimeOptions } from './interfaces';
 
@@ -37,7 +38,7 @@ export interface EmittableRule {
    * Only set for rules that assume a specific type (e.g., isEmail → 'string').
    * `@IsString` itself is undefined (it includes its own typeof check).
    */
-  readonly requiresType?: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object';
+  readonly requiresType?: RequiredType;
   /** Expose rule parameters for external reading */
   readonly constraints?: Record<string, unknown>;
   /** true when the rule is explicitly async and must be awaited */
@@ -50,17 +51,17 @@ export interface InternalRule extends EmittableRule {
 }
 
 export type RulePlanExpr =
-  | { kind: 'value' }
-  | { kind: 'member'; object: RulePlanExpr; property: 'length' }
-  | { kind: 'call0'; object: RulePlanExpr; method: 'getTime' }
-  | { kind: 'literal'; value: number };
+  | { kind: RulePlanExprKind.Value }
+  | { kind: RulePlanExprKind.Member; object: RulePlanExpr; property: 'length' }
+  | { kind: RulePlanExprKind.Call0; object: RulePlanExpr; method: 'getTime' }
+  | { kind: RulePlanExprKind.Literal; value: number };
 
 export type RulePlanCheck =
-  | { kind: 'compare'; left: RulePlanExpr; op: '<' | '<=' | '>' | '>=' | '===' | '!=='; right: RulePlanExpr }
-  | { kind: 'and' | 'or'; checks: RulePlanCheck[] };
+  | { kind: RulePlanCheckKind.Compare; left: RulePlanExpr; op: RuleOp; right: RulePlanExpr }
+  | { kind: RulePlanCheckKind.And | RulePlanCheckKind.Or; checks: RulePlanCheck[] };
 
 export interface RulePlan {
-  cacheKey?: 'length' | 'time';
+  cacheKey?: CacheKey;
   failure: RulePlanCheck;
 }
 
@@ -136,7 +137,7 @@ export interface TypeDef {
   /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
   resolvedClass?: ClassCtor;
   /** seal() normalization result — Map or Set collection type */
-  collection?: 'Map' | 'Set';
+  collection?: CollectionType;
   /** Nested DTO class thunk for Map value / Set element */
   collectionValue?: () => ClassCtor;
   /** seal() normalization result — cached class after resolving collectionValue */
