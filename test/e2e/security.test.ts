@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, deserialize, isBakerIssueSet, Field } from '../../index';
+import { Baker, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet, assertNotBakerIssueSet } from '../integration/helpers/assert';
 
@@ -31,18 +31,18 @@ describe('prototype pollution defense (forbidUnknown)', () => {
   baker.seal();
 
   it('__proto__ key → pollution prevented', async () => {
-    const result = await deserialize<SafeDto>(SafeDto, { name: 'ok', __proto__: { admin: true } });
+    const result = await baker.deserialize<SafeDto>(SafeDto, { name: 'ok', __proto__: { admin: true } });
     expectProtoPollutionPrevented(result, 'whitelistViolation');
   });
 
   it('constructor key → whitelistViolation rejected', async () => {
-    const result = await deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
+    const result = await baker.deserialize(SafeDto, JSON.parse('{"name":"ok","constructor":{"prototype":{"admin":true}}}'));
     assertBakerIssueSet(result);
     expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
 
   it('toString key → whitelistViolation rejected', async () => {
-    const result = await deserialize(SafeDto, { name: 'ok', toString: 'evil' });
+    const result = await baker.deserialize(SafeDto, { name: 'ok', toString: 'evil' });
     assertBakerIssueSet(result);
     expect(result.errors.some(x => x.code === 'whitelistViolation')).toBe(true);
   });
@@ -61,7 +61,7 @@ describe('extra keys ignored without forbidUnknown', () => {
   baker.seal();
 
   it('undeclared keys not included in result', async () => {
-    const r = await deserialize<Dto>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
+    const r = await baker.deserialize<Dto>(Dto, { name: 'ok', extra: 'should-be-ignored', __proto__: {} });
     assertNotBakerIssueSet(r);
     expect(r.name).toBe('ok');
     expect((r as Dto & { extra?: unknown }).extra).toBeUndefined();
@@ -105,7 +105,7 @@ describe('deeply nested objects stack safety', () => {
     const input = {
       child: { child: { child: { child: { leaf: { value: 'deep' } } } } },
     };
-    const r = (await deserialize<Level1>(Level1, input)) as Level1;
+    const r = (await baker.deserialize<Level1>(Level1, input)) as Level1;
     expect(r.child.child.child.child.leaf.value).toBe('deep');
   });
 
@@ -113,7 +113,7 @@ describe('deeply nested objects stack safety', () => {
     const input = {
       child: { child: { child: { child: { leaf: { value: 123 } } } } },
     };
-    const result = await deserialize(Level1, input);
+    const result = await baker.deserialize(Level1, input);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('child.child.child.child.leaf.value');
     expect(result.errors[0]!.code).toBe('isString');
@@ -140,7 +140,7 @@ describe('large array input handling', () => {
 
   it('1000 item array processed correctly', async () => {
     const items = Array.from({ length: 1000 }, (_, i) => ({ id: i }));
-    const r = (await deserialize<ListDto>(ListDto, { items })) as ListDto;
+    const r = (await baker.deserialize<ListDto>(ListDto, { items })) as ListDto;
     expect(r.items).toHaveLength(1000);
     expect(r.items[999]!.id).toBe(999);
   });
@@ -149,7 +149,7 @@ describe('large array input handling', () => {
     const items: Array<{ id: number | string }> = Array.from({ length: 100 }, (_, i) => ({ id: i }));
     items[50] = { id: 'bad' };
     items[99] = { id: 'bad' };
-    const result = await deserialize(ListDto, { items });
+    const result = await baker.deserialize(ListDto, { items });
     assertBakerIssueSet(result);
     const paths = result.errors.map(x => x.path);
     expect(paths).toContain('items[50].id');
@@ -175,7 +175,7 @@ describe('E-26: frozen / null-prototype input', () => {
 
   it('Object.freeze() input → deserialize works', async () => {
     const input = Object.freeze({ name: 'test', age: 25 });
-    const r = (await deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
+    const r = (await baker.deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
     expect(r.name).toBe('test');
     expect(r.age).toBe(25);
     expect(r).toBeInstanceOf(FrozenDto);
@@ -185,7 +185,7 @@ describe('E-26: frozen / null-prototype input', () => {
     const input = Object.create(null);
     Object.defineProperty(input, 'name', { value: 'test', enumerable: true });
     Object.defineProperty(input, 'age', { value: 25, enumerable: true });
-    const r = (await deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
+    const r = (await baker.deserialize<FrozenDto>(FrozenDto, input)) as FrozenDto;
     expect(r.name).toBe('test');
     expect(r.age).toBe(25);
     expect(r).toBeInstanceOf(FrozenDto);
@@ -193,7 +193,7 @@ describe('E-26: frozen / null-prototype input', () => {
 
   it('frozen input with invalid value → BakerIssueSet returned', async () => {
     const input = Object.freeze({ name: 123, age: 25 });
-    const result = await deserialize(FrozenDto, input);
+    const result = await baker.deserialize(FrozenDto, input);
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -210,19 +210,19 @@ describe('special string value handling', () => {
 
   it('very long string (10K) passes', async () => {
     const longStr = 'x'.repeat(10_000);
-    const r = await deserialize<Dto>(Dto, { v: longStr });
+    const r = await baker.deserialize<Dto>(Dto, { v: longStr });
     assertNotBakerIssueSet(r);
     expect(r.v).toHaveLength(10_000);
   });
 
   it('unicode emoji string passes', async () => {
-    const r = await deserialize<Dto>(Dto, { v: '🎉🎊🎈' });
+    const r = await baker.deserialize<Dto>(Dto, { v: '🎉🎊🎈' });
     assertNotBakerIssueSet(r);
     expect(r.v).toBe('🎉🎊🎈');
   });
 
   it('string containing null byte passes', async () => {
-    const r = await deserialize<Dto>(Dto, { v: 'hello\x00world' });
+    const r = await baker.deserialize<Dto>(Dto, { v: 'hello\x00world' });
     assertNotBakerIssueSet(r);
     expect(r.v).toBe('hello\x00world');
   });

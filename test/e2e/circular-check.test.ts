@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize } from '../../index';
+import { Baker, Field } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -23,7 +23,7 @@ class TreeNode {
 
 describe('circular reference detection', () => {
   it('normal tree structure → passes', async () => {
-    const result = (await deserialize<TreeNode>(TreeNode, {
+    const result = (await baker.deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'leaf' },
     })) as TreeNode;
@@ -36,14 +36,14 @@ describe('circular reference detection', () => {
     const circular: { value: string; child: { value: string; child?: unknown } } = { value: 'a', child: { value: 'b' } };
     circular.child.child = circular; // circular reference
 
-    const result = await deserialize(TreeNode, circular);
+    const result = await baker.deserialize(TreeNode, circular);
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'circular');
     expect(err).toBeDefined();
   });
 
   it('auto mode (default) → auto-detects circular structure DTO', async () => {
-    const result = (await deserialize<TreeNode>(TreeNode, {
+    const result = (await baker.deserialize<TreeNode>(TreeNode, {
       value: 'root',
       child: { value: 'child', child: { value: 'grandchild' } },
     })) as TreeNode;

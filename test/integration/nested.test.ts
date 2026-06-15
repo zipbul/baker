@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { deserialize, serialize, validate, Field, Baker, isBakerIssueSet, arrayOf } from '../../index';
+import { Field, Baker, isBakerIssueSet, arrayOf } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 
@@ -32,7 +32,7 @@ baker.seal();
 
 describe('nested — integration', () => {
   it('should deserialize nested DTO with valid input', async () => {
-    const result = (await deserialize<UserWithAddressDto>(UserWithAddressDto, {
+    const result = (await baker.deserialize<UserWithAddressDto>(UserWithAddressDto, {
       name: 'Alice',
       address: { street: '123 Main St', city: 'Springfield' },
     })) as UserWithAddressDto;
@@ -43,7 +43,7 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerIssueSet for invalid nested field', async () => {
-    const result = await deserialize(UserWithAddressDto, {
+    const result = await baker.deserialize(UserWithAddressDto, {
       name: 'Bob',
       address: { street: 123, city: 'Shelbyville' },
     });
@@ -51,7 +51,7 @@ describe('nested — integration', () => {
   });
 
   it('should return BakerIssueSet when nested object has missing required field', async () => {
-    const result = await deserialize(UserWithAddressDto, {
+    const result = await baker.deserialize(UserWithAddressDto, {
       name: 'Carol',
       address: { city: 'Capital City' },
     });
@@ -63,7 +63,7 @@ describe('nested — integration', () => {
       name: 'Dave',
       address: Object.assign(new AddressDto(), { street: '456 Elm St', city: 'Shelbyville' }),
     });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['name']).toBe('Dave');
     expect((result['address'] as Record<string, unknown>)['street']).toBe('456 Elm St');
     expect((result['address'] as Record<string, unknown>)['city']).toBe('Shelbyville');
@@ -83,7 +83,7 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     b.seal();
-    const result = (await deserialize<OrderDto>(OrderDto, {
+    const result = (await b.deserialize<OrderDto>(OrderDto, {
       items: [{ name: 'A' }, { name: 'B' }],
     })) as OrderDto;
     expect(result.items).toHaveLength(2);
@@ -103,7 +103,7 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     b.seal();
-    const result = await deserialize(OrderDto, {
+    const result = await b.deserialize(OrderDto, {
       items: [{ name: 123 }, { name: 456 }],
     });
     assertBakerIssueSet(result);
@@ -124,7 +124,7 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     b.seal();
-    const result = await deserialize(OrderDto, { items: 'not an array' });
+    const result = await b.deserialize(OrderDto, { items: 'not an array' });
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('isArray');
   });
@@ -141,7 +141,7 @@ describe('nested — integration', () => {
       items!: ItemDto[];
     }
     b.seal();
-    const result = (await deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
+    const result = (await b.deserialize<OrderDto>(OrderDto, { items: [] })) as OrderDto;
     expect(result.items).toHaveLength(0);
   });
 
@@ -173,7 +173,7 @@ describe('nested — integration', () => {
       content!: TextContent | ImageContent;
     }
     b.seal();
-    const result = (await deserialize<NotificationDto>(NotificationDto, {
+    const result = (await b.deserialize<NotificationDto>(NotificationDto, {
       content: { type: 'text', body: 'hello' },
     })) as NotificationDto;
     expect(result.content).toBeInstanceOf(TextContent);
@@ -199,7 +199,7 @@ describe('nested — integration', () => {
       content!: TextContent2;
     }
     b.seal();
-    const result = (await deserialize<NotificationDto2>(NotificationDto2, {
+    const result = (await b.deserialize<NotificationDto2>(NotificationDto2, {
       content: { type: 'text', body: 'world' },
     })) as NotificationDto2;
     expect(result.content).toBeInstanceOf(TextContent2);
@@ -225,7 +225,7 @@ describe('nested — integration', () => {
       content!: TextContent3;
     }
     b.seal();
-    const result = await deserialize(NotificationDto3, {
+    const result = await b.deserialize(NotificationDto3, {
       content: { type: 'unknown', body: 'x' },
     });
     assertBakerIssueSet(result);
@@ -249,7 +249,7 @@ describe('nested — integration', () => {
     b.seal();
     const dto = new ParentDto();
     dto.address = null;
-    const result = await serialize(dto);
+    const result = await b.serialize(dto);
     expect(result['address']).toBeNull();
   });
 });
@@ -274,8 +274,8 @@ describe('nested — circular DTO error path', () => {
 
   it('reports the full path for a deeply nested circular error (deserialize and validate agree)', async () => {
     const input = { v: 'x', child: { w: 'y', parent: { v: 'z', child: { w: 123 } } } };
-    const d = await deserialize(CircA, input);
-    const v = await validate(CircA, input);
+    const d = await cb.deserialize(CircA, input);
+    const v = await cb.validate(CircA, input);
     assertBakerIssueSet(d);
     assertBakerIssueSet(v);
     expect(d.errors.some(e => e.path === 'child.parent.child.w')).toBe(true);
@@ -317,7 +317,7 @@ describe('nested — validate-only collection error paths carry parent prefix', 
   pb.seal();
 
   const pathsOf = async (input: object): Promise<string[]> => {
-    const r = await validate(PrefixRoot, input);
+    const r = await pb.validate(PrefixRoot, input);
     assertBakerIssueSet(r);
     return r.errors.map(e => e.path);
   };

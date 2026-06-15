@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, serialize } from '../../index';
+import { Baker, Field } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { isAsyncFunction } from '../../src/utils';
@@ -69,12 +69,12 @@ class AsyncChainDto {
 
 describe('async @Transform — deserialize', () => {
   it('async trim → result returned', async () => {
-    const result = (await deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' })) as AsyncTrimDto;
+    const result = (await baker.deserialize<AsyncTrimDto>(AsyncTrimDto, { name: '  Alice  ' })) as AsyncTrimDto;
     expect(result.name).toBe('Alice');
   });
 
   it('async chaining (trim → toUpperCase)', async () => {
-    const result = (await deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' })) as AsyncChainDto;
+    const result = (await baker.deserialize<AsyncChainDto>(AsyncChainDto, { code: '  hello  ' })) as AsyncChainDto;
     expect(result.code).toBe('HELLO');
   });
 
@@ -88,9 +88,9 @@ describe('async @Transform — deserialize', () => {
       })
       name!: string;
     }
-    sealClass(PromiseDeserializeDto);
+    const promiseDeserializeBaker = sealClass(PromiseDeserializeDto);
 
-    expect(() => deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' })).toThrow(
+    expect(() => promiseDeserializeBaker.deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' })).toThrow(
       'deserialize transform returned Promise',
     );
   });
@@ -99,7 +99,7 @@ describe('async @Transform — deserialize', () => {
 describe('async @Transform — serialize', () => {
   it('async serializeOnly → applied on serialize', async () => {
     const dto = Object.assign(new AsyncSerializeDto(), { tag: 'world' });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['tag']).toBe('[world]');
   });
 
@@ -113,10 +113,10 @@ describe('async @Transform — serialize', () => {
       })
       tag!: string;
     }
-    sealClass(PromiseSerializeDto);
+    const promiseSerializeBaker = sealClass(PromiseSerializeDto);
 
     const dto = Object.assign(new PromiseSerializeDto(), { tag: 'world' });
-    expect(() => serialize(dto)).toThrow('serialize transform returned Promise');
+    expect(() => promiseSerializeBaker.serialize(dto)).toThrow('serialize transform returned Promise');
   });
 });
 
@@ -152,10 +152,10 @@ describe('E-10: isAsyncFunction robustness', () => {
       @Field(isString, { transform: { deserialize: mangledAsync, serialize: ({ value }: { value: unknown }) => value } })
       val!: string;
     }
-    sealClass(MangledDto);
+    const mangledBaker = sealClass(MangledDto);
 
     // If async detection works, deserialize should still return a promise
-    const result = (await deserialize<MangledDto>(MangledDto, { val: 'test' })) as MangledDto;
+    const result = (await mangledBaker.deserialize<MangledDto>(MangledDto, { val: 'test' })) as MangledDto;
     expect(result.val).toBe('test');
   });
 });
@@ -253,7 +253,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       items!: Set<AsyncItem2>;
     }
     b.seal();
-    const result = (await deserialize<ParentDe>(ParentDe, { items: [{ v: 'a' }, { v: 'b' }] })) as ParentDe;
+    const result = (await b.deserialize<ParentDe>(ParentDe, { items: [{ v: 'a' }, { v: 'b' }] })) as ParentDe;
     expect(result.items).toBeInstanceOf(Set);
     const values = [...result.items].map(x => x.v).sort();
     expect(values).toEqual(['A', 'B']);
@@ -280,12 +280,12 @@ describe('async serialize Set<DTO>', () => {
   }
 
   it('serializes Set<DTO> when DTO has async transform on another field', async () => {
-    const dto = (await deserialize(AsyncSerSetDto, {
+    const dto = (await baker.deserialize(AsyncSerSetDto, {
       items: [{ name: 'hello' }, { name: 'world' }],
       other: 'test',
     })) as AsyncSerSetDto;
     expect(dto.items).toBeInstanceOf(Set);
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
     expect((result.items as unknown[]).length).toBe(2);
   });
@@ -305,11 +305,11 @@ describe('async serialize array of nested DTOs', () => {
   }
 
   it('serializes array of nested DTOs in async context', async () => {
-    const dto = (await deserialize(AsyncArrayDto, {
+    const dto = (await baker.deserialize(AsyncArrayDto, {
       items: [{ name: 'a' }, { name: 'b' }],
       tag: 'test',
     })) as AsyncArrayDto;
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(Array.isArray(result.items)).toBe(true);
     expect((result.items as unknown[]).length).toBe(2);
   });
@@ -368,7 +368,7 @@ class Tri3 {
 describe('async — propagation through depth and cycles', () => {
   it('3-level nested async DTO makes the root async and round-trips (no sync-with-await crash)', async () => {
     expect(requireSealed(DeepRoot).isAsync).toBe(true);
-    const out = (await deserialize(DeepRoot, { b: { c: { v: 'z' } } })) as DeepRoot;
+    const out = (await baker.deserialize(DeepRoot, { b: { c: { v: 'z' } } })) as DeepRoot;
     expect(out.b.c.v).toBe('A_z');
   });
 
@@ -376,7 +376,7 @@ describe('async — propagation through depth and cycles', () => {
     // CycB has no async of its own but references CycA (async). The cycle must not hide that.
     expect(requireSealed(CycA).isAsync).toBe(true);
     expect(requireSealed(CycB).isAsync).toBe(true);
-    const out = (await deserialize(CycB, { w: 'y', a: { v: 'x' } })) as CycB;
+    const out = (await baker.deserialize(CycB, { w: 'y', a: { v: 'x' } })) as CycB;
     expect(out.a?.v).toBe('A_x');
   });
 
@@ -385,7 +385,7 @@ describe('async — propagation through depth and cycles', () => {
     expect(requireSealed(Tri1).isAsync).toBe(true);
     expect(requireSealed(Tri2).isAsync).toBe(true);
     expect(requireSealed(Tri3).isAsync).toBe(true);
-    const out = (await deserialize(Tri3, { id: 't3', next: { id: 't1', next: { v: 'bb' } } })) as Tri3;
+    const out = (await baker.deserialize(Tri3, { id: 't3', next: { id: 't1', next: { v: 'bb' } } })) as Tri3;
     expect(out.next?.next?.v).toBe('A_bb');
   });
 });

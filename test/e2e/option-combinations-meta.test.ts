@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 
-import { arrayOf, Baker, deserialize, Field, isBakerIssueSet, serialize } from '../../index';
+import { arrayOf, Baker, Field, isBakerIssueSet } from '../../index';
 import { isNumber, isString, min, minLength } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -14,10 +14,10 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const missing = (await deserialize<Dto>(Dto, {})) as Dto;
+    const missing = (await b.deserialize<Dto>(Dto, {})) as Dto;
     expect(missing.count).toBeUndefined();
 
-    const converted = (await deserialize<Dto>(Dto, { count: '5' })) as Dto;
+    const converted = (await b.deserialize<Dto>(Dto, { count: '5' })) as Dto;
     expect(converted.count).toBe(5);
   });
 
@@ -30,10 +30,10 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const nullable = (await deserialize<Dto>(Dto, { count: null })) as Dto;
+    const nullable = (await b.deserialize<Dto>(Dto, { count: null })) as Dto;
     expect(nullable.count).toBeNull();
 
-    expect(isBakerIssueSet(await deserialize(Dto, { count: 'abc' }))).toBe(true);
+    expect(isBakerIssueSet(await b.deserialize(Dto, { count: 'abc' }))).toBe(true);
   });
 
   it('when + transform: skipped fields are not assigned, active fields are transformed and validated', async () => {
@@ -53,10 +53,10 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const skipped = (await deserialize<Dto>(Dto, { enabled: false, code: ' x ' })) as Dto;
+    const skipped = (await b.deserialize<Dto>(Dto, { enabled: false, code: ' x ' })) as Dto;
     expect('code' in skipped).toBe(false);
 
-    const active = (await deserialize<Dto>(Dto, { enabled: true, code: ' abc ' })) as Dto;
+    const active = (await b.deserialize<Dto>(Dto, { enabled: true, code: ' abc ' })) as Dto;
     expect(active.code).toBe('abc');
   });
 
@@ -69,10 +69,10 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const ok = (await deserialize<Dto>(Dto, { user_name: 'alice' })) as Dto;
+    const ok = (await b.deserialize<Dto>(Dto, { user_name: 'alice' })) as Dto;
     expect(ok.name).toBe('alice');
 
-    const bad = await deserialize(Dto, { name: 'alice' });
+    const bad = await b.deserialize(Dto, { name: 'alice' });
     assertBakerIssueSet(bad);
     expect(bad.errors[0]!.code).toBe('whitelistViolation');
   });
@@ -89,14 +89,14 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const publicParsed = (await deserialize<Dto>(Dto, {
+    const publicParsed = (await b.deserialize<Dto>(Dto, {
       publicName: 'alice',
       secret: 'hidden',
     })) as Dto;
     expect(publicParsed.publicName).toBe('alice');
     expect('secret' in publicParsed).toBe(false);
 
-    const adminParsed = (await deserialize<Dto>(
+    const adminParsed = (await b.deserialize<Dto>(
       Dto,
       {
         publicName: 'alice',
@@ -106,10 +106,10 @@ describe('option combinations meta', () => {
     )) as Dto;
     expect(adminParsed.secret).toBe('hidden');
 
-    const adminSerialized = await serialize(adminParsed, { groups: ['admin'] });
+    const adminSerialized = await b.serialize(adminParsed, { groups: ['admin'] });
     expect(adminSerialized.secret).toBe('hidden');
 
-    const publicSerialized = await serialize(adminParsed);
+    const publicSerialized = await b.serialize(adminParsed);
     expect(publicSerialized.secret).toBeUndefined();
   });
 
@@ -122,12 +122,12 @@ describe('option combinations meta', () => {
     }
     b.seal();
 
-    const missing = (await deserialize<Dto>(Dto, {})) as Dto;
+    const missing = (await b.deserialize<Dto>(Dto, {})) as Dto;
     expect(missing.tags).toBeUndefined();
 
-    const valid = (await deserialize<Dto>(Dto, { tags: ['ab', 'cd'] })) as Dto;
+    const valid = (await b.deserialize<Dto>(Dto, { tags: ['ab', 'cd'] })) as Dto;
     expect(valid.tags).toEqual(['ab', 'cd']);
 
-    expect(isBakerIssueSet(await deserialize(Dto, { tags: ['a'] }))).toBe(true);
+    expect(isBakerIssueSet(await b.deserialize(Dto, { tags: ['a'] }))).toBe(true);
   });
 });

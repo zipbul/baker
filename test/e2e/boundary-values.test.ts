@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import {
   isString,
   isNumber,
@@ -30,7 +31,7 @@ afterEach(() => unseal());
 
 /** Helper: verify rejection + return error code */
 async function failCode<T>(cls: new (...args: never[]) => T, input: unknown): Promise<string> {
-  const result = await deserialize(cls, input);
+  const result = await baker.deserialize(cls, input);
   if (!isBakerIssueSet(result)) {
     throw new Error('expected validation failure');
   }
@@ -39,7 +40,7 @@ async function failCode<T>(cls: new (...args: never[]) => T, input: unknown): Pr
 
 /** Helper: successful deserialize, returns the typed instance (throws on validation failure). */
 async function ok<T extends { v: unknown }>(cls: new (...args: never[]) => T, input: unknown): Promise<T> {
-  const result = await deserialize<T>(cls, input);
+  const result = await baker.deserialize<T>(cls, input);
   if (isBakerIssueSet(result)) {
     throw new Error('expected success, got error: ' + JSON.stringify(result.errors));
   }
@@ -388,7 +389,7 @@ describe('@IsBoolean with similar values', () => {
     expect(await failCode(Dto, { v: 0 })).toBe('isBoolean');
   });
   it('null rejected (undefined guard)', async () => {
-    expect(isBakerIssueSet(await deserialize(Dto, { v: null }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(Dto, { v: null }))).toBe(true);
   });
 });
 
@@ -400,8 +401,10 @@ describe('E-13: -0, NaN, Infinity edge cases', () => {
     class Dto {
       @Field(isNegative) v!: number;
     }
-    sealClass(Dto);
-    expect(await failCode(Dto, { v: -0 })).toBe('isNegative');
+    const dtoBaker = sealClass(Dto);
+    const result = await dtoBaker.deserialize(Dto, { v: -0 });
+    assertBakerIssueSet(result);
+    expect(result.errors[0]!.code).toBe('isNegative');
   });
 
   it('isPositive(NaN) rejected to match runtime rule semantics', async () => {
@@ -409,9 +412,9 @@ describe('E-13: -0, NaN, Infinity edge cases', () => {
     class Dto {
       @Field(isPositive) v!: number;
     }
-    sealClass(Dto);
+    const dtoBaker = sealClass(Dto);
     expect(isPositive(NaN)).toBe(false);
-    expect(isBakerIssueSet(await deserialize(Dto, { v: NaN }))).toBe(true);
+    expect(isBakerIssueSet(await dtoBaker.deserialize(Dto, { v: NaN }))).toBe(true);
   });
 
   it('@Field(isNumber(), isPositive) rejects NaN via isNumber gate', async () => {
@@ -419,8 +422,8 @@ describe('E-13: -0, NaN, Infinity edge cases', () => {
     class Dto {
       @Field(isNumber(), isPositive) v!: number;
     }
-    sealClass(Dto);
-    expect(isBakerIssueSet(await deserialize(Dto, { v: NaN }))).toBe(true);
+    const dtoBaker = sealClass(Dto);
+    expect(isBakerIssueSet(await dtoBaker.deserialize(Dto, { v: NaN }))).toBe(true);
   });
 
   it('isDivisibleBy(Infinity) — does not throw at creation, but 42 % Infinity !== 0', () => {

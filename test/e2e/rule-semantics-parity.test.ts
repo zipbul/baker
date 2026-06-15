@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
-import { deserialize, Field, isBakerIssueSet } from '../../index';
+import { Field, isBakerIssueSet } from '../../index';
 import {
   arrayContains,
   arrayMaxSize,
@@ -47,8 +47,8 @@ async function passesWithDto(rule: RuleCase['rule'], value: unknown): Promise<bo
     value!: unknown;
   }
 
-  sealClass(Dto);
-  const result = await deserialize(Dto, { value });
+  const baker = sealClass(Dto);
+  const result = await baker.deserialize(Dto, { value });
   return !isBakerIssueSet(result);
 }
 

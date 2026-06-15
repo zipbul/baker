@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 
-import { deserialize, Field, isBakerIssueSet } from '../../index';
+import { Field, isBakerIssueSet } from '../../index';
 import { arrayMinSize, contains, isNumber, isObject, isPositive, minLength } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -52,8 +52,8 @@ async function dtoPasses(rule: import('../../src/types').EmittableRule, value: u
     @Field(rule)
     value!: unknown;
   }
-  sealClass(Dto);
-  return !isBakerIssueSet(await deserialize(Dto, { value }));
+  const baker = sealClass(Dto);
+  return !isBakerIssueSet(await baker.deserialize(Dto, { value }));
 }
 
 describe('deterministic fuzz parity', () => {

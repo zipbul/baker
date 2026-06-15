@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, deserialize, serialize, Field } from '../../index';
+import { Baker, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -31,7 +31,7 @@ beforeEach(() => baker.seal());
 
 describe('groups — integration', () => {
   it('should deserialize group-gated field when group is provided', async () => {
-    const result = (await deserialize<AdminDto>(
+    const result = (await baker.deserialize<AdminDto>(
       AdminDto,
       { name: 'Alice', internalCode: 'XYZ' },
       { groups: ['admin'] },
@@ -41,14 +41,14 @@ describe('groups — integration', () => {
   });
 
   it('should skip group-gated field when group is NOT provided', async () => {
-    const result = (await deserialize<AdminDto>(AdminDto, { name: 'Alice', internalCode: 'XYZ' })) as AdminDto;
+    const result = (await baker.deserialize<AdminDto>(AdminDto, { name: 'Alice', internalCode: 'XYZ' })) as AdminDto;
     expect(result.name).toBe('Alice');
     // internalCode is group-gated — not processed without group
     expect(result.internalCode).toBeUndefined();
   });
 
   it('should skip group-gated field when wrong group provided', async () => {
-    const result = (await deserialize<AdminDto>(
+    const result = (await baker.deserialize<AdminDto>(
       AdminDto,
       { name: 'Bob', internalCode: 'ABC' },
       { groups: ['user'] },
@@ -58,13 +58,13 @@ describe('groups — integration', () => {
 
   it('should serialize group-gated field when group matches', async () => {
     const dto = Object.assign(new GroupedSerialDto(), { name: 'Carol', score: 99 });
-    const result = await serialize(dto, { groups: ['public'] });
+    const result = await baker.serialize(dto, { groups: ['public'] });
     expect(result['score']).toBe(99);
   });
 
   it('should omit group-gated field during serialize when no group provided', async () => {
     const dto = Object.assign(new GroupedSerialDto(), { name: 'Dave', score: 85 });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['score']).toBeUndefined();
   });
 });

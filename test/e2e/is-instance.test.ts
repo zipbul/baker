@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isInstance } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -34,7 +34,7 @@ class InstanceDto {
 
 describe('@IsInstance', () => {
   it('correct instance passes', async () => {
-    const r = (await deserialize(InstanceDto, { date: '2024-01-01' })) as InstanceDto;
+    const r = (await baker.deserialize(InstanceDto, { date: '2024-01-01' })) as InstanceDto;
     expect(r.date).toBeInstanceOf(MyDate);
   });
 
@@ -43,9 +43,9 @@ describe('@IsInstance', () => {
       @Field(isInstance(MyDate))
       date!: MyDate;
     }
-    sealClass(WrongDto);
+    const wrongBaker = sealClass(WrongDto);
 
     // A string is not a MyDate instance (raw string passed without Transform)
-    expect(isBakerIssueSet(await deserialize(WrongDto, { date: '2024-01-01' }))).toBe(true);
+    expect(isBakerIssueSet(await wrongBaker.deserialize(WrongDto, { date: '2024-01-01' }))).toBe(true);
   });
 });

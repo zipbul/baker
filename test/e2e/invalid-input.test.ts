@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize } from '../../index';
+import { Baker, Field } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -20,7 +20,7 @@ class SimpleDto {
 
 describe('invalidInput error code', () => {
   it('null input → invalidInput', async () => {
-    const result = await deserialize(SimpleDto, null);
+    const result = await baker.deserialize(SimpleDto, null);
     assertBakerIssueSet(result);
     const err = result.errors[0]!;
     expect(err.path).toBe('');
@@ -28,31 +28,31 @@ describe('invalidInput error code', () => {
   });
 
   it('undefined input → invalidInput', async () => {
-    const result = await deserialize(SimpleDto, undefined);
+    const result = await baker.deserialize(SimpleDto, undefined);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('array input → invalidInput', async () => {
-    const result = await deserialize(SimpleDto, [1, 2, 3]);
+    const result = await baker.deserialize(SimpleDto, [1, 2, 3]);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('string input → invalidInput', async () => {
-    const result = await deserialize(SimpleDto, 'hello');
+    const result = await baker.deserialize(SimpleDto, 'hello');
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('number input → invalidInput', async () => {
-    const result = await deserialize(SimpleDto, 42);
+    const result = await baker.deserialize(SimpleDto, 42);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('valid object → passes', async () => {
-    const result = (await deserialize(SimpleDto, { name: 'Alice' })) as SimpleDto;
+    const result = (await baker.deserialize(SimpleDto, { name: 'Alice' })) as SimpleDto;
     expect(result.name).toBe('Alice');
   });
 });

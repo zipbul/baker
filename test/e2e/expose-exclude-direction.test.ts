@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, ExcludeMode, Field, deserialize, serialize } from '../../index';
+import { Baker, ExcludeMode, Field } from '../../index';
 import { isString } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -28,7 +28,7 @@ baker.seal();
 
 describe('@Expose/@Exclude direction — deserialize', () => {
   it('deserializeOnly @Expose name used for extraction', async () => {
-    const result = (await deserialize<DirectionDto>(DirectionDto, {
+    const result = (await baker.deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice',
       password: 'pw123',
       token: 'tok',
@@ -38,7 +38,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('serializeOnly @Exclude → included in deserialize', async () => {
-    const result = (await deserialize<DirectionDto>(DirectionDto, {
+    const result = (await baker.deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice',
       password: 'pw123',
       token: 'tok',
@@ -48,7 +48,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('deserializeOnly @Exclude → excluded from deserialize', async () => {
-    const result = (await deserialize<DirectionDto>(DirectionDto, {
+    const result = (await baker.deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice',
       password: 'pw123',
       token: 'tok',
@@ -58,7 +58,7 @@ describe('@Expose/@Exclude direction — deserialize', () => {
   });
 
   it('bidirectional @Exclude → excluded from deserialize', async () => {
-    const result = (await deserialize<DirectionDto>(DirectionDto, {
+    const result = (await baker.deserialize<DirectionDto>(DirectionDto, {
       user_name: 'Alice',
       password: 'pw123',
       token: 'tok',
@@ -76,7 +76,7 @@ describe('@Expose/@Exclude direction — serialize', () => {
       token: 'tok',
       internal: 'x',
     });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['userName']).toBe('Bob');
     expect(result['user_name']).toBeUndefined();
   });
@@ -88,7 +88,7 @@ describe('@Expose/@Exclude direction — serialize', () => {
       token: 'tok',
       internal: 'x',
     });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['password']).toBeUndefined();
   });
 
@@ -99,7 +99,7 @@ describe('@Expose/@Exclude direction — serialize', () => {
       token: 'tok',
       internal: 'x',
     });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['internal']).toBeUndefined();
   });
 });
@@ -129,7 +129,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
   debugBaker.seal();
 
   it('deserialize with debug: true still excludes fields correctly', async () => {
-    const result = (await deserialize<DebugDirectionDto>(DebugDirectionDto, {
+    const result = (await debugBaker.deserialize<DebugDirectionDto>(DebugDirectionDto, {
       user_name: 'Alice',
       password: 'pw123',
       token: 'tok',
@@ -150,7 +150,7 @@ describe('@Expose/@Exclude direction — debug mode', () => {
       token: 'tok',
       internal: 'x',
     });
-    const result = await serialize(dto);
+    const result = await debugBaker.serialize(dto);
     // serializeOnly exclude → password excluded
     expect(result['password']).toBeUndefined();
     // bidirectional exclude → internal excluded
@@ -172,7 +172,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
       secret!: string;
     }
     b.seal();
-    const result = (await deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
+    const result = (await b.deserialize<SerializeOnlyExposeDto>(SerializeOnlyExposeDto, {
       name: 'Alice',
       secret: 'hidden',
     })) as SerializeOnlyExposeDto;
@@ -191,7 +191,7 @@ describe('@Expose serializeOnly — debug mode deserialize skip', () => {
     }
     b.seal();
     const dto = Object.assign(new DeserializeOnlyExposeDto(), { name: 'Alice', secret: 'hidden' });
-    const result = await serialize(dto);
+    const result = await b.serialize(dto);
     expect(result['name']).toBe('Alice');
     // deserializeOnly expose → excluded from serialize
     expect(result['secret']).toBeUndefined();

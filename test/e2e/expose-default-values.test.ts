@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ describe('exposeDefaultValues', () => {
       tag?: string = 'default-tag';
     }
     b.seal();
-    const result = (await deserialize<DefaultsDto>(DefaultsDto, {})) as DefaultsDto;
+    const result = (await b.deserialize<DefaultsDto>(DefaultsDto, {})) as DefaultsDto;
     expect(result.name).toBe('anonymous');
     expect(result.score).toBe(100);
   });
@@ -39,7 +39,7 @@ describe('exposeDefaultValues', () => {
       tag?: string = 'default-tag';
     }
     b.seal();
-    const result = (await deserialize<DefaultsDto>(DefaultsDto, {
+    const result = (await b.deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Alice',
       score: 50,
     })) as DefaultsDto;
@@ -61,7 +61,7 @@ describe('exposeDefaultValues', () => {
       tag?: string = 'default-tag';
     }
     b.seal();
-    const result = await deserialize(DefaultsDto, {});
+    const result = await b.deserialize(DefaultsDto, {});
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
@@ -79,7 +79,7 @@ describe('exposeDefaultValues', () => {
       tag?: string = 'default-tag';
     }
     b.seal();
-    const result = (await deserialize<DefaultsDto>(DefaultsDto, {
+    const result = (await b.deserialize<DefaultsDto>(DefaultsDto, {
       name: 'Bob',
       score: 80,
     })) as DefaultsDto;

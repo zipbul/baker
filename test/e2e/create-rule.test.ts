@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, createRule, RequiredType } from '../../index';
+import { Baker, Field, createRule, RequiredType } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
@@ -41,12 +41,12 @@ class AsyncRuleDto {
 
 describe('createRule — sync', () => {
   it('rule passes', async () => {
-    const r = (await deserialize(EvenDto, { value: 4 })) as EvenDto;
+    const r = (await baker.deserialize(EvenDto, { value: 4 })) as EvenDto;
     expect(r.value).toBe(4);
   });
 
   it('rule violation → custom error code', async () => {
-    const result = await deserialize(EvenDto, { value: 3 });
+    const result = await baker.deserialize(EvenDto, { value: 3 });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'isEven');
     expect(err).toBeDefined();
@@ -60,12 +60,12 @@ describe('createRule — sync', () => {
 
 describe('createRule — async', () => {
   it('async rule passes', async () => {
-    const r = (await deserialize(AsyncRuleDto, { score: 10 })) as AsyncRuleDto;
+    const r = (await baker.deserialize(AsyncRuleDto, { score: 10 })) as AsyncRuleDto;
     expect(r.score).toBe(10);
   });
 
   it('async rule violation', async () => {
-    const result = await deserialize(AsyncRuleDto, { score: -1 });
+    const result = await baker.deserialize(AsyncRuleDto, { score: -1 });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'asyncPositive');
     expect(err).toBeDefined();
@@ -81,8 +81,8 @@ describe('createRule — async', () => {
       @Field(promiseFalseRule)
       value!: string;
     }
-    sealClass(PromiseRuleDto);
+    const promiseRuleBaker = sealClass(PromiseRuleDto);
 
-    expect(() => deserialize(PromiseRuleDto, { value: 'x' })).toThrow('sync rule returned Promise');
+    expect(() => promiseRuleBaker.deserialize(PromiseRuleDto, { value: 'x' })).toThrow('sync rule returned Promise');
   });
 });

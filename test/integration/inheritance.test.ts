@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -31,7 +31,7 @@ beforeEach(() => baker.seal());
 
 describe('inheritance — integration', () => {
   it('should deserialize parent fields in child DTO', async () => {
-    const result = (await deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 })) as ChildDto;
+    const result = (await baker.deserialize<ChildDto>(ChildDto, { name: 'Alice', age: 25 })) as ChildDto;
     expect(result).toBeInstanceOf(ChildDto);
     expect(result.name).toBe('Alice');
     expect(result.age).toBe(25);
@@ -39,12 +39,12 @@ describe('inheritance — integration', () => {
 
   it('should validate parent field rules in child DTO', async () => {
     // name is required by BaseDto's @Field(isString)
-    const result = await deserialize(ChildDto, { age: 25 });
+    const result = await baker.deserialize(ChildDto, { age: 25 });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('should deserialize grandchild DTO with all ancestor fields', async () => {
-    const result = (await deserialize<GrandChildDto>(GrandChildDto, { name: 'Bob', age: 30, active: true })) as GrandChildDto;
+    const result = (await baker.deserialize<GrandChildDto>(GrandChildDto, { name: 'Bob', age: 30, active: true })) as GrandChildDto;
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
     expect(result.active).toBe(true);
@@ -52,14 +52,14 @@ describe('inheritance — integration', () => {
 
   it('should serialize child DTO including parent fields', async () => {
     const dto = Object.assign(new ChildDto(), { name: 'Carol', age: 40 });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['name']).toBe('Carol');
     expect(result['age']).toBe(40);
   });
 
   it('should serialize grandchild DTO with all inherited fields', async () => {
     const dto = Object.assign(new GrandChildDto(), { name: 'Dave', age: 35, active: false });
-    const result = await serialize(dto);
+    const result = await baker.serialize(dto);
     expect(result['name']).toBe('Dave');
     expect(result['age']).toBe(35);
     expect(result['active']).toBe(false);

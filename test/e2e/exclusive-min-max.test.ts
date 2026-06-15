@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isNumber, min, max } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -25,26 +25,26 @@ class InclusiveDto {
 
 describe('@Min/@Max exclusive', () => {
   it('exclusive — boundary values exactly rejected', async () => {
-    expect(isBakerIssueSet(await deserialize(ExclusiveDto, { score: 0 }))).toBe(true);
-    expect(isBakerIssueSet(await deserialize(ExclusiveDto, { score: 100 }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(ExclusiveDto, { score: 0 }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(ExclusiveDto, { score: 100 }))).toBe(true);
   });
 
   it('exclusive — just inside boundary passes', async () => {
-    const r1 = (await deserialize(ExclusiveDto, { score: 0.001 })) as ExclusiveDto;
+    const r1 = (await baker.deserialize(ExclusiveDto, { score: 0.001 })) as ExclusiveDto;
     expect(r1.score).toBe(0.001);
-    const r2 = (await deserialize(ExclusiveDto, { score: 99.999 })) as ExclusiveDto;
+    const r2 = (await baker.deserialize(ExclusiveDto, { score: 99.999 })) as ExclusiveDto;
     expect(r2.score).toBe(99.999);
   });
 
   it('inclusive — boundary values included', async () => {
-    const r1 = (await deserialize(InclusiveDto, { value: 0 })) as InclusiveDto;
+    const r1 = (await baker.deserialize(InclusiveDto, { value: 0 })) as InclusiveDto;
     expect(r1.value).toBe(0);
-    const r2 = (await deserialize(InclusiveDto, { value: 100 })) as InclusiveDto;
+    const r2 = (await baker.deserialize(InclusiveDto, { value: 100 })) as InclusiveDto;
     expect(r2.value).toBe(100);
   });
 
   it('inclusive — out of range rejected', async () => {
-    expect(isBakerIssueSet(await deserialize(InclusiveDto, { value: -1 }))).toBe(true);
-    expect(isBakerIssueSet(await deserialize(InclusiveDto, { value: 101 }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(InclusiveDto, { value: -1 }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(InclusiveDto, { value: 101 }))).toBe(true);
   });
 });

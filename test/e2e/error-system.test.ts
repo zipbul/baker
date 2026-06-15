@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, serialize, Field, BakerError } from '../../index';
+import { Baker, Field, BakerError } from '../../index';
 
 const baker = new Baker();
 
@@ -15,13 +15,13 @@ describe('throw channel — serialize of a Map with a non-string key throws Bake
   it('throws BakerError (not a raw TypeError) when a Map key is not a string', () => {
     const inst = new MapDto();
     inst.m = new Map<unknown, unknown>([[123, 'value']]);
-    expect(() => serialize(inst)).toThrow(BakerError);
-    expect(() => serialize(inst)).toThrow(/non-string key/);
+    expect(() => baker.serialize(inst)).toThrow(BakerError);
+    expect(() => baker.serialize(inst)).toThrow(/non-string key/);
   });
 
   it('serializes normally when all Map keys are strings', () => {
     const inst = new MapDto();
     inst.m = new Map<unknown, unknown>([['ok', 'value']]);
-    expect(() => serialize(inst)).not.toThrow();
+    expect(() => baker.serialize(inst)).not.toThrow();
   });
 });

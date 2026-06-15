@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { Transformer } from '../../src/types';
 
-import { deserialize, validate, Baker, Field, BakerError, isBakerIssueSet } from '../../index';
+import { Baker, Field, BakerError, isBakerIssueSet } from '../../index';
 import { isString } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 
@@ -24,8 +24,8 @@ describe('throw channel — runtime API misuse throws BakerError', () => {
       @Field(isString) v!: string;
     }
     void b;
-    expect(() => deserialize(Unsealed, { v: 'x' })).toThrow(BakerError);
-    expect(() => deserialize(Unsealed, { v: 'x' })).toThrow(/not sealed/);
+    expect(() => b.deserialize(Unsealed, { v: 'x' })).toThrow(BakerError);
+    expect(() => b.deserialize(Unsealed, { v: 'x' })).toThrow(/not sealed/);
   });
 
   it('new Baker() with an unknown config key throws BakerError', () => {
@@ -40,8 +40,8 @@ describe('throw channel — runtime API misuse throws BakerError', () => {
       @Field(isString) v!: string;
     }
     b.seal();
-    expect(() => deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(BakerError);
-    expect(() => deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(/Unknown per-call option/);
+    expect(() => b.deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(BakerError);
+    expect(() => b.deserialize(Called, { v: 'x' }, { nope: 1 } as never)).toThrow(/Unknown per-call option/);
   });
 });
 
@@ -57,8 +57,8 @@ describe('throw channel — sync transform returning a Promise throws BakerError
       @Field({ transform: promiseTransform }) v!: string;
     }
     b.seal();
-    expect(() => deserialize(Transformed, { v: 'x' })).toThrow(BakerError);
-    expect(() => deserialize(Transformed, { v: 'x' })).toThrow(/transform returned Promise/);
+    expect(() => b.deserialize(Transformed, { v: 'x' })).toThrow(BakerError);
+    expect(() => b.deserialize(Transformed, { v: 'x' })).toThrow(/transform returned Promise/);
   });
 });
 
@@ -111,7 +111,7 @@ describe('result channel — external input failures return a BakerIssueSet', ()
       @Field(isString) v!: string;
     }
     b.seal();
-    const result = await deserialize(Target, { v: 123 });
+    const result = await b.deserialize(Target, { v: 123 });
     expect(isBakerIssueSet(result)).toBe(true);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.path).toBe('v');
@@ -125,7 +125,7 @@ describe('result channel — external input failures return a BakerIssueSet', ()
       @Field(isString) v!: string;
     }
     b.seal();
-    const result = await validate(Target, { v: 123 });
+    const result = await b.validate(Target, { v: 123 });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });

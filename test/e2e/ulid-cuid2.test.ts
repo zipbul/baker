@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isULID, isCUID2 } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -12,12 +12,12 @@ afterEach(() => unseal());
 
 /** Helper: verify pass */
 async function pass<T>(cls: new (...a: never[]) => T, input: unknown): Promise<T> {
-  return deserialize<T>(cls, input) as Promise<T>;
+  return baker.deserialize<T>(cls, input) as Promise<T>;
 }
 
 /** Helper: verify rejection + return error code */
 async function failCode(cls: new (...args: never[]) => unknown, input: unknown): Promise<string> {
-  const result = await deserialize(cls, input);
+  const result = await baker.deserialize(cls, input);
   if (!isBakerIssueSet(result)) {
     throw new Error('expected validation failure');
   }
@@ -59,11 +59,11 @@ describe('isULID', () => {
     class UlidDto {
       @Field(isULID()) id!: string;
     }
-    sealClass(UlidDto);
-    const ok = await pass(UlidDto, { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV' });
+    const ulidBaker = sealClass(UlidDto);
+    const ok = (await ulidBaker.deserialize<UlidDto>(UlidDto, { id: '01ARZ3NDEKTSV4RRFFQ69G5FAV' })) as UlidDto;
     expect(ok.id).toBe('01ARZ3NDEKTSV4RRFFQ69G5FAV');
 
-    const err = await deserialize(UlidDto, { id: 'not-a-ulid' });
+    const err = await ulidBaker.deserialize(UlidDto, { id: 'not-a-ulid' });
     expect(isBakerIssueSet(err)).toBe(true);
   });
 });
@@ -100,11 +100,11 @@ describe('isCUID2', () => {
     class Cuid2Dto {
       @Field(isCUID2()) id!: string;
     }
-    sealClass(Cuid2Dto);
-    const ok = await pass(Cuid2Dto, { id: 'clh3am6660002q2bfx5y9z0rn' });
+    const cuid2Baker = sealClass(Cuid2Dto);
+    const ok = (await cuid2Baker.deserialize<Cuid2Dto>(Cuid2Dto, { id: 'clh3am6660002q2bfx5y9z0rn' })) as Cuid2Dto;
     expect(ok.id).toBe('clh3am6660002q2bfx5y9z0rn');
 
-    const err = await deserialize(Cuid2Dto, { id: 'NOT-VALID' });
+    const err = await cuid2Baker.deserialize(Cuid2Dto, { id: 'NOT-VALID' });
     expect(isBakerIssueSet(err)).toBe(true);
   });
 });

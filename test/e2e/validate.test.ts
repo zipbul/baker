@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
-import { Baker, validate, deserialize, isBakerIssueSet, Field } from '../../index';
+import { Baker, isBakerIssueSet, Field } from '../../index';
 import { isString, isNumber, isEmail, min, max, minLength } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
@@ -35,11 +35,11 @@ class NestedUserDto {
 
 describe('validate DTO — basic', () => {
   it('valid input → true', async () => {
-    expect(await validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' })).toBe(true);
+    expect(await baker.validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' })).toBe(true);
   });
 
   it('invalid input → BakerIssueSet with field paths', async () => {
-    const result = await validate(SimpleDto, { name: 'A', age: -5, email: 'bad' });
+    const result = await baker.validate(SimpleDto, { name: 'A', age: -5, email: 'bad' });
     assertBakerIssueSet(result);
     const codes = result.errors.map(e => e.code);
     expect(codes).toContain('minLength');
@@ -48,41 +48,41 @@ describe('validate DTO — basic', () => {
   });
 
   it('wrong types → BakerIssueSet', async () => {
-    const result = await validate(SimpleDto, { name: 123, age: 'bad', email: 42 });
+    const result = await baker.validate(SimpleDto, { name: 123, age: 'bad', email: 42 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
 
   it('missing fields → BakerIssueSet', async () => {
-    const result = await validate(SimpleDto, {});
+    const result = await baker.validate(SimpleDto, {});
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
   it('null input → BakerIssueSet with invalidInput code', async () => {
-    const result = await validate(SimpleDto, null);
+    const result = await baker.validate(SimpleDto, null);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('array input → BakerIssueSet with invalidInput code', async () => {
-    const result = await validate(SimpleDto, [1, 2, 3]);
+    const result = await baker.validate(SimpleDto, [1, 2, 3]);
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('sync DTO returns directly', () => {
-    const result = validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
+    const result = baker.validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
     expect(result).toBe(true);
   });
 });
 
 describe('validate DTO — nested', () => {
   it('valid nested → true', async () => {
-    expect(await validate(NestedUserDto, { name: 'Bob', address: { city: 'Seoul' } })).toBe(true);
+    expect(await baker.validate(NestedUserDto, { name: 'Bob', address: { city: 'Seoul' } })).toBe(true);
   });
 
   it('invalid nested field → BakerIssueSet with nested path', async () => {
-    const result = await validate(NestedUserDto, { name: 'Bob', address: { city: '' } });
+    const result = await baker.validate(NestedUserDto, { name: 'Bob', address: { city: '' } });
     assertBakerIssueSet(result);
     const paths = result.errors.map(e => e.path);
     expect(paths.some(p => p.includes('address'))).toBe(true);
@@ -90,8 +90,8 @@ describe('validate DTO — nested', () => {
 
   it('rejects an array given for a nested DTO field without descending (consistent with deserialize)', async () => {
     const input = { name: 'Bob', address: [] };
-    const v = await validate(NestedUserDto, input);
-    const d = await deserialize(NestedUserDto, input);
+    const v = await baker.validate(NestedUserDto, input);
+    const d = await baker.deserialize(NestedUserDto, input);
     assertBakerIssueSet(v);
     assertBakerIssueSet(d);
     // The array must be rejected at the field itself, not validated as if it were an object.
@@ -105,24 +105,24 @@ describe('validate DTO — nested', () => {
 describe('validate DTO — consistency with deserialize', () => {
   it('validate returns true when deserialize succeeds', async () => {
     const input = { name: 'Alice', age: 30, email: 'alice@test.com' };
-    const vResult = await validate(SimpleDto, input);
-    const dResult = await deserialize(SimpleDto, input);
+    const vResult = await baker.validate(SimpleDto, input);
+    const dResult = await baker.deserialize(SimpleDto, input);
     expect(vResult).toBe(true);
     expect(isBakerIssueSet(dResult)).toBe(false);
   });
 
   it('validate returns BakerIssueSet when deserialize returns BakerIssueSet', async () => {
     const input = { name: 'A', age: -1, email: 'bad' };
-    const vResult = await validate(SimpleDto, input);
-    const dResult = await deserialize(SimpleDto, input);
+    const vResult = await baker.validate(SimpleDto, input);
+    const dResult = await baker.deserialize(SimpleDto, input);
     expect(isBakerIssueSet(vResult)).toBe(true);
     expect(isBakerIssueSet(dResult)).toBe(true);
   });
 
   it('same error codes from validate and deserialize', async () => {
     const input = { name: 123, age: 'x', email: 42 };
-    const vResult = await validate(SimpleDto, input);
-    const dResult = await deserialize(SimpleDto, input);
+    const vResult = await baker.validate(SimpleDto, input);
+    const dResult = await baker.deserialize(SimpleDto, input);
     assertBakerIssueSet(vResult);
     assertBakerIssueSet(dResult);
     const vCodes = vResult.errors.map(e => `${e.path}:${e.code}`).sort();
@@ -143,15 +143,15 @@ describe('validate DTO — groups', () => {
   }
 
   it('without groups → validates non-group fields only', async () => {
-    expect(await validate(GroupDto, { name: 'Alice' })).toBe(true);
+    expect(await baker.validate(GroupDto, { name: 'Alice' })).toBe(true);
   });
 
   it('with groups → validates group fields too → passes when provided', async () => {
-    expect(await validate(GroupDto, { name: 'Alice', secret: 'key' }, { groups: ['admin'] })).toBe(true);
+    expect(await baker.validate(GroupDto, { name: 'Alice', secret: 'key' }, { groups: ['admin'] })).toBe(true);
   });
 
   it('with groups → missing group field → fails', async () => {
-    const result = await validate(GroupDto, { name: 'Alice' }, { groups: ['admin'] });
+    const result = await baker.validate(GroupDto, { name: 'Alice' }, { groups: ['admin'] });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -164,11 +164,11 @@ describe('validate DTO — optional/nullable', () => {
   }
 
   it('optional field missing → passes', async () => {
-    expect(await validate(OptionalDto, { name: 'Alice' })).toBe(true);
+    expect(await baker.validate(OptionalDto, { name: 'Alice' })).toBe(true);
   });
 
   it('optional field present but invalid → fails', async () => {
-    const result = await validate(OptionalDto, { name: 'Alice', nickname: 123 });
+    const result = await baker.validate(OptionalDto, { name: 'Alice', nickname: 123 });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -183,11 +183,11 @@ describe('validate DTO — async', () => {
   }
 
   it('async DTO valid → true', async () => {
-    expect(await validate(AsyncDto, { name: '  Alice  ' })).toBe(true);
+    expect(await baker.validate(AsyncDto, { name: '  Alice  ' })).toBe(true);
   });
 
   it('async DTO missing field → BakerIssueSet', async () => {
-    const result = await validate(AsyncDto, {});
+    const result = await baker.validate(AsyncDto, {});
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });
@@ -201,7 +201,7 @@ describe('validate DTO — empty class', () => {
 
 describe('validate — DTO mode', () => {
   it('validates a plain object against the class schema', async () => {
-    const result = await validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
+    const result = await baker.validate(SimpleDto, { name: 'Alice', age: 30, email: 'a@b.com' });
     expect(result).toBe(true);
   });
 });

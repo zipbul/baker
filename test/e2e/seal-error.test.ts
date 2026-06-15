@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { EmittableRule } from '../../src/types';
 
-import { Field, deserialize, serialize, BakerError } from '../../index';
+import { Baker, Field, BakerError } from '../../index';
 import { isNumber } from '../../src/rules/index';
 import { applyField } from '../integration/helpers/modern-decorator';
 import { sealClass } from '../integration/helpers/seal';
@@ -16,6 +16,8 @@ function asRule(v: unknown): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('BakerError', () => {
+  const baker = new Baker();
+
   afterEach(() => unseal());
 
   it('sealClass(NoFieldDto) on a class without @Field seals to an empty executor (no error)', () => {
@@ -25,13 +27,13 @@ describe('BakerError', () => {
 
   it('deserialize on class never sealed (no @Field) → BakerError', () => {
     class NoFieldDto2 {}
-    expect(() => deserialize(NoFieldDto2, { name: 'Alice' })).toThrow(BakerError);
+    expect(() => baker.deserialize(NoFieldDto2, { name: 'Alice' })).toThrow(BakerError);
   });
 
   it('serialize on class never sealed (no @Field) → BakerError', () => {
     class NoFieldDto3 {}
     const dto = new NoFieldDto3();
-    expect(() => serialize(dto)).toThrow(BakerError);
+    expect(() => baker.serialize(dto)).toThrow(BakerError);
   });
 
   it('banned field name "__proto__" throws BakerError at seal', () => {
@@ -47,21 +49,21 @@ describe('BakerError', () => {
   });
 
   it('serialize null → BakerError', () => {
-    expect(() => serialize(null)).toThrow(BakerError);
+    expect(() => baker.serialize(null)).toThrow(BakerError);
   });
 
   it('serialize primitive → BakerError', () => {
-    expect(() => serialize(42)).toThrow(BakerError);
+    expect(() => baker.serialize(42)).toThrow(BakerError);
   });
 
   it('serialize undefined → BakerError', () => {
-    expect(() => serialize(undefined)).toThrow(BakerError);
+    expect(() => baker.serialize(undefined)).toThrow(BakerError);
   });
 
   it('serialize Object.create(null) → BakerError (no constructor)', () => {
     const obj = Object.create(null);
     obj.name = 'Alice';
-    expect(() => serialize(obj)).toThrow(BakerError);
+    expect(() => baker.serialize(obj)).toThrow(BakerError);
   });
 
   it('@Field with rule factory not invoked → BakerError with factory hint', () => {

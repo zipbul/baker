@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Field, Baker, deserialize, serialize, createRule, isBakerIssueSet, BakerError } from '../../index';
+import { Field, Baker, createRule, isBakerIssueSet, BakerError } from '../../index';
 import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
@@ -31,13 +31,13 @@ describe('baker.seal() — explicit seal at startup', () => {
   });
 
   it('deserialize works after explicit baker.seal()', async () => {
-    const r = await deserialize(SealTestDto, { name: 'Alice', age: 25 });
+    const r = await baker.deserialize(SealTestDto, { name: 'Alice', age: 25 });
     expect(isBakerIssueSet(r)).toBe(false);
   });
 
   it('serialize works after explicit baker.seal()', async () => {
     const dto = Object.assign(new SealTestDto(), { name: 'Bob', age: 30 });
-    const r = await serialize(dto);
+    const r = await baker.serialize(dto);
     expect(r).toEqual({ name: 'Bob', age: 30 });
   });
 
@@ -56,7 +56,7 @@ describe('baker.seal() — error when not sealed', () => {
       @Field(isString) name!: string;
       @Field(isNumber()) age!: number;
     }
-    expect(() => deserialize(Unsealed, { name: 'x', age: 1 })).toThrow(BakerError);
+    expect(() => b.deserialize(Unsealed, { name: 'x', age: 1 })).toThrow(BakerError);
   });
 
   it('serialize throws BakerError when class is not sealed', () => {
@@ -67,7 +67,7 @@ describe('baker.seal() — error when not sealed', () => {
       @Field(isNumber()) age!: number;
     }
     const dto = Object.assign(new Unsealed(), { name: 'x', age: 1 });
-    expect(() => serialize(dto)).toThrow(BakerError);
+    expect(() => b.serialize(dto)).toThrow(BakerError);
   });
 });
 
@@ -184,7 +184,7 @@ describe('baker.seal() — late-registered class', () => {
     expect(getSealed(LateDto)).toBeDefined();
 
     const instance = Object.assign(new LateDto(), { value: 'hello' });
-    const result = await serialize(instance);
+    const result = await b.serialize(instance);
     expect(result).toEqual({ value: 'hello' });
   });
 });
@@ -221,9 +221,9 @@ describe('E-25: concurrent deserialize on pre-sealed classes', () => {
 
   it('3 DTO classes deserialized concurrently via Promise.all → all succeed', async () => {
     const [a, b, c] = (await Promise.all([
-      deserialize<ConcurrentA>(ConcurrentA, { a: 'hello' }),
-      deserialize<ConcurrentB>(ConcurrentB, { b: 42 }),
-      deserialize<ConcurrentC>(ConcurrentC, { c: 'world', d: 99 }),
+      cb.deserialize<ConcurrentA>(ConcurrentA, { a: 'hello' }),
+      cb.deserialize<ConcurrentB>(ConcurrentB, { b: 42 }),
+      cb.deserialize<ConcurrentC>(ConcurrentC, { c: 'world', d: 99 }),
     ])) as [ConcurrentA, ConcurrentB, ConcurrentC];
     expect(a).toBeInstanceOf(ConcurrentA);
     expect(a.a).toBe('hello');
@@ -254,7 +254,7 @@ describe('forbidUnknown config takes effect per-baker', () => {
       @Field(isNumber()) age!: number;
     }
     b.seal();
-    const result = await deserialize(Strict, { name: 'Bob', age: 30, extra: 'bad' });
+    const result = await b.deserialize(Strict, { name: 'Bob', age: 30, extra: 'bad' });
     assertBakerIssueSet(result);
     const err = result.errors.find((x: { code: string }) => x.code === 'whitelistViolation');
     expect(err).toBeDefined();
@@ -268,7 +268,7 @@ describe('forbidUnknown config takes effect per-baker', () => {
       @Field(isNumber()) age!: number;
     }
     b.seal();
-    const result = (await deserialize<Lenient>(Lenient, { name: 'Bob', age: 30, extra: 'ok' })) as Lenient;
+    const result = (await b.deserialize<Lenient>(Lenient, { name: 'Bob', age: 30, extra: 'ok' })) as Lenient;
     expect(result.name).toBe('Bob');
   });
 });
@@ -393,7 +393,7 @@ describe('baker.seal() — @baker.Recipe discovery', () => {
     b.seal();
     void Registered;
     expect(getSealed(FieldOnly)).toBeUndefined();
-    expect(() => deserialize(FieldOnly, { name: 'x' })).toThrow(BakerError);
+    expect(() => b.deserialize(FieldOnly, { name: 'x' })).toThrow(BakerError);
   });
 
   it('baker.seal() seals and freezes a nested DTO reachable via @Field type even without its own @baker.Recipe', () => {
@@ -407,7 +407,7 @@ describe('baker.seal() — @baker.Recipe discovery', () => {
     }
     b.seal();
     expect(getSealed(NestedNoRecipe)).toBeDefined();
-    const out = deserialize(ParentWithNested, { child: { v: 'ok' } });
+    const out = b.deserialize(ParentWithNested, { child: { v: 'ok' } });
     expect(isBakerIssueSet(out)).toBe(false);
   });
 });

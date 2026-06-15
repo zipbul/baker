@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
+import { Baker, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isEmail } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -45,13 +45,13 @@ describe('error handling — stopAtFirstError', () => {
       @Field(isString) c!: string;
     }
     b.seal();
-    const result = await deserialize(MultiStopDto, { a: 1, b: 2, c: 3 });
+    const result = await b.deserialize(MultiStopDto, { a: 1, b: 2, c: 3 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBe(1);
   });
 
   it('stopAtFirstError: false (default) → collects all errors', async () => {
-    const result = await deserialize(MultiDto, { a: 1, b: 2, c: 3 });
+    const result = await baker.deserialize(MultiDto, { a: 1, b: 2, c: 3 });
     assertBakerIssueSet(result);
     expect(result.errors.length).toBeGreaterThanOrEqual(3);
   });
@@ -59,14 +59,14 @@ describe('error handling — stopAtFirstError', () => {
 
 describe('error handling — custom message', () => {
   it('string message', async () => {
-    const result = await deserialize(MessageDto, { name: 123 });
+    const result = await baker.deserialize(MessageDto, { name: 123 });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'name');
     expect(err!.message).toBe('name must be a string');
   });
 
   it('function message', async () => {
-    const result = await deserialize(MessageFnDto, { score: 'abc' });
+    const result = await baker.deserialize(MessageFnDto, { score: 'abc' });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'score');
     expect(err!.message).toContain('score');
@@ -76,7 +76,7 @@ describe('error handling — custom message', () => {
 
 describe('error handling — context', () => {
   it('includes context object', async () => {
-    const result = await deserialize(ContextDto, { email: 'not-email' });
+    const result = await baker.deserialize(ContextDto, { email: 'not-email' });
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.path === 'email');
     expect(err!.context).toEqual({ severity: 'critical' });
@@ -85,7 +85,7 @@ describe('error handling — context', () => {
 
 describe('error handling — className', () => {
   it('validation fails for ClassNameDto', async () => {
-    const result = await deserialize(ClassNameDto, { field: 42 });
+    const result = await baker.deserialize(ClassNameDto, { field: 42 });
     expect(isBakerIssueSet(result)).toBe(true);
   });
 });

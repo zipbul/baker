@@ -1,7 +1,7 @@
 import { isErr } from '@zipbul/result';
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import { Baker, Field, deserialize } from '../../index';
+import { Baker, Field } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isBoolean, isUint8Array, isByteSize } from '../../src/rules/index';
 
@@ -51,7 +51,7 @@ beforeEach(() => baker.seal());
 describe('codegen — integration', () => {
   it('should generate deserialize and serialize functions after auto-seal', async () => {
     // Trigger auto-seal via deserialize
-    await deserialize(CodegenSimpleDto, { name: 'Alice', value: 42 });
+    await baker.deserialize(CodegenSimpleDto, { name: 'Alice', value: 42 });
     const sealed = requireSealed(CodegenSimpleDto);
     expect(sealed).toBeDefined();
     expect(typeof sealed.deserialize).toBe('function');
@@ -60,7 +60,7 @@ describe('codegen — integration', () => {
 
   it('deserialize should accept valid input and return instance', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
+    await baker.deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = requireSealed(CodegenSimpleDto);
     const result = await sealed.deserialize({ name: 'Alice', value: 42 });
     expect(isErr(result)).toBe(false);
@@ -70,7 +70,7 @@ describe('codegen — integration', () => {
 
   it('deserialize should return error Result for invalid input', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
+    await baker.deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = requireSealed(CodegenSimpleDto);
     const result = await sealed.deserialize({ name: 123, value: 'wrong' });
     expect(isErr(result)).toBe(true);
@@ -78,7 +78,7 @@ describe('codegen — integration', () => {
 
   it('serialize should return plain object', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
+    await baker.deserialize(CodegenSimpleDto, { name: 'trigger', value: 0 });
     const sealed = requireSealed(CodegenSimpleDto);
     const instance = Object.assign(new CodegenSimpleDto(), { name: 'Bob', value: 7 });
     const result = await sealed.serialize(instance);
@@ -86,23 +86,23 @@ describe('codegen — integration', () => {
   });
 
   it('optional field should not cause error when absent', async () => {
-    const result = (await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
+    const result = (await baker.deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('optional field deserialized value should have required field', async () => {
-    const result = (await deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
+    const result = (await baker.deserialize<CodegenOptionalDto>(CodegenOptionalDto, { required: 'hello' })) as CodegenOptionalDto;
     expect(result.required).toBe('hello');
   });
 
   it('transform should be applied in generated deserialize code', async () => {
-    const result = (await deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' })) as CodegenTransformDto;
+    const result = (await baker.deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' })) as CodegenTransformDto;
     expect(result.text).toBe('trimmed');
   });
 
   it('should inline binary rule checks (instanceof Uint8Array, ArrayBuffer.isView) into generated deserialize source', async () => {
     // Trigger auto-seal
-    await deserialize(CodegenBinaryDto, { key: new Uint8Array(16) });
+    await baker.deserialize(CodegenBinaryDto, { key: new Uint8Array(16) });
     const sealed = requireSealed(CodegenBinaryDto);
     const src = sealed.deserialize.toString();
     expect(src).toContain('instanceof Uint8Array');
