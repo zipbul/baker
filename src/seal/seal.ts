@@ -134,25 +134,71 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
  * mix. Within one baker's seal, an already-present class is reused as-is (circular-ref guard + shared
  * nested DTO dedup for that baker).
  */
+// ─────────────────────────────────────────────────────────────────────────────
+// (class, config) executor cache — content-addressed sharing across bakers
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A class's generated executor is a pure function of (its RAW metadata, the seal config). So two
+ * bakers with the SAME config compile byte-identical executors — memoize globally by
+ * `(class, configFingerprint)` so they share one executor (compiled once) instead of N copies, while
+ * different-config bakers stay isolated (distinct fingerprint → distinct entry). Behaviour is
+ * unchanged either way: executors are pure (no per-call mutable state), so sharing is invisible.
+ *
+ * `WeakMap<class>` so an entry is reclaimed when its class is GC'd. The inner `Map` retains one
+ * executor per (class, config) for the class's lifetime — bounded for a fixed DTO/config set (the
+ * intended "seal once at startup" usage); a program that dynamically generates classes/configs would
+ * grow it without eviction.
+ */
+const compileCache = new WeakMap<Function, Map<string, SealedExecutors<unknown>>>();
+
+/** Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
+ * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key. */
+function configFingerprint(o: SealOptions): string {
+  return (
+    (o.enableImplicitConversion ? '1' : '0') +
+    (o.exposeDefaultValues ? '1' : '0') +
+    (o.stopAtFirstError ? '1' : '0') +
+    (o.whitelist ? '1' : '0') +
+    (o.debug ? '1' : '0')
+  );
+}
+
+function getCached(cls: Function, fp: string): SealedExecutors<unknown> | undefined {
+  return compileCache.get(cls)?.get(fp);
+}
+
+function setCached(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
+  let m = compileCache.get(cls);
+  if (m === undefined) {
+    m = new Map();
+    compileCache.set(cls, m);
+  }
+  m.set(fp, exec);
+}
+
 function sealRegistry(
   registry: Set<Function>,
   options: SealOptions,
   executors: Map<Function, SealedExecutors<unknown>>,
 ): void {
+  const fp = configFingerprint(options);
   const sealed = new Set<Function>();
   try {
     for (const Class of registry) {
-      sealOne(Class, executors, options, sealed);
+      sealOne(Class, executors, fp, options, sealed);
     }
   } catch (e) {
-    // Roll back every class sealed so far (including nested DTOs) — prevent partial seal state.
-    // The failed class self-cleaned its own placeholder in sealOne.
-    for (const Class of sealed) {
-      executors.delete(Class);
-    }
+    // Roll back the whole map — seal is one-shot, so `executors` was empty at entry; clearing it
+    // removes both freshly-compiled placeholders and any cache-reused entries from this attempt.
+    executors.clear();
     throw e;
   }
 
+  // Commit only the classes compiled by THIS seal to the shared cache (cache hits are already there).
+  for (const Class of sealed) {
+    setCached(Class, fp, executors.get(Class)!);
+  }
   registry.clear();
 }
 
@@ -163,12 +209,20 @@ function sealRegistry(
 function sealOne(
   Class: Function,
   executors: Map<Function, SealedExecutors<unknown>>,
+  fp: string,
   options?: SealOptions,
   sealedAcc?: Set<Function>,
 ): void {
   if (executors.has(Class)) {
-    // Already sealed by THIS baker — reuse as-is. Prevents infinite recursion on circular
-    // references and lets a shared value-type DTO reached from multiple roots reuse its sealed form.
+    // Already in THIS baker's map (placeholder mid-seal, freshly compiled, or cache-reused). Prevents
+    // infinite recursion on circular references and dedups a shared nested DTO within this seal.
+    return;
+  }
+
+  // Cache hit: another baker already compiled this class under the SAME config — reuse its executor.
+  const cached = getCached(Class, fp);
+  if (cached !== undefined) {
+    executors.set(Class, cached);
     return;
   }
 
@@ -259,14 +313,14 @@ function sealOne(
     // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
     for (const meta of Object.values(merged)) {
       if (meta.type?.resolvedClass) {
-        sealOne(meta.type.resolvedClass, executors, options, sealedAcc);
+        sealOne(meta.type.resolvedClass, executors, fp, options, sealedAcc);
       }
       if (meta.type?.resolvedCollectionValue) {
-        sealOne(meta.type.resolvedCollectionValue, executors, options, sealedAcc);
+        sealOne(meta.type.resolvedCollectionValue, executors, fp, options, sealedAcc);
       }
       if (meta.type?.discriminator) {
         for (const sub of meta.type.discriminator.subTypes) {
-          sealOne(sub.value, executors, options, sealedAcc);
+          sealOne(sub.value, executors, fp, options, sealedAcc);
         }
       }
     }
@@ -412,4 +466,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-export { sealRegistry, mergeInheritance, circularPlaceholder };
+export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint };
