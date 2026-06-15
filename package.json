@@ -1,6 +1,6 @@
 {
   "name": "@zipbul/baker",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Bun-only AOT decorator-based DTO validation & serialization. class-validator DX, sealed code generation, zero reflect-metadata.",
   "keywords": [
     "aot",
