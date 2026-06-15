@@ -7,7 +7,7 @@ import { assertIsErr } from '../../test/integration/helpers/assert';
 import { sealClass } from '../../test/integration/helpers/seal';
 import { unseal } from '../../test/integration/helpers/unseal';
 import { BakerError } from '../errors';
-import { getSealed, setSealed, getRaw, setRaw, requireSealed } from '../meta-access';
+import { getSealed, setSealed, setRaw, requireSealed } from '../meta-access';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
 import { circularPlaceholder, mergeInheritance } from './seal';
@@ -268,7 +268,7 @@ describe('sealClass', () => {
 
   // ── Recursive nested seal + freeze ─────────────────────────────────────────
 
-  it('should recursively seal nested DTOs and freeze their RAW', () => {
+  it('should recursively seal nested DTOs', () => {
     // Arrange — parent + nested DTO
     class Nested {}
     setRaw(Nested, makeStringField('val'));
@@ -288,11 +288,9 @@ describe('sealClass', () => {
     // Act — seal should seal Parent AND recursively seal Nested
     sealClass(Parent);
 
-    // Assert — both sealed, RAW frozen
+    // Assert — both sealed
     expect(getSealed(Parent)).toBeDefined();
     expect(getSealed(Nested)).toBeDefined();
-    expect(Object.isFrozen(getRaw(Parent))).toBe(true);
-    expect(Object.isFrozen(getRaw(Nested))).toBe(true);
   });
 
   it('should throw BakerError when @Type returns invalid value (null/non-function)', () => {

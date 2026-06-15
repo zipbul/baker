@@ -123,6 +123,7 @@ function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
+  resolve?: (cls: Function) => SealedExecutors<unknown> | undefined,
 ): DeserializeExecutor<T>;
 function buildDeserializeCode(
   Class: Function,
@@ -130,6 +131,7 @@ function buildDeserializeCode(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
+  resolve: ((cls: Function) => SealedExecutors<unknown> | undefined) | undefined,
   validateOnly: true,
 ): ValidateExecutor;
 function buildDeserializeCode<T>(
@@ -138,6 +140,7 @@ function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined = getSealed,
   validateOnly = false,
 ): DeserializeExecutor<T> | ValidateExecutor {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
@@ -250,6 +253,7 @@ function buildDeserializeCode<T>(
       execs,
       options,
       validateOnly,
+      resolve,
     });
     body += fieldCode;
   }
@@ -302,8 +306,9 @@ function buildValidateCode(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined = getSealed,
 ): ValidateExecutor {
-  return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, true);
+  return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, resolve, true);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,6 +392,8 @@ interface FieldCodeContext {
   execs: SealedExecutors<unknown>[];
   options: SealOptions | undefined;
   validateOnly: boolean;
+  /** Resolve a nested class's sealed executor from the owning baker's seal context. */
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined;
   /** Track classes being inlined to detect circular references */
   inlineNestedClasses?: Set<Function>;
   /** JS expression for path prefix (inline nested context) */
@@ -1287,7 +1294,7 @@ function generateCollectionCode(
   // nested DTO executor (if present)
   let execIdx = -1;
   if (meta.type!.resolvedCollectionValue) {
-    const nestedSealed = getSealed(meta.type!.resolvedCollectionValue) as SealedExecutors<unknown>;
+    const nestedSealed = ctx.resolve(meta.type!.resolvedCollectionValue) as SealedExecutors<unknown>;
     execIdx = execs.length;
     execs.push(nestedSealed);
   }
@@ -1437,7 +1444,7 @@ function generateNestedCode(
     code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
     code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
-      const nestedSealed = getSealed(sub.value) as SealedExecutors<unknown> | undefined;
+      const nestedSealed = ctx.resolve(sub.value) as SealedExecutors<unknown> | undefined;
       const execIdx = execs.length;
       execs.push(nestedSealed as SealedExecutors<unknown>);
       const awaitKwD = ctx.isAsync ? 'await ' : '';
@@ -1465,7 +1472,7 @@ function generateNestedCode(
   } else {
     // §8.1 simple nested or §8.2 each array
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-    const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown> | undefined;
+    const nestedSealed = ctx.resolve(nestedCls) as SealedExecutors<unknown> | undefined;
     const execIdx = execs.length;
     execs.push(nestedSealed as SealedExecutors<unknown>);
 
@@ -1577,6 +1584,7 @@ function emitInlineNestedBlock(
     varPrefix,
     inputExpr,
     exposeDefaultValues: false, // inline nested doesn't use exposeDefaultValues
+    resolve: ctx.resolve,
   };
 
   let code = '';
@@ -1613,7 +1621,7 @@ function generateNestedCodeValidateOnly(
     code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
     code += `switch (${GEN.disc}${sk}) {\n`;
     for (const sub of meta.type.discriminator.subTypes) {
-      const subSealed = getSealed(sub.value) as SealedExecutors<unknown>;
+      const subSealed = ctx.resolve(sub.value) as SealedExecutors<unknown>;
       const subMerged = subSealed.merged;
       const canInline = subMerged && !ctx.inlineNestedClasses.has(sub.value);
       code += `  case ${JSON.stringify(sub.name)}:\n`;
@@ -1641,7 +1649,7 @@ function generateNestedCodeValidateOnly(
     code += `}\n`;
   } else {
     const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-    const nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
+    const nestedSealed = ctx.resolve(nestedCls) as SealedExecutors<unknown>;
     const nestedMerged = nestedSealed.merged;
     const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
@@ -1788,7 +1796,7 @@ function generateCollectionCodeValidateOnly(
   let nestedMerged: RawClassMeta | undefined;
   if (meta.type!.resolvedCollectionValue) {
     nestedCls = meta.type!.resolvedCollectionValue;
-    nestedSealed = getSealed(nestedCls) as SealedExecutors<unknown>;
+    nestedSealed = ctx.resolve(nestedCls) as SealedExecutors<unknown>;
     nestedMerged = nestedSealed.merged;
   }
   const useInline = nestedCls && nestedMerged && !ctx.inlineNestedClasses.has(nestedCls);

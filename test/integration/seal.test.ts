@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { Field, Baker, deserialize, serialize, createRule, isBakerIssueSet, BakerError } from '../../index';
-import { getRaw, getSealed, setRaw, requireSealed } from '../../src/meta-access';
+import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 
@@ -407,7 +407,6 @@ describe('baker.seal() — @baker.Recipe discovery', () => {
     }
     b.seal();
     expect(getSealed(NestedNoRecipe)).toBeDefined();
-    expect(Object.isFrozen(getRaw(NestedNoRecipe))).toBe(true);
     const out = deserialize(ParentWithNested, { child: { v: 'ok' } });
     expect(isBakerIssueSet(out)).toBe(false);
   });

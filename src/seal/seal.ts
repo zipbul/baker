@@ -3,7 +3,7 @@ import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '
 
 import { CollectionType, Direction } from '../enums';
 import { BakerError } from '../errors';
-import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
+import { getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
 import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
@@ -36,7 +36,12 @@ function circularPlaceholder(className: string): SealedExecutors<unknown> {
 // analyzeAsync — static analysis to determine if a sealed DTO requires an async executor (C1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function analyzeAsync(merged: RawClassMeta, direction: Direction, visited?: Set<Function>): boolean {
+function analyzeAsync(
+  merged: RawClassMeta,
+  direction: Direction,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
+  visited?: Set<Function>,
+): boolean {
   const flag = direction === Direction.Deserialize ? 'isAsync' : 'isSerializeAsync';
   const seen = visited ?? new Set<Function>();
 
@@ -51,11 +56,11 @@ function analyzeAsync(merged: RawClassMeta, direction: Direction, visited?: Set<
       return false;
     }
     seen.add(cls);
-    const sealed = getSealed(cls);
+    const sealed = resolve(cls);
     if (sealed?.merged) {
       return sealed[flag] === true;
     }
-    return analyzeAsync(mergeInheritance(cls), direction, seen);
+    return analyzeAsync(mergeInheritance(cls), direction, resolve, seen);
   };
 
   for (const meta of Object.values(merged)) {
@@ -144,23 +149,33 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
  * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
  * behaviour. Distinct classes stay fully isolated because each is sealed with its Baker's options.
  */
-function sealRegistry(registry: Set<Function>, options: SealOptions): void {
+function sealRegistry(
+  registry: Set<Function>,
+  options: SealOptions,
+  executors: Map<Function, SealedExecutors<unknown>>,
+): void {
   const sealed = new Set<Function>();
   try {
     for (const Class of registry) {
-      sealOne(Class, options, sealed);
+      sealOne(Class, executors, options, sealed);
     }
   } catch (e) {
     // Roll back every class sealed so far (including nested DTOs) — prevent partial seal state.
     // The failed class self-cleaned its own placeholder in sealOne.
     for (const Class of sealed) {
-      deleteSealed(Class);
+      executors.delete(Class);
     }
     throw e;
   }
 
+  // DUAL-WRITE (Phase 1 back-compat): publish each freshly-sealed executor to the global
+  // Class[SEALED] slot ONLY when empty, so the global deserialize/validate/serialize functions
+  // keep working for the existing suite. Done only after the whole seal succeeds, so a rollback
+  // never leaves an orphan global publish.
   for (const Class of sealed) {
-    freezeRaw(Class);
+    if (!hasSealedOwn(Class)) {
+      setSealed(Class, executors.get(Class)!);
+    }
   }
   registry.clear();
 }
@@ -169,16 +184,23 @@ function sealRegistry(registry: Set<Function>, options: SealOptions): void {
 // sealOne() — seal an individual class (§4.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Function>): void {
-  if (hasSealedOwn(Class)) {
-    // Already sealed — reuse as-is. Prevents infinite recursion on circular references and lets a
-    // shared value-type DTO reached from multiple scopes' roots reuse its single sealed form.
+function sealOne(
+  Class: Function,
+  executors: Map<Function, SealedExecutors<unknown>>,
+  options?: SealOptions,
+  sealedAcc?: Set<Function>,
+): void {
+  if (executors.has(Class)) {
+    // Already sealed by THIS baker — reuse as-is. Prevents infinite recursion on circular
+    // references and lets a shared value-type DTO reached from multiple roots reuse its sealed form.
     return;
   }
 
   // 0. Register placeholder — prevent infinite recursion on circular references
   const placeholder = circularPlaceholder(Class.name);
-  setSealed(Class, placeholder);
+  executors.set(Class, placeholder);
+
+  const resolve = (cls: Function): SealedExecutors<unknown> | undefined => executors.get(cls);
 
   try {
     // 1. Merge inheritance metadata
@@ -261,30 +283,30 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
     // 4. Seal nested @Type referenced DTOs first (recursive) — uses resolvedClass / resolvedCollectionValue
     for (const meta of Object.values(merged)) {
       if (meta.type?.resolvedClass) {
-        sealOne(meta.type.resolvedClass, options, sealedAcc);
+        sealOne(meta.type.resolvedClass, executors, options, sealedAcc);
       }
       if (meta.type?.resolvedCollectionValue) {
-        sealOne(meta.type.resolvedCollectionValue, options, sealedAcc);
+        sealOne(meta.type.resolvedCollectionValue, executors, options, sealedAcc);
       }
       if (meta.type?.discriminator) {
         for (const sub of meta.type.discriminator.subTypes) {
-          sealOne(sub.value, options, sealedAcc);
+          sealOne(sub.value, executors, options, sealedAcc);
         }
       }
     }
 
     // 5. Async analysis
-    const isAsync = analyzeAsync(merged, Direction.Deserialize);
-    const isSerializeAsync = analyzeAsync(merged, Direction.Serialize);
+    const isAsync = analyzeAsync(merged, Direction.Deserialize, resolve);
+    const isSerializeAsync = analyzeAsync(merged, Direction.Serialize, resolve);
 
     // 6. Generate deserialize executor code
-    const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync);
+    const deserializeExecutor = buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, resolve);
 
     // 6b. Generate validate-only executor code (no Object.create, no assignments)
-    const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync);
+    const validateExecutor = buildValidateCode(Class, merged, options, needsCircularCheck, isAsync, resolve);
 
     // 7. Generate serialize executor code
-    const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync);
+    const serializeExecutor = buildSerializeCode(Class, merged, options, isSerializeAsync, resolve);
 
     // 8. Replace placeholder with actual executor in-place (Object.assign preserves reference integrity)
     Object.assign(placeholder, {
@@ -298,7 +320,7 @@ function sealOne(Class: Function, options?: SealOptions, sealedAcc?: Set<Functio
   } catch (e) {
     // Self-clean this class's placeholder so a failed seal leaves no broken state —
     // including nested DTOs reached by recursion that are not in the registry.
-    deleteSealed(Class);
+    executors.delete(Class);
     throw e;
   }
 
@@ -337,25 +359,23 @@ function mergeInheritance(Class: Function): RawClassMeta {
 
   // child-first merge
   const merged: RawClassMeta = Object.create(null) as RawClassMeta;
-  // When the prototype chain has only the class itself (no decorated parent), no merging happens
-  // and we never mutate the metadata arrays — skip the shallow copy entirely.
-  const needsCopy = chain.length > 1;
 
   for (const ctor of chain) {
     const raw = getRaw(ctor)!;
     for (const [key, meta] of Object.entries(raw)) {
       if (!merged[key]) {
-        // First occurrence of field → copy only when subsequent ancestors might mutate
-        merged[key] = needsCopy
-          ? {
-              validation: [...meta.validation],
-              transform: [...meta.transform],
-              expose: [...meta.expose],
-              exclude: meta.exclude,
-              type: meta.type,
-              flags: { ...meta.flags },
-            }
-          : meta;
+        // Always copy each meta (incl. a fresh `flags` object and fresh arrays). RAW is shared
+        // across bakers and re-sealed per baker; normalization in sealOne mutates `meta.flags`,
+        // so it must operate on a copy and never touch the pristine RAW.
+        merged[key] = {
+          ...meta,
+          validation: [...meta.validation],
+          transform: [...meta.transform],
+          expose: [...meta.expose],
+          exclude: meta.exclude,
+          type: meta.type,
+          flags: { ...meta.flags },
+        };
       } else {
         // Already exists in child → independent merge per category (§4.2)
         const m = merged[key];

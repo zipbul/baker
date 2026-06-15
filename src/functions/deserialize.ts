@@ -1,10 +1,74 @@
 import { isErr } from '@zipbul/result';
 
 import type { RuntimeOptions } from '../interfaces';
+import type { SealedExecutors } from '../types';
 
 import { toBakerIssueSet, BakerError, type BakerIssue, type BakerIssueSet } from '../errors';
 import { ensureSealed } from '../seal/seal';
 import { checkCallOptions } from './check-call-options';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// run* helpers — post-resolution dispatch, shared by the global functions and Baker methods
+// ─────────────────────────────────────────────────────────────────────────────
+
+function runDeserialize<T>(
+  sealed: SealedExecutors<unknown>,
+  input: unknown,
+  options?: RuntimeOptions,
+): T | BakerIssueSet | Promise<T | BakerIssueSet> {
+  const checkedOpts = checkCallOptions(options);
+  if (sealed.isAsync) {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
+      if (isErr(result)) {
+        return toBakerIssueSet(result.data as BakerIssue[]);
+      }
+      return result as T;
+    });
+  }
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {
+    return toBakerIssueSet(result.data as BakerIssue[]);
+  }
+  return result as T;
+}
+
+function runDeserializeSync<T>(
+  sealed: SealedExecutors<unknown>,
+  className: string,
+  input: unknown,
+  options?: RuntimeOptions,
+): T | BakerIssueSet {
+  const checkedOpts = checkCallOptions(options);
+  if (sealed.isAsync) {
+    throw new BakerError(`deserializeSync(${className}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
+  }
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {
+    return toBakerIssueSet(result.data as BakerIssue[]);
+  }
+  return result as T;
+}
+
+function runDeserializeAsync<T>(
+  sealed: SealedExecutors<unknown>,
+  input: unknown,
+  options?: RuntimeOptions,
+): Promise<T | BakerIssueSet> {
+  const checkedOpts = checkCallOptions(options);
+  if (sealed.isAsync) {
+    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
+      if (isErr(result)) {
+        return toBakerIssueSet(result.data as BakerIssue[]);
+      }
+      return result as T;
+    });
+  }
+  const result = sealed.deserialize(input, checkedOpts);
+  if (isErr(result)) {
+    return Promise.resolve(toBakerIssueSet(result.data as BakerIssue[]));
+  }
+  return Promise.resolve(result as T);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // deserialize — Public API (§5.1)
@@ -27,23 +91,7 @@ export function deserialize<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerIssueSet | Promise<T | BakerIssueSet> {
-  const checkedOpts = checkCallOptions(options);
-  const sealed = ensureSealed(Class);
-
-  if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
-      if (isErr(result)) {
-        return toBakerIssueSet(result.data as BakerIssue[]);
-      }
-      return result as T;
-    });
-  }
-
-  const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {
-    return toBakerIssueSet(result.data as BakerIssue[]);
-  }
-  return result as T;
+  return runDeserialize<T>(ensureSealed(Class), input, options);
 }
 
 /**
@@ -55,16 +103,7 @@ export function deserializeSync<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): T | BakerIssueSet {
-  const checkedOpts = checkCallOptions(options);
-  const sealed = ensureSealed(Class);
-  if (sealed.isAsync) {
-    throw new BakerError(`deserializeSync(${Class.name}): DTO has async rules/transforms. Use deserializeAsync() instead.`);
-  }
-  const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {
-    return toBakerIssueSet(result.data as BakerIssue[]);
-  }
-  return result as T;
+  return runDeserializeSync<T>(ensureSealed(Class), Class.name, input, options);
 }
 
 /**
@@ -75,19 +114,7 @@ export function deserializeAsync<T>(
   input: unknown,
   options?: RuntimeOptions,
 ): Promise<T | BakerIssueSet> {
-  const checkedOpts = checkCallOptions(options);
-  const sealed = ensureSealed(Class);
-  if (sealed.isAsync) {
-    return (sealed.deserialize(input, checkedOpts) as Promise<unknown>).then((result): T | BakerIssueSet => {
-      if (isErr(result)) {
-        return toBakerIssueSet(result.data as BakerIssue[]);
-      }
-      return result as T;
-    });
-  }
-  const result = sealed.deserialize(input, checkedOpts);
-  if (isErr(result)) {
-    return Promise.resolve(toBakerIssueSet(result.data as BakerIssue[]));
-  }
-  return Promise.resolve(result as T);
+  return runDeserializeAsync<T>(ensureSealed(Class), input, options);
 }
+
+export { runDeserialize, runDeserializeSync, runDeserializeAsync };

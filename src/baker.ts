@@ -1,7 +1,13 @@
 import type { BakerConfig } from './configure';
-import type { SealOptions } from './interfaces';
+import type { BakerIssueSet } from './errors';
+import type { RuntimeOptions, SealOptions } from './interfaces';
+import type { SealedExecutors } from './types';
 
 import { normalizeConfig } from './configure';
+import { BakerError } from './errors';
+import { runDeserialize, runDeserializeSync, runDeserializeAsync } from './functions/deserialize';
+import { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync } from './functions/serialize';
+import { runValidate, runValidateSync, runValidateAsync } from './functions/validate';
 import { sealRegistry } from './seal/seal';
 
 /**
@@ -28,6 +34,7 @@ import { sealRegistry } from './seal/seal';
  */
 export class Baker {
   readonly #registry = new Set<Function>();
+  readonly #executors = new Map<Function, SealedExecutors<unknown>>();
   readonly #options: SealOptions;
   #sealed = false;
 
@@ -45,7 +52,58 @@ export class Baker {
     if (this.#sealed) {
       return;
     }
-    sealRegistry(this.#registry, this.#options);
+    sealRegistry(this.#registry, this.#options, this.#executors);
     this.#sealed = true;
   };
+
+  /** Resolve a class's executor from this baker's own map, or throw if it was not sealed here. */
+  #require(Class: Function): SealedExecutors<unknown> {
+    const sealed = this.#executors.get(Class);
+    if (!sealed) {
+      const name = Class.name || '<anonymous class>';
+      throw new BakerError(`${name} is not sealed by this baker`);
+    }
+    return sealed;
+  }
+
+  deserialize = <T>(
+    Class: new (...args: never[]) => T,
+    input: unknown,
+    options?: RuntimeOptions,
+  ): T | BakerIssueSet | Promise<T | BakerIssueSet> => runDeserialize<T>(this.#require(Class), input, options);
+
+  deserializeSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): T | BakerIssueSet =>
+    runDeserializeSync<T>(this.#require(Class), Class.name, input, options);
+
+  deserializeAsync = <T>(
+    Class: new (...args: never[]) => T,
+    input: unknown,
+    options?: RuntimeOptions,
+  ): Promise<T | BakerIssueSet> => runDeserializeAsync<T>(this.#require(Class), input, options);
+
+  validate = <T>(
+    Class: new (...args: never[]) => T,
+    input: unknown,
+    options?: RuntimeOptions,
+  ): true | BakerIssueSet | Promise<true | BakerIssueSet> => runValidate(this.#require(Class), input, options);
+
+  validateSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerIssueSet =>
+    runValidateSync(this.#require(Class), Class.name, input, options);
+
+  validateAsync = <T>(
+    Class: new (...args: never[]) => T,
+    input: unknown,
+    options?: RuntimeOptions,
+  ): Promise<true | BakerIssueSet> => runValidateAsync(this.#require(Class), input, options);
+
+  serialize = <T>(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>> =>
+    runSerialize(this.#require(resolveSerializeClass(instance, 'serialize')), instance, options);
+
+  serializeSync = <T>(instance: T, options?: RuntimeOptions): Record<string, unknown> => {
+    const Class = resolveSerializeClass(instance, 'serializeSync');
+    return runSerializeSync(this.#require(Class), Class.name, instance, options);
+  };
+
+  serializeAsync = <T>(instance: T, options?: RuntimeOptions): Promise<Record<string, unknown>> =>
+    runSerializeAsync(this.#require(resolveSerializeClass(instance, 'serializeAsync')), instance, options);
 }
