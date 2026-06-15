@@ -150,7 +150,7 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
  * intended "seal once at startup" usage); a program that dynamically generates classes/configs would
  * grow it without eviction.
  */
-const compileCache = new WeakMap<Function, Map<string, SealedExecutors<unknown>>>();
+let compileCache = new WeakMap<Function, Map<string, SealedExecutors<unknown>>>();
 
 /** Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
  * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key. */
@@ -168,9 +168,19 @@ function getCached(cls: Function, fp: string): SealedExecutors<unknown> | undefi
   return compileCache.get(cls)?.get(fp);
 }
 
-/** Test-only: drop a class's cached executors so a re-seal recompiles (keeps `unseal()` honest). */
+/** Test-only: drop a single class's cached executors so a re-seal recompiles it. */
 function clearCached(cls: Function): void {
   compileCache.delete(cls);
+}
+
+/**
+ * Test-only: drop the ENTIRE cache. Used by `unseal()` so a test that re-seals classes starts from a
+ * clean slate — a whole-cache reset (vs per-class) is the only way to avoid the partial-clear state
+ * where a cached root still references a nested whose entry was dropped (a root + its nested are always
+ * compiled together, so they must be invalidated together).
+ */
+function clearAllCached(): void {
+  compileCache = new WeakMap();
 }
 
 function setCached(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
@@ -482,4 +492,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint, clearCached };
+export { sealRegistry, mergeInheritance, circularPlaceholder, getCached, configFingerprint, clearCached, clearAllCached };
