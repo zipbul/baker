@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 import { Baker, serialize, deserialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
-import { unseal, purgePoisonClasses } from '../integration/helpers/unseal';
+import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
@@ -208,14 +208,10 @@ class ProtoMapDto {
 }
 
 describe('serialize — prototype pollution safety', () => {
-  afterEach(() => {
-    purgePoisonClasses();
-    unseal();
-  });
+  afterEach(() => unseal());
 
   it('rejects a reserved __proto__ expose name at seal', () => {
     expect(() => {
-      @baker.Recipe
       class ProtoExposeDto {
         @Field({ name: '__proto__' }) obj!: unknown;
       }
@@ -225,7 +221,6 @@ describe('serialize — prototype pollution safety', () => {
 
   it('rejects a reserved constructor expose name at seal', () => {
     expect(() => {
-      @baker.Recipe
       class CtorExposeDto {
         @Field({ name: 'constructor' }) v!: unknown;
       }
@@ -235,7 +230,6 @@ describe('serialize — prototype pollution safety', () => {
 
   it('rejects a reserved prototype expose name at seal', () => {
     expect(() => {
-      @baker.Recipe
       class ProtoNameDto {
         @Field({ name: 'prototype' }) v!: unknown;
       }

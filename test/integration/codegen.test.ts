@@ -1,10 +1,9 @@
 import { isErr } from '@zipbul/result';
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, Field, deserialize } from '../../index';
 import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber, isBoolean, isUint8Array, isByteSize } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -48,7 +47,6 @@ class CodegenBinaryDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 describe('codegen — integration', () => {
   it('should generate deserialize and serialize functions after auto-seal', async () => {

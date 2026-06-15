@@ -12,7 +12,7 @@ import { checkCallOptions } from './check-call-options';
 
 /**
  * Converts input to a Class instance + validates.
- * - Requires `seal()` to be called beforehand; throws `BakerError` if not sealed
+ * - Requires the class's baker to be sealed (`new Baker().seal()`) beforehand; throws `BakerError` if not sealed
  * - Sync DTOs return directly; async DTOs return Promise
  * - Success: T
  * - Validation failure: BakerIssueSet (use isBakerIssueSet() to narrow)

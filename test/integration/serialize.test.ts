@@ -1,8 +1,7 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -38,7 +37,6 @@ class ExcludedDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 describe('serialize — integration', () => {
   it('should serialize DTO instance to plain object', async () => {

@@ -56,7 +56,6 @@ describe('isULID', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    @baker.Recipe
     class UlidDto {
       @Field(isULID()) id!: string;
     }
@@ -98,7 +97,6 @@ describe('isCUID2', () => {
   });
 
   it('works as @Field rule in deserialize', async () => {
-    @baker.Recipe
     class Cuid2Dto {
       @Field(isCUID2()) id!: string;
     }

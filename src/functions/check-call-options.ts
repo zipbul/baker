@@ -19,7 +19,7 @@ const SEAL_TIME_KEYS = new Set<string>([
 /**
  * @internal — validate per-call options object at public-API entry.
  * `groups` is the only valid per-call key; everything else is rejected:
- *   - seal-time keys (BakerConfig / SealOptions) → "move to configure({...})"
+ *   - seal-time keys (BakerConfig / SealOptions) → "move to new Baker({...})"
  *   - any other key → "unknown call option"
  */
 export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
@@ -46,13 +46,13 @@ export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
     if (SEAL_TIME_KEYS.has(key)) {
       throw new BakerError(
         `Option '${key}' is a seal-time setting and cannot be passed per-call. ` +
-          `Move it to configure({ ${key}: ... }) at app startup. ` +
+          `Move it to new Baker({ ${key}: ... }) at app startup. ` +
           `Per-call options: ${[...CALL_OPTION_KEYS].join(', ')}.`,
       );
     }
     throw new BakerError(
       `Unknown per-call option '${key}'. Valid per-call options: ${[...CALL_OPTION_KEYS].join(', ')}. ` +
-        `Seal-time options go to configure({...}).`,
+        `Seal-time options go to new Baker({...}).`,
     );
   }
   return opts as RuntimeOptions;

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, deserialize, serialize, isBakerIssueSet, ExcludeMode, Field } from '../../index';
 import {
@@ -13,12 +13,10 @@ import {
   maxLength,
   arrayMinSize,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 // ─────────────────────────────────────────────────────────────────────────────
 
 enum Role {

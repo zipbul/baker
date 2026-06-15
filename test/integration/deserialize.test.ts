@@ -1,18 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, deserialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, isISIN, isISSN, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
-beforeEach(() => {
-  unseal();
-  baker.seal();
-});
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 // ─── DTOs ────────────────────────────────────────────────────────────────────
 
@@ -266,11 +260,6 @@ class AdminOnlyDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('deserialize — public sync/async path', () => {
-  afterEach(() => {
-    unseal();
-    baker.seal();
-  });
-
   it('deserialize is a regular function', () => {
     expect(deserialize.constructor.name).toBe('Function');
   });
@@ -303,11 +292,6 @@ class ContextIntegrationDto {
 }
 
 describe('deserialize — @Field message integration', () => {
-  afterEach(() => {
-    unseal();
-    baker.seal();
-  });
-
   it('should include field-level message in BakerIssue.message on validation failure', async () => {
     const result = await deserialize(MessageIntegrationDto, { name: 42 });
     assertBakerIssueSet(result);
@@ -322,11 +306,6 @@ describe('deserialize — @Field message integration', () => {
 });
 
 describe('deserialize — @Field context integration', () => {
-  afterEach(() => {
-    unseal();
-    baker.seal();
-  });
-
   it('should include value in BakerIssue.context on validation failure', async () => {
     const result = await deserialize(ContextIntegrationDto, { value: 'bad' });
     assertBakerIssueSet(result);
@@ -336,11 +315,6 @@ describe('deserialize — @Field context integration', () => {
 });
 
 describe('M4 — validation groups runtime filtering', () => {
-  afterEach(() => {
-    unseal();
-    baker.seal();
-  });
-
   it('no groups provided → group-gated fields excluded (visibility control)', async () => {
     const result = (await deserialize(AdminOnlyDto, { secret: 123, id: 1 })) as AdminOnlyDto;
     expect((result as AdminOnlyDto & { secret?: unknown })['secret']).toBeUndefined();

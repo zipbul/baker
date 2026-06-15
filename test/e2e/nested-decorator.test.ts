@@ -150,7 +150,6 @@ describe('@Nested edge cases', () => {
   });
 
   it('@Nested + optional → missing nested field allowed', async () => {
-    @baker.Recipe
     class OptNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, optional: true }) address?: AddressDto;
@@ -162,7 +161,6 @@ describe('@Nested edge cases', () => {
   });
 
   it('@Nested + nullable → null nested allowed', async () => {
-    @baker.Recipe
     class NullNested {
       @Field(isString) name!: string;
       @Field({ type: () => AddressDto, nullable: true }) address!: AddressDto | null;

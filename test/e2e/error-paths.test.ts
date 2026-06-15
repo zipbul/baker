@@ -1,14 +1,12 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, Field, arrayOf, deserialize } from '../../index';
 import { isString, isNumber, isInt, min, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 /** Helper: extracts errors array from BakerIssueSet */
 async function getErrors(cls: new (...args: never[]) => unknown, input: unknown) {

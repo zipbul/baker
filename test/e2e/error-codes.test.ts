@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, Field, deserialize, isBakerIssueSet } from '../../index';
 import {
@@ -58,12 +58,10 @@ import {
   isPort,
   isFQDN,
 } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 /** Helper: extracts the error code for a specific path from BakerIssueSet */
 async function getErrorCode(cls: new (...args: never[]) => unknown, input: unknown, path?: string): Promise<string> {

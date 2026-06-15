@@ -1,8 +1,7 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, deserialize, serialize, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -41,7 +40,6 @@ class SerializeTransformDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 describe('transform — integration', () => {
   it('should apply transform function during deserialization', async () => {

@@ -15,8 +15,3 @@ export function unseal(): void {
   }
   trackedSealed.clear();
 }
-
-/** @deprecated No global registry to purge under the Baker model — kept as a no-op for callers. */
-export function purgePoisonClasses(): void {
-  /* no-op */
-}

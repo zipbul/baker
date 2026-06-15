@@ -79,7 +79,6 @@ describe('async @Transform — deserialize', () => {
   });
 
   it('promise-returning non-async deserialize transform throws contract error', () => {
-    @baker.Recipe
     class PromiseDeserializeDto {
       @Field(isString, {
         transform: {
@@ -105,7 +104,6 @@ describe('async @Transform — serialize', () => {
   });
 
   it('promise-returning non-async serialize transform throws contract error', () => {
-    @baker.Recipe
     class PromiseSerializeDto {
       @Field(isString, {
         transform: {
@@ -150,7 +148,6 @@ describe('E-10: isAsyncFunction robustness', () => {
     const mangledAsync = async ({ value }: { value: unknown }) => value;
     Object.defineProperty(mangledAsync, 'name', { value: 'x' });
 
-    @baker.Recipe
     class MangledDto {
       @Field(isString, { transform: { deserialize: mangledAsync, serialize: ({ value }: { value: unknown }) => value } })
       val!: string;

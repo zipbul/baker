@@ -1,16 +1,14 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import type { SealedExecutors } from '../../src/types';
 
 import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { getSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 // ─── sync DTO (no async transform) ──────────────────────────────────────────
 

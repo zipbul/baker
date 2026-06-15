@@ -29,7 +29,7 @@ function resolveSerializer(instance: unknown, fnName: string): SealedExecutors<u
 
 /**
  * Converts a Class instance to a plain object.
- * - Requires `seal()` to be called beforehand; throws `BakerError` if not sealed
+ * - Requires the class's baker to be sealed (`new Baker().seal()`) beforehand; throws `BakerError` if not sealed
  * - Sync DTOs return directly; async DTOs return Promise
  * - No validation — always returns Record<string, unknown>
  */

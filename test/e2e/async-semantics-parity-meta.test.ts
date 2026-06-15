@@ -1,13 +1,10 @@
-import { afterEach, describe, expect, it, beforeEach } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 
-import { Baker, createRule, deserialize, Field, isBakerIssueSet, RequiredType, serialize } from '../../index';
+import { createRule, deserialize, Field, isBakerIssueSet, RequiredType, serialize } from '../../index';
 import { isNumber, isString } from '../../src/rules/index';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
-const baker = new Baker();
-
-beforeEach(() => baker.seal());
 afterEach(() => unseal());
 
 const asyncEven = createRule({
@@ -32,7 +29,6 @@ const asyncStartsWithA = createRule({
 
 describe('async semantics parity meta', () => {
   it('async custom rule matches validate() and DTO path', async () => {
-    @baker.Recipe
     class Dto {
       @Field(isNumber(), asyncEven)
       value!: number;
@@ -49,7 +45,6 @@ describe('async semantics parity meta', () => {
   });
 
   it('async custom string rule matches validate() and DTO path', async () => {
-    @baker.Recipe
     class Dto {
       @Field(isString, asyncStartsWithA)
       value!: string;
@@ -66,7 +61,6 @@ describe('async semantics parity meta', () => {
   });
 
   it('async deserialize transform parity', async () => {
-    @baker.Recipe
     class Dto {
       @Field(isString, {
         transform: {
@@ -83,14 +77,12 @@ describe('async semantics parity meta', () => {
   });
 
   it('async serialize transform parity with nested object', async () => {
-    @baker.Recipe
     class ChildDto {
       @Field(isString)
       name!: string;
     }
     sealClass(ChildDto);
 
-    @baker.Recipe
     class ParentDto {
       @Field({ type: () => ChildDto })
       child!: ChildDto;

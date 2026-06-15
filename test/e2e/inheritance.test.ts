@@ -1,13 +1,11 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, Field, deserialize, serialize, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -89,7 +89,6 @@ describe('isByteSize (e2e)', () => {
   });
 
   it('16-byte DataView passes (any ArrayBufferView counts)', async () => {
-    @baker.Recipe
     class DataViewDto {
       @Field(isByteSize(16))
       view!: ArrayBufferView;

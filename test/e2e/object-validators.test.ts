@@ -40,7 +40,6 @@ describe('isNotEmptyObject', () => {
   });
 
   it('nullable option — ignores null-valued keys', async () => {
-    @baker.Recipe
     class NullableObjDto {
       @Field(isNotEmptyObject({ nullable: true }))
       config!: Record<string, unknown>;

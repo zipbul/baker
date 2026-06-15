@@ -7,7 +7,7 @@ import { RAW, SEALED } from './symbols';
 //
 // RAW lives on the TC39 decorator metadata object (Class[Symbol.metadata][RAW]) — that is
 // where modern field decorators can write (they receive `context.metadata`, never the class).
-// SEALED lives directly on the Class (Class[SEALED]); seal() runs with the class in hand.
+// SEALED lives directly on the Class (Class[SEALED]); sealing runs with the class in hand.
 type MetaObject = Record<PropertyKey, unknown> & { [RAW]?: RawClassMeta };
 type MetaCarrier = Function & { [Symbol.metadata]?: MetaObject | null };
 type SealedCarrier = Function & { [SEALED]?: SealedExecutors<unknown> };

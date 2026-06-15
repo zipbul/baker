@@ -41,19 +41,16 @@ describe('@Type / @Field({ type })', () => {
   });
 
   it('discriminator polymorphism', async () => {
-    @baker.Recipe
     class Cat {
       @Field(isString) name!: string;
     }
     sealClass(Cat);
-    @baker.Recipe
     class Dog {
       @Field(isString) name!: string;
       @Field(isNumber()) age!: number;
     }
     sealClass(Dog);
 
-    @baker.Recipe
     class PetDto {
       @Field({
         type: () => Object,

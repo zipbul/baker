@@ -1,13 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, deserialize, isBakerIssueSet, Field, createRule } from '../../index';
 import { oneOf, arrayEvery, isString, isBoolean, isRegExp, isFunction, isStatelessRegExp } from '../../src/rules/index';
-import { unseal } from '../integration/helpers/unseal';
 
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 function errorsOf(result: unknown): readonly { path: string; code: string }[] {
   if (!isBakerIssueSet(result)) {

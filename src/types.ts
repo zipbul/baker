@@ -132,15 +132,15 @@ export interface TypeDef {
     subTypes: { value: Function; name: string }[];
   };
   keepDiscriminatorProperty?: boolean;
-  /** seal() normalization result — true if fn() returns an array */
+  /** seal-time normalization result — true if fn() returns an array */
   isArray?: boolean;
-  /** seal() normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
+  /** seal-time normalization result — cached class after resolving fn() (DTOs only, excluding primitives) */
   resolvedClass?: ClassCtor;
-  /** seal() normalization result — Map or Set collection type */
+  /** seal-time normalization result — Map or Set collection type */
   collection?: CollectionType;
   /** Nested DTO class thunk for Map value / Set element */
   collectionValue?: () => ClassCtor;
-  /** seal() normalization result — cached class after resolving collectionValue */
+  /** seal-time normalization result — cached class after resolving collectionValue */
   resolvedCollectionValue?: ClassCtor;
 }
 

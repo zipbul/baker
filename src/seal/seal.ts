@@ -128,7 +128,7 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
   if (!sealed) {
     const name = Class.name || '<anonymous class>';
     throw new BakerError(
-      `${name} is not sealed. Call seal() at app startup before deserialize/validate/serialize. ` +
+      `${name} is not sealed. Call your baker's seal() (new Baker().seal()) at app startup before deserialize/validate/serialize. ` +
         `(If ${name} has no @Field decorators, decorate at least one property.)`,
     );
   }
@@ -416,8 +416,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// __testing__ — test-only export (TST-ACCESS compliant)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export { ensureSealed, sealRegistry, mergeInheritance };
+export { ensureSealed, sealRegistry, mergeInheritance, circularPlaceholder };

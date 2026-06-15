@@ -1,8 +1,7 @@
-import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, deserialize, serialize, Field, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -29,7 +28,6 @@ class GrandChildDto extends ChildDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 describe('inheritance — integration', () => {
   it('should deserialize parent fields in child DTO', async () => {

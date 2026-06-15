@@ -141,7 +141,6 @@ describe('@Transform callback parameters', () => {
 
 describe('E-24: async transform failure error path', () => {
   it('async transform returns invalid value → subsequent validation error has correct path/code', async () => {
-    @baker.Recipe
     class AsyncInvalidDto {
       @Field(isString, {
         transform: {
@@ -160,7 +159,6 @@ describe('E-24: async transform failure error path', () => {
   });
 
   it('async transform throws → error propagated', async () => {
-    @baker.Recipe
     class AsyncThrowDto {
       @Field(isString, {
         transform: {
@@ -183,7 +181,6 @@ describe('@Transform null return behavior', () => {
   // Therefore if Transform returns null, the subsequent type check will fail
 
   it('Transform → null return causes isString failure (guard runs on original input)', async () => {
-    @baker.Recipe
     class NullTransformDto {
       @Field(isString, {
         transform: {
@@ -199,7 +196,6 @@ describe('@Transform null return behavior', () => {
   });
 
   it('Transform returning valid value → validation passes', async () => {
-    @baker.Recipe
     class TransformDto {
       @Field(isString, {
         transform: {
@@ -215,7 +211,6 @@ describe('@Transform null return behavior', () => {
   });
 
   it('original is null + nullable → guard skips null → Transform not executed', async () => {
-    @baker.Recipe
     class NullableDto {
       @Field(isString, {
         nullable: true,

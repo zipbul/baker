@@ -12,5 +12,5 @@
 /** Tier 1 collection metadata (stored on Class[Symbol.metadata] by decorators) */
 export const RAW: unique symbol = Symbol.for('baker:raw');
 
-/** Tier 2 seal result (dual executor stored on Class by seal()) */
+/** Tier 2 seal result (dual executor stored on Class at seal time) */
 export const SEALED: unique symbol = Symbol.for('baker:sealed');

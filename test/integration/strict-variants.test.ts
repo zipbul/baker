@@ -1,8 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, Field, deserializeSync, deserializeAsync, validateSync, validateAsync, serializeSync, serializeAsync, BakerError, isBakerIssueSet } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -28,7 +27,6 @@ class AsyncSerDto {
 }
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 describe('deserializeSync / deserializeAsync', () => {
   it('deserializeSync on sync DTO returns value directly', () => {

@@ -39,7 +39,6 @@ describe('@IsInstance', () => {
   });
 
   it('wrong type rejected', async () => {
-    @baker.Recipe
     class WrongDto {
       @Field(isInstance(MyDate))
       date!: MyDate;

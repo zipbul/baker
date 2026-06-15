@@ -22,20 +22,20 @@ baker.seal();
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('seal() — explicit seal at startup', () => {
-  it('seal() attaches SEALED executors', () => {
+describe('baker.seal() — explicit seal at startup', () => {
+  it('baker.seal() attaches SEALED executors', () => {
     const sealed = requireSealed(SealTestDto);
     expect(sealed).toBeDefined();
     expect(typeof sealed.deserialize).toBe('function');
     expect(typeof sealed.serialize).toBe('function');
   });
 
-  it('deserialize works after explicit seal()', async () => {
+  it('deserialize works after explicit baker.seal()', async () => {
     const r = await deserialize(SealTestDto, { name: 'Alice', age: 25 });
     expect(isBakerIssueSet(r)).toBe(false);
   });
 
-  it('serialize works after explicit seal()', async () => {
+  it('serialize works after explicit baker.seal()', async () => {
     const dto = Object.assign(new SealTestDto(), { name: 'Bob', age: 30 });
     const r = await serialize(dto);
     expect(r).toEqual({ name: 'Bob', age: 30 });
@@ -48,7 +48,7 @@ describe('seal() — explicit seal at startup', () => {
   });
 });
 
-describe('seal() — error when not sealed', () => {
+describe('baker.seal() — error when not sealed', () => {
   it('deserialize throws BakerError when class is not sealed', () => {
     const b = new Baker();
     @b.Recipe
@@ -277,7 +277,7 @@ describe('forbidUnknown config takes effect per-baker', () => {
 // seal failure paths — transactional cleanup
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('seal() — transactional failure cleanup', () => {
+describe('baker.seal() — transactional failure cleanup', () => {
   it('nested setValue thunk thrown during analyzeCircular wraps in BakerError', () => {
     const b = new Baker();
     @b.Recipe
@@ -380,7 +380,7 @@ describe('seal() — transactional failure cleanup', () => {
   });
 });
 
-describe('seal() — @Recipe discovery', () => {
+describe('baker.seal() — @baker.Recipe discovery', () => {
   it('baker.seal() does NOT seal a class that has @Field but is not registered to the baker', () => {
     const b = new Baker();
     @b.Recipe
@@ -396,7 +396,7 @@ describe('seal() — @Recipe discovery', () => {
     expect(() => deserialize(FieldOnly, { name: 'x' })).toThrow(BakerError);
   });
 
-  it('baker.seal() seals and freezes a nested DTO reachable via @Field type even without its own @Recipe', () => {
+  it('baker.seal() seals and freezes a nested DTO reachable via @Field type even without its own @baker.Recipe', () => {
     const b = new Baker();
     class NestedNoRecipe {
       @Field(isString) v!: string;

@@ -98,7 +98,6 @@ describe('serialize parity meta', () => {
   });
 
   it('roundtrips directional names and serialize output contract together', async () => {
-    @baker.Recipe
     class RoundtripDto {
       @Field(isString, {
         deserializeName: 'full_name',

@@ -10,7 +10,7 @@ import { BakerError } from '../errors';
 import { getSealed, setSealed, getRaw, setRaw, requireSealed } from '../meta-access';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
-import { mergeInheritance } from './seal';
+import { circularPlaceholder, mergeInheritance } from './seal';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -864,5 +864,32 @@ describe('analyzeAsync — discriminator', () => {
     expect(getSealed(DiscA)).toBeDefined();
     expect(getSealed(DiscB)).toBeDefined();
     expect(getSealed(DiscC)).toBeDefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// circularPlaceholder — the temporary executor parked in the SEALED slot while a class is mid-seal.
+// Its methods must never run in normal flow (they are replaced in-place once seal completes), so
+// they exist purely as guards: if anything invokes them, it means a class was used while still
+// being sealed, which must fail loudly rather than run a half-built executor.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('circularPlaceholder', () => {
+  it('returns an executor whose deserialize/serialize/validate all throw BakerError', () => {
+    const ph = circularPlaceholder('PendingDto');
+    expect(() => ph.deserialize({}, undefined)).toThrow(BakerError);
+    expect(() => ph.serialize({}, undefined)).toThrow(BakerError);
+    expect(() => ph.validate({}, undefined)).toThrow(BakerError);
+  });
+
+  it('names the still-sealing class in the thrown message', () => {
+    const ph = circularPlaceholder('PendingDto');
+    expect(() => ph.deserialize({}, undefined)).toThrow(/PendingDto is still being sealed/);
+  });
+
+  it('is marked synchronous (isAsync / isSerializeAsync both false)', () => {
+    const ph = circularPlaceholder('PendingDto');
+    expect(ph.isAsync).toBe(false);
+    expect(ph.isSerializeAsync).toBe(false);
   });
 });

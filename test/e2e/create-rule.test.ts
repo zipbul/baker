@@ -77,7 +77,6 @@ describe('createRule — async', () => {
       validate: () => Promise.resolve(false),
     });
 
-    @baker.Recipe
     class PromiseRuleDto {
       @Field(promiseFalseRule)
       value!: string;

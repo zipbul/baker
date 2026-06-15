@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { describe, it, expect, beforeEach } from 'bun:test';
 
 import type { RuntimeOptions } from '../../src/interfaces';
 
 import { Baker, Field, deserialize, serialize, validate, BakerError } from '../../index';
 import { isString } from '../../src/rules/index';
-import { unseal } from './helpers/unseal';
 
 const baker = new Baker();
 
@@ -14,7 +13,6 @@ class CallOptDto {
 }
 
 beforeEach(() => baker.seal());
-afterEach(() => unseal());
 
 /** Test-only wrappers: accept options as `unknown` so we can pass invalid options to exercise checkCallOptions. */
 function deserializeBad<T>(cls: new (...args: never[]) => T, input: unknown, opts: unknown): unknown {

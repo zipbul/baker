@@ -16,7 +16,6 @@ describe('validateMeta — discriminator invariants', () => {
     class ChildA {
       @Field(isString) k!: string;
     }
-    @baker.Recipe
     class BadDisc {
       @Field({ type: () => ChildA, discriminator: { property: '', subTypes: [{ value: ChildA, name: 'a' }] } })
       v!: ChildA;
@@ -25,7 +24,6 @@ describe('validateMeta — discriminator invariants', () => {
   });
 
   it('empty subTypes throws BakerError', () => {
-    @baker.Recipe
     class EmptyDisc {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [] } })
       v!: unknown;
@@ -38,7 +36,6 @@ describe('validateMeta — discriminator invariants', () => {
     class C1 {
       @Field(isString) k!: string;
     }
-    @baker.Recipe
     class BadName {
       @Field({ type: () => C1, discriminator: { property: 'k', subTypes: [{ value: C1, name: '' }] } })
       v!: C1;
@@ -47,7 +44,6 @@ describe('validateMeta — discriminator invariants', () => {
   });
 
   it('subTypes entry with non-class value throws BakerError', () => {
-    @baker.Recipe
     class BadValue {
       @Field({ type: () => Object, discriminator: { property: 'k', subTypes: [{ value: 'NotAClass' as never, name: 'a' }] } })
       v!: unknown;
@@ -64,7 +60,6 @@ describe('validateMeta — discriminator invariants', () => {
     class D2 {
       @Field(isString) k!: string;
     }
-    @baker.Recipe
     class DupNames {
       @Field({
         type: () => D1,
@@ -83,7 +78,6 @@ describe('validateMeta — discriminator invariants', () => {
 
   it('subType value without @Field decorators throws BakerError', () => {
     class NoFields {}
-    @baker.Recipe
     class HasUndecoratedSub {
       @Field({ type: () => NoFields, discriminator: { property: 'k', subTypes: [{ value: NoFields, name: 'a' }] } })
       v!: NoFields;
@@ -95,7 +89,6 @@ describe('validateMeta — discriminator invariants', () => {
 describe('validateMeta — Set/Map collection invariants', () => {
   it('setValue target without @Field throws BakerError', () => {
     class NoFieldsItem {}
-    @baker.Recipe
     class SetParent {
       @Field({ type: () => Set, setValue: () => NoFieldsItem })
       items!: Set<NoFieldsItem>;
@@ -105,7 +98,6 @@ describe('validateMeta — Set/Map collection invariants', () => {
 
   it('mapValue target without @Field throws BakerError', () => {
     class NoFieldsVal {}
-    @baker.Recipe
     class MapParent {
       @Field({ type: () => Map, mapValue: () => NoFieldsVal })
       m!: Map<string, NoFieldsVal>;
