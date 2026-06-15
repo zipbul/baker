@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Baker, Field } from '../../index';
-import { requireSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 import { isAsyncFunction } from '../../src/utils';
 import { sealClass } from '../integration/helpers/seal';
@@ -181,7 +180,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       items!: Set<AsyncDeserItem>;
     }
     b.seal();
-    expect(requireSealed(ParentSet).isAsync).toBe(true);
+    expect(b.deserialize<ParentSet>(ParentSet, { items: [{ v: 'a' }] })).toBeInstanceOf(Promise);
   });
 
   it('Map<string, AsyncDeserVal> makes parent isAsync true', () => {
@@ -199,7 +198,7 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       entries!: Map<string, AsyncDeserVal>;
     }
     b.seal();
-    expect(requireSealed(ParentMap).isAsync).toBe(true);
+    expect(b.deserialize<ParentMap>(ParentMap, { entries: { k: { v: 'a' } } })).toBeInstanceOf(Promise);
   });
 
   it('Set<AsyncSerItem> makes parent isSerializeAsync true', () => {
@@ -217,7 +216,10 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       items!: Set<AsyncSerItem>;
     }
     b.seal();
-    expect(requireSealed(ParentSerSet).isSerializeAsync).toBe(true);
+    const instance = Object.assign(new ParentSerSet(), {
+      items: new Set([Object.assign(new AsyncSerItem(), { score: 1 })]),
+    });
+    expect(b.serialize(instance)).toBeInstanceOf(Promise);
   });
 
   it('Map<string, AsyncSerVal> makes parent isSerializeAsync true', () => {
@@ -235,7 +237,10 @@ describe('analyzeAsync — Set/Map value DTO async propagates to parent', () => 
       entries!: Map<string, AsyncSerVal>;
     }
     b.seal();
-    expect(requireSealed(ParentSerMap).isSerializeAsync).toBe(true);
+    const instance = Object.assign(new ParentSerMap(), {
+      entries: new Map([['k', Object.assign(new AsyncSerVal(), { n: 1 })]]),
+    });
+    expect(b.serialize(instance)).toBeInstanceOf(Promise);
   });
 
   it('async Set<DTO> deserialize returns Promise and resolves correctly', async () => {
@@ -367,24 +372,24 @@ class Tri3 {
 
 describe('async — propagation through depth and cycles', () => {
   it('3-level nested async DTO makes the root async and round-trips (no sync-with-await crash)', async () => {
-    expect(requireSealed(DeepRoot).isAsync).toBe(true);
+    expect(baker.deserialize(DeepRoot, { b: { c: { v: 'z' } } })).toBeInstanceOf(Promise);
     const out = (await baker.deserialize(DeepRoot, { b: { c: { v: 'z' } } })) as DeepRoot;
     expect(out.b.c.v).toBe('A_z');
   });
 
   it('circular reference propagates async to the class on the back-edge', async () => {
     // CycB has no async of its own but references CycA (async). The cycle must not hide that.
-    expect(requireSealed(CycA).isAsync).toBe(true);
-    expect(requireSealed(CycB).isAsync).toBe(true);
+    expect(baker.deserialize(CycA, { v: 'x' })).toBeInstanceOf(Promise);
+    expect(baker.deserialize(CycB, { w: 'y', a: { v: 'x' } })).toBeInstanceOf(Promise);
     const out = (await baker.deserialize(CycB, { w: 'y', a: { v: 'x' } })) as CycB;
     expect(out.a?.v).toBe('A_x');
   });
 
   it('3-cycle propagates async from a non-adjacent member to every class on the cycle', async () => {
     // Async lives only on Tri2; entering at Tri1/Tri3 reaches it only by traversing the cycle.
-    expect(requireSealed(Tri1).isAsync).toBe(true);
-    expect(requireSealed(Tri2).isAsync).toBe(true);
-    expect(requireSealed(Tri3).isAsync).toBe(true);
+    expect(baker.deserialize(Tri1, { id: 't1' })).toBeInstanceOf(Promise);
+    expect(baker.deserialize(Tri2, { v: 'bb' })).toBeInstanceOf(Promise);
+    expect(baker.deserialize(Tri3, { id: 't3' })).toBeInstanceOf(Promise);
     const out = (await baker.deserialize(Tri3, { id: 't3', next: { id: 't1', next: { v: 'bb' } } })) as Tri3;
     expect(out.next?.next?.v).toBe('A_bb');
   });

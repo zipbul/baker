@@ -1,9 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import type { SealedExecutors } from '../../src/types';
-
 import { Baker, Field, isBakerIssueSet } from '../../index';
-import { getSealed } from '../../src/meta-access';
 import { isString, isNumber } from '../../src/rules/index';
 
 const baker = new Baker();
@@ -37,16 +34,14 @@ class AsyncDto {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('dual sync/async API — deserialize', () => {
-  it('sync DTO has isAsync = false', async () => {
-    await baker.deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
-    expect(sealed.isAsync).toBe(false);
+  it('sync DTO deserialize runs synchronously (not a Promise)', () => {
+    const result = baker.deserialize(SyncDto, { name: 'Alice', age: 30 });
+    expect(result).not.toBeInstanceOf(Promise);
   });
 
-  it('async DTO has isAsync = true', async () => {
-    await baker.deserialize(AsyncDto, { name: 'Bob' });
-    const sealed = getSealed(AsyncDto) as SealedExecutors<AsyncDto>;
-    expect(sealed.isAsync).toBe(true);
+  it('async DTO deserialize runs asynchronously (returns a Promise)', () => {
+    const result = baker.deserialize(AsyncDto, { name: 'Bob' });
+    expect(result).toBeInstanceOf(Promise);
   });
 
   it('sync DTO deserialize returns direct value', () => {
@@ -72,10 +67,10 @@ describe('dual sync/async API — deserialize', () => {
 });
 
 describe('dual sync/async API — serialize', () => {
-  it('sync DTO has isSerializeAsync = false', async () => {
-    await baker.deserialize(SyncDto, { name: 'Alice', age: 30 });
-    const sealed = getSealed(SyncDto) as SealedExecutors<SyncDto>;
-    expect(sealed.isSerializeAsync).toBe(false);
+  it('sync DTO serialize runs synchronously (not a Promise)', () => {
+    const dto = Object.assign(new SyncDto(), { name: 'Alice', age: 30 });
+    const result = baker.serialize(dto);
+    expect(result).not.toBeInstanceOf(Promise);
   });
 
   it('sync DTO serialize succeeds', async () => {

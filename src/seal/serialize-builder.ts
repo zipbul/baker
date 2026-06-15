@@ -3,7 +3,6 @@ import type { RawClassMeta, RawPropertyMeta, SealedExecutors, TransformDef } fro
 
 import { CollectionType } from '../enums';
 import { BakerError } from '../errors';
-import { getSealed } from '../meta-access';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +140,7 @@ function buildSerializeCode<T>(
   merged: RawClassMeta,
   options: SealOptions | undefined,
   isAsync: boolean,
-  resolve: (cls: Function) => SealedExecutors<unknown> | undefined = getSealed,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
 ): (instance: T, opts?: RuntimeOptions) => Record<string, unknown> | Promise<Record<string, unknown>> {
   const refs: unknown[] = [];
   const execs: SealedExecutors<unknown>[] = [];

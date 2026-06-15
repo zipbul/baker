@@ -2,7 +2,6 @@ import type { RuntimeOptions } from '../interfaces';
 import type { SealedExecutors } from '../types';
 
 import { BakerError } from '../errors';
-import { ensureSealed } from '../seal/seal';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,11 +27,6 @@ function resolveSerializeClass(instance: unknown, fnName: string): Function {
     throw new BakerError(`${fnName}: received a plain object. Pass an instance of a DTO class decorated with @Field.`);
   }
   return Class;
-}
-
-/** Boundary check shared by the global serialize functions — forgery check + global resolution. */
-function resolveSerializer(instance: unknown, fnName: string): SealedExecutors<unknown> {
-  return ensureSealed(resolveSerializeClass(instance, fnName));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -72,32 +66,6 @@ function runSerializeAsync<T>(
   return sealed.isSerializeAsync
     ? (sealed.serialize(instance, checkedOpts) as Promise<Record<string, unknown>>)
     : Promise.resolve(sealed.serialize(instance, checkedOpts) as Record<string, unknown>);
-}
-
-/**
- * Converts a Class instance to a plain object.
- * - Requires the class's baker to be sealed (`new Baker().seal()`) beforehand; throws `BakerError` if not sealed
- * - Sync DTOs return directly; async DTOs return Promise
- * - No validation — always returns Record<string, unknown>
- */
-export function serialize<T>(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
-export function serialize<T>(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>> {
-  return runSerialize(resolveSerializer(instance, 'serialize'), instance, options);
-}
-
-/**
- * Sync-asserted serialize. Throws `BakerError` if Class has any async transform on the serialize side.
- */
-export function serializeSync<T>(instance: T, options?: RuntimeOptions): Record<string, unknown> {
-  const Class = resolveSerializeClass(instance, 'serializeSync');
-  return runSerializeSync(ensureSealed(Class), Class.name, instance, options);
-}
-
-/**
- * Async-asserted serialize. Always returns Promise (sync DTOs are wrapped via Promise.resolve).
- */
-export function serializeAsync<T>(instance: T, options?: RuntimeOptions): Promise<Record<string, unknown>> {
-  return runSerializeAsync(resolveSerializer(instance, 'serializeAsync'), instance, options);
 }
 
 export { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync };

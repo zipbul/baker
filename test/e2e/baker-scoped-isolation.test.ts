@@ -5,7 +5,8 @@ import { isNumber } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
 // Per-app CONFIG isolation: the same class sealed by two bakers behaves per each baker's config.
-// This is impossible under the global Class[SEALED] / first-seal-wins model; it is the headline of 5.1.
+// Each baker compiles its own executor into its own private map (keyed by class), so a class sealed
+// by two bakers carries two independent behaviours; it is the headline of 5.1.
 
 describe('Baker-scoped runtime — per-app config isolation', () => {
   it('same class, different autoConvert per baker — each baker.deserialize uses ITS own config', () => {

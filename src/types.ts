@@ -185,7 +185,7 @@ export interface RawClassMeta {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SealedExecutors — Dual executor stored in Class[SEALED] (§2.1)
+// SealedExecutors — Dual executor stored in the Baker's per-instance executor map (§2.1)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface SealedExecutors<T> {

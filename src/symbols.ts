@@ -1,6 +1,6 @@
 /**
- * 2 Symbols — zero external storage, zero global pollution
- * Uses Symbol.for: allows AOT code and runtime code to share the same Symbol via the global registry
+ * RAW symbol — zero external storage, zero global pollution.
+ * Uses Symbol.for: allows AOT code and runtime code to share the same Symbol via the global registry.
  */
 
 // TC39 decorator metadata polyfill. Bun 1.3.13 does not yet expose Symbol.metadata natively,
@@ -11,6 +11,3 @@
 
 /** Tier 1 collection metadata (stored on Class[Symbol.metadata] by decorators) */
 export const RAW: unique symbol = Symbol.for('baker:raw');
-
-/** Tier 2 seal result (dual executor stored on Class at seal time) */
-export const SEALED: unique symbol = Symbol.for('baker:sealed');

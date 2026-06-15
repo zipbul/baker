@@ -1,66 +1,12 @@
 import { describe, it, expect } from 'bun:test';
 
-import type { SealedExecutors } from './types';
-
-import {
-  deleteRaw,
-  deleteSealed,
-  freezeRaw,
-  getRaw,
-  getSealed,
-  hasRawOwn,
-  hasSealedOwn,
-  requireRaw,
-  requireSealed,
-  setRaw,
-  setSealed,
-} from './meta-access';
+import { deleteRaw, getRaw, hasRawOwn, requireRaw, setRaw } from './meta-access';
 
 function fresh(): Function {
   return class Anon {};
 }
 
-function mockExec(): SealedExecutors<unknown> {
-  return {
-    deserialize: () => ({ ok: true, data: {} }) as never,
-    serialize: () => ({}),
-    validate: () => null,
-    isAsync: false,
-    isSerializeAsync: false,
-  };
-}
-
 describe('meta-access', () => {
-  describe('SEALED slot', () => {
-    it('roundtrips via setSealed/getSealed', () => {
-      const cls = fresh();
-      const exec = mockExec();
-      setSealed(cls, exec);
-      expect(getSealed(cls)).toBe(exec);
-    });
-
-    it('hasSealedOwn returns true after setSealed, false after deleteSealed', () => {
-      const cls = fresh();
-      expect(hasSealedOwn(cls)).toBe(false);
-      setSealed(cls, mockExec());
-      expect(hasSealedOwn(cls)).toBe(true);
-      deleteSealed(cls);
-      expect(hasSealedOwn(cls)).toBe(false);
-    });
-
-    it('requireSealed returns the executor when present', () => {
-      const cls = fresh();
-      const exec = mockExec();
-      setSealed(cls, exec);
-      expect(requireSealed(cls)).toBe(exec);
-    });
-
-    it('requireSealed throws when slot is empty', () => {
-      const cls = fresh();
-      expect(() => requireSealed(cls)).toThrow(/not sealed/);
-    });
-  });
-
   describe('RAW slot', () => {
     it('roundtrips via setRaw/getRaw', () => {
       const cls = fresh();
@@ -90,19 +36,6 @@ describe('meta-access', () => {
       expect(() => requireRaw(cls)).toThrow(/no @Field/);
     });
 
-    it('freezeRaw freezes the RAW metadata object', () => {
-      const cls = fresh();
-      const raw = { x: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } };
-      setRaw(cls, raw as never);
-      freezeRaw(cls);
-      expect(Object.isFrozen(getRaw(cls))).toBe(true);
-    });
-
-    it('freezeRaw is a no-op when the class has no RAW slot', () => {
-      const cls = fresh();
-      expect(() => freezeRaw(cls)).not.toThrow();
-    });
-
     it('hasRawOwn is false for a child that inherits the parent metadata via the class prototype chain', () => {
       class Parent {}
       setRaw(Parent, { x: {} } as never);
@@ -122,15 +55,6 @@ describe('meta-access', () => {
       expect(getRaw(Parent)).toBe(parentRaw as never);
       expect(hasRawOwn(Child)).toBe(true);
       expect(getRaw(Child)).not.toBe(parentRaw as never);
-    });
-
-    it('freezeRaw on an inherited-only child does not freeze the parent RAW', () => {
-      class Parent {}
-      const parentRaw = { p: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} } };
-      setRaw(Parent, parentRaw as never);
-      class Child extends Parent {}
-      freezeRaw(Child);
-      expect(Object.isFrozen(parentRaw)).toBe(false);
     });
   });
 });

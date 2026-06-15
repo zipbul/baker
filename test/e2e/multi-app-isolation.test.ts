@@ -4,9 +4,9 @@ import { BakerError, Baker, Field, isBakerIssueSet } from '../../index';
 import { min } from '../../src/rules/number';
 import { isNumber, isString } from '../../src/rules/typechecker';
 
-// Each test defines its DTO classes locally so the global SEALED marker (stored on the class)
-// is fresh per test — no cross-test leakage. Classes here are sealed via each instance's own
-// `app.seal()`, which unseal() does not touch, so there is no shared state to reset between tests.
+// Each test defines its DTO classes locally so each test starts fresh — no cross-test leakage.
+// Classes here are sealed via each instance's own `app.seal()`; sealed executors live only in that
+// baker's private map, so there is no shared/global state to reset between tests.
 
 describe('Baker — multi-app isolation', () => {
   it('seals and deserializes a class registered to an instance, without a global seal()', () => {

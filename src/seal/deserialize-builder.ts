@@ -7,7 +7,6 @@ import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleD
 
 import { CacheKey, CollectionType } from '../enums';
 import { BakerError, type BakerIssue } from '../errors';
-import { getSealed } from '../meta-access';
 import { emitRulePlan } from '../rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 import { GuardKey } from './enums';
@@ -123,7 +122,7 @@ function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-  resolve?: (cls: Function) => SealedExecutors<unknown> | undefined,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
 ): DeserializeExecutor<T>;
 function buildDeserializeCode(
   Class: Function,
@@ -131,7 +130,7 @@ function buildDeserializeCode(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-  resolve: ((cls: Function) => SealedExecutors<unknown> | undefined) | undefined,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
   validateOnly: true,
 ): ValidateExecutor;
 function buildDeserializeCode<T>(
@@ -140,7 +139,7 @@ function buildDeserializeCode<T>(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-  resolve: (cls: Function) => SealedExecutors<unknown> | undefined = getSealed,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
   validateOnly = false,
 ): DeserializeExecutor<T> | ValidateExecutor {
   const stopAtFirstError = options?.stopAtFirstError ?? false;
@@ -306,7 +305,7 @@ function buildValidateCode(
   options: SealOptions | undefined,
   needsCircularCheck: boolean,
   isAsync: boolean,
-  resolve: (cls: Function) => SealedExecutors<unknown> | undefined = getSealed,
+  resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
 ): ValidateExecutor {
   return buildDeserializeCode(Class, merged, options, needsCircularCheck, isAsync, resolve, true);
 }

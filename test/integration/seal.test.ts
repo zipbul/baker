@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { Field, Baker, createRule, isBakerIssueSet, BakerError } from '../../index';
-import { getSealed, setRaw, requireSealed } from '../../src/meta-access';
+import { setRaw } from '../../src/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 
@@ -23,11 +23,11 @@ baker.seal();
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('baker.seal() — explicit seal at startup', () => {
-  it('baker.seal() attaches SEALED executors', () => {
-    const sealed = requireSealed(SealTestDto);
-    expect(sealed).toBeDefined();
-    expect(typeof sealed.deserialize).toBe('function');
-    expect(typeof sealed.serialize).toBe('function');
+  it('baker.seal() makes the class deserializable and serializable', async () => {
+    const r = await baker.deserialize(SealTestDto, { name: 'Alice', age: 25 });
+    expect(isBakerIssueSet(r)).toBe(false);
+    const dto = Object.assign(new SealTestDto(), { name: 'Bob', age: 30 });
+    expect(await baker.serialize(dto)).toEqual({ name: 'Bob', age: 30 });
   });
 
   it('deserialize works after explicit baker.seal()', async () => {
@@ -41,10 +41,10 @@ describe('baker.seal() — explicit seal at startup', () => {
     expect(r).toEqual({ name: 'Bob', age: 30 });
   });
 
-  it('baker.seal() is idempotent — calling again is a no-op', () => {
+  it('baker.seal() is idempotent — calling again is a no-op', async () => {
     expect(() => baker.seal()).not.toThrow();
     expect(() => baker.seal()).not.toThrow();
-    expect(getSealed(SealTestDto)).toBeDefined();
+    expect(isBakerIssueSet(await baker.deserialize(SealTestDto, { name: 'Alice', age: 25 }))).toBe(false);
   });
 });
 
@@ -124,40 +124,38 @@ class ParentWithAsyncNestedDto {
 
 asyncBaker.seal();
 
+// An async executor returns a Promise from deserialize / serialize; a sync one returns directly.
+// These are the observable equivalents of the internal isAsync / isSerializeAsync flags.
 describe('C1 — async architecture (isAsync / isSerializeAsync)', () => {
-  it('sync DTO → isAsync === false', () => {
-    const sealed = requireSealed(SyncDto);
-    expect(sealed.isAsync).toBe(false);
+  it('sync DTO → deserialize returns synchronously (isAsync === false)', () => {
+    expect(asyncBaker.deserialize(SyncDto, { name: 'x' })).not.toBeInstanceOf(Promise);
   });
 
-  it('async @Transform (deserialize) → isAsync === true', () => {
-    const sealed = requireSealed(AsyncTransformDeserializeDto);
-    expect(sealed.isAsync).toBe(true);
+  it('async @Transform (deserialize) → deserialize returns a Promise (isAsync === true)', () => {
+    expect(asyncBaker.deserialize(AsyncTransformDeserializeDto, { name: 'x' })).toBeInstanceOf(Promise);
   });
 
-  it('async createRule → isAsync === true', () => {
-    const sealed = requireSealed(AsyncRuleDto);
-    expect(sealed.isAsync).toBe(true);
+  it('async createRule → deserialize returns a Promise (isAsync === true)', () => {
+    expect(asyncBaker.deserialize(AsyncRuleDto, { name: 'x' })).toBeInstanceOf(Promise);
   });
 
-  it('nested async DTO → parent isAsync === true', () => {
-    const sealed = requireSealed(ParentWithAsyncNestedDto);
-    expect(sealed.isAsync).toBe(true);
+  it('nested async DTO → parent deserialize returns a Promise (isAsync === true)', () => {
+    expect(asyncBaker.deserialize(ParentWithAsyncNestedDto, { child: { name: 'x' } })).toBeInstanceOf(Promise);
   });
 
-  it('async @Transform (serializeOnly) → isSerializeAsync === true', () => {
-    const sealed = requireSealed(AsyncTransformSerializeDto);
-    expect(sealed.isSerializeAsync).toBe(true);
+  it('async @Transform (serializeOnly) → serialize returns a Promise (isSerializeAsync === true)', () => {
+    const dto = Object.assign(new AsyncTransformSerializeDto(), { price: 1 });
+    expect(asyncBaker.serialize(dto)).toBeInstanceOf(Promise);
   });
 
-  it('sync DTO → isSerializeAsync === false', () => {
-    const sealed = requireSealed(SyncDto);
-    expect(sealed.isSerializeAsync).toBe(false);
+  it('sync DTO → serialize returns synchronously (isSerializeAsync === false)', () => {
+    const dto = Object.assign(new SyncDto(), { name: 'x' });
+    expect(asyncBaker.serialize(dto)).not.toBeInstanceOf(Promise);
   });
 
-  it('deserialize-only async transform keeps isSerializeAsync false', () => {
-    const sealed = requireSealed(AsyncTransformDeserializeDto);
-    expect(sealed.isSerializeAsync).toBe(false);
+  it('deserialize-only async transform keeps serialize synchronous (isSerializeAsync false)', () => {
+    const dto = Object.assign(new AsyncTransformDeserializeDto(), { name: 'x' });
+    expect(asyncBaker.serialize(dto)).not.toBeInstanceOf(Promise);
   });
 });
 
@@ -181,7 +179,6 @@ describe('baker.seal() — late-registered class', () => {
     });
     b.Recipe(LateDto, null as never);
     b.seal();
-    expect(getSealed(LateDto)).toBeDefined();
 
     const instance = Object.assign(new LateDto(), { value: 'hello' });
     const result = await b.serialize(instance);
@@ -235,9 +232,9 @@ describe('E-25: concurrent deserialize on pre-sealed classes', () => {
   });
 
   it('all classes are sealed via baker.seal()', () => {
-    expect(getSealed(ConcurrentA)).toBeDefined();
-    expect(getSealed(ConcurrentB)).toBeDefined();
-    expect(getSealed(ConcurrentC)).toBeDefined();
+    expect(() => cb.deserialize(ConcurrentA, { a: 'x' })).not.toThrow();
+    expect(() => cb.deserialize(ConcurrentB, { b: 1 })).not.toThrow();
+    expect(() => cb.deserialize(ConcurrentC, { c: 'x', d: 1 })).not.toThrow();
   });
 });
 
@@ -310,11 +307,11 @@ describe('baker.seal() — transactional failure cleanup', () => {
       @Field({ type: () => NestedConflict }) child!: NestedConflict;
     }
     expect(() => b.seal()).toThrow(/conflicting requiresType/);
-    expect(getSealed(ParentWrap)).toBeUndefined();
-    expect(getSealed(NestedConflict)).toBeUndefined();
+    expect(() => b.deserialize(ParentWrap, {})).toThrow(/not sealed by this baker/);
+    expect(() => b.deserialize(NestedConflict, {})).toThrow(/not sealed by this baker/);
   });
 
-  it('seal with throwing @Type thunk leaves no SEALED placeholder', () => {
+  it('seal with throwing @Type thunk leaves no executor', () => {
     const b = new Baker();
     @b.Recipe
     class BadType {
@@ -326,10 +323,10 @@ describe('baker.seal() — transactional failure cleanup', () => {
       v!: unknown;
     }
     expect(() => b.seal()).toThrow('boom');
-    expect(getSealed(BadType)).toBeUndefined();
+    expect(() => b.deserialize(BadType, {})).toThrow(/not sealed by this baker/);
   });
 
-  it('seal with throwing collectionValue thunk leaves no SEALED placeholder', () => {
+  it('seal with throwing collectionValue thunk leaves no executor', () => {
     const b = new Baker();
     @b.Recipe
     class BadColl {
@@ -342,10 +339,10 @@ describe('baker.seal() — transactional failure cleanup', () => {
       items!: Set<unknown>;
     }
     expect(() => b.seal()).toThrow(/collectionValue function threw: coll-boom/);
-    expect(getSealed(BadColl)).toBeUndefined();
+    expect(() => b.deserialize(BadColl, {})).toThrow(/not sealed by this baker/);
   });
 
-  it('seal with conflicting requiresType leaves no SEALED placeholder', () => {
+  it('seal with conflicting requiresType leaves no executor', () => {
     const b = new Baker();
     @b.Recipe
     class ConflictReq {
@@ -358,7 +355,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
       caught = e;
     }
     expect(caught).toBeInstanceOf(BakerError);
-    expect(getSealed(ConflictReq)).toBeUndefined();
+    expect(() => b.deserialize(ConflictReq, {})).toThrow(/not sealed by this baker/);
   });
 
   it('a fresh baker succeeds after a separate baker failed to seal', () => {
@@ -368,7 +365,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
       @Field(isEmail(), min(5)) v!: unknown;
     }
     expect(() => bad.seal()).toThrow(BakerError);
-    expect(getSealed(BadRetry)).toBeUndefined();
+    expect(() => bad.deserialize(BadRetry, {})).toThrow(/not sealed by this baker/);
     // A subsequent unrelated seal must work — the failed attempt left nothing behind.
     const good = new Baker();
     @good.Recipe
@@ -376,7 +373,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
       @Field(isString) name!: string;
     }
     expect(() => good.seal()).not.toThrow();
-    expect(getSealed(GoodRetry)).toBeDefined();
+    expect(() => good.deserialize(GoodRetry, { name: 'x' })).not.toThrow();
   });
 });
 
@@ -392,11 +389,10 @@ describe('baker.seal() — @baker.Recipe discovery', () => {
     }
     b.seal();
     void Registered;
-    expect(getSealed(FieldOnly)).toBeUndefined();
     expect(() => b.deserialize(FieldOnly, { name: 'x' })).toThrow(BakerError);
   });
 
-  it('baker.seal() seals and freezes a nested DTO reachable via @Field type even without its own @baker.Recipe', () => {
+  it('baker.seal() seals a nested DTO reachable via @Field type even without its own @baker.Recipe', () => {
     const b = new Baker();
     class NestedNoRecipe {
       @Field(isString) v!: string;
@@ -406,7 +402,6 @@ describe('baker.seal() — @baker.Recipe discovery', () => {
       @Field({ type: () => NestedNoRecipe }) child!: NestedNoRecipe;
     }
     b.seal();
-    expect(getSealed(NestedNoRecipe)).toBeDefined();
     const out = b.deserialize(ParentWithNested, { child: { v: 'ok' } });
     expect(isBakerIssueSet(out)).toBe(false);
   });

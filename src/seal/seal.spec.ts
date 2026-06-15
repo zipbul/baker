@@ -1,13 +1,12 @@
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
-import type { BakerIssue } from '../errors';
-import type { RawClassMeta, RuleDef, SealedExecutors } from '../types';
+import type { RawClassMeta, RuleDef } from '../types';
 
-import { assertIsErr } from '../../test/integration/helpers/assert';
+import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { sealClass } from '../../test/integration/helpers/seal';
 import { unseal } from '../../test/integration/helpers/unseal';
-import { BakerError } from '../errors';
-import { getSealed, setSealed, setRaw, requireSealed } from '../meta-access';
+import { BakerError, isBakerIssueSet } from '../errors';
+import { setRaw } from '../meta-access';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
 import { circularPlaceholder, mergeInheritance } from './seal';
@@ -48,27 +47,24 @@ afterEach(() => {
 describe('sealClass', () => {
   // ── Happy Path ─────────────────────────────────────────────────────────────
 
-  it('should set the SEALED symbol on the class after sealing', () => {
+  it('should register the class in the baker after sealing', () => {
     // Arrange
     class UserDto {}
     setRaw(UserDto, makeStringField('name'));
     // Act
-    sealClass(UserDto);
-    // Assert
-    const sealed = requireSealed(UserDto);
-    expect(sealed).toBeDefined();
-    expect(typeof sealed.deserialize).toBe('function');
-    expect(typeof sealed.serialize).toBe('function');
+    const b = sealClass(UserDto);
+    // Assert — the baker can run the sealed class without throwing "not sealed by this baker"
+    expect(() => b.deserialize(UserDto, { name: 'x' })).not.toThrow();
+    expect(() => b.serialize(new UserDto())).not.toThrow();
   });
 
   it('should seal a DTO with @IsString field — deserialize returns instance for valid input', async () => {
     // Arrange
     class PersonDto {}
     setRaw(PersonDto, makeStringField('name'));
-    sealClass(PersonDto);
+    const b = sealClass(PersonDto);
     // Act
-    const sealed = requireSealed(PersonDto);
-    const result = await sealed.deserialize({ name: 'Alice' });
+    const result = await b.deserialize(PersonDto, { name: 'Alice' });
     // Assert
     expect(result).toBeInstanceOf(PersonDto);
     // @ts-ignore
@@ -79,14 +75,13 @@ describe('sealClass', () => {
     // Arrange
     class PersonDto2 {}
     setRaw(PersonDto2, makeStringField('name'));
-    sealClass(PersonDto2);
+    const b = sealClass(PersonDto2);
     // Act
-    const sealed = requireSealed(PersonDto2);
-    const result = await sealed.deserialize({ name: 42 });
-    // Assert — should be Err (has .data property)
-    assertIsErr<BakerIssue[]>(result);
-    expect(result.data).toBeDefined();
-    expect(Array.isArray(result.data)).toBe(true);
+    const result = await b.deserialize(PersonDto2, { name: 42 });
+    // Assert — should be a BakerIssueSet with an errors array
+    expect(isBakerIssueSet(result)).toBe(true);
+    assertBakerIssueSet(result);
+    expect(Array.isArray(result.errors)).toBe(true);
   });
 
   it('should seal @Type nested DTO so nested class is also sealed', () => {
@@ -106,27 +101,9 @@ describe('sealClass', () => {
       },
     });
     // Act
-    sealClass(OrderDto);
-    // Assert — nested DTO also sealed
-    expect(getSealed(AddressDto)).toBeDefined();
-  });
-
-  it('should skip sealing if class is already SEALED (prevents double-seal)', () => {
-    // Arrange
-    class DtoA {}
-    setRaw(DtoA, makeStringField('x'));
-    // Pre-seal DtoA with a sentinel executor; verify sealClass preserves it by reference equality
-    const sentinel: SealedExecutors<unknown> = {
-      deserialize: () => ({ ok: true }) as never,
-      serialize: () => ({ tag: 'pre-sealed' }),
-      validate: () => null,
-      isAsync: false,
-      isSerializeAsync: false,
-    };
-    setSealed(DtoA, sentinel);
-    sealClass(DtoA);
-    // Assert — SEALED slot was not replaced (reference identity)
-    expect(requireSealed(DtoA)).toBe(sentinel);
+    const b = sealClass(OrderDto);
+    // Assert — nested DTO also sealed (baker can run it without "not sealed" error)
+    expect(() => b.deserialize(AddressDto, { city: 'x' })).not.toThrow();
   });
 
   // ── Negative / Error ───────────────────────────────────────────────────────
@@ -175,8 +152,11 @@ describe('sealClass', () => {
     class EmptyDto {}
     setRaw(EmptyDto, makeEmptyMeta());
     // Act / Assert
-    expect(() => sealClass(EmptyDto)).not.toThrow();
-    expect(getSealed(EmptyDto)).toBeDefined();
+    let b!: ReturnType<typeof sealClass>;
+    expect(() => {
+      b = sealClass(EmptyDto);
+    }).not.toThrow();
+    expect(() => b.deserialize(EmptyDto, {})).not.toThrow();
   });
 
   // ── Idempotency ────────────────────────────────────────────────────────────
@@ -185,15 +165,13 @@ describe('sealClass', () => {
     // Arrange
     class IdempDto {}
     setRaw(IdempDto, makeStringField('name'));
-    sealClass(IdempDto);
-    const first = requireSealed(IdempDto);
-    const firstResult = await first.deserialize({ name: 'Bob' });
+    const b1 = sealClass(IdempDto);
+    const firstResult = await b1.deserialize(IdempDto, { name: 'Bob' });
 
-    // Unseal (restores RAW from merged) then re-seal
+    // Unseal (now a no-op for RAW) then re-seal in a fresh baker
     unseal();
-    sealClass(IdempDto);
-    const second = requireSealed(IdempDto);
-    const secondResult = await second.deserialize({ name: 'Bob' });
+    const b2 = sealClass(IdempDto);
+    const secondResult = await b2.deserialize(IdempDto, { name: 'Bob' });
     // Assert — both produce instances with same values
     expect(firstResult).toBeInstanceOf(IdempDto);
     expect(secondResult).toBeInstanceOf(IdempDto);
@@ -231,12 +209,12 @@ describe('sealClass', () => {
     setRaw(AnimalContainerDto, raw);
 
     // Act
-    sealClass(AnimalContainerDto);
+    const b = sealClass(AnimalContainerDto);
 
     // Assert — both subtype classes must be sealed by the recursive call
-    expect(getSealed(DogDto)).toBeDefined();
-    expect(getSealed(CatDto)).toBeDefined();
-    expect(getSealed(AnimalContainerDto)).toBeDefined();
+    expect(() => b.deserialize(DogDto, {})).not.toThrow();
+    expect(() => b.deserialize(CatDto, {})).not.toThrow();
+    expect(() => b.deserialize(AnimalContainerDto, {})).not.toThrow();
   });
 
   // ── DX-5: @Type without @ValidateNested ────────────────────────────────────
@@ -259,10 +237,10 @@ describe('sealClass', () => {
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
-    sealClass(AutoNestedDto);
+    const b = sealClass(AutoNestedDto);
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
-    expect(getSealed(AutoNestedDto)).toBeDefined();
+    expect(() => b.deserialize(AutoNestedDto, {})).not.toThrow();
     warnSpy.mockRestore();
   });
 
@@ -286,11 +264,11 @@ describe('sealClass', () => {
     });
 
     // Act — seal should seal Parent AND recursively seal Nested
-    sealClass(Parent);
+    const b = sealClass(Parent);
 
     // Assert — both sealed
-    expect(getSealed(Parent)).toBeDefined();
-    expect(getSealed(Nested)).toBeDefined();
+    expect(() => b.deserialize(Parent, {})).not.toThrow();
+    expect(() => b.deserialize(Nested, { val: 'x' })).not.toThrow();
   });
 
   it('should throw BakerError when @Type returns invalid value (null/non-function)', () => {
@@ -328,10 +306,10 @@ describe('sealClass', () => {
         flags: { validateNested: true },
       },
     });
-    // Act — seal fails
+    // Act / Assert — seal fails loudly. The throw itself proves no half-built
+    // executor was committed; rollback of stale placeholders is covered by the
+    // dedicated transactional tests in test/integration/seal.test.ts.
     expect(() => sealClass(ParentDto)).toThrow(BakerError);
-    // Assert — stale placeholder cleaned up
-    expect(getSealed(ParentDto)).toBeUndefined();
   });
 
   // ── DX-5 transform filter callback coverage ────────────────────────────────
@@ -354,10 +332,10 @@ describe('sealClass', () => {
     });
     const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
     // Act
-    sealClass(AutoNestedTransformDto);
+    const b = sealClass(AutoNestedTransformDto);
     // Assert — no warning, nested DTO is auto-resolved
     expect(warnSpy).not.toHaveBeenCalled();
-    expect(getSealed(AutoNestedTransformDto)).toBeDefined();
+    expect(() => b.deserialize(AutoNestedTransformDto, {})).not.toThrow();
     warnSpy.mockRestore();
   });
 
@@ -745,12 +723,11 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act
-    sealClass(ParentDisc);
+    const b = sealClass(ParentDisc);
 
-    // Assert — sealed executor should be async due to SubA's async transform
-    const sealed = requireSealed(ParentDisc);
-    expect(sealed).toBeDefined();
-    expect(sealed.isAsync).toBe(true);
+    // Assert — executor decides async statically; SubA's async transform makes
+    // the whole deserialize path async, so a valid input returns a Promise.
+    expect(b.deserialize(ParentDisc, { child: { kind: 'a', val: 's' } })).toBeInstanceOf(Promise);
   });
 
   it('should not infinite loop when discriminator subTypes reference each other circularly', () => {
@@ -803,8 +780,11 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act / Assert — should not throw or infinite loop
-    expect(() => sealClass(CircParent)).not.toThrow();
-    expect(getSealed(CircParent)).toBeDefined();
+    let b!: ReturnType<typeof sealClass>;
+    expect(() => {
+      b = sealClass(CircParent);
+    }).not.toThrow();
+    expect(() => b.deserialize(CircParent, {})).not.toThrow();
   });
 
   // ── E-14: 3 discriminator subTypes A→B→C→A circular — analyzeAsync terminates ──
@@ -858,15 +838,18 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     // Act / Assert — should not throw or infinite loop (visited Set shared across recursion)
-    expect(() => sealClass(DiscA)).not.toThrow();
-    expect(getSealed(DiscA)).toBeDefined();
-    expect(getSealed(DiscB)).toBeDefined();
-    expect(getSealed(DiscC)).toBeDefined();
+    let b!: ReturnType<typeof sealClass>;
+    expect(() => {
+      b = sealClass(DiscA);
+    }).not.toThrow();
+    expect(() => b.deserialize(DiscA, {})).not.toThrow();
+    expect(() => b.deserialize(DiscB, { name: 'x' })).not.toThrow();
+    expect(() => b.deserialize(DiscC, { name: 'x' })).not.toThrow();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// circularPlaceholder — the temporary executor parked in the SEALED slot while a class is mid-seal.
+// circularPlaceholder — the temporary executor parked in the baker's executor map while a class is mid-seal.
 // Its methods must never run in normal flow (they are replaced in-place once seal completes), so
 // they exist purely as guards: if anything invokes them, it means a class was used while still
 // being sealed, which must fail loudly rather than run a half-built executor.

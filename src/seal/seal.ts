@@ -3,7 +3,7 @@ import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '
 
 import { CollectionType, Direction } from '../enums';
 import { BakerError } from '../errors';
-import { getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
+import { getRaw, hasRawOwn } from '../meta-access';
 import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
@@ -125,22 +125,6 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
 }
 
 /**
- * @internal — used by serialize/deserialize. Returns the sealed executor.
- * Throws if the class was never sealed. Seal a class via `new Baker().seal()` first.
- */
-function ensureSealed(Class: Function): SealedExecutors<unknown> {
-  const sealed = getSealed(Class);
-  if (!sealed) {
-    const name = Class.name || '<anonymous class>';
-    throw new BakerError(
-      `${name} is not sealed. Call your baker's seal() (new Baker().seal()) at app startup before deserialize/validate/serialize. ` +
-        `(If ${name} has no @Field decorators, decorate at least one property.)`,
-    );
-  }
-  return sealed;
-}
-
-/**
  * Seal every class in `registry` with `options`. The core used by `new Baker().seal()`.
  * Transactional: on any failure every class sealed by this call is rolled back. Clears `registry`
  * on success.
@@ -168,15 +152,6 @@ function sealRegistry(
     throw e;
   }
 
-  // DUAL-WRITE (Phase 1 back-compat): publish each freshly-sealed executor to the global
-  // Class[SEALED] slot ONLY when empty, so the global deserialize/validate/serialize functions
-  // keep working for the existing suite. Done only after the whole seal succeeds, so a rollback
-  // never leaves an orphan global publish.
-  for (const Class of sealed) {
-    if (!hasSealedOwn(Class)) {
-      setSealed(Class, executors.get(Class)!);
-    }
-  }
   registry.clear();
 }
 
@@ -436,4 +411,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
   return merged;
 }
 
-export { ensureSealed, sealRegistry, mergeInheritance, circularPlaceholder };
+export { sealRegistry, mergeInheritance, circularPlaceholder };

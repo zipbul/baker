@@ -1,17 +1,8 @@
-// Test-only: roll back classes sealed via `sealClass` (restore RAW metadata, drop the executor)
-// so a later test can re-seal them. No global registry — operates only on tracked classes.
-import type { SealedExecutors } from '../../../src/types';
-
-import { deleteSealed, getSealed, setRaw } from '../../../src/meta-access';
+// Test-only: forget the classes tracked by `sealClass` between tests. Executors live in each
+// Baker's own (discarded) map and RAW metadata on the class is never mutated by sealing, so there is
+// no per-class state to roll back — re-sealing a class through a fresh Baker just works.
 import { trackedSealed } from './seal';
 
 export function unseal(): void {
-  for (const Class of trackedSealed) {
-    const sealed = getSealed(Class) as SealedExecutors<unknown> | undefined;
-    if (sealed?.merged) {
-      setRaw(Class, sealed.merged);
-    }
-    deleteSealed(Class);
-  }
   trackedSealed.clear();
 }
