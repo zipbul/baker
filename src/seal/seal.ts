@@ -1,16 +1,13 @@
 import type { SealOptions } from '../interfaces';
 import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 
-import { getGlobalOptions } from '../configure';
 import { CollectionType, Direction } from '../enums';
 import { BakerError } from '../errors';
 import { deleteSealed, freezeRaw, getRaw, getSealed, hasRawOwn, hasSealedOwn, setSealed } from '../meta-access';
-import { globalRegistry } from '../registry';
 import { isAsyncFunction } from '../utils';
 import { analyzeCircular } from './circular-analyzer';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
 import { validateExposeStacks } from './expose-validator';
-import { sealedClasses, isSealed, markSealed } from './seal-state';
 import { buildSerializeCode } from './serialize-builder';
 import { validateMeta } from './validate-meta';
 
@@ -122,12 +119,9 @@ function nestedClassesOf(meta: RawPropertyMeta): Function[] {
   return out;
 }
 
-// Seal state lives in ./seal-state so `configure.ts` can read it without importing this file
-// (which would form a cycle: seal → configure → seal). Re-export the test helpers used by `unseal()`.
-
 /**
  * @internal — used by serialize/deserialize. Returns the sealed executor.
- * Throws if the class was never sealed. Users must call `seal()` at app startup.
+ * Throws if the class was never sealed. Seal a class via `new Baker().seal()` first.
  */
 function ensureSealed(Class: Function): SealedExecutors<unknown> {
   const sealed = getSealed(Class);
@@ -142,27 +136,15 @@ function ensureSealed(Class: Function): SealedExecutors<unknown> {
 }
 
 /**
- * Seal every class in the decorator registry, then clear the registry.
- */
-function sealAllRegistered(): void {
-  if (isSealed()) {
-    return;
-  }
-  sealRegistry(globalRegistry, getGlobalOptions(), sealedClasses);
-  markSealed();
-}
-
-/**
- * Seal every class in `registry` with `options`. Shared core of both the global default `seal()`
- * and per-scope `createBaker().seal()`. Transactional: on any failure every class sealed by this
- * call is rolled back. Clears `registry` on success.
+ * Seal every class in `registry` with `options`. The core used by `new Baker().seal()`.
+ * Transactional: on any failure every class sealed by this call is rolled back. Clears `registry`
+ * on success.
  *
- * A class already sealed (e.g. a shared value-type DTO reached from another scope's roots) is
+ * A class already sealed (e.g. a shared value-type DTO reached from another Baker's roots) is
  * reused as-is — class identity is the isolation boundary, so a shared class carries one sealed
- * behaviour. Distinct classes stay fully isolated because each is sealed with its scope's options.
+ * behaviour. Distinct classes stay fully isolated because each is sealed with its Baker's options.
  *
- * @param track Optional set recording successfully-sealed classes. The default seal passes the
- *              global `sealedClasses` so `unseal()` can restore them; instances pass nothing.
+ * @param track Optional set recording successfully-sealed classes (e.g. test helpers that roll back).
  */
 function sealRegistry(registry: Set<Function>, options: SealOptions, track?: Set<Function>): void {
   const sealed = new Set<Function>();
@@ -184,52 +166,6 @@ function sealRegistry(registry: Set<Function>, options: SealOptions, track?: Set
     freezeRaw(Class);
   }
   registry.clear();
-}
-
-/**
- * Seal a single class (and its nested DTOs). Not part of the public API — `seal()` (argless)
- * is the only public entry. Exposed via `__testing__.sealClass` so tests can seal one class in
- * isolation. Class[Symbol.metadata][RAW] must exist; Class[SEALED] must not.
- * Transactional: on failure, every placeholder installed by this call (the class and any
- * nested DTO reached by recursion) is removed so a future seal attempt can re-run cleanly.
- */
-function sealOneClass(Class: Function): void {
-  if (hasSealedOwn(Class)) {
-    return;
-  }
-
-  const options = getGlobalOptions();
-  const sealed = new Set<Function>();
-  try {
-    sealOne(Class, options, sealed);
-  } catch (e) {
-    // Roll back every class sealed during this call (the failed class self-cleaned in sealOne).
-    for (const C of sealed) {
-      deleteSealed(C);
-    }
-    throw e;
-  }
-
-  // Freeze + track + drop from the registry every class sealed by this call (incl. nested).
-  for (const C of sealed) {
-    sealedClasses.add(C);
-    freezeRaw(C);
-    globalRegistry.delete(C);
-  }
-}
-
-/**
- * Public — call once at app startup. Seals every @Recipe-decorated class (and its nested DTOs)
- * and clears the registry. Idempotent: a second call is a no-op.
- *
- * Baker requires this call before any deserialize/serialize/validate. There is no implicit seal.
- * All DTOs must be imported before this call — baker has no lazy/on-demand sealing.
- *
- * @internal Not part of the public API — use `new Baker().seal()`. Retained for internal use and
- * the test suite; stripped from published type declarations.
- */
-function seal(): void {
-  sealAllRegistered();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -487,13 +423,4 @@ function mergeInheritance(Class: Function): RawClassMeta {
 // __testing__ — test-only export (TST-ACCESS compliant)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const __testing__ = {
-  mergeInheritance,
-  circularPlaceholder,
-  // Targeted single-class seal — test-only. Production code uses argless seal() exclusively;
-  // this exists so tests can seal one class in isolation (e.g. error-path assertions).
-  sealClass: sealOneClass,
-};
-
-export { ensureSealed, seal, sealRegistry, mergeInheritance, __testing__ };
-export { sealedClasses, resetForTesting } from './seal-state';
+export { ensureSealed, sealRegistry, mergeInheritance };

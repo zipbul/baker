@@ -2,12 +2,10 @@
 export { deserialize, deserializeSync, deserializeAsync } from './src/functions/deserialize';
 export { validate, validateSync, validateAsync } from './src/functions/validate';
 export { serialize, serializeSync, serializeAsync } from './src/functions/serialize';
-export { configure } from './src/configure';
 export { createRule } from './src/create-rule';
-export { seal } from './src/seal/seal';
 
 // Decorators
-export { Field, arrayOf, Recipe } from './src/decorators/index';
+export { Field, arrayOf } from './src/decorators/index';
 export type { FieldOptions, ArrayOfMarker } from './src/decorators/index';
 
 // Baker — multi-app isolation boundary (`new Baker(config?)`)

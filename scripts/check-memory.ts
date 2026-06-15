@@ -4,19 +4,21 @@
  *
  * Usage: bun run scripts/check-memory.ts
  */
-import { deserialize, validate, Field, Recipe, seal } from '../index';
+import { deserialize, validate, Field, Baker } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 
 // ── DTO setup ────────────────────────────────────────────────────────────────
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class MemDto {
   @Field(isString, minLength(2)) name!: string;
   @Field(isNumber(), min(0)) age!: number;
 }
 
 // Seal
-seal();
+baker.seal();
 deserialize(MemDto, { name: 'Alice', age: 30 });
 
 // ── JIT warmup ───────────────────────────────────────────────────────────────

@@ -1,10 +1,9 @@
 import type { SealOptions } from './interfaces';
 
 import { BakerError } from './errors';
-import { isSealed } from './seal/seal-state';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerConfig — Global configuration (call before seal())
+// BakerConfig — per-Baker configuration (passed to `new Baker(config)`)
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface BakerConfig {
@@ -28,28 +27,8 @@ const BAKER_CONFIG_KEYS = new Set<keyof BakerConfig>([
   'debug',
 ]);
 
-let globalOptionsState: SealOptions = Object.freeze({});
-
 /**
- * Baker global configuration. Call before `seal()`.
- * If not called, defaults are applied.
- *
- * @internal Not part of the public API — pass config to `new Baker(config)`. Retained for internal
- * use and the test suite; stripped from published type declarations.
- */
-function configure(config: BakerConfig): void {
-  if (isSealed()) {
-    throw new BakerError(
-      '[baker] configure() called after seal(). Already-sealed classes are not affected. Call configure() before seal().',
-    );
-  }
-  globalOptionsState = normalizeConfig(config);
-}
-
-/**
- * Validate a BakerConfig and map it to the internal SealOptions. Shared by `configure()`
- * (default instance) and `createBaker()` (per-scope instances). Does NOT check seal state —
- * that gate is specific to the global `configure()`.
+ * Validate a BakerConfig and map it to the internal SealOptions. Used by `new Baker(config)`.
  */
 function normalizeConfig(config: BakerConfig): SealOptions {
   if (config === null || typeof config !== 'object' || Array.isArray(config)) {
@@ -71,14 +50,5 @@ function normalizeConfig(config: BakerConfig): SealOptions {
   });
 }
 
-/** @internal — used by seal. Returns the frozen global options; the only way to change them is configure(). */
-function getGlobalOptions(): SealOptions {
-  return globalOptionsState;
-}
-
-/** @internal — reset to defaults on unseal */
-function resetConfigForTesting(): void {
-  globalOptionsState = Object.freeze({});
-}
-export { configure, getGlobalOptions, resetConfigForTesting, normalizeConfig };
+export { normalizeConfig };
 export type { BakerConfig };

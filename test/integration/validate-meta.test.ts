@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { Baker, Field } from '../../index';
-import { globalRegistry } from '../../src/registry';
 import { isString } from '../../src/rules/index';
 import { sealClass } from './helpers/seal';
 import { unseal } from './helpers/unseal';
@@ -9,16 +8,7 @@ import { unseal } from './helpers/unseal';
 const baker = new Baker();
 
 beforeEach(() => baker.seal());
-afterEach(() => {
-  const toDelete: Function[] = [];
-  for (const cls of globalRegistry) {
-    toDelete.push(cls);
-  }
-  for (const cls of toDelete) {
-    globalRegistry.delete(cls);
-  }
-  unseal();
-});
+afterEach(() => unseal());
 
 describe('validateMeta — discriminator invariants', () => {
   it('empty property string throws BakerError', () => {
