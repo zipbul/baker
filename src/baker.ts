@@ -1,15 +1,22 @@
-import type { BakerConfig } from './config/configure';
-import type { BakerIssueSet } from './common/errors';
-import type { RuntimeOptions } from './common/interfaces';
-import type { SealOptions } from './seal/interfaces';
-import type { SealedExecutors } from './seal/types';
+import type { BakerConfig } from './config';
+import type { BakerIssueSet, RuntimeOptions } from './common';
+import type { SealOptions, SealedExecutors } from './seal';
 
-import { normalizeConfig } from './config/configure';
-import { BakerError } from './common/errors';
-import { runDeserialize, runDeserializeSync, runDeserializeAsync } from './runtime/deserialize';
-import { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync } from './runtime/serialize';
-import { runValidate, runValidateSync, runValidateAsync } from './runtime/validate';
-import { sealRegistry } from './seal/seal';
+import { normalizeConfig } from './config';
+import { BakerError } from './common';
+import { sealRegistry } from './seal';
+import {
+  runDeserialize,
+  runDeserializeSync,
+  runDeserializeAsync,
+  resolveSerializeClass,
+  runSerialize,
+  runSerializeSync,
+  runSerializeAsync,
+  runValidate,
+  runValidateSync,
+  runValidateAsync,
+} from './runtime';
 
 /**
  * A baker — an isolated registration + seal + runtime boundary. Each `new Baker()` owns its own

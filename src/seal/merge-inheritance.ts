@@ -1,6 +1,6 @@
-import type { RawClassMeta } from '../metadata/types';
+import type { RawClassMeta } from '../metadata';
 
-import { getRaw, hasRawOwn } from '../metadata/meta-access';
+import { getRaw, hasRawOwn } from '../metadata';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // mergeInheritance() — merge inheritance metadata (§4.2)

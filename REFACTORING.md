@@ -185,17 +185,26 @@ invariant, which is about the body.) Land it as its own commit before any seal/
 builder code is moved (Phases C/D feed/own codegen), so drift is machine-checked every commit. Phases
 A/B don't touch codegen but the harness should exist before C.
 
-## Execution order (each step = one commit; `tsc` + suite green; codegen byte-identical)
-1. ~~P0 enums~~, ~~P1 Baker/runtime/cache~~ (DONE).
-2. **A** — extract `compile-cache.ts` (safest, spec-backed first win).
-3. **snapshot harness** (machine-check codegen byte-identity).
-4. **B** — skeleton: `functions/`→`runtime/`, create `common/` + `metadata/` + `config/`, move substrate.
-5. **C** — dissolve `types/enums/interfaces` into owning domains; extract seal analysis modules.
-6. **D** — builder decomposition (leaf modules verbatim, then `emitField` cycle-break as its own commit).
-7. **F** — barrels/exports close-out + de-dupe nit.
-8. **E** — string.ts split (deferred/last/optional).
+## Execution order + STATUS (each step = one commit; `tsc` + suite green; codegen byte-identical)
+1. ~~P0 enums~~, ~~P1 Baker/runtime/cache~~ — **DONE** (5.0/5.1).
+2. ~~**A** — extract `compile-cache.ts`~~ — **DONE**.
+3. ~~**snapshot harness** (machine-check codegen byte-identity)~~ — **DONE** (15 snapshots).
+4. ~~**B** — skeleton: `functions/`→`runtime/`, create `common/`+`metadata/`+`config/`, move substrate~~ — **DONE**.
+5. ~~**C** — C1 dissolve `types/enums/interfaces` into owning domains (incl. shims then delete); C2 extract
+   `async-analysis`/`merge-inheritance`/`circular-placeholder`/`constants` from seal.ts~~ — **DONE**.
+6. ~~**D** — builders → `DeserializeBuilder`/`SerializeBuilder` CLASSES (state as fields, methods; no
+   ctx-threading / fragment re-return / cycle-break callback; inline-nested = child builder). Byte-identical~~ — **DONE**.
+   ~~Plus: relocate rule machinery (`create-rule`/`rule-plan`/`rule-metadata`) into `rules/`~~ — **DONE**.
+7. ~~**F** — per-directory barrels (`common`/`metadata`/`config`/`seal`/`runtime` index.ts) + strict
+   exports; cross-dir imports routed through barrels (one documented deep edge: `rules/types →
+   seal/types` for `SealedExecutors`)~~ — **DONE**.
+8. **E** — `string.ts` split — **DEFERRED** (2525 lines but flat/low-coupling/low-value; behind a pure
+   re-export barrel keeping `./rules` stable; do only if file size becomes a real maintenance pain).
 
-Each phase independently revertible; regressions isolate to one layer.
+Result so far: `src/` root holds only `baker.ts` (composition root) + `symbols.ts` (pinned). All other code
+lives in its domain (`common/ metadata/ config/ rules/ transformers/ seal/ runtime/`). The builders are
+classes. Junk-drawer `types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic (one documented type-only
+`rules → seal` edge). Each phase independently revertible; regressions isolate to one layer.
 
 ---
 

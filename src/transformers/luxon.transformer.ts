@@ -1,6 +1,6 @@
 import type { Transformer } from './types';
 
-import { BakerError } from '../common/errors';
+import { BakerError } from '../common';
 
 interface LuxonTransformerOptions {
   format?: string;

@@ -1,6 +1,6 @@
-import type { RuntimeOptions } from '../common/interfaces';
+import type { RuntimeOptions } from '../common';
 
-import { BakerError } from '../common/errors';
+import { BakerError } from '../common';
 
 const CALL_OPTION_KEYS = new Set<string>(['groups']);
 const SEAL_TIME_KEYS = new Set<string>([

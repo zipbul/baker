@@ -1,8 +1,7 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
-import type { BakerIssue } from '../common/errors';
-import type { RuntimeOptions } from '../common/interfaces';
-import type { RawClassMeta } from '../metadata/types';
+import type { BakerIssue, RuntimeOptions } from '../common';
+import type { RawClassMeta } from '../metadata';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SealedExecutors — Dual executor stored in the Baker's per-instance executor map (§2.1)

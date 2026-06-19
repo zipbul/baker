@@ -1,6 +1,6 @@
 import type { SealedExecutors } from './types';
 
-import { BakerError } from '../common/errors';
+import { BakerError } from '../common';
 
 /** @internal Placeholder executor for circular dependency detection during seal */
 export function circularPlaceholder(className: string): SealedExecutors<unknown> {

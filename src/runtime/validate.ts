@@ -1,8 +1,7 @@
-import type { BakerIssue, BakerIssueSet } from '../common/errors';
-import type { RuntimeOptions } from '../common/interfaces';
-import type { SealedExecutors } from '../seal/types';
+import type { BakerIssue, BakerIssueSet, RuntimeOptions } from '../common';
+import type { SealedExecutors } from '../seal';
 
-import { toBakerIssueSet, BakerError } from '../common/errors';
+import { toBakerIssueSet, BakerError } from '../common';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────

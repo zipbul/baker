@@ -1,8 +1,7 @@
-import type { RawClassMeta } from '../metadata/types';
+import type { RawClassMeta } from '../metadata';
 
-import { CollectionType } from '../metadata/enums';
-import { BakerError } from '../common/errors';
-import { hasRawOwn } from '../metadata/meta-access';
+import { CollectionType, hasRawOwn } from '../metadata';
+import { BakerError } from '../common';
 
 /**
  * @internal — seal-time invariant checks invoked from sealOne after merge + type normalization,

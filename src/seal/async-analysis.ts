@@ -1,8 +1,7 @@
-import type { RawClassMeta, RawPropertyMeta } from '../metadata/types';
+import type { RawClassMeta, RawPropertyMeta } from '../metadata';
 import type { SealedExecutors } from './types';
 
-import { Direction } from '../common/enums';
-import { isAsyncFunction } from '../common/utils';
+import { Direction, isAsyncFunction } from '../common';
 import { PRIMITIVE_CTORS } from './constants';
 import { mergeInheritance } from './merge-inheritance';
 

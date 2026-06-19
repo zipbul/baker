@@ -1,13 +1,11 @@
-import type { ClassCtor } from '../common/types';
+import type { ClassCtor } from '../common';
 import type { EmittableRule, InternalRule } from '../rules/types';
-import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata/types';
+import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { Transformer } from '../transformers/types';
 
-import { ensureMeta } from '../metadata/collect';
-import { Direction } from '../common/enums';
+import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
+import { ensureMeta } from '../metadata';
 import { ExcludeMode } from './enums';
-import { BakerError } from '../common/errors';
-import { isAsyncFunction, isPromiseLike } from '../common/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (replaces each: true)

@@ -1,4 +1,6 @@
-import type { CacheKey } from '../common/enums';
+import type { CacheKey } from '../common';
+// Documented single upward type-only edge `rules → seal` (visitor: EmitContext.addExecutor).
+// Kept as a deep import (not via `../seal` barrel) to avoid a runtime cycle through seal.
 import type { SealedExecutors } from '../seal/types';
 import type { RuleOp, RulePlanCheckKind, RulePlanExprKind, RequiredType } from './enums';
 

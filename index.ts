@@ -13,13 +13,13 @@ export { ExcludeMode } from './src/decorators/enums';
 export { RequiredType } from './src/rules/enums';
 
 // Errors
-export type { BakerIssue, BakerIssueSet } from './src/common/errors';
-export { isBakerIssueSet, BakerError } from './src/common/errors';
+export type { BakerIssue, BakerIssueSet } from './src/common';
+export { isBakerIssueSet, BakerError } from './src/common';
 
 // Types
 export type { EmittableRule } from './src/rules/types';
 export type { Transformer, TransformParams } from './src/transformers/types';
-export type { BakerConfig } from './src/config/configure';
+export type { BakerConfig } from './src/config';
 
 // Interfaces / Options
-export type { RuntimeOptions } from './src/common/interfaces';
+export type { RuntimeOptions } from './src/common';

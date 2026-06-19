@@ -1,10 +1,9 @@
 import type { SealOptions } from './interfaces';
-import type { ClassCtor } from '../common/types';
+import type { ClassCtor } from '../common';
 import type { SealedExecutors } from './types';
 
-import { CollectionType } from '../metadata/enums';
-import { Direction } from '../common/enums';
-import { BakerError } from '../common/errors';
+import { CollectionType } from '../metadata';
+import { Direction, BakerError } from '../common';
 import { analyzeAsync, nestedClassesOf } from './async-analysis';
 import { analyzeCircular } from './circular-analyzer';
 import { circularPlaceholder } from './circular-placeholder';

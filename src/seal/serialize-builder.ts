@@ -1,10 +1,10 @@
-import type { RuntimeOptions } from '../common/interfaces';
+import type { RuntimeOptions } from '../common';
 import type { SealOptions } from './interfaces';
-import type { RawClassMeta, RawPropertyMeta, TransformDef } from '../metadata/types';
+import type { RawClassMeta, RawPropertyMeta, TransformDef } from '../metadata';
 import type { SealedExecutors } from './types';
 
-import { CollectionType } from '../metadata/enums';
-import { BakerError } from '../common/errors';
+import { CollectionType } from '../metadata';
+import { BakerError } from '../common';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
-import type { RuntimeOptions } from '../common/interfaces';
-import type { SealedExecutors } from '../seal/types';
+import type { RuntimeOptions } from '../common';
+import type { SealedExecutors } from '../seal';
 
-import { BakerError } from '../common/errors';
+import { BakerError } from '../common';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────
