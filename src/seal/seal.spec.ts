@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
-import type { RawClassMeta, RuleDef } from '../types';
+import type { RawClassMeta, RuleDef } from '../metadata/types';
 
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { sealClass } from '../../test/integration/helpers/seal';

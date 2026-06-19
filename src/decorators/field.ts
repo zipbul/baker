@@ -1,7 +1,11 @@
-import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
+import type { ClassCtor } from '../common/types';
+import type { EmittableRule, InternalRule } from '../rules/types';
+import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata/types';
+import type { Transformer } from '../transformers/types';
 
 import { ensureMeta } from '../metadata/collect';
-import { Direction, ExcludeMode } from '../enums';
+import { Direction } from '../common/enums';
+import { ExcludeMode } from './enums';
 import { BakerError } from '../common/errors';
 import { isAsyncFunction, isPromiseLike } from '../common/utils';
 

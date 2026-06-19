@@ -1,4 +1,4 @@
-import type { Transformer } from '../types';
+import type { Transformer } from './types';
 
 import { BakerError } from '../common/errors';
 

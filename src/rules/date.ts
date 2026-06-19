@@ -1,6 +1,7 @@
-import type { EmittableRule } from '../types';
+import type { EmittableRule } from './types';
 
-import { CacheKey, RequiredType, RuleOp } from '../enums';
+import { CacheKey } from '../common/enums';
+import { RequiredType, RuleOp } from './enums';
 import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────

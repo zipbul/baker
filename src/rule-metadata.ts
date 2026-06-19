@@ -1,4 +1,4 @@
-import type { EmittableRule, InternalRule, RulePlan } from './types';
+import type { EmittableRule, InternalRule, RulePlan } from './rules/types';
 
 // Type boundary — the single place that brands a bare validator function with
 // the readonly metadata properties declared on InternalRule. All other modules

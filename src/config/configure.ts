@@ -1,4 +1,4 @@
-import type { SealOptions } from '../interfaces';
+import type { SealOptions } from '../seal/interfaces';
 
 import { BakerError } from '../common/errors';
 

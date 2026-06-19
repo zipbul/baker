@@ -1,7 +1,8 @@
 import type { BakerConfig } from './config/configure';
 import type { BakerIssueSet } from './common/errors';
-import type { RuntimeOptions, SealOptions } from './interfaces';
-import type { SealedExecutors } from './types';
+import type { RuntimeOptions } from './common/interfaces';
+import type { SealOptions } from './seal/interfaces';
+import type { SealedExecutors } from './seal/types';
 
 import { normalizeConfig } from './config/configure';
 import { BakerError } from './common/errors';

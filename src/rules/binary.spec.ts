@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { EmitContext } from '../types';
+import type { EmitContext } from './types';
 
 import { isUint8Array, isByteSize } from './binary';
 

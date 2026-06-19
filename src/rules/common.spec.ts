@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { EmitContext } from '../types';
+import type { EmitContext } from './types';
 
 import { equals, notEquals, isEmpty, isNotEmpty, isIn, isNotIn } from './common';
 

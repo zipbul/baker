@@ -1,4 +1,4 @@
-import type { Transformer } from '../types';
+import type { Transformer } from './types';
 
 export const unixSecondsTransformer: Transformer = {
   deserialize: ({ value }) => (typeof value === 'number' ? new Date(value * 1000) : value),

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
-import type { RuntimeOptions } from '../interfaces';
-import type { SealedExecutors } from '../types';
+import type { RuntimeOptions } from '../common/interfaces';
+import type { SealedExecutors } from '../seal/types';
 
 import { Baker } from '../baker';
 import { Field } from '../decorators/field';

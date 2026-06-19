@@ -9,15 +9,17 @@ export type { FieldOptions, ArrayOfMarker } from './src/decorators/index';
 export { Baker } from './src/baker';
 
 // Enums
-export { ExcludeMode, RequiredType } from './src/enums';
+export { ExcludeMode } from './src/decorators/enums';
+export { RequiredType } from './src/rules/enums';
 
 // Errors
 export type { BakerIssue, BakerIssueSet } from './src/common/errors';
 export { isBakerIssueSet, BakerError } from './src/common/errors';
 
 // Types
-export type { EmittableRule, Transformer, TransformParams } from './src/types';
+export type { EmittableRule } from './src/rules/types';
+export type { Transformer, TransformParams } from './src/transformers/types';
 export type { BakerConfig } from './src/config/configure';
 
 // Interfaces / Options
-export type { RuntimeOptions } from './src/interfaces';
+export type { RuntimeOptions } from './src/common/interfaces';

@@ -1,4 +1,4 @@
-import type { RawClassMeta } from '../types';
+import type { RawClassMeta } from './types';
 
 import { RAW } from '../symbols';
 

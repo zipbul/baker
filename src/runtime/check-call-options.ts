@@ -1,4 +1,4 @@
-import type { RuntimeOptions } from '../interfaces';
+import type { RuntimeOptions } from '../common/interfaces';
 
 import { BakerError } from '../common/errors';
 

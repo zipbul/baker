@@ -1,7 +1,10 @@
-import type { SealOptions } from '../interfaces';
-import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
+import type { SealOptions } from './interfaces';
+import type { ClassCtor } from '../common/types';
+import type { RawClassMeta, RawPropertyMeta } from '../metadata/types';
+import type { SealedExecutors } from './types';
 
-import { CollectionType, Direction } from '../enums';
+import { CollectionType } from '../metadata/enums';
+import { Direction } from '../common/enums';
 import { BakerError } from '../common/errors';
 import { getRaw, hasRawOwn } from '../metadata/meta-access';
 import { isAsyncFunction } from '../common/utils';

@@ -1,8 +1,8 @@
 import { err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { RuntimeOptions } from '../interfaces';
-import type { SealedExecutors } from '../types';
+import type { RuntimeOptions } from '../common/interfaces';
+import type { SealedExecutors } from '../seal/types';
 
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { Baker } from '../baker';

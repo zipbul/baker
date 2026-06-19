@@ -2,8 +2,10 @@ import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
 import type { BakerIssue } from '../common/errors';
-import type { SealOptions } from '../interfaces';
-import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
+import type { SealOptions } from './interfaces';
+import type { RawClassMeta } from '../metadata/types';
+import type { EmittableRule } from '../rules/types';
+import type { SealedExecutors } from './types';
 
 import { assertIsErr } from '../../test/integration/helpers/assert';
 import { isNotEmpty } from '../rules/common';
@@ -842,7 +844,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
 
   // A no-op rule to trigger hasEach:true path without failing validation
   const alwaysPass: EmittableRule = Object.assign((_v: unknown): boolean => true, {
-    emit: (_varName: string, _ctx: import('../types').EmitContext): string => '',
+    emit: (_varName: string, _ctx: import('../rules/types').EmitContext): string => '',
     ruleName: 'alwaysPass',
   });
 
@@ -959,7 +961,7 @@ it('should support rules that call addExecutor on EmitContext', async () => {
   };
 
   const customRule: EmittableRule = Object.assign((value: unknown): boolean => typeof value === 'string', {
-    emit(varName: string, ctx: import('../types').EmitContext): string {
+    emit(varName: string, ctx: import('../rules/types').EmitContext): string {
       // exercise addExecutor to cover L657-658
       ctx.addExecutor(dummySealedExec);
       // return a simple validation check (always pass for string)

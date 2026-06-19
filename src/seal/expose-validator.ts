@@ -1,6 +1,6 @@
-import type { RawClassMeta, ExposeDef } from '../types';
+import type { RawClassMeta, ExposeDef } from '../metadata/types';
 
-import { Direction } from '../enums';
+import { Direction } from '../common/enums';
 import { BakerError } from '../common/errors';
 
 /**

@@ -1,9 +1,10 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { RuntimeOptions } from '../interfaces';
-import type { RawClassMeta, SealedExecutors } from '../types';
+import type { RuntimeOptions } from '../common/interfaces';
+import type { RawClassMeta } from '../metadata/types';
+import type { SealedExecutors } from './types';
 
-import { CollectionType } from '../enums';
+import { CollectionType } from '../metadata/enums';
 import { isString } from '../rules/typechecker';
 import { buildSerializeCode } from './serialize-builder';
 

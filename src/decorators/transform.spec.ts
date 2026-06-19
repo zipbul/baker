@@ -1,10 +1,12 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
-import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, TypeDef } from '../types';
+import type { EmittableRule } from '../rules/types';
+import type { RawPropertyMeta, TransformDef, TypeDef } from '../metadata/types';
+import type { TransformParams } from '../transformers/types';
 
 import { assertDefined } from '../../test/integration/helpers/assert';
 import { applyField } from '../../test/integration/helpers/modern-decorator';
-import { ExcludeMode } from '../enums';
+import { ExcludeMode } from './enums';
 import { deleteRaw, requireRaw } from '../metadata/meta-access';
 import { Field } from './field';
 

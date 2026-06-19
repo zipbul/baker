@@ -2,10 +2,14 @@ import type { Result, ResultAsync } from '@zipbul/result';
 
 import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 
-import type { SealOptions, RuntimeOptions } from '../interfaces';
-import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef, MessageArgs } from '../types';
+import type { RuntimeOptions } from '../common/interfaces';
+import type { SealOptions } from './interfaces';
+import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata/types';
+import type { EmitContext } from '../rules/types';
+import type { SealedExecutors } from './types';
 
-import { CacheKey, CollectionType } from '../enums';
+import { CacheKey } from '../common/enums';
+import { CollectionType } from '../metadata/enums';
 import { BakerError, type BakerIssue } from '../common/errors';
 import { emitRulePlan } from '../rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import type { RuntimeOptions } from '../../src/interfaces';
+import type { RuntimeOptions } from '../../src/common/interfaces';
 
 import { Baker, Field, BakerError } from '../../index';
 import { isString } from '../../src/rules/index';

@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
-import type { EmittableRule } from '../../src/types';
+import type { EmittableRule } from '../../src/rules/types';
 
 import { Baker, Field, BakerError } from '../../index';
 import { isNumber } from '../../src/rules/index';

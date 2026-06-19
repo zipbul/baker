@@ -1,4 +1,4 @@
-import type { Transformer } from '../types';
+import type { Transformer } from './types';
 
 export function csvTransformer(separator = ','): Transformer {
   return {

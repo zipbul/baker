@@ -1,6 +1,6 @@
-import type { RawClassMeta } from '../types';
+import type { RawClassMeta } from '../metadata/types';
 
-import { CollectionType } from '../enums';
+import { CollectionType } from '../metadata/enums';
 import { BakerError } from '../common/errors';
 import { hasRawOwn } from '../metadata/meta-access';
 

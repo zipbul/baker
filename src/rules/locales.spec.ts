@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from '../enums';
+import { RequiredType } from './enums';
 
-import type { EmitContext } from '../types';
+import type { EmitContext } from './types';
 
 import { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
 

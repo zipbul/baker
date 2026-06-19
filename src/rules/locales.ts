@@ -1,6 +1,6 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './types';
 
-import { RequiredType } from '../enums';
+import { RequiredType } from './enums';
 import { BakerError } from '../common/errors';
 import { makeRule } from '../rule-plan';
 

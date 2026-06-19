@@ -1,5 +1,5 @@
-import type { SealOptions } from '../interfaces';
-import type { SealedExecutors } from '../types';
+import type { SealOptions } from './interfaces';
+import type { SealedExecutors } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (class, config) executor cache — content-addressed sharing across bakers

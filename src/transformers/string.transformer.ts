@@ -1,4 +1,4 @@
-import type { Transformer } from '../types';
+import type { Transformer } from './types';
 
 export const trimTransformer: Transformer = {
   deserialize: ({ value }) => (typeof value === 'string' ? value.trim() : value),

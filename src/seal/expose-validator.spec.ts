@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import type { RawClassMeta } from '../types';
+import type { RawClassMeta } from '../metadata/types';
 
 import { BakerError } from '../common/errors';
 import { validateExposeStacks } from './expose-validator';
