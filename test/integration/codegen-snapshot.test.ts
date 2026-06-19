@@ -6,10 +6,10 @@
 // (refs/regexes/execs) is not part of Function.prototype.toString().
 import { describe, expect, it } from 'bun:test';
 
-import type { BakerConfig } from '../../src/configure';
+import type { BakerConfig } from '../../src/config/configure';
 
 import { Baker, Field, arrayOf } from '../../index';
-import { normalizeConfig } from '../../src/configure';
+import { normalizeConfig } from '../../src/config/configure';
 import { configFingerprint, getCached } from '../../src/seal/compile-cache';
 import {
   isBoolean,

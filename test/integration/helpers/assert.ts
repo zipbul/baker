@@ -2,9 +2,9 @@ import type { Err } from '@zipbul/result';
 
 import { isErr } from '@zipbul/result';
 
-import type { BakerIssueSet } from '../../../src/errors';
+import type { BakerIssueSet } from '../../../src/common/errors';
 
-import { isBakerIssueSet } from '../../../src/errors';
+import { isBakerIssueSet } from '../../../src/common/errors';
 
 /**
  * Test-only assertion helper — narrows `result` to `BakerIssueSet`.

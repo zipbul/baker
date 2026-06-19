@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { ensureMeta } from './collect';
-import { RAW } from './symbols';
+import { RAW } from '../symbols';
 
 type MetaObject = Record<PropertyKey, unknown>;
 

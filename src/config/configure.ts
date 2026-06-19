@@ -1,6 +1,6 @@
-import type { SealOptions } from './interfaces';
+import type { SealOptions } from '../interfaces';
 
-import { BakerError } from './errors';
+import { BakerError } from '../common/errors';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // BakerConfig — per-Baker configuration (passed to `new Baker(config)`)

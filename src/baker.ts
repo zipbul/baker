@@ -1,13 +1,13 @@
-import type { BakerConfig } from './configure';
-import type { BakerIssueSet } from './errors';
+import type { BakerConfig } from './config/configure';
+import type { BakerIssueSet } from './common/errors';
 import type { RuntimeOptions, SealOptions } from './interfaces';
 import type { SealedExecutors } from './types';
 
-import { normalizeConfig } from './configure';
-import { BakerError } from './errors';
-import { runDeserialize, runDeserializeSync, runDeserializeAsync } from './functions/deserialize';
-import { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync } from './functions/serialize';
-import { runValidate, runValidateSync, runValidateAsync } from './functions/validate';
+import { normalizeConfig } from './config/configure';
+import { BakerError } from './common/errors';
+import { runDeserialize, runDeserializeSync, runDeserializeAsync } from './runtime/deserialize';
+import { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync } from './runtime/serialize';
+import { runValidate, runValidateSync, runValidateAsync } from './runtime/validate';
 import { sealRegistry } from './seal/seal';
 
 /**

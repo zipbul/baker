@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { BakerIssue } from './errors';
 
-import { assertBakerIssueSet } from '../test/integration/helpers/assert';
+import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { isBakerIssueSet, BAKER_ERROR, BakerError, toBakerIssueSet } from './errors';
 
 describe('isBakerIssueSet', () => {

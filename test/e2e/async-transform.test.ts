@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Baker, Field } from '../../index';
 import { isString, isNumber } from '../../src/rules/index';
-import { isAsyncFunction } from '../../src/utils';
+import { isAsyncFunction } from '../../src/common/utils';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 

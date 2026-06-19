@@ -1,7 +1,7 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
 import type { CacheKey, CollectionType, RequiredType, RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
-import type { BakerIssue } from './errors';
+import type { BakerIssue } from './common/errors';
 import type { RuntimeOptions } from './interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────

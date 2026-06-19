@@ -1,9 +1,9 @@
 import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
 
-import { ensureMeta } from '../collect';
+import { ensureMeta } from '../metadata/collect';
 import { Direction, ExcludeMode } from '../enums';
-import { BakerError } from '../errors';
-import { isAsyncFunction, isPromiseLike } from '../utils';
+import { BakerError } from '../common/errors';
+import { isAsyncFunction, isPromiseLike } from '../common/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (replaces each: true)

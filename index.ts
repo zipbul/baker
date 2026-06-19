@@ -12,12 +12,12 @@ export { Baker } from './src/baker';
 export { ExcludeMode, RequiredType } from './src/enums';
 
 // Errors
-export type { BakerIssue, BakerIssueSet } from './src/errors';
-export { isBakerIssueSet, BakerError } from './src/errors';
+export type { BakerIssue, BakerIssueSet } from './src/common/errors';
+export { isBakerIssueSet, BakerError } from './src/common/errors';
 
 // Types
 export type { EmittableRule, Transformer, TransformParams } from './src/types';
-export type { BakerConfig } from './src/configure';
+export type { BakerConfig } from './src/config/configure';
 
 // Interfaces / Options
 export type { RuntimeOptions } from './src/interfaces';

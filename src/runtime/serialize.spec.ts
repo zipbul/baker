@@ -5,7 +5,7 @@ import type { SealedExecutors } from '../types';
 
 import { Baker } from '../baker';
 import { Field } from '../decorators/field';
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 import { isString } from '../rules/typechecker';
 import { resolveSerializeClass, runSerialize } from './serialize';
 

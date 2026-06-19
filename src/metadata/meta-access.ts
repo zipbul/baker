@@ -1,6 +1,6 @@
-import type { RawClassMeta } from './types';
+import type { RawClassMeta } from '../types';
 
-import { RAW } from './symbols';
+import { RAW } from '../symbols';
 
 // Type boundary — the single place that bridges symbol-keyed storage to typed metadata.
 // All other modules must access RAW slots through these helpers only.

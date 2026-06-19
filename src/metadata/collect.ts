@@ -1,6 +1,6 @@
-import type { RawClassMeta, RawPropertyMeta } from './types';
+import type { RawClassMeta, RawPropertyMeta } from '../types';
 
-import { RAW } from './symbols';
+import { RAW } from '../symbols';
 
 type MetaObject = Record<PropertyKey, unknown> & { [RAW]?: RawClassMeta };
 

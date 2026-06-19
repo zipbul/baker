@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { createRule } from './create-rule';
-import { BakerError } from './errors';
+import { BakerError } from './common/errors';
 import { isPassportNumber } from './rules/locales';
 import { isDivisibleBy, max, min } from './rules/number';
 

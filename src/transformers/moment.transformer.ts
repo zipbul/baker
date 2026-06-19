@@ -1,6 +1,6 @@
 import type { Transformer } from '../types';
 
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 
 interface MomentTransformerOptions {
   format?: string;

@@ -1,7 +1,7 @@
 import type { RuntimeOptions } from '../interfaces';
 import type { SealedExecutors } from '../types';
 
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────

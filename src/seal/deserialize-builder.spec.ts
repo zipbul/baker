@@ -1,7 +1,7 @@
 import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { BakerIssue } from '../errors';
+import type { BakerIssue } from '../common/errors';
 import type { SealOptions } from '../interfaces';
 import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
 

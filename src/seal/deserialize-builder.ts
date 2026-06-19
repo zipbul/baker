@@ -6,7 +6,7 @@ import type { SealOptions, RuntimeOptions } from '../interfaces';
 import type { RawClassMeta, RawPropertyMeta, EmitContext, SealedExecutors, RuleDef, MessageArgs } from '../types';
 
 import { CacheKey, CollectionType } from '../enums';
-import { BakerError, type BakerIssue } from '../errors';
+import { BakerError, type BakerIssue } from '../common/errors';
 import { emitRulePlan } from '../rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 import { GuardKey } from './enums';

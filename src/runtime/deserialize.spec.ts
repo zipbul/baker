@@ -7,7 +7,7 @@ import type { SealedExecutors } from '../types';
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { Baker } from '../baker';
 import { Field } from '../decorators/field';
-import { isBakerIssueSet, BakerError } from '../errors';
+import { isBakerIssueSet, BakerError } from '../common/errors';
 import { isString } from '../rules/typechecker';
 import { runDeserialize } from './deserialize';
 

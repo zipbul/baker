@@ -1,7 +1,7 @@
 import type { RawClassMeta, ExposeDef } from '../types';
 
 import { Direction } from '../enums';
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 
 /**
  * Static validation of @Expose stacks (§4.1, §3.3)

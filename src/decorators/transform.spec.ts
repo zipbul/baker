@@ -5,7 +5,7 @@ import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, Typ
 import { assertDefined } from '../../test/integration/helpers/assert';
 import { applyField } from '../../test/integration/helpers/modern-decorator';
 import { ExcludeMode } from '../enums';
-import { deleteRaw, requireRaw } from '../meta-access';
+import { deleteRaw, requireRaw } from '../metadata/meta-access';
 import { Field } from './field';
 
 const createdCtors: Function[] = [];

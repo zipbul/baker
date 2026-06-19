@@ -1,5 +1,5 @@
-import { BakerError } from '../errors';
-import { getRaw } from '../meta-access';
+import { BakerError } from '../common/errors';
+import { getRaw } from '../metadata/meta-access';
 
 /**
  * Static analysis for circular references (§4.6)

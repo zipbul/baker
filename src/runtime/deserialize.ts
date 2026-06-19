@@ -3,7 +3,7 @@ import { isErr } from '@zipbul/result';
 import type { RuntimeOptions } from '../interfaces';
 import type { SealedExecutors } from '../types';
 
-import { toBakerIssueSet, BakerError, type BakerIssue, type BakerIssueSet } from '../errors';
+import { toBakerIssueSet, BakerError, type BakerIssue, type BakerIssueSet } from '../common/errors';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────

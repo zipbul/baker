@@ -2,9 +2,9 @@ import type { SealOptions } from '../interfaces';
 import type { ClassCtor, RawClassMeta, RawPropertyMeta, SealedExecutors } from '../types';
 
 import { CollectionType, Direction } from '../enums';
-import { BakerError } from '../errors';
-import { getRaw, hasRawOwn } from '../meta-access';
-import { isAsyncFunction } from '../utils';
+import { BakerError } from '../common/errors';
+import { getRaw, hasRawOwn } from '../metadata/meta-access';
+import { isAsyncFunction } from '../common/utils';
 import { analyzeCircular } from './circular-analyzer';
 import { configFingerprint, getCached, setCached } from './compile-cache';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';

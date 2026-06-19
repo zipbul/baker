@@ -10,7 +10,7 @@ const files = [
   'src/rule-plan.ts',
   'src/rules/array.ts',
   'src/rules/locales.ts',
-  'src/functions/validate.ts',
+  'src/runtime/validate.ts',
   'src/decorators/field.ts',
   'src/seal/deserialize-builder.ts',
   'src/seal/serialize-builder.ts',

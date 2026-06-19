@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { ClassCtor, RawClassMeta } from '../types';
 
-import { setRaw } from '../meta-access';
+import { setRaw } from '../metadata/meta-access';
 import { analyzeCircular } from './circular-analyzer';
 
 // ─────────────────────────────────────────────────────────────────────────────

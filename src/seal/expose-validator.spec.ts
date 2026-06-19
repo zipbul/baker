@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import type { RawClassMeta } from '../types';
 
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 import { validateExposeStacks } from './expose-validator';
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { Field, Baker, createRule, isBakerIssueSet, BakerError } from '../../index';
-import { setRaw } from '../../src/meta-access';
+import { setRaw } from '../../src/metadata/meta-access';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 

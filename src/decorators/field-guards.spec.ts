@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 import { isString } from '../rules/index';
 import { Field } from './field';
 
