@@ -2,7 +2,7 @@ import type { EmittableRule } from './types';
 
 import { CacheKey } from '../common/enums';
 import { RequiredType, RuleOp } from './enums';
-import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
+import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // minDate — v >= date (inclusive, getTime comparison). (§4.8 C — refs function call)

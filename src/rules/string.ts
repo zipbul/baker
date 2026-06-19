@@ -2,7 +2,7 @@ import type { EmitContext, EmittableRule } from './types';
 
 import { CacheKey } from '../common/enums';
 import { RequiredType, RuleOp } from './enums';
-import { makePlannedRule, makeRule, planCompare, planLength, planOr } from '../rule-plan';
+import { makePlannedRule, makeRule, planCompare, planLength, planOr } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

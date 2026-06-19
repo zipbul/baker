@@ -1,6 +1,6 @@
 import type { EmitContext, EmittableRule } from './types';
 
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // isUint8Array — instanceof guard (self-narrowing, no typeof gate; mirrors isRegExp)

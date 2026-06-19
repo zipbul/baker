@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from './types';
 
 import { BakerError } from '../common/errors';
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers

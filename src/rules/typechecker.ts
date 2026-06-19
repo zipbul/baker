@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from './types';
 
 import { RequiredType } from './enums';
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // isString — typeof check (§4.8 A: operator inline)

@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { EmitContext } from './rules/types';
+import type { EmitContext } from './types';
 
 import { createRule } from './create-rule';
 

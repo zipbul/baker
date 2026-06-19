@@ -11,7 +11,7 @@ import type { SealedExecutors } from './types';
 import { CacheKey } from '../common/enums';
 import { CollectionType } from '../metadata/enums';
 import { BakerError, type BakerIssue } from '../common/errors';
-import { emitRulePlan } from '../rule-plan';
+import { emitRulePlan } from '../rules/rule-plan';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
 import { GuardKey } from './enums';
 

@@ -2,7 +2,7 @@ import { describe, it, expect, mock } from 'bun:test';
 
 import type { EmitContext } from './types';
 
-import { createRule } from '../create-rule';
+import { createRule } from './create-rule';
 import { oneOf, arrayEvery } from './combinators';
 import { isString, isBoolean, isNumber } from './typechecker';
 

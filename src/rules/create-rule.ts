@@ -1,9 +1,9 @@
-import type { RequiredType } from './rules/enums';
-import type { EmittableRule, EmitContext, InternalRule } from './rules/types';
+import type { RequiredType } from './enums';
+import type { EmittableRule, EmitContext, InternalRule } from './types';
 
-import { BakerError } from './common/errors';
+import { BakerError } from '../common/errors';
 import { defineRuleMetadata } from './rule-metadata';
-import { isAsyncFunction, isPromiseLike } from './common/utils';
+import { isAsyncFunction, isPromiseLike } from '../common/utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // createRule — Custom validation rule creation Public API (§1.1)

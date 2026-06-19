@@ -1,5 +1,5 @@
 // Public API — Core
-export { createRule } from './src/create-rule';
+export { createRule } from './src/rules/create-rule';
 
 // Decorators
 export { Field, arrayOf } from './src/decorators/index';

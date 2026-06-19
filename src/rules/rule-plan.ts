@@ -1,7 +1,7 @@
-import type { RequiredType } from './rules/enums';
-import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './rules/types';
+import type { RequiredType } from './enums';
+import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './types';
 
-import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './rules/enums';
+import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import { defineRuleMetadata } from './rule-metadata';
 
 type RulePlanCache = {

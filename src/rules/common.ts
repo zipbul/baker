@@ -1,6 +1,6 @@
 import type { EmitContext, EmittableRule } from './types';
 
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // equals — strict equality (===). comparison value passed via refs (§4.8 C)

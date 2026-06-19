@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from './types';
 
 import { RequiredType } from './enums';
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // isNotEmptyObject(options?) — not an empty object (at least 1 key)

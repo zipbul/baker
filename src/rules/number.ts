@@ -2,7 +2,7 @@ import type { EmitContext, EmittableRule } from './types';
 
 import { RequiredType, RuleOp } from './enums';
 import { BakerError } from '../common/errors';
-import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
+import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // min — v >= n check. requiresType='number' (§4.7, §4.8 A)
