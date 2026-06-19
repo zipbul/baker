@@ -20,12 +20,28 @@ stage (add a rule → `rules/`; change codegen → `seal/`; change runtime → `
 slice is wrong — it would shatter the single generic `deserialize-builder` compiler and the single
 generated runtime executor. So the cut is by pipeline layer.
 
-**Placement rule (the one that was gotten wrong before):** *each symbol lives in the domain that owns
-it — the LOWEST layer that consumes it — and higher layers import it downward.* A domain owns its
-TYPES and its IMPLEMENTATION together (e.g. `transformers/` owns the `Transformer` type AND the
-`trimTransformer`/`jsonTransformer` impls; `rules/` owns `InternalRule`/`RequiredType` AND `isString`).
-There is **no bottom "core kernel"** holding other domains' types — that inverts the arrows. The only
-bottom leaves are the truly-global primitives (`symbols`, `errors`, `utils`).
+**Two kinds of home — DOMAIN vs COMMON (the distinction that was muddled before):**
+
+- **Pipeline DOMAIN** — a stage that owns a cohesive responsibility (`rules`, `transformers`,
+  `metadata`, `decorators`, `seal`, `config`, `runtime`). A domain owns its TYPES + ENUMS +
+  IMPLEMENTATION together (`transformers/` owns the `Transformer` type AND `trimTransformer`; `rules/`
+  owns `InternalRule`/`RequiredType` AND `isString`).
+- **COMMON** — cross-cutting primitives with **no semantic owning stage**, used across the pipeline.
+
+**Membership test (objective): "Is there a single stage that *semantically owns* this symbol — the
+place a developer would naturally look for it?"** If yes → that domain. If no (it's a pipeline-wide
+primitive/concept) → `common/`. Note this is *semantic* ownership, not merely "fewest importers":
+`CollectionType` (Map/Set of a field) is owned by `metadata` even though `seal` also reads it, because
+`TypeDef` *defines* it; `Direction` (Deserialize/Serialize) is owned by **nobody** — it is the
+pipeline's two directions — so it is common even though only decorators+seal use it.
+
+Applying the test to the genuinely-ownerless symbols (verified by usage): `errors`
+(`BakerError` used by 6 areas), `utils` (`isAsyncFunction`/`isPromiseLike`), `Direction`,
+`CacheKey` (codegen cache key, rules+seal, no single owner), `ClassCtor` (generic `new(...)=>T`) → all
+**common**. `symbols` (the RAW metadata symbol) is common by nature but **pinned at root** (published
+`./symbols` subpath + `Symbol.metadata` polyfill load-order). Everything with a real owner stays in its
+domain — there is **no "core kernel" holding other domains' types** (that inverts the arrows;
+`Transformer` is transformers', not common).
 
 **The RAW metadata IR is a layer, not a leaf.** `Raw*Meta` + the `*Def` family *aggregate* the author
 domains' types (`RuleDef.rule: InternalRule`, `TransformDef.fn: TransformFunction`), so the IR sits
@@ -37,37 +53,41 @@ ABOVE `rules/`/`transformers/` and imports them downward — it is NOT a leaf be
 
 ```
 src/
-├── symbols.ts      # LEAF · ROOT — Symbol.metadata polyfill (load-order) + published ./symbols. DO NOT MOVE.
-├── errors/         # LEAF — BakerError, BakerIssue(Set), guards, toBakerIssueSet, BAKER_ERROR
-├── utils.ts        # LEAF — isAsyncFunction / isPromiseLike
+├── symbols.ts      # COMMON-by-nature but ROOT-PINNED — Symbol.metadata polyfill (load-order) + published ./symbols.
+├── common/         # NO owning stage — cross-cutting primitives (the bottom leaf; imports nothing from a stage)
+│                   #   errors/ : BakerError, BakerIssue(Set), guards, toBakerIssueSet, BAKER_ERROR
+│                   #   utils   : isAsyncFunction, isPromiseLike
+│                   #   enums     : Direction, CacheKey         (no semantic owner)
+│                   #   types     : ClassCtor                   (generic new(...)=>T)
+│                   #   interfaces: RuntimeOptions              (seam: seal threads it, runtime consumes — neither owns)
 │
-├── rules/          # AUTHOR primitive → ./rules · OWNS its types+enums+impl
+├── rules/          # DOMAIN (author primitive) → ./rules · OWNS its types+enums+impl
 │                   #   types: InternalRule, EmittableRule, EmitContext, RulePlan*
-│                   #   enums: RequiredType, RuleOp, RulePlanExprKind, RulePlanCheckKind, CacheKey
-│                   #   impl: string…(split Phase E), number…, typechecker, combinators,
-│                   #         create-rule, rule-plan, rule-metadata
-├── transformers/   # AUTHOR primitive → ./transformers · OWNS Transformer/TransformParams/TransformFunction + impls
+│                   #   enums: RequiredType, RuleOp, RulePlanExprKind, RulePlanCheckKind
+│                   #   impl:  string…(split Phase E), number…, typechecker, combinators,
+│                   #          create-rule, rule-plan, rule-metadata
+├── transformers/   # DOMAIN (author primitive) → ./transformers · OWNS Transformer/TransformParams/TransformFunction + impls
 │
-├── metadata/       # IR layer (ABOVE author primitives) — the schema decorators write & seal reads
+├── metadata/       # DOMAIN — IR layer (ABOVE author primitives): the schema decorators write & seal reads
 │                   #   types: RawClassMeta, RawPropertyMeta, RuleDef, TransformDef, ExposeDef,
-│                   #          ExcludeDef, TypeDef, PropertyFlags, ClassCtor, MessageArgs
-│                   #   enums: CollectionType (TypeDef references it)
+│                   #          ExcludeDef, TypeDef, PropertyFlags, MessageArgs
+│                   #   enums: CollectionType  (TypeDef defines it — metadata is its semantic owner)
 │                   #   impl:  collect, meta-access   (read/write RAW on the class via symbols)
-│                   #   imports ↓ rules (InternalRule), transformers (Transformer), symbols, errors
-├── decorators/     # AUTHOR → ./decorators — @Field etc. PRODUCE metadata
-│                   #   enums: ExcludeMode ; Direction (lowest consumer = decorators+seal → here)
-│                   #   imports ↓ metadata, rules, transformers, errors
-├── seal/           # COMPILE — owns its output + options
-│                   #   types: SealedExecutors ; interfaces: SealOptions, RuntimeOptions
-│                   #   enums: GuardKey  (Direction is imported downward from decorators/, not owned here)
+│                   #   imports ↓ rules (InternalRule), transformers (Transformer), common, symbols
+├── decorators/     # DOMAIN → ./decorators — @Field etc. PRODUCE metadata
+│                   #   enums: ExcludeMode  (sole consumer = decorators)
+│                   #   imports ↓ metadata, rules, transformers, common
+├── seal/           # DOMAIN (compile) — owns its output + options
+│                   #   types: SealedExecutors ; interfaces: SealOptions ; enums: GuardKey
+│                   #   (RuntimeOptions is in common/ — seal only threads it through SealedExecutors' signature)
 │                   #   impl:  seal, deserialize-builder, serialize-builder, compile-cache,
 │                   #          async-analysis, merge-inheritance, circular-analyzer,
 │                   #          expose-validator, validate-meta, codegen-utils
-│                   #   imports ↓ metadata, rules, decorators(schema), errors
+│                   #   imports ↓ metadata, rules, decorators(schema), common
 │                   #   (config is ABOVE seal — config imports SealOptions from seal, not vice versa)
-├── config/         # normalizeConfig (BakerConfig → SealOptions) ; imports ↓ errors, seal(SealOptions type)
-├── runtime/        # RUN (rename of functions/) — deserialize/serialize/validate, check-call-options
-│                   #   imports ↓ seal (SealedExecutors, RuntimeOptions), errors
+├── config/         # DOMAIN — normalizeConfig (BakerConfig → SealOptions) ; imports ↓ common, seal(SealOptions type)
+├── runtime/        # DOMAIN (run, rename of functions/) — deserialize/serialize/validate, check-call-options
+│                   #   imports ↓ seal (SealedExecutors), common (RuntimeOptions, errors)
 └── baker.ts        # ROOT — composition root ; imports ↓ config, seal, runtime
 ```
 
@@ -79,14 +99,22 @@ the context and calls it. It is a single **type-only (erased) forward edge `rule
 else is strictly downward. (It exists today inside the monolithic `types.ts`; the split makes it an
 explicit, commented `import type`.)
 
-### Placement decisions that bit the earlier draft (corrected)
-- `Transformer*` → **transformers/** (its owner); `TransformDef`(metadata) imports it downward.
-- `RequiredType`/`RuleOp`/`RulePlan*`/`CacheKey` → **rules/**; metadata/seal import downward.
-- `CollectionType` → **metadata/** (lowest consumer: `TypeDef`); seal imports downward.
-- `RuntimeOptions`/`SealOptions`/`SealedExecutors` → **seal/** (lowest consumer of each is seal, via
-  `SealedExecutors`'s signature); runtime/config/baker import downward.
-- `Direction` → **decorators/** (lowest of {decorators, seal}); seal imports downward.
-- `ExcludeMode` → **decorators/** (sole consumer).
+### Placement decisions (by the semantic-owner test)
+- **DOMAIN (has an owner):**
+  - `Transformer*` → **transformers/** (its owner); `TransformDef`(metadata) imports it downward.
+  - `RequiredType`/`RuleOp`/`RulePlan*` → **rules/**; metadata/seal import downward.
+  - `CollectionType` → **metadata/** (`TypeDef` defines it); seal imports downward.
+  - `MessageArgs` → **metadata/** (structural member of `RuleDef`/`RawPropertyMeta` — owned by the IR, not by whoever consumes it).
+  - `SealOptions`/`SealedExecutors` → **seal/** (seal produces/owns them); runtime/config/baker import downward.
+  - `ExcludeMode` → **decorators/** (sole consumer).
+- **COMMON (no owner — fails the test):**
+  - `Direction` (Deserialize/Serialize — pipeline-wide), `CacheKey` (codegen cache key, rules produce / seal consume),
+    `ClassCtor` (generic constructor), `errors`, `utils` → **common/**.
+  - `RuntimeOptions` → **common/** (seam): seal only *threads* it through `SealedExecutors`' signature and
+    runtime *consumes* it — neither owns it (mirrors `CacheKey`). Putting it in `runtime/` would create a
+    `seal → runtime` upward edge via `SealedExecutors`; `common/` keeps the seam below both. It is published
+    (`index.ts`), so its public re-export repoints to `common/`.
+  - `symbols` → common-by-nature but **root-pinned** (published subpath + polyfill load-order).
 
 ---
 
@@ -106,14 +134,14 @@ Gate: suite green; codegen unchanged.
 ## Phase B — establish the skeleton (moves only, no logic change)
 1. `functions/` → **`runtime/`** (repoint imports; `functions` is not in `package.json` exports or
    `index.ts`, so no published path changes).
-2. Create **`errors/`**, **`metadata/`**, **`config/`**; move `errors.ts`→`errors/`,
-   `collect.ts`+`meta-access.ts`→`metadata/`, `configure.ts`→`config/` (owns `normalizeConfig` +
-   `BakerConfig` type + `BAKER_CONFIG_KEYS`). Leave `symbols.ts`, `utils.ts`(or a `utils/`), `baker.ts`
-   at root.
-3. `index.ts` re-export paths repointed. NOTE: `index.ts` publicly re-exports `RequiredType`/`ExcludeMode`
-   (from enums) and `EmittableRule`/`Transformer`/`TransformParams` (from types) — Phase C moves those
-   symbols (`EmittableRule`→rules/, `Transformer*`→transformers/, `RequiredType`→rules/, `ExcludeMode`→
-   decorators/), so these PUBLIC re-exports must be repointed then (public-barrel edit, not just internal).
+2. Create **`common/`**, **`metadata/`**, **`config/`**; move `errors.ts`→`common/errors/`,
+   `utils.ts`→`common/`, `collect.ts`+`meta-access.ts`→`metadata/`, `configure.ts`→`config/` (owns
+   `normalizeConfig` + `BakerConfig` type + `BAKER_CONFIG_KEYS`). Leave `symbols.ts` and `baker.ts` at root.
+   (The cross-cutting enums `Direction`/`CacheKey` + `ClassCtor` land in `common/` during Phase C.)
+3. `index.ts` re-export paths repointed. NOTE the PUBLIC re-exports that move (each is a public-barrel
+   edit, not just internal): `RequiredType`→rules/, `ExcludeMode`→decorators/, `EmittableRule`→rules/,
+   `Transformer`/`TransformParams`→transformers/ (Phase C); `BakerConfig`→config/ (Phase B);
+   `RuntimeOptions`→common/ (Phase C). Repoint each as its symbol moves.
 Gate: `tsc` + suite green; `deps:check` no new cycles; public **type surface (names+shapes) unchanged**
 (note: emitted `.d.ts` *internal re-export paths* necessarily change on a move — that is expected; the
 invariant is the public names/shapes, not byte-identical `.d.ts`).
@@ -161,7 +189,7 @@ A/B don't touch codegen but the harness should exist before C.
 1. ~~P0 enums~~, ~~P1 Baker/runtime/cache~~ (DONE).
 2. **A** — extract `compile-cache.ts` (safest, spec-backed first win).
 3. **snapshot harness** (machine-check codegen byte-identity).
-4. **B** — skeleton: `functions/`→`runtime/`, create `errors/` + `metadata/`, move substrate.
+4. **B** — skeleton: `functions/`→`runtime/`, create `common/` + `metadata/` + `config/`, move substrate.
 5. **C** — dissolve `types/enums/interfaces` into owning domains; extract seal analysis modules.
 6. **D** — builder decomposition (leaf modules verbatim, then `emitField` cycle-break as its own commit).
 7. **F** — barrels/exports close-out + de-dupe nit.
@@ -176,8 +204,9 @@ Each phase independently revertible; regressions isolate to one layer.
 - Generated `new Function` bodies byte-identical (snapshot-checked from Phase C onward).
 - Public surface unchanged: `/index.ts` names+shapes, subpath barrels (`./rules`, `./transformers`,
   `./decorators`, `./symbols`), `package.json` exports. `./symbols` keeps pointing at root `symbols.ts`.
-- **Strict downward layering**: leaves(symbols/errors/utils) ← rules·transformers ← metadata ←
-  decorators ← seal ← {config, runtime} ← baker. The ONLY upward edge permitted is the documented
+- **Strict downward layering**: `common/` (+ root `symbols`) ← rules·transformers ← metadata ←
+  decorators ← seal ← {config, runtime} ← baker. `common/` imports NOTHING from any stage (if it would
+  need to, the symbol has an owner and isn't common). The ONLY upward edge permitted is the documented
   type-only `rules → seal` (`EmitContext.addExecutor: SealedExecutors`). `deps:check` clean; `knip` clean.
 - `verbatimModuleSyntax` respected.
 
