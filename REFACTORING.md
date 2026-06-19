@@ -1,230 +1,188 @@
-# @zipbul/baker — Refactoring Plan
+# @zipbul/baker — Refactoring Plan (structure-first, domain-owned)
 
-Goal: a precise, SRP-compliant module and type structure. Behavior-preserving except for the
-multi-app isolation feature in Phase 1 (shipped as the `Baker` class). The test suite (99%+ line
-coverage) pins behavior; every phase must keep `tsc` clean and all tests green. Hot codegen
-paths run once at `seal()` (never per call), so module splits are runtime-perf-neutral; the
-only carve-outs needing a benchmark check are the generated `new Function` bodies, which must
-stay byte-identical.
+Goal: a layered directory structure where **each domain owns its own types, enums, and implementation**,
+and higher layers reference lower ones — never the reverse. Decide the skeleton top-down, then move
+symbols into the domain that owns them, then split the oversized files. Behavior-preserving; `tsc` clean
+and the full suite green at every step; generated `new Function` bodies **byte-identical** (the 5.1
+`(class,config)` cache shares one sealed form across same-config bakers, so codegen drift would be
+silently cross-baker-visible).
 
-Conventions enforced throughout:
-- Per-directory type organization: `enums.ts` / `types.ts` / `constants.ts` / `interfaces.ts`.
-- Directory-scoped barrels (`index.ts`); cross-directory imports go through the barrel.
-- Strict, precise named exports — no `export *`, internal-only symbols stay out of barrels.
-- `export type` / `import type` for type-only, plain `export` / `import` for runtime values
-  (enforced by `verbatimModuleSyntax`).
-- Move functions verbatim; never "tidy" the documented micro-optimizations during extraction.
+Conventions: per-directory `enums.ts`/`types.ts`/`constants.ts`/`interfaces.ts`; directory barrels
+(`index.ts`); strict named exports (no `export *`); `import type`/`export type` for type-only
+(`verbatimModuleSyntax`); move code verbatim (never "tidy" documented micro-opts during extraction).
 
 ---
 
-## Phase 0 — Status (done)
+## Classification — layered pipeline, domain-owned (triple-reviewed)
 
-Literal/union → enum conversion is complete and committed on `refactor/literal-unions-to-enums`:
-- `src/enums.ts` (string-valued, leaf): `RequiredType`, `Direction`, `CollectionType`, `CacheKey`,
-  `RuleOp`, `RulePlanExprKind`, `RulePlanCheckKind`, `ExcludeMode`.
-- `src/seal/enums.ts`: `GuardKey`.
-- Public exports: `RequiredType`, `ExcludeMode`.
-- Test hardening: RulePlan emit assertions pin all six `RuleOp` operator strings.
+baker is a compiler: **author metadata → seal/compile → run**. Its axis of change is the pipeline
+stage (add a rule → `rules/`; change codegen → `seal/`; change runtime → `runtime/`). A vertical/feature
+slice is wrong — it would shatter the single generic `deserialize-builder` compiler and the single
+generated runtime executor. So the cut is by pipeline layer.
 
----
+**Placement rule (the one that was gotten wrong before):** *each symbol lives in the domain that owns
+it — the LOWEST layer that consumes it — and higher layers import it downward.* A domain owns its
+TYPES and its IMPLEMENTATION together (e.g. `transformers/` owns the `Transformer` type AND the
+`trimTransformer`/`jsonTransformer` impls; `rules/` owns `InternalRule`/`RequiredType` AND `isString`).
+There is **no bottom "core kernel"** holding other domains' types — that inverts the arrows. The only
+bottom leaves are the truly-global primitives (`symbols`, `errors`, `utils`).
 
-## Phase 1 — Multi-app isolation + multi-instance seal fix (DONE)
-
-### Problem
-The argless `seal()` iterated a module-local `globalRegistry`. When a bundler duplicated baker
-(app inlines it; a library ships it `--packages external`), each copy had its own registry, so the
-app's `seal()` never sealed the library copy's `@Recipe` DTOs → `"<Class> is not sealed"`. The same
-module-local design gave no way to isolate multiple apps in one process.
-
-### Solution — the `Baker` class, class-identity isolation
-`new Baker(config?)`: an isolated scope owning its own registry + config. Each app/library seals its
-OWN roots, so nothing depends on a shared module-global registry. The global registration API
-(`@Recipe` / `seal()` / `configure()` / the never-shipped `createBaker()` factory) was removed
-entirely — `Baker` is the only registration surface.
-
-- `@app.Recipe` collects a class into that baker; `app.seal()` seals the baker's roots (and their
-  nested DTOs) with the baker's config. `@Field`, rules, and `deserialize/serialize/validate` stay
-  global — they read the metadata/executor stored on the class via global `Symbol.for`.
-- `Recipe` and `seal` are instance arrow-field properties (not prototype methods): `@app.Recipe` is
-  applied as a detached value (no `this` receiver), so it must be bound; arrow fields also keep
-  `const { Recipe, seal } = new Baker()` working.
-- Isolation boundary = **class identity**. Distinct classes are fully isolated (each sealed with its
-  baker's config). A shared value-type DTO reached from multiple bakers' roots is **reused** (one
-  sealed form, first seal wins) — sharing is legitimate, not a dev mistake, so there is no
-  cross-baker error. `seal()` keeps baker's contract: throw `BakerError` on dev errors, return
-  `BakerIssueSet` on validation.
-- The reported duplication bug dissolves: no shared mutable registry to fragment; the only durable
-  state is on the class via global `Symbol.for`, so duplicate copies converge.
-
-### Implementation
-- `src/baker.ts` — `class Baker` with private `#registry`/`#options`/`#sealed` and arrow-field
-  `Recipe`/`seal`.
-- `src/seal/seal.ts` — `sealRegistry(registry, options)` (transactional batch seal) + recursive
-  `sealOne`; the old `seal()`/`sealAllRegistered()`/`sealOneClass()`/`__testing__` and the
-  vestigial `track?` param were removed.
-- `src/configure.ts` — reduced to `normalizeConfig()` + `BakerConfig` + `BAKER_CONFIG_KEYS`
-  (`configure()`/`getGlobalOptions()`/global option state removed).
-- `index.ts` — exports `Baker` (no `createBaker`/`Recipe`/`seal`/`configure`).
-- Deleted: `src/registry.ts`, `src/decorators/recipe.ts`, `src/seal/seal-state.ts`.
-- `test/e2e/multi-app-isolation.test.ts` — scope seal, distinct-class isolation, config isolation,
-  shared-class reuse, shared-nested reuse, idempotency, invalid config.
-
-Rejected en route: a `globalThis`-shared registry (merges apps → violates no-mix); an
-owner-tracking `BakerError` throw on shared classes (bricked the second baker on a shared nested
-DTO, and miscategorised legitimate sharing as a dev error); and keeping the global API behind
-`@internal`/test shims (still leaves a global in the library — a dodge, not removal).
----
-
-## Phase 2 — CORE type/responsibility split (root `src/`)
-
-`src/types.ts` is a 5-domain junk drawer imported by 27 modules. Dissolve it; each type moves to
-its owning directory. Root keeps only genuinely cross-cutting members.
-
-| Current location | Member(s) | New home |
-| --- | --- | --- |
-| `types.ts` | `RawClassMeta`, `RawPropertyMeta` | **stay** `src/types.ts` (shared metadata storage) |
-| `types.ts` | `EmittableRule`, `InternalRule`, `RulePlan`, `RulePlanExpr`, `RulePlanCheck`, `EmitContext` | `src/rules/types.ts` |
-| `types.ts` | `RuleDef`, `MessageArgs`, `ExposeDef`, `ExcludeDef`, `TypeDef`, `PropertyFlags`, `ClassCtor`, `TransformDef` | `src/decorators/types.ts` |
-| `types.ts` | `Transformer`, `TransformParams`, `TransformFunction` | `src/transformers/types.ts` |
-| `types.ts` | `SealedExecutors` | `src/seal/types.ts` |
-| `interfaces.ts` | `RuntimeOptions` | `src/functions/interfaces.ts` |
-| `interfaces.ts` | `SealOptions` | `src/seal/interfaces.ts` (root `interfaces.ts` deleted) |
-| `errors.ts` | `BakerIssue`, `BakerIssueSet` / `BAKER_ERROR` / `BakerError` / guards | `src/errors/` → `types.ts` / `constants.ts` / `baker-error.ts` / `guards.ts` / `index.ts` |
-| `configure.ts` | `BakerConfig` / `BAKER_CONFIG_KEYS` / `normalizeConfig()` | `src/config/` → `types.ts` / `constants.ts` / `configure.ts` / `index.ts` |
-| `symbols.ts` | `RAW`, `SEALED` + `Symbol.metadata` polyfill | **keep as-is** (load-order side-effect; published `./symbols`) |
-| root | `rule-plan.ts`, `rule-metadata.ts`, `create-rule.ts` | move into `src/rules/` (rules domain) |
-
-Keep at root: `symbols.ts`, `types.ts` (now just `Raw*Meta`), `meta-access.ts`, `collect.ts`,
-`baker.ts`, `utils.ts`.
-
-Cycle notes (both are `import type`, erased → no runtime cycle; comment them):
-- `EmitContext.addExecutor(executor: SealedExecutors<unknown>)` makes `rules/types` reference
-  `seal/types`. Keep as a one-directional erased type edge.
-- `config` references `SealOptions` from `seal/interfaces` (erased). `Baker` (root) imports
-  `normalizeConfig` from `config` and `sealRegistry` from `seal` as values — both one-directional.
+**The RAW metadata IR is a layer, not a leaf.** `Raw*Meta` + the `*Def` family *aggregate* the author
+domains' types (`RuleDef.rule: InternalRule`, `TransformDef.fn: TransformFunction`), so the IR sits
+ABOVE `rules/`/`transformers/` and imports them downward — it is NOT a leaf below them.
 
 ---
 
-## Phase 3 — `rules/` decomposition
+## Target skeleton (bottom → top; every import points downward)
 
-### `string.ts` (2524 lines) → cohesive modules + re-export barrel
-`makeStringRule` → `string-shared.ts`. Rules split by concern; each module imports only
-`string-shared` + `../rule-plan`, no lateral edges. Regex/data consts and checksum helpers move
-**with their single consuming rule** (preserves `ctx.addRegex/addRef` dedup identity).
+```
+src/
+├── symbols.ts      # LEAF · ROOT — Symbol.metadata polyfill (load-order) + published ./symbols. DO NOT MOVE.
+├── errors/         # LEAF — BakerError, BakerIssue(Set), guards, toBakerIssueSet, BAKER_ERROR
+├── utils.ts        # LEAF — isAsyncFunction / isPromiseLike
+│
+├── rules/          # AUTHOR primitive → ./rules · OWNS its types+enums+impl
+│                   #   types: InternalRule, EmittableRule, EmitContext, RulePlan*
+│                   #   enums: RequiredType, RuleOp, RulePlanExprKind, RulePlanCheckKind, CacheKey
+│                   #   impl: string…(split Phase E), number…, typechecker, combinators,
+│                   #         create-rule, rule-plan, rule-metadata
+├── transformers/   # AUTHOR primitive → ./transformers · OWNS Transformer/TransformParams/TransformFunction + impls
+│
+├── metadata/       # IR layer (ABOVE author primitives) — the schema decorators write & seal reads
+│                   #   types: RawClassMeta, RawPropertyMeta, RuleDef, TransformDef, ExposeDef,
+│                   #          ExcludeDef, TypeDef, PropertyFlags, ClassCtor, MessageArgs
+│                   #   enums: CollectionType (TypeDef references it)
+│                   #   impl:  collect, meta-access   (read/write RAW on the class via symbols)
+│                   #   imports ↓ rules (InternalRule), transformers (Transformer), symbols, errors
+├── decorators/     # AUTHOR → ./decorators — @Field etc. PRODUCE metadata
+│                   #   enums: ExcludeMode ; Direction (lowest consumer = decorators+seal → here)
+│                   #   imports ↓ metadata, rules, transformers, errors
+├── seal/           # COMPILE — owns its output + options
+│                   #   types: SealedExecutors ; interfaces: SealOptions, RuntimeOptions
+│                   #   enums: GuardKey  (Direction is imported downward from decorators/, not owned here)
+│                   #   impl:  seal, deserialize-builder, serialize-builder, compile-cache,
+│                   #          async-analysis, merge-inheritance, circular-analyzer,
+│                   #          expose-validator, validate-meta, codegen-utils
+│                   #   imports ↓ metadata, rules, decorators(schema), errors
+│                   #   (config is ABOVE seal — config imports SealOptions from seal, not vice versa)
+├── config/         # normalizeConfig (BakerConfig → SealOptions) ; imports ↓ errors, seal(SealOptions type)
+├── runtime/        # RUN (rename of functions/) — deserialize/serialize/validate, check-call-options
+│                   #   imports ↓ seal (SealedExecutors, RuntimeOptions), errors
+└── baker.ts        # ROOT — composition root ; imports ↓ config, seal, runtime
+```
 
-| Module | Rules |
-| --- | --- |
-| `string-basic.ts` | minLength, maxLength, length, contains, notContains, matches, isLowercase, isUppercase, isAscii, isAlpha, isAlphanumeric, isHttpToken, isBooleanString, isNumberString, isDecimal, isFullWidth, isHalfWidth, isVariableWidth, isMultibyte, isSurrogatePair |
-| `string-encoding.ts` | isHexadecimal, isOctal, isBase32, isBase58, isBase64, isHexColor, isRgbColor, isHSL |
-| `string-format.ts` | isEmail, isURL, isIP, isMACAddress, isJWT, isLatLong, isDataURI, isFQDN, isPort, isMimeType, isMagnetURI, isJSON, isEthereumAddress, isBtcAddress |
-| `string-datetime.ts` | isISO8601, isDateString, isRFC3339, isMilitaryTime |
-| `string-identifier.ts` | isUUID, isULID, isCUID2, isMongoId, isFirebasePushId, isSemVer, isHash, isISO31661Alpha2/3, isISO4217CurrencyCode, isLocale, isOrigin, isCorsOrigin, isLatitude, isLongitude, isPhoneNumber, isStrongPassword, isByteLength, isTaxId |
-| `string-finance.ts` | isCreditCard, isIBAN, isISBN, isISIN, isISSN, isISRC, isEAN, isBIC, isCurrency |
+### The one irreducible seam (document, don't fight)
+`rules/` `EmittableRule.emit(ctx)` / `EmitContext.addExecutor(exec: SealedExecutors)` references
+`SealedExecutors`, which `seal/` owns. That is the visitor pattern: rules define `emit`, seal supplies
+the context and calls it. It is a single **type-only (erased) forward edge `rules → seal`**, kept as
+`import type` so there is no runtime cycle (dpdm sees none). This is the ONLY upward edge; everything
+else is strictly downward. (It exists today inside the monolithic `types.ts`; the split makes it an
+explicit, commented `import type`.)
 
-`string.ts` becomes a **pure re-export barrel** in the original export order, so `rules/index.ts`
-(`from './string'`) and the deep imports of `minLength` (`typechecker.spec`,
-`deserialize-builder.spec`) stay byte-stable.
-
-### Rule machinery
-Split `rule-plan.ts` (two responsibilities glued): `rule-factory.ts` (`makeRule`,
-`makePlannedRule`) + `rule-plan.ts` (plan AST builders + `emitRulePlan` codegen). Keep a
-re-export shim in `rule-plan.ts` so sibling import lines are unchanged. `rule-metadata.ts`
-(branding) and `create-rule.ts` (public API) are already cohesive — relocate into `rules/`
-without internal change.
-
-`rules/index.ts` stays the single published `./rules` barrel (no per-category split).
-
----
-
-## Phase 4 — `seal/` decomposition
-
-`deserialize-builder.ts` (1979 lines) mixes ~9 responsibilities. Extract into single-purpose
-modules; the driver keeps only function assembly.
-
-Shared (leaf): `seal/enums.ts` (GuardKey), `seal/interfaces.ts` (FieldCodeContext, GuardParams,
-TypeGateConfig, CategorizedRules, ResolvedTypeGate, SealOptions), `seal/types.ts`
-(SealedExecutors), `gen-names.ts` (shared GEN names), existing `codegen-utils.ts`.
-
-| Module | Owns |
-| --- | --- |
-| `error-codegen.ts` | nestedErrPush, nestedErrReturn |
-| `conversion-codegen.ts` | generateConversionCode + PRIMITIVE_TYPE_HINTS / ASSERTER_TO_GATE / GATE_ONLY_ASSERTERS |
-| `expose-resolver.ts` | extract/output key + expose groups + field-skip, **unified for both directions** (dedups deserialize vs serialize copies) |
-| `guard-strategies.ts` | resolveGuardKey, GUARD_STRATEGIES |
-| `rule-analysis.ts` | categorizeRules, resolveTypeGate |
-| `issue-extras.ts` | buildIssueExtras, computeRuleExtras, computeFieldExtras, makeRuleEmitCtx |
-| `emit-context.ts` | makeEmitCtx |
-| `rule-emitter.ts` | buildRulesCode + emitRuleList/emitTyped/emitGeneral/emitEach/wrapGroupsGuard/sameGroups |
-| `nested-codegen.ts` | generateCollectionCode, generateNestedCode (deserialize) |
-| `nested-codegen-validate.ts` | generateCollectionCodeValidateOnly, generateNestedCodeValidateOnly, emitInlineNestedBlock |
-| `field-codegen.ts` | generateFieldCode, generateValidationCode |
-| `deserialize-builder.ts` | (slim) buildDeserializeCode, buildValidateCode |
-| `transform-codegen.ts` | buildSerializeTransformExpr, buildPostNestedTransformCode |
-| `serialize-field-codegen.ts` | generateSerializeFieldCode + extracted collection/nested/discriminator/output |
-| `serialize-builder.ts` | (slim) buildSerializeCode |
-| `typedef-normalizer.ts` | normalizeTypeDefs (from sealOne) |
-| `async-analysis.ts` | analyzeAsync, nestedClassesOf |
-| `merge-inheritance.ts` | mergeInheritance |
-| `seal.ts` | (slim) seal orchestration: sealRegistry/sealOne/ensureSealed |
-
-**Cycle break:** `field-codegen ↔ nested-codegen-validate` is mutual recursion
-(`emitInlineNestedBlock` calls `generateFieldCode`). Inject `generateFieldCode` via a new
-`emitField` callback field on `FieldCodeContext` (dependency inversion) so
-`nested-codegen-validate` depends only on `seal/interfaces.ts`.
-
-Do NOT split the already-cohesive `circular-analyzer.ts`, `expose-validator.ts`,
-`validate-meta.ts`, `codegen-utils.ts`.
+### Placement decisions that bit the earlier draft (corrected)
+- `Transformer*` → **transformers/** (its owner); `TransformDef`(metadata) imports it downward.
+- `RequiredType`/`RuleOp`/`RulePlan*`/`CacheKey` → **rules/**; metadata/seal import downward.
+- `CollectionType` → **metadata/** (lowest consumer: `TypeDef`); seal imports downward.
+- `RuntimeOptions`/`SealOptions`/`SealedExecutors` → **seal/** (lowest consumer of each is seal, via
+  `SealedExecutors`'s signature); runtime/config/baker import downward.
+- `Direction` → **decorators/** (lowest of {decorators, seal}); seal imports downward.
+- `ExcludeMode` → **decorators/** (sole consumer).
 
 ---
 
-## Phase 5 — barrels, exports, `.d.ts`
+## Phase 0 / 1 (DONE)
+P0 enum conversion. P1 (5.0/5.1): `Baker` class, per-baker runtime `app.deserialize/validate/serialize`,
+global runtime + `Class[SEALED]` + `SEALED` symbol removed, executors in each Baker's `#executors` map,
+`(class,config)` compile cache + cache-hit nested seeding, `Baker.#require` prototype-chain walk.
 
-- Add internal barrels where useful (`seal/`, `functions/`); keep public barrels
-  (`decorators/`, `rules/`, `transformers/`) and the single published `/index.ts`.
-- Repoint `/index.ts` re-export paths only; keep exported **names and shapes identical** so the
-  published `.d.ts` is byte-stable. `package.json` `exports` map needs no change (subpaths still
-  resolve; `symbols.ts` stays put).
-- Run `tsc`, full tests, `bun run deps:check` (dpdm, no new cycles), `knip` (no unused exports),
-  and a codegen benchmark spot-check after the seal split.
+## Phase A — compile-cache extraction (FIRST: self-contained, spec-backed, zero codegen risk)
+Extract `seal/compile-cache.ts` (the WeakMap + `configFingerprint`/`getCached`/`setCached`/`clearCached`/
+`clearAllCached`). It already has a committed spec (`src/seal/compile-cache.spec.ts`, repoint its import)
+and a consumer (`test/integration/helpers/unseal.ts` imports `clearAllCached`). Touches no `new Function`
+body. Of seal.ts's 7 test-only exports it relocates the cache ones; the rest (`mergeInheritance`,
+`circularPlaceholder`) move in Phase C.
+Gate: suite green; codegen unchanged.
+
+## Phase B — establish the skeleton (moves only, no logic change)
+1. `functions/` → **`runtime/`** (repoint imports; `functions` is not in `package.json` exports or
+   `index.ts`, so no published path changes).
+2. Create **`errors/`**, **`metadata/`**, **`config/`**; move `errors.ts`→`errors/`,
+   `collect.ts`+`meta-access.ts`→`metadata/`, `configure.ts`→`config/` (owns `normalizeConfig` +
+   `BakerConfig` type + `BAKER_CONFIG_KEYS`). Leave `symbols.ts`, `utils.ts`(or a `utils/`), `baker.ts`
+   at root.
+3. `index.ts` re-export paths repointed. NOTE: `index.ts` publicly re-exports `RequiredType`/`ExcludeMode`
+   (from enums) and `EmittableRule`/`Transformer`/`TransformParams` (from types) — Phase C moves those
+   symbols (`EmittableRule`→rules/, `Transformer*`→transformers/, `RequiredType`→rules/, `ExcludeMode`→
+   decorators/), so these PUBLIC re-exports must be repointed then (public-barrel edit, not just internal).
+Gate: `tsc` + suite green; `deps:check` no new cycles; public **type surface (names+shapes) unchanged**
+(note: emitted `.d.ts` *internal re-export paths* necessarily change on a move — that is expected; the
+invariant is the public names/shapes, not byte-identical `.d.ts`).
+
+## Phase C — dissolve `types.ts`/`enums.ts`/`interfaces.ts` into their owning domains
+Apply the placement table above. Create `metadata/` IR types, `rules/` types+enums, `transformers/`
+types, `decorators/` enums, `seal/` types+interfaces. Relocate `create-rule`/`rule-plan`/`rule-metadata`
+into `rules/`. Mark the `rules → seal` `EmitContext`→`SealedExecutors` edge `import type` and comment it.
+Also extract `seal/async-analysis.ts` (`analyzeAsync`+`nestedClassesOf`), `seal/merge-inheritance.ts`,
+and `circularPlaceholder` out of `seal.ts` (each carries a test-only export) → `sealOne` becomes a clean
+~160-line orchestrator. Do NOT fragment `sealOne`'s inline pipeline (typedef normalization stays inline).
+Gate: `tsc` + suite green; `deps:check` clean — **verify zero edge from a lower layer up to a higher one
+except the single documented `rules → seal` erased type edge**; codegen byte-identical.
+
+## Phase D — decompose the big builders
+Split `deserialize-builder.ts` (1986) + `serialize-builder.ts` (446) into single-purpose codegen modules
+(verbatim): error-codegen, conversion-codegen, expose-resolver, guard-strategies, rule-analysis,
+issue-extras, emit-context, rule-emitter, nested-codegen, nested-codegen-validate, field-codegen,
+transform-codegen, serialize-field-codegen, slim drivers. **Cycle break:** `field-codegen ↔
+nested-codegen-validate` via an `emitField` callback (dependency inversion) — this alters the codegen
+call path, so do it as its own separately-gated commit (extract the leaf modules verbatim first).
+Gate: byte-identical codegen — **mechanized** (see harness below), not eyeballed.
+
+## Phase E — `rules/string.ts` split (DEFERRED — lowest value, last or skip)
+2525 lines, flat, low-coupling. Split by concern behind a pure re-export barrel so `rules/index.ts`
+(the `./rules` subpath) stays byte-stable. Pure churn; schedule last or defer.
+
+## Phase F — barrels / exports / `.d.ts` close-out
+Per-directory barrels; public barrels + root `/index.ts` + `./symbols` stable. `.d.ts` review,
+`deps:check`, `knip`. Optional nit: de-dupe `runtime/` `run*` unwrap/guard helpers.
 
 ---
 
-## Execution order (each step = one commit, `tsc` + full suite green)
+## Prerequisite — codegen-snapshot harness (build BEFORE Phase C/D)
+The "byte-identical codegen" invariant is currently only asserted. Add a `bun test` that, for a
+representative DTO set, captures each generated executor's source (`sealed.deserialize/serialize/
+validate.toString()`, reachable via the test-only `getCached(Cls, configFingerprint(opts))`) into a
+committed snapshot and diffs it. (Captures the generated **body text** only — injected closure data
+like `refs`/`regexes`/`execs` is not part of `.toString()`; that is exactly the "codegen byte-identical"
+invariant, which is about the body.) Land it as its own commit before any seal/
+builder code is moved (Phases C/D feed/own codegen), so drift is machine-checked every commit. Phases
+A/B don't touch codegen but the harness should exist before C.
 
-1. ~~Phase 1 — multi-app isolation via the `Baker` class (global API removed)~~ (DONE).
-2. Core leaf splits: `errors/`, `config/`, relocate `RuntimeOptions`/`SealOptions`, delete root `interfaces.ts`.
-3. Carve domain types: `transformers/types.ts`, `decorators/types.ts`, `rules/types.ts`, `seal/types.ts`; reduce root `types.ts` to `Raw*Meta`; move `rule-plan`/`rule-metadata`/`create-rule` into `rules/`.
-4. `string.ts` split (finance → datetime → encoding → format → identifier → basic), then `rule-plan` factory split.
-5. `seal/` deserialize decomposition (pure leaves first: error-codegen, conversion-codegen, guard-strategies, interfaces; then rule-analysis, issue-extras, emit-context, rule-emitter; then nested modules; then field-codegen + cycle break; finally slim driver).
-6. `seal/` serialize decomposition + `seal.ts` extraction (typedef-normalizer, async-analysis, merge-inheritance).
-7. Barrels/exports cleanup + `.d.ts` diff + deps:check/knip + benchmark.
+## Execution order (each step = one commit; `tsc` + suite green; codegen byte-identical)
+1. ~~P0 enums~~, ~~P1 Baker/runtime/cache~~ (DONE).
+2. **A** — extract `compile-cache.ts` (safest, spec-backed first win).
+3. **snapshot harness** (machine-check codegen byte-identity).
+4. **B** — skeleton: `functions/`→`runtime/`, create `errors/` + `metadata/`, move substrate.
+5. **C** — dissolve `types/enums/interfaces` into owning domains; extract seal analysis modules.
+6. **D** — builder decomposition (leaf modules verbatim, then `emitField` cycle-break as its own commit).
+7. **F** — barrels/exports close-out + de-dupe nit.
+8. **E** — string.ts split (deferred/last/optional).
 
-Each phase is independently revertible; regressions isolate to one domain.
+Each phase independently revertible; regressions isolate to one layer.
 
 ---
 
-## Invariants (must hold every commit)
-- `bunx tsc --noEmit` clean; `bun test` fully green (currently 2326 pass).
-- Generated `new Function` bodies byte-identical (codegen splits move code verbatim).
-- Public surface (`/index.ts` names + 4 subpath barrels + `package.json` exports) unchanged,
-  except the additive enum exports already shipped and any intentional fix documented here.
-- `verbatimModuleSyntax` respected (enums plain-imported, types `import type`).
-- No new dependency cycles (`deps:check`), no unused exports (`knip`).
+## Invariants (every commit)
+- `bunx tsc --noEmit` clean; `bun test` fully green (currently 2335 pass).
+- Generated `new Function` bodies byte-identical (snapshot-checked from Phase C onward).
+- Public surface unchanged: `/index.ts` names+shapes, subpath barrels (`./rules`, `./transformers`,
+  `./decorators`, `./symbols`), `package.json` exports. `./symbols` keeps pointing at root `symbols.ts`.
+- **Strict downward layering**: leaves(symbols/errors/utils) ← rules·transformers ← metadata ←
+  decorators ← seal ← {config, runtime} ← baker. The ONLY upward edge permitted is the documented
+  type-only `rules → seal` (`EmitContext.addExecutor: SealedExecutors`). `deps:check` clean; `knip` clean.
+- `verbatimModuleSyntax` respected.
 
 ---
 
-## Forward-looking note — schema scope (OpenAPI 3.0)
-
-A future "derive an OpenAPI 3.0 schema" feature needs per-app isolation: in a multi-app project
-each app wants only *its own* DTOs in its schema. The `Baker` instance shipped in Phase 1 is
-already the right boundary for this — a baker owns exactly the roots registered via its `@app.Recipe`.
-
-Recommended design when the feature lands:
-- **Primary — derive from a baker:** `app.toOpenAPI()` walks the type graph from the roots that
-  baker collected. Perfect per-app isolation falls out of the instance; no global enumeration, no
-  reliance on module-instance identity (the very thing the Phase-1 bug came from).
-- **Or from explicit roots:** `toOpenAPI([UserDto, OrderDto])` for callers that want an ad-hoc set.
-
-Class identity stays the isolation boundary (consistent with sealing): a DTO shared across bakers
-appears in each baker's schema as the same definition. Single-app projects already have exactly one
-`Baker`, so `app.toOpenAPI()` covers them with no extra concept.
+## Forward-looking — OpenAPI 3.0
+`app.toOpenAPI()` walks the type graph from the roots a baker collected — per-app isolation falls out of
+the `Baker` boundary; class identity stays the isolation boundary; single-app projects have one `Baker`.
