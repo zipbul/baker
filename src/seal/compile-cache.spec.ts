@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import { Baker, Field } from '../../index';
 import { isNumber, isString } from '../rules/index';
-import { getCached, configFingerprint, clearCached } from './seal';
+import { getCached, configFingerprint, clearCached } from './compile-cache';
 
 // The (class, config) cache: same-config bakers share one compiled executor; different-config
 // bakers get distinct entries. Sharing is invisible behaviourally — verified via the cache itself.
