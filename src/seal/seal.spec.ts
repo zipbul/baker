@@ -9,7 +9,8 @@ import { BakerError, isBakerIssueSet } from '../common/errors';
 import { setRaw } from '../metadata/meta-access';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
-import { circularPlaceholder, mergeInheritance } from './seal';
+import { circularPlaceholder } from './circular-placeholder';
+import { mergeInheritance } from './merge-inheritance';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
