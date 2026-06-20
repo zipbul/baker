@@ -208,13 +208,22 @@ A/B don't touch codegen but the harness should exist before C.
    `resolveExposeGroups` (single source of truth in `seal/codegen-utils.ts`); move orphan
    `error-system.spec.ts` into `common/`~~ — **DONE**.
 
+10. ~~**Audit cleanup** — convert the seal pipeline (`sealOne`/`sealRegistry`) to a `SealRun` class
+    (kill recursion state-threading); rename `transformers/*.transformer.ts` → kebab plain + per-file
+    transformer specs; split `string.spec.ts` into per-module specs mirroring the source; split each
+    published dir into `public.ts` (curated published surface) + `index.ts` (full internal barrel) so
+    every cross-domain import routes through `../<dir>` with no deep import~~ — **DONE**.
+
 Result: `src/` root holds only `baker.ts` (composition root) + `symbols.ts` (pinned). All other code
-lives in its domain (`common/ metadata/ config/ rules/ transformers/ seal/ runtime/`). The builders are
-classes; their pure codegen utilities live in sibling `*-codegen`/`codegen-utils` modules. No
-`Object.create`/`as`-cast hacks, no `any`/`@ts-ignore`/`eslint-disable` in source. Junk-drawer
-`types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic (one documented type-only `rules → seal` edge).
-Internal types are imported from `<dir>/types`; the published `<dir>` barrels expose only public surface.
-Each phase independently revertible; regressions isolate to one layer.
+lives in its domain (`common/ metadata/ config/ rules/ transformers/ seal/ runtime/`). The builders and
+the seal pipeline are classes; their pure codegen utilities live in sibling `*-codegen`/`codegen-utils`
+modules. No `Object.create`/`as`-cast hacks, no `any`/`@ts-ignore`/`eslint-disable` in source. Junk-drawer
+`types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic. **Barrels:** every directory has an `index.ts`;
+the three published dirs (`rules`/`transformers`/`decorators`) additionally have a `public.ts` — the
+package.json subpath publishes `public.ts` (curated), while same-repo code imports the full `index.ts`
+barrel, so internal symbols (`EmitContext`/`InternalRule`/`emitRulePlan`/…) reach consumers without
+leaking publicly. The ONLY cross-dir deep import is `rules/types → seal/types` (type-only cycle-break).
+Unit specs are co-located per source file. Each phase independently revertible; regressions isolate to one layer.
 
 ---
 
