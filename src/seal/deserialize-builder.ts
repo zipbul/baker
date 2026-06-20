@@ -461,6 +461,8 @@ class DeserializeBuilder {
     isAsync: boolean,
     resolve: (cls: Function) => SealedExecutors<unknown> | undefined,
     validateOnly: boolean,
+    /** Inline-nested scope inherited from a parent builder; omit for a root builder. */
+    scope?: ChildScope,
   ) {
     this.Class = Class;
     this.merged = merged;
@@ -472,44 +474,45 @@ class DeserializeBuilder {
 
     this.stopAtFirstError = options?.stopAtFirstError ?? false;
     this.collectErrors = !this.stopAtFirstError;
-    this.exposeDefaultValues = options?.exposeDefaultValues ?? false;
 
-    this.regexes = [];
-    this.refs = [];
-    this.execs = [];
+    if (scope) {
+      // Child: share the parent's reference arrays + circular-tracking set (the single mutable
+      // accumulator — keeps executor ref indices identical) and inherit the inline-nested scope.
+      // Inline nested never uses exposeDefaultValues.
+      this.exposeDefaultValues = false;
+      this.regexes = scope.regexes;
+      this.refs = scope.refs;
+      this.execs = scope.execs;
+      if (scope.inlineNestedClasses) {
+        this.inlineNestedClasses = scope.inlineNestedClasses;
+      }
+      this.pathPrefix = scope.pathPrefix;
+      this.varPrefix = scope.varPrefix;
+      this.inputExpr = scope.inputExpr;
+    } else {
+      // Root: own a fresh accumulator.
+      this.exposeDefaultValues = options?.exposeDefaultValues ?? false;
+      this.regexes = [];
+      this.refs = [];
+      this.execs = [];
+    }
   }
 
   /**
-   * Create a CHILD builder for an inline-nested DTO. Shares the parent's reference arrays,
-   * `resolve`, `options`, `isAsync`, `inlineNestedClasses` set and circular-check flag; overrides
-   * `pathPrefix`/`varPrefix`/`inputExpr` and forces `exposeDefaultValues` off (inline nested
-   * doesn't use exposeDefaultValues).
+   * Create a CHILD builder for an inline-nested DTO. The child shares the parent's reference arrays
+   * and circular-tracking set (the single mutable accumulator) via the constructor `scope` argument,
+   * and overrides `pathPrefix`/`varPrefix`/`inputExpr`.
    */
   private createChild(pathPrefix: string, varPrefix: string, inputExpr: string): DeserializeBuilder {
-    const child = Object.create(DeserializeBuilder.prototype) as DeserializeBuilder & MutableBuilderState;
-    child.Class = this.Class;
-    child.merged = this.merged;
-    child.options = this.options;
-    child.needsCircularCheck = this.needsCircularCheck;
-    child.isAsync = this.isAsync;
-    child.resolve = this.resolve;
-    child.validateOnly = this.validateOnly;
-    child.stopAtFirstError = this.stopAtFirstError;
-    child.collectErrors = this.collectErrors;
-    // inline nested doesn't use exposeDefaultValues
-    child.exposeDefaultValues = false;
-    // Share reference arrays so executor ref indices stay identical.
-    child.regexes = this.regexes;
-    child.refs = this.refs;
-    child.execs = this.execs;
-    // Share the circular-tracking set (mutated in place during inline emission).
-    if (this.inlineNestedClasses) {
-      child.inlineNestedClasses = this.inlineNestedClasses;
-    }
-    child.pathPrefix = pathPrefix;
-    child.varPrefix = varPrefix;
-    child.inputExpr = inputExpr;
-    return child;
+    return new DeserializeBuilder(this.Class, this.merged, this.options, this.needsCircularCheck, this.isAsync, this.resolve, this.validateOnly, {
+      regexes: this.regexes,
+      refs: this.refs,
+      execs: this.execs,
+      inlineNestedClasses: this.inlineNestedClasses,
+      pathPrefix,
+      varPrefix,
+      inputExpr,
+    });
   }
 
   // ── Entry point ────────────────────────────────────────────────────────────
@@ -1941,24 +1944,16 @@ class DeserializeBuilder {
 
 /** Writable view of the builder's data fields — used to populate a child instance created via
  *  Object.create (bypassing the constructor so reference arrays can be shared). */
-interface MutableBuilderState {
-  Class: Function;
-  merged: RawClassMeta;
-  options: SealOptions | undefined;
-  needsCircularCheck: boolean;
-  isAsync: boolean;
-  resolve: (cls: Function) => SealedExecutors<unknown> | undefined;
-  stopAtFirstError: boolean;
-  collectErrors: boolean;
-  exposeDefaultValues: boolean;
-  validateOnly: boolean;
+/** Inline-nested scope a parent builder hands to a child: the shared mutable accumulator (reference
+ *  arrays + circular-tracking set) plus the child's own path/var/input expression overrides. */
+interface ChildScope {
   regexes: RegExp[];
   refs: unknown[];
   execs: SealedExecutors<unknown>[];
-  inlineNestedClasses?: Set<Function>;
-  pathPrefix?: string;
-  varPrefix?: string;
-  inputExpr?: string;
+  inlineNestedClasses: Set<Function> | undefined;
+  pathPrefix: string;
+  varPrefix: string;
+  inputExpr: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'bun:test';
 
-import { createRule } from './rules/create-rule';
-import { BakerError } from './common/errors';
-import { isPassportNumber } from './rules/locales';
-import { isDivisibleBy, max, min } from './rules/number';
+import { createRule } from '../rules/create-rule';
+import { BakerError } from './errors';
+import { isPassportNumber } from '../rules/locales';
+import { isDivisibleBy, max, min } from '../rules/number';
 
 // Every developer-misuse condition discoverable WITHOUT external input must throw the single
 // throw-channel class `BakerError` (never a bare Error/TypeError). These all throw at
