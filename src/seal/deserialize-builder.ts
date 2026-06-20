@@ -8,18 +8,16 @@ import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../met
 import type { EmitContext } from '../rules/types';
 import type { SealedExecutors } from './types';
 
-import { CacheKey, BakerError } from '../common';
+import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
 import { emitRulePlan } from '../rules/rule-plan';
-import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
+import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 import type { CategorizedRules, ResolvedTypeGate, TypeGateConfig } from './deserialize-codegen';
 import {
   GEN,
   nestedErrPush,
   nestedErrReturn,
   toVarName,
-  getDeserializeExtractKey,
-  getDeserializeExposeGroups,
   resolveGuardKey,
   GUARD_STRATEGIES,
   wrapGroupsGuard,
@@ -184,7 +182,7 @@ class DeserializeBuilder {
     if (options?.whitelist) {
       const allowedKeys = new Set<string>();
       for (const [fieldKey, meta] of Object.entries(merged)) {
-        const extractKey = getDeserializeExtractKey(fieldKey, meta.expose);
+        const extractKey = resolveExposeName(fieldKey, meta.expose, Direction.Deserialize);
         allowedKeys.add(extractKey);
       }
       const allowedIdx = refs.length;
@@ -205,7 +203,7 @@ class DeserializeBuilder {
     let hasGroupsField = false;
     for (const fk in merged) {
       const meta = merged[fk]!;
-      const exposeGroups = getDeserializeExposeGroups(meta.expose);
+      const exposeGroups = resolveExposeGroups(meta.expose, Direction.Deserialize);
       if (exposeGroups && exposeGroups.length > 0) {
         hasGroupsField = true;
         break;
@@ -298,8 +296,8 @@ class DeserializeBuilder {
     }
 
     const varName = toVarName(fieldKey, this.varPrefix);
-    const extractKey = getDeserializeExtractKey(fieldKey, meta.expose);
-    const exposeGroups = getDeserializeExposeGroups(meta.expose);
+    const extractKey = resolveExposeName(fieldKey, meta.expose, Direction.Deserialize);
+    const exposeGroups = resolveExposeGroups(meta.expose, Direction.Deserialize);
     const inputObj = this.inputExpr || 'input';
 
     // Create EmitContext — bake field-level message/context so EVERY field-own-path failure

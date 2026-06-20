@@ -66,42 +66,8 @@ export function toVarName(key: string, prefix?: string): string {
   return GEN.field + (prefix || '') + sanitizeKey(key);
 }
 
-/** Determine the extraction key for deserialization (§4.3 step 3) */
-export function getDeserializeExtractKey(fieldKey: string, exposeStack: RawPropertyMeta['expose']): string {
-  // deserializeOnly @Expose with name → use that name
-  const desDef = exposeStack.find(e => e.deserializeOnly && e.name);
-  if (desDef) {
-    return desDef.name!;
-  }
-  // Non-directional @Expose with name → use for both directions
-  const biDef = exposeStack.find(e => !e.deserializeOnly && !e.serializeOnly && e.name);
-  if (biDef) {
-    return biDef.name!;
-  }
-  return fieldKey;
-}
-
-/** Determine field expose groups — returns undefined (no restriction) if any unconditional expose entry exists */
-export function getDeserializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  // Single-pass: scan once, bail out as soon as we see an unconditional entry,
-  // lazily allocate the result Set.
-  let all: Set<string> | null = null;
-  for (const e of exposeStack) {
-    if (e.serializeOnly) {
-      continue;
-    }
-    if (!e.groups || e.groups.length === 0) {
-      return undefined;
-    }
-    if (all === null) {
-      all = new Set<string>();
-    }
-    for (const g of e.groups) {
-      all.add(g);
-    }
-  }
-  return all === null ? undefined : [...all];
-}
+// Field rename + expose-group resolution (both directions) live in codegen-utils as the single
+// source of truth — see resolveExposeName / resolveExposeGroups.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // nullable/optional guard — truth-table strategy pattern (D-3)

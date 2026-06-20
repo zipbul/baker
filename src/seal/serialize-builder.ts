@@ -4,8 +4,8 @@ import type { RawClassMeta, RawPropertyMeta, TransformDef } from '../metadata';
 import type { SealedExecutors } from './types';
 
 import { CollectionType } from '../metadata';
-import { BakerError } from '../common';
-import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
+import { BakerError, Direction } from '../common';
+import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Generated variable name prefixes — centralised to prevent typo-related bugs
@@ -30,45 +30,8 @@ const GEN = {
   nestedItem: '__bk$nitem',
 } as const;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Pure stateless helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Determine the output key for serialize direction */
-function getSerializeOutputKey(fieldKey: string, exposeStack: RawPropertyMeta['expose']): string {
-  // serializeOnly @Expose with name → use that name
-  const serDef = exposeStack.find(e => e.serializeOnly && e.name);
-  if (serDef) {
-    return serDef.name!;
-  }
-  // Non-directional @Expose with name → use for both directions
-  const biDef = exposeStack.find(e => !e.deserializeOnly && !e.serializeOnly && e.name);
-  if (biDef) {
-    return biDef.name!;
-  }
-  return fieldKey;
-}
-
-/** Determine expose groups for serialize direction — returns undefined (no restriction) if any unconditional expose entry exists */
-function getSerializeExposeGroups(exposeStack: RawPropertyMeta['expose']): string[] | undefined {
-  // Single-pass: scan once, build set of groups; bail out as soon as we see an unconditional entry.
-  let all: Set<string> | null = null;
-  for (const e of exposeStack) {
-    if (e.deserializeOnly) {
-      continue;
-    }
-    if (!e.groups || e.groups.length === 0) {
-      return undefined;
-    }
-    if (all === null) {
-      all = new Set<string>();
-    }
-    for (const g of e.groups) {
-      all.add(g);
-    }
-  }
-  return all === null ? undefined : [...all];
-}
+// Field rename + expose-group resolution (both directions) live in codegen-utils as the single
+// source of truth — see resolveExposeName / resolveExposeGroups.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SerializeBuilder — new Function-based serialize executor generation (§4.3 serialize pipeline)
@@ -120,7 +83,7 @@ class SerializeBuilder<T> {
 
     // Groups variable — only when fields referencing groups exist
     const hasGroupsField = Object.values(this.merged).some(meta => {
-      const groups = getSerializeExposeGroups(meta.expose);
+      const groups = resolveExposeGroups(meta.expose, Direction.Serialize);
       return groups && groups.length > 0;
     });
     if (hasGroupsField) {
@@ -179,8 +142,8 @@ class SerializeBuilder<T> {
       return '';
     }
 
-    const outputKey = getSerializeOutputKey(fieldKey, meta.expose);
-    const exposeGroups = getSerializeExposeGroups(meta.expose);
+    const outputKey = resolveExposeName(fieldKey, meta.expose, Direction.Serialize);
+    const exposeGroups = resolveExposeGroups(meta.expose, Direction.Serialize);
     const sk = sanitizeKey(fieldKey);
     const fieldVal = `${GEN.fieldVal}${sk}`;
 
