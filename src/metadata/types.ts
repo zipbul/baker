@@ -1,6 +1,6 @@
 import type { ClassCtor } from '../common';
-import type { InternalRule } from '../rules/types';
-import type { TransformFunction } from '../transformers/types';
+import type { InternalRule } from '../rules';
+import type { TransformFunction } from '../transformers';
 import type { CollectionType } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────

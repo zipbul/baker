@@ -5,12 +5,12 @@ import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 import type { RuntimeOptions, BakerIssue } from '../common';
 import type { SealOptions } from './interfaces';
 import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata';
-import type { EmitContext } from '../rules/types';
+import type { EmitContext } from '../rules';
 import type { SealedExecutors } from './types';
 
 import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
-import { emitRulePlan } from '../rules/rule-plan';
+import { emitRulePlan } from '../rules';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 import type { CategorizedRules, ResolvedTypeGate, TypeGateConfig } from './deserialize-codegen';
 import {

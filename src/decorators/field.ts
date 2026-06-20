@@ -1,7 +1,7 @@
 import type { ClassCtor } from '../common';
-import type { EmittableRule, InternalRule } from '../rules/types';
+import type { EmittableRule, InternalRule } from '../rules';
 import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
-import type { Transformer } from '../transformers/types';
+import type { Transformer } from '../transformers';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
 import { ensureMeta } from '../metadata';

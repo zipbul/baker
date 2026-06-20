@@ -50,20 +50,20 @@
       "import": "./dist/index.js"
     },
     "./decorators": {
-      "types": "./dist/src/decorators/index.d.ts",
-      "import": "./dist/src/decorators/index.js"
+      "types": "./dist/src/decorators/public.d.ts",
+      "import": "./dist/src/decorators/public.js"
     },
     "./rules": {
-      "types": "./dist/src/rules/index.d.ts",
-      "import": "./dist/src/rules/index.js"
+      "types": "./dist/src/rules/public.d.ts",
+      "import": "./dist/src/rules/public.js"
     },
     "./symbols": {
       "types": "./dist/src/symbols.d.ts",
       "import": "./dist/src/symbols.js"
     },
     "./transformers": {
-      "types": "./dist/src/transformers/index.d.ts",
-      "import": "./dist/src/transformers/index.js"
+      "types": "./dist/src/transformers/public.d.ts",
+      "import": "./dist/src/transformers/public.js"
     }
   },
   "publishConfig": {

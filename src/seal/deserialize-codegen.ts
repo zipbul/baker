@@ -1,5 +1,5 @@
 import type { RawPropertyMeta, RuleDef } from '../metadata';
-import type { EmitContext } from '../rules/types';
+import type { EmitContext } from '../rules';
 
 import { BakerError } from '../common';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
