@@ -165,9 +165,11 @@ nested-codegen-validate` via an `emitField` callback (dependency inversion) — 
 call path, so do it as its own separately-gated commit (extract the leaf modules verbatim first).
 Gate: byte-identical codegen — **mechanized** (see harness below), not eyeballed.
 
-## Phase E — `rules/string.ts` split (DEFERRED — lowest value, last or skip)
-2525 lines, flat, low-coupling. Split by concern behind a pure re-export barrel so `rules/index.ts`
-(the `./rules` subpath) stays byte-stable. Pure churn; schedule last or defer.
+## Phase E — `rules/string.ts` split (DONE)
+2526 lines, flat, low-coupling. Split into `string-shared.ts` + six concern modules
+(`basic`/`width`/`encoding`/`format`/`identifier`/`finance`) behind a pure re-export barrel so
+`rules/index.ts` (the `./rules` subpath) stays byte-stable. Every regex/data constant/checksum helper
+moved verbatim — declaration text byte-identical; `./rules` export set (83) unchanged; snapshot 15/0.
 
 ## Phase F — barrels / exports / `.d.ts` close-out
 Per-directory barrels; public barrels + root `/index.ts` + `./symbols` stable. `.d.ts` review,
@@ -198,13 +200,21 @@ A/B don't touch codegen but the harness should exist before C.
 7. ~~**F** — per-directory barrels (`common`/`metadata`/`config`/`seal`/`runtime` index.ts) + strict
    exports; cross-dir imports routed through barrels (one documented deep edge: `rules/types →
    seal/types` for `SealedExecutors`)~~ — **DONE**.
-8. **E** — `string.ts` split — **DEFERRED** (2525 lines but flat/low-coupling/low-value; behind a pure
-   re-export barrel keeping `./rules` stable; do only if file size becomes a real maintenance pain).
+8. ~~**E** — `string.ts` split into `string-shared` + six concern modules behind a byte-stable
+   `./rules` barrel~~ — **DONE**.
+9. ~~**Post-D cleanup** — remove the `createChild` `Object.create`+readonly-cast hack (real constructor
+   `scope` arg); extract pure codegen utilities out of `DeserializeBuilder` into `seal/deserialize-codegen.ts`
+   (2003→1624 lines); unify the four direction-mirror expose helpers into `resolveExposeName`/
+   `resolveExposeGroups` (single source of truth in `seal/codegen-utils.ts`); move orphan
+   `error-system.spec.ts` into `common/`~~ — **DONE**.
 
-Result so far: `src/` root holds only `baker.ts` (composition root) + `symbols.ts` (pinned). All other code
+Result: `src/` root holds only `baker.ts` (composition root) + `symbols.ts` (pinned). All other code
 lives in its domain (`common/ metadata/ config/ rules/ transformers/ seal/ runtime/`). The builders are
-classes. Junk-drawer `types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic (one documented type-only
-`rules → seal` edge). Each phase independently revertible; regressions isolate to one layer.
+classes; their pure codegen utilities live in sibling `*-codegen`/`codegen-utils` modules. No
+`Object.create`/`as`-cast hacks, no `any`/`@ts-ignore`/`eslint-disable` in source. Junk-drawer
+`types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic (one documented type-only `rules → seal` edge).
+Internal types are imported from `<dir>/types`; the published `<dir>` barrels expose only public surface.
+Each phase independently revertible; regressions isolate to one layer.
 
 ---
 
