@@ -1,18 +1,24 @@
 ---
-"@zipbul/baker": patch
+"@zipbul/baker": minor
 ---
 
-Fix four bugs found in a package-wide line-by-line audit:
+Fix four correctness bugs found in a package-wide audit. Two of them change observable behavior for
+input that previously "worked", so review before upgrading:
 
-- **`@IsEnum` with numeric enums** no longer accepts the enum member *names* as valid values. TypeScript
-  numeric enums compile to a reverse-mapped object (`{ 0: 'Inactive', 1: 'Active', Active: 1, Inactive: 0 }`),
-  so the previous `Object.values()` lookup wrongly accepted the key-name strings (e.g. `'Active'`). Values
-  are now read through the non-numeric keys, which is correct for string, numeric, and heterogeneous enums.
-- **`luxonTransformer`** now passes an unparseable date string / `Date` through untouched instead of
-  laundering it into an Invalid `DateTime` (which serialized to `null` / `"Invalid DateTime"` and corrupted
-  data). This matches `momentTransformer`'s existing pass-through contract.
-- **`momentTransformer`** now parses input in UTC (`moment.utc`) so a zoneless datetime string resolves to
-  the same instant on every host; previously local-time parsing made serialized output depend on the
-  machine timezone. Matches `luxonTransformer`'s UTC default.
-- **Per-call `groups` option** is now validated at the call boundary: a non-`string[]` value throws a clear
-  `BakerError` instead of silently misbehaving inside the generated executor.
+- **`@IsEnum` with numeric enums (behavior change).** TypeScript numeric enums compile to a reverse-mapped
+  object (`{ 0: 'Inactive', 1: 'Active', Active: 1, Inactive: 0 }`), so the previous `Object.values()`
+  lookup wrongly accepted the member-*name* strings (e.g. `'Active'`) as valid values. Values are now read
+  through the non-numeric keys, so only real members pass — correct for string, numeric, and heterogeneous
+  enums. Input that relied on the member-name strings being accepted will now be rejected.
+
+- **`momentTransformer` parses in UTC (behavior change).** It now uses `moment.utc(value)` so a zoneless
+  datetime string resolves to the same instant on every host; previously local-time parsing made the
+  serialized output depend on the machine timezone. Zoneless inputs that were parsed in local time will now
+  be parsed as UTC. Matches `luxonTransformer`'s UTC default.
+
+- **`luxonTransformer` invalid-date passthrough.** An unparseable date string / `Date` now passes through
+  untouched instead of being laundered into an Invalid `DateTime` (which serialized to `null` /
+  `"Invalid DateTime"` and corrupted data). Matches `momentTransformer`'s pass-through contract.
+
+- **Per-call `groups` option validation.** A non-`string[]` `groups` value now throws a clear `BakerError`
+  at the call boundary instead of silently misbehaving inside the generated executor.
