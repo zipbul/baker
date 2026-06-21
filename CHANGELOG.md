@@ -1,5 +1,89 @@
 # @zipbul/baker
 
+## 5.2.0
+
+### Minor Changes
+
+- f768694: Fix four correctness bugs found in a package-wide audit. Two of them change observable behavior for
+  input that previously "worked", so review before upgrading:
+
+  - **`@IsEnum` with numeric enums (behavior change).** TypeScript numeric enums compile to a reverse-mapped
+    object (`{ 0: 'Inactive', 1: 'Active', Active: 1, Inactive: 0 }`), so the previous `Object.values()`
+    lookup wrongly accepted the member-_name_ strings (e.g. `'Active'`) as valid values. Values are now read
+    through the non-numeric keys, so only real members pass — correct for string, numeric, and heterogeneous
+    enums. Input that relied on the member-name strings being accepted will now be rejected.
+
+  - **`momentTransformer` parses in UTC (behavior change).** It now uses `moment.utc(value)` so a zoneless
+    datetime string resolves to the same instant on every host; previously local-time parsing made the
+    serialized output depend on the machine timezone. Zoneless inputs that were parsed in local time will now
+    be parsed as UTC. Matches `luxonTransformer`'s UTC default.
+
+  - **`luxonTransformer` invalid-date passthrough.** An unparseable date string / `Date` now passes through
+    untouched instead of being laundered into an Invalid `DateTime` (which serialized to `null` /
+    `"Invalid DateTime"` and corrupted data). Matches `momentTransformer`'s pass-through contract.
+
+  - **Per-call `groups` option validation.** A non-`string[]` `groups` value now throws a clear `BakerError`
+    at the call boundary instead of silently misbehaving inside the generated executor.
+
+- 26e13af: Fix declared-collection element validation (RED tests added first), speed up collection `validate`, and
+  land an internal layering cleanup. One item changes observable behavior — review before upgrading:
+
+  - **Declared `@Type(() => Set)` / `@Type(() => Map)` now validate their elements (behavior change).** The
+    declared-collection codegen path hand-rolled its per-element loop separately from the canonical
+    (`type: null`) path and had three defects: a declared **Map** dropped every per-element `each` rule
+    entirely; declared Set/Map `each` rules ignored the runtime `groups` filter; and a function `message` on
+    an `each` rule received the whole collection as `value` instead of the failing element. All four sites
+    (Set/Map × deserialize/validate) now route through one shared emitter with the same rule-major ordering,
+    group filtering, per-element `value` binding, and `field[i]` paths as the canonical path. Input that was
+    silently accepted because a Map's element rules never ran will now be validated.
+
+  - **Collection `validate` is ~4.7× faster on large arrays.** The inline-nested validate path eagerly
+    allocated a per-element error-path string (`field[i].`) on every element even for valid input; it is now
+    built only at the (cold) error-push sites. A 1000-element nested-DTO `validate` drops from ~10µs to
+    ~2.2µs (now on par with TypeBox and ahead of Ajv). `deserialize` and all error paths are byte-identical.
+
+  - **`createRule` is now also exported from the `@zipbul/baker/rules` subpath** (it was already exported from
+    the package root).
+
+  - **`luxonTransformer` / `momentTransformer` peer-dep error is now precise.** A genuinely-missing peer still
+    throws the "install it" `BakerError`; a peer that IS installed but throws during evaluation now surfaces
+    its real error instead of the misleading install hint.
+
+  Internal-only (no API change): the seal stage's TypeDef normalization was extracted out of the `sealOne`
+  god-function, large static lookup tables and the `string-format` validators were split into cohesive
+  modules, and several stateless helpers were simplified. Public surface is unchanged except the `createRule`
+  subpath export above (verified by an export-diff).
+
+- 96ed92c: Fix five reproduced correctness bugs (each added as a RED test first) and unify the unknown-key failure
+  model. Several change observable behavior — review before upgrading:
+
+  - **Discriminated arrays now work (was broken).** A field typed `type: () => [Base]` with a `discriminator`
+    previously read the discriminator off the _array itself_ (`undefined`) and rejected every valid input with
+    `invalidDiscriminator`. `deserialize`/`validate` now dispatch the discriminator switch **per element**,
+    reporting nested errors at `field[i].path` and the invalid-discriminator error at the `field[i]` element
+    path. (serialize already handled arrays.)
+
+  - **serialize throws on an unmatched discriminator subtype (behavior change).** When an instance matched no
+    `instanceof` branch, serialize silently emitted the raw, un-serialized object (leaking undeclared fields).
+    It now throws a `BakerError`, symmetric with deserialize rejecting an unknown discriminator value.
+
+  - **`each` rule messages receive the failing element (behavior change).** A `message`/`context` function on
+    an `arrayOf(...)` rule was passed the whole collection as `value` while the path pointed at `field[i]`.
+    It now receives the failing element, consistent with the element-level path.
+
+  - **`isDateString` / `isISO8601({ strict: true })` leap-year for years 0–99.** Calendar validity used
+    `new Date(year, …)`, which remaps a 0–99 year argument to 1900–1999 — so `0000-02-29` (a valid leap date
+    by the 400 rule) was wrongly rejected. Now computed with the proleptic Gregorian rule for all years (and
+    without allocating a `Date`).
+
+  - **`isHash` / `isTaxId` reject an unknown algorithm/locale at construction (behavior change).** They
+    previously returned a rule that always failed at runtime; they now throw a `BakerError` when called with
+    an unsupported key, matching `isMobilePhone`/`isPostalCode`/`isIdentityCard`/`isPassportNumber`.
+
+  - **`isURL` no longer shares its default-protocols array across rules.** With default protocols, every
+    `isURL()` rule exposed the same module-level `['http','https','ftp']` array on `rule.constraints`;
+    mutating one rule's constraints would have corrupted every other. Each rule now owns an independent copy.
+
 ## 5.1.0
 
 ### Minor Changes
