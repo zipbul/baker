@@ -15,8 +15,6 @@ import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups
 import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE, GATE_ONLY_ASSERTERS } from './constants';
 import type { TypeGateConfig } from './deserialize-codegen';
 import {
-  nestedErrPush,
-  nestedErrReturn,
   toVarName,
   resolveGuardKey,
   GUARD_STRATEGIES,
@@ -25,7 +23,9 @@ import {
   generateConversionCode,
   categorizeRules,
   generateNestedResultCode,
+  generateNestedEachResultCode,
   generateValidateNestedResult,
+  generateValidateNestedEachResultCode,
 } from './deserialize-codegen';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -994,26 +994,14 @@ class DeserializeBuilder {
         code += `  var ${GEN.arr}${sk} = new Set();\n`;
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${iVar}], opts);\n`;
-        code += `    if (isErr(${GEN.result}${sk})) {\n`;
-        if (collectErrors) {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
-          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-          code +=
-            `      ` +
-            nestedErrPush(
-              GEN.errList,
-              `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`,
-              `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`,
-              `__ne${sk}`,
-            );
-          code += `      }\n`;
-        } else {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
-          code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
-        }
-        code += `    } else { ${GEN.arr}${sk}.add(${GEN.result}${sk}); }\n`;
+        code += generateNestedEachResultCode(
+          `${GEN.result}${sk}`,
+          `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`,
+          sk,
+          collectErrors,
+          `${GEN.arr}${sk}.add(${GEN.result}${sk});`,
+          '    ',
+        );
         code += `  }\n`;
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
       } else {
@@ -1056,26 +1044,14 @@ class DeserializeBuilder {
         code += `  for (var ${iVarMap}=0; ${iVarMap}<${ksVar}.length; ${iVarMap}++) {\n`;
         code += `    var ${kVar} = ${ksVar}[${iVarMap}];\n`;
         code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${kVar}], opts);\n`;
-        code += `    if (isErr(${GEN.result}${sk})) {\n`;
-        if (collectErrors) {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
-          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-          code +=
-            `      ` +
-            nestedErrPush(
-              GEN.errList,
-              `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`,
-              `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`,
-              `__ne${sk}`,
-            );
-          code += `      }\n`;
-        } else {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${kVar}+'].';\n`;
-          code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
-        }
-        code += `    } else { ${GEN.arr}${sk}.set(${kVar}, ${GEN.result}${sk}); }\n`;
+        code += generateNestedEachResultCode(
+          `${GEN.result}${sk}`,
+          `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`,
+          sk,
+          collectErrors,
+          `${GEN.arr}${sk}.set(${kVar}, ${GEN.result}${sk});`,
+          '    ',
+        );
         code += `  }\n`;
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
       } else {
@@ -1114,8 +1090,6 @@ class DeserializeBuilder {
     const itemVar = `__bk$di${sk}`;
     const discVar = `${GEN.disc}${sk}`;
     const resVar = `${GEN.result}${sk}`;
-    const errs = `${GEN.errors}${sk}`;
-    const nIdx = `${GEN.nestedIdx}${sk}`;
     const ppBase = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
     const elemPathPrefix = `${ppBase}+'['+${iVar}+'].'`;
     const elemPath = `${ppBase}+'['+${iVar}+']'`;
@@ -1136,22 +1110,8 @@ class DeserializeBuilder {
       execs.push(nestedSealed);
       code += `      case ${JSON.stringify(sub.name)}: {\n`;
       code += `        var ${resVar} = ${awaitKwD}execs[${execIdx}].deserialize(${itemVar}, opts);\n`;
-      code += `        if (isErr(${resVar})) {\n`;
-      code += `          var ${errs} = ${resVar}.data;\n`;
-      code += `          var __bk$pp${sk} = ${elemPathPrefix};\n`;
-      if (collectErrors) {
-        code += `          for (var ${nIdx}=0; ${nIdx}<${errs}.length; ${nIdx}++) {\n`;
-        code += `          ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${errs}[${nIdx}].path`, `${errs}[${nIdx}]`, `__ne${sk}`);
-        code += `          }\n`;
-      } else {
-        code += `          ` + nestedErrReturn(`__bk$pp${sk}+${errs}[0].path`, `${errs}[0]`, `__ne${sk}`);
-      }
-      code += `        } else {\n`;
-      if (keepDisc) {
-        code += `          ${resVar}[${discProp}] = ${discVar};\n`;
-      }
-      code += `          ${GEN.arr}${sk}.push(${resVar});\n`;
-      code += `        }\n`;
+      const successStmt = `${keepDisc ? `${resVar}[${discProp}] = ${discVar}; ` : ''}${GEN.arr}${sk}.push(${resVar});`;
+      code += generateNestedEachResultCode(resVar, elemPathPrefix, sk, collectErrors, successStmt, '        ');
       code += `        break;\n`;
       code += `      }\n`;
     }
@@ -1234,26 +1194,14 @@ class DeserializeBuilder {
         code += `  var ${GEN.arr}${sk} = [];\n`;
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
         code += `    var ${GEN.result}${sk} = ${awaitKwE}execs[${execIdx}].deserialize(${varName}[${iVar}], opts);\n`;
-        code += `    if (isErr(${GEN.result}${sk})) {\n`;
-        if (collectErrors) {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
-          code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-          code +=
-            `      ` +
-            nestedErrPush(
-              GEN.errList,
-              `__bk$pp${sk}+${GEN.errors}${sk}[${GEN.nestedIdx}${sk}].path`,
-              `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`,
-              `__ne${sk}`,
-            );
-          code += `      }\n`;
-        } else {
-          code += `      var ${GEN.errors}${sk} = ${GEN.result}${sk}.data;\n`;
-          code += `      var __bk$pp${sk} = ${JSON.stringify(fieldKey)}+'['+${iVar}+'].';\n`;
-          code += `      ` + nestedErrReturn(`__bk$pp${sk}+${GEN.errors}${sk}[0].path`, `${GEN.errors}${sk}[0]`, `__ne${sk}`);
-        }
-        code += `    } else { ${GEN.arr}${sk}.push(${GEN.result}${sk}); }\n`;
+        code += generateNestedEachResultCode(
+          `${GEN.result}${sk}`,
+          `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`,
+          sk,
+          collectErrors,
+          `${GEN.arr}${sk}.push(${GEN.result}${sk});`,
+          '    ',
+        );
         code += `  }\n`;
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
         code += `} else { ${emitCtx.fail('isArray')}; }\n`;
@@ -1318,7 +1266,6 @@ class DeserializeBuilder {
     const itemVar = `__bk$di${sk}`;
     const discVar = `${GEN.disc}${sk}`;
     const resVar = `${GEN.result}${sk}`;
-    const nIdx = `${GEN.nestedIdx}${sk}`;
     const ppBase = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
     const elemPathPrefix = `${ppBase}+'['+${iVar}+'].'`;
     const elemPath = `${ppBase}+'['+${iVar}+']'`;
@@ -1337,16 +1284,7 @@ class DeserializeBuilder {
       execs.push(subSealed);
       code += `      case ${JSON.stringify(sub.name)}: {\n`;
       code += `        var ${resVar} = ${awaitKwD}execs[${execIdx}].validate(${itemVar}, opts);\n`;
-      code += `        if (${resVar} !== null) {\n`;
-      code += `          var __bk$pp${sk} = ${elemPathPrefix};\n`;
-      if (collectErrors) {
-        code += `          for (var ${nIdx}=0; ${nIdx}<${resVar}.length; ${nIdx}++) {\n`;
-        code += `          ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${resVar}[${nIdx}].path`, `${resVar}[${nIdx}]`, `__ne${sk}`);
-        code += `          }\n`;
-      } else {
-        code += `          ` + nestedErrReturn(`__bk$pp${sk}+${resVar}[0].path`, `${resVar}[0]`, `__ne${sk}`, true);
-      }
-      code += `        }\n`;
+      code += generateValidateNestedEachResultCode(resVar, elemPathPrefix, sk, collectErrors, '        ');
       code += `        break;\n`;
       code += `      }\n`;
     }
@@ -1455,27 +1393,10 @@ class DeserializeBuilder {
           execs.push(nestedSealed);
           const awaitKw = this.isAsync ? 'await ' : '';
           code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
-          code += `    if (${GEN.result}${sk} !== null) {\n`;
-          const ppVar = `__bk$pp${sk}`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
-          code += `      var ${ppVar} = ${ppInit};\n`;
-          if (collectErrors) {
-            code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-            code +=
-              `      ` +
-              nestedErrPush(
-                GEN.errList,
-                `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`,
-                `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`,
-                `__ne${sk}`,
-              );
-            code += `      }\n`;
-          } else {
-            code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
-          }
-          code += `    }\n`;
+          code += generateValidateNestedEachResultCode(`${GEN.result}${sk}`, ppInit, sk, collectErrors, '    ');
         }
 
         code += `  }\n`;
@@ -1567,27 +1488,10 @@ class DeserializeBuilder {
           const execIdx = execs.length;
           execs.push(nestedSealed);
           code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
-          code += `    if (${GEN.result}${sk} !== null) {\n`;
-          const ppVar = `__bk$pp${sk}`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
-          code += `      var ${ppVar} = ${ppInit};\n`;
-          if (collectErrors) {
-            code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-            code +=
-              `      ` +
-              nestedErrPush(
-                GEN.errList,
-                `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`,
-                `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`,
-                `__ne${sk}`,
-              );
-            code += `      }\n`;
-          } else {
-            code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
-          }
-          code += `    }\n`;
+          code += generateValidateNestedEachResultCode(`${GEN.result}${sk}`, ppInit, sk, collectErrors, '    ');
         }
 
         code += `  }\n`;
@@ -1655,27 +1559,10 @@ class DeserializeBuilder {
           const execIdx = execs.length;
           execs.push(nestedSealed);
           code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${kVar}], opts);\n`;
-          code += `    if (${GEN.result}${sk} !== null) {\n`;
-          const ppVar = `__bk$pp${sk}`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`;
-          code += `      var ${ppVar} = ${ppInit};\n`;
-          if (collectErrors) {
-            code += `      for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.result}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n`;
-            code +=
-              `      ` +
-              nestedErrPush(
-                GEN.errList,
-                `${ppVar}+${GEN.result}${sk}[${GEN.nestedIdx}${sk}].path`,
-                `${GEN.result}${sk}[${GEN.nestedIdx}${sk}]`,
-                `__ne${sk}`,
-              );
-            code += `      }\n`;
-          } else {
-            code += `      ` + nestedErrReturn(`${ppVar}+${GEN.result}${sk}[0].path`, `${GEN.result}${sk}[0]`, `__ne${sk}`, true);
-          }
-          code += `    }\n`;
+          code += generateValidateNestedEachResultCode(`${GEN.result}${sk}`, ppInit, sk, collectErrors, '    ');
         }
 
         code += `  }\n`;

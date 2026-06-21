@@ -1,6 +1,7 @@
 import type { InheritanceMerger } from './inheritance-merger';
 
 import { BakerError } from '../common';
+import { classifyTypeResult } from './type-resolver';
 
 /**
  * Static analysis for circular references. Traverses the @Type reference graph via DFS to detect
@@ -46,8 +47,8 @@ export class CircularAnalyzer {
           } catch (e) {
             throw new BakerError(`${cls.name}: type function threw: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
           }
-          const nested = Array.isArray(typeResult) ? typeResult[0] : typeResult;
-          if (typeof nested === 'function' && walk(nested)) {
+          const { resolved } = classifyTypeResult(typeResult);
+          if (typeof resolved === 'function' && walk(resolved)) {
             return true;
           }
         }

@@ -269,6 +269,38 @@ export function generateNestedResultCode(fieldKey: string, resultVar: string, co
   );
 }
 
+/**
+ * Nested-executor result handling inside a per-element loop (Set / Map / array / discriminator-each).
+ * Single source for the `if (isErr(result)) { …re-path nested errors… } else { <success> }` block that
+ * every collection loop repeats — only the element path expression (`ppExpr`), the success statement
+ * (`arr.push` / `map.set` / `set.add`), and the base indent differ. The single-object case keeps using
+ * {@link generateNestedResultCode} (it writes straight to `out[field]`).
+ */
+export function generateNestedEachResultCode(
+  resultVar: string,
+  ppExpr: string,
+  sk: string,
+  collectErrors: boolean,
+  successStmt: string,
+  indent: string,
+): string {
+  const errs = `${GEN.errors}${sk}`;
+  const ppVar = `__bk$pp${sk}`;
+  const decls = `${indent}  var ${errs} = ${resultVar}.data;\n${indent}  var ${ppVar} = ${ppExpr};\n`;
+  let inner: string;
+  if (collectErrors) {
+    const ni = `${GEN.nestedIdx}${sk}`;
+    inner =
+      `${indent}  for (var ${ni}=0; ${ni}<${errs}.length; ${ni}++) {\n` +
+      `${indent}  ` +
+      nestedErrPush(GEN.errList, `${ppVar}+${errs}[${ni}].path`, `${errs}[${ni}]`, `__ne${sk}`) +
+      `${indent}  }\n`;
+  } else {
+    inner = `${indent}  ` + nestedErrReturn(`${ppVar}+${errs}[0].path`, `${errs}[0]`, `__ne${sk}`);
+  }
+  return `${indent}if (isErr(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
+}
+
 /** Generate validate-mode nested result handling (null check instead of isErr) (pure) */
 export function generateValidateNestedResult(fieldKey: string, resultVar: string, collectErrors: boolean, pathPrefix?: string): string {
   const sk = sanitizeKey(fieldKey);
@@ -295,4 +327,32 @@ export function generateValidateNestedResult(fieldKey: string, resultVar: string
     nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`, true) +
     `  }\n`
   );
+}
+
+/**
+ * Validate-mode counterpart of {@link generateNestedEachResultCode}: the per-element `if (result !==
+ * null) { …re-path the returned issue array… }` block shared by the Set / Map / array / discriminator
+ * validate-each loops. The element path expression and base indent are the only per-site differences.
+ */
+export function generateValidateNestedEachResultCode(
+  resultVar: string,
+  ppExpr: string,
+  sk: string,
+  collectErrors: boolean,
+  indent: string,
+): string {
+  const ppVar = `__bk$pp${sk}`;
+  let code = `${indent}if (${resultVar} !== null) {\n${indent}  var ${ppVar} = ${ppExpr};\n`;
+  if (collectErrors) {
+    const ni = `${GEN.nestedIdx}${sk}`;
+    code +=
+      `${indent}  for (var ${ni}=0; ${ni}<${resultVar}.length; ${ni}++) {\n` +
+      `${indent}  ` +
+      nestedErrPush(GEN.errList, `${ppVar}+${resultVar}[${ni}].path`, `${resultVar}[${ni}]`, `__ne${sk}`) +
+      `${indent}  }\n`;
+  } else {
+    code += `${indent}  ` + nestedErrReturn(`${ppVar}+${resultVar}[0].path`, `${resultVar}[0]`, `__ne${sk}`, true);
+  }
+  code += `${indent}}\n`;
+  return code;
 }

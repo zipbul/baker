@@ -4,6 +4,7 @@ import type { InheritanceMerger } from './inheritance-merger';
 
 import { Direction, isAsyncFunction } from '../common';
 import { PRIMITIVE_CTORS } from './constants';
+import { classifyTypeResult } from './type-resolver';
 
 /**
  * Static analysis to determine if a sealed DTO requires an async executor (C1). Holds the executor
@@ -86,17 +87,14 @@ export class AsyncAnalyzer {
       }
     }
     if (out.length === 0 && t.fn) {
-      const result = t.fn();
-      if (result === Map || result === Set) {
+      const { collection, resolved } = classifyTypeResult(t.fn());
+      if (collection !== undefined) {
         const cv = t.collectionValue?.();
         if (typeof cv === 'function' && !PRIMITIVE_CTORS.has(cv)) {
           out.push(cv);
         }
-      } else {
-        const resolved = Array.isArray(result) ? (result as unknown[])[0] : result;
-        if (typeof resolved === 'function' && !PRIMITIVE_CTORS.has(resolved)) {
-          out.push(resolved as Function);
-        }
+      } else if (typeof resolved === 'function' && !PRIMITIVE_CTORS.has(resolved)) {
+        out.push(resolved as Function);
       }
     }
     return out;

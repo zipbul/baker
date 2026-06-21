@@ -2,8 +2,9 @@ import type { SealOptions, SealedExecutors } from './interfaces';
 import type { ClassCtor } from '../common';
 import type { MetaStore } from '../metadata';
 
-import { CollectionType, metaStore } from '../metadata';
+import { metaStore } from '../metadata';
 import { Direction, BakerError } from '../common';
+import { classifyTypeResult } from './type-resolver';
 import { AsyncAnalyzer } from './async-analyzer';
 import { CircularAnalyzer } from './circular-analyzer';
 import { CircularPlaceholder } from './circular-placeholder';
@@ -140,9 +141,10 @@ class SealRun {
           });
         }
 
+        const { collection, isArray, resolved } = classifyTypeResult(typeResult);
+
         // Detect Map/Set collection
-        if (typeResult === Map || typeResult === Set) {
-          const collection = typeResult === Map ? CollectionType.Map : CollectionType.Set;
+        if (collection !== undefined) {
           const typeCopy = { ...meta.type, collection, isArray: false };
           // collectionValue thunk → cache resolvedCollectionValue
           if (meta.type.collectionValue) {
@@ -162,8 +164,6 @@ class SealRun {
           continue;
         }
 
-        const isArray = Array.isArray(typeResult);
-        const resolved = isArray ? (typeResult as unknown[])[0] : typeResult;
         if (resolved == null || typeof resolved !== 'function') {
           throw new BakerError(
             `${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`,
