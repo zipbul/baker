@@ -1,20 +1,19 @@
-import type { SealOptions, SealedExecutors } from './interfaces';
-import type { ClassCtor } from '../common';
 import type { MetaStore } from '../metadata';
+import type { SealOptions, SealedExecutors } from './interfaces';
 
-import { metaStore } from '../metadata';
 import { Direction, BakerError } from '../common';
-import { classifyTypeResult } from './type-resolver';
+import { metaStore } from '../metadata';
 import { AsyncAnalyzer } from './async-analyzer';
 import { CircularAnalyzer } from './circular-analyzer';
 import { CircularPlaceholder } from './circular-placeholder';
-import { CompileCache, compileCache } from './compile-cache';
-import { PRIMITIVE_CTORS, RESERVED_PROPERTY_NAMES } from './constants';
+import { compileCache } from './compile-cache';
+import { RESERVED_PROPERTY_NAMES } from './constants';
 import { buildDeserializeCode, buildValidateCode } from './deserialize-builder';
 import { validateExposeStacks } from './expose-validator';
 import { InheritanceMerger } from './inheritance-merger';
 import { MetaValidator } from './meta-validator';
 import { buildSerializeCode } from './serialize-builder';
+import { normalizeTypeDefs } from './type-normalizer';
 
 /**
  * One seal operation. Holds the per-operation state — the calling Baker's executor map, the resolved
@@ -43,7 +42,7 @@ class SealRun {
     private readonly options: SealOptions,
     meta: MetaStore = metaStore,
   ) {
-    this.fp = CompileCache.fingerprint(options);
+    this.fp = compileCache.fingerprint(options);
     // Composition root for one seal run: the analyzers/merger/validator are constructed here in the
     // constructor body (after parameter properties + the `resolve` field initializer exist) so each
     // collaborator receives its dependency. Order matters — merger before its dependents.
@@ -125,65 +124,9 @@ class SealRun {
         }
       }
 
-      // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs
-      //     Prevent original RAW mutation: copy the shared RAW `type` before mutating (C-16 root fix).
-      //     `flags` is already cloned per-seal by mergeInheritance, so it is mutated in place below.
-      for (const [key, meta] of Object.entries(merged)) {
-        if (!meta.type?.fn) {
-          continue;
-        }
-        let typeResult: unknown;
-        try {
-          typeResult = meta.type.fn();
-        } catch (e) {
-          throw new BakerError(`${Class.name}.${key}: type function threw: ${e instanceof Error ? e.message : String(e)}`, {
-            cause: e,
-          });
-        }
-
-        const { collection, isArray, resolved } = classifyTypeResult(typeResult);
-
-        // Detect Map/Set collection
-        if (collection !== undefined) {
-          const typeCopy = { ...meta.type, collection, isArray: false };
-          // collectionValue thunk → cache resolvedCollectionValue
-          if (meta.type.collectionValue) {
-            let valCls: unknown;
-            try {
-              valCls = meta.type.collectionValue();
-            } catch (e) {
-              throw new BakerError(`${Class.name}.${key}: collectionValue function threw: ${e instanceof Error ? e.message : String(e)}`, {
-                cause: e,
-              });
-            }
-            if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
-              typeCopy.resolvedCollectionValue = valCls as ClassCtor;
-            }
-          }
-          merged[key] = { ...meta, type: typeCopy };
-          continue;
-        }
-
-        if (resolved == null || typeof resolved !== 'function') {
-          throw new BakerError(
-            `${Class.name}: @Type/@Field type must return a constructor or [constructor], got ${String(resolved)}`,
-          );
-        }
-        // Copy type object before mutating — preserve original RAW type reference
-        const typeCopy = { ...meta.type, isArray };
-        if (!PRIMITIVE_CTORS.has(resolved)) {
-          typeCopy.resolvedClass = resolved as ClassCtor;
-          // Automatically set validateNested flags for DTO classes. `meta.flags` is already a per-seal
-          // copy (mergeInheritance clones it), so mutate it directly — no second copy-on-write here.
-          if (!meta.flags.validateNested) {
-            meta.flags.validateNested = true;
-          }
-          if (isArray && !meta.flags.validateNestedEach) {
-            meta.flags.validateNestedEach = true;
-          }
-        }
-        merged[key] = { ...meta, type: typeCopy };
-      }
+      // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs.
+      //     Copies the shared RAW `type` before mutating (C-16) and mutates the per-seal-cloned `flags`.
+      normalizeTypeDefs(merged, Class.name);
 
       // 2. Static validation of @Expose stacks (throws BakerError on failure)
       validateExposeStacks(merged, Class.name);
@@ -243,11 +186,7 @@ class SealRun {
  * Seal every class in `registry` with `options`, writing executors into `executors`. The core used by
  * `new Baker().seal()` — a thin entry point over one {@link SealRun}.
  */
-function sealRegistry(
-  registry: Set<Function>,
-  options: SealOptions,
-  executors: Map<Function, SealedExecutors<unknown>>,
-): void {
+function sealRegistry(registry: Set<Function>, options: SealOptions, executors: Map<Function, SealedExecutors<unknown>>): void {
   new SealRun(executors, options).run(registry);
 }
 

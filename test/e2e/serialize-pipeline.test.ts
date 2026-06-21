@@ -116,7 +116,9 @@ describe('serialize pipeline — direction @Expose', () => {
   });
 
   it('deserialize → deserializeOnly @Expose name used', async () => {
-    const result = (await baker.deserialize<DirectionExposeDto>(DirectionExposeDto, { user_name: 'Carol' })) as DirectionExposeDto;
+    const result = (await baker.deserialize<DirectionExposeDto>(DirectionExposeDto, {
+      user_name: 'Carol',
+    })) as DirectionExposeDto;
     expect(result.name).toBe('Carol');
   });
 });

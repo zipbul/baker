@@ -10,8 +10,7 @@ export const isUint8Array = makeRule({
   name: 'isUint8Array',
   constraints: {},
   validate: value => value instanceof Uint8Array,
-  emit: (varName: string, ctx: EmitContext): string =>
-    `if (!(${varName} instanceof Uint8Array)) ${ctx.fail('isUint8Array')};`,
+  emit: (varName: string, ctx: EmitContext): string => `if (!(${varName} instanceof Uint8Array)) ${ctx.fail('isUint8Array')};`,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

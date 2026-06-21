@@ -319,7 +319,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AddressDto },
+        type: { fn: () => AddressDto, resolvedClass: AddressDto },
         flags: { validateNested: true },
       },
     };
@@ -353,7 +353,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ItemDto },
+        type: { fn: () => ItemDto, resolvedClass: ItemDto },
         flags: { validateNested: true },
       },
     };
@@ -386,7 +386,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ProfileDto },
+        type: { fn: () => ProfileDto, resolvedClass: ProfileDto },
         flags: { validateNested: true, isOptional: true },
       },
     };
@@ -443,7 +443,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto },
+        type: { fn: () => AsyncItemDto, resolvedClass: AsyncItemDto },
         flags: { validateNested: true },
       },
     };
@@ -477,7 +477,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto2 },
+        type: { fn: () => AsyncItemDto2, resolvedClass: AsyncItemDto2 },
         flags: { validateNested: true },
       },
     };

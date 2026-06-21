@@ -24,7 +24,7 @@ describe('Baker — multi-app isolation', () => {
     expect((result as UserDto).name).toBe('Alice');
   });
 
-  it('does not seal another instance\'s class — each app seals only its own roots', () => {
+  it("does not seal another instance's class — each app seals only its own roots", () => {
     const appA = new Baker();
     const appB = new Baker();
 

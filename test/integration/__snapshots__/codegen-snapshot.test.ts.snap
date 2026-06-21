@@ -345,15 +345,14 @@ else {
 if (Array.isArray(__bk$f_set)) {
   for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
     var __il$setci = __bk$f_set[__bk$i_set];
-    var __bk$ppset = "set"+'['+__bk$i_set+'].';
-    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
     else {
 var __bk$f_setc_0_k = __il$setci["k"];
-if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
 }
     }
   }
@@ -782,19 +781,18 @@ else {
 if (Array.isArray(__bk$f_set)) {
   for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
     var __il$setci = __bk$f_set[__bk$i_set];
-    var __bk$ppset = "set"+'['+__bk$i_set+'].';
-    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
     else {
 var __bk$f_setc_0_k = __il$setci["k"];
-if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
 else {
 var __bk$skip_setc_0_k = false;
 if (typeof __bk$f_setc_0_k !== 'number' || isNaN(__bk$f_setc_0_k)) {
   __bk$f_setc_0_k = Number(__bk$f_setc_0_k);
-  if (isNaN(__bk$f_setc_0_k)) { __bk$errors.push({path:__bk$ppset+"k",code:"conversionFailed"}); __bk$skip_setc_0_k = true; }
+  if (isNaN(__bk$f_setc_0_k)) { __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"conversionFailed"}); __bk$skip_setc_0_k = true; }
 }
 if (!__bk$skip_setc_0_k) {
-  if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+  if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
 }
 }
     }
@@ -1146,15 +1144,14 @@ else {
 if (Array.isArray(__bk$f_set)) {
   for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
     var __il$setci = __bk$f_set[__bk$i_set];
-    var __bk$ppset = "set"+'['+__bk$i_set+'].';
-    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) return [{path:__bk$ppset,code:'invalidInput'}];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) return [{path:"set"+'['+__bk$i_set+'].',code:'invalidInput'}];
     else {
 var __bk$f_setc_0_k = __il$setci["k"];
-if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) return [{path:__bk$ppset+"k",code:"isDefined"}];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"}];
 else {
-if (typeof __bk$f_setc_0_k !== 'number') return [{path:__bk$ppset+"k",code:"isNumber"}];
-else if (isNaN(__bk$f_setc_0_k)) return [{path:__bk$ppset+"k",code:"isNumber"}];
-else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) return [{path:__bk$ppset+"k",code:"isNumber"}];
+if (typeof __bk$f_setc_0_k !== 'number') return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_setc_0_k)) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
 }
     }
   }
@@ -1539,15 +1536,14 @@ else {
 if (Array.isArray(__bk$f_set)) {
   for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
     var __il$setci = __bk$f_set[__bk$i_set];
-    var __bk$ppset = "set"+'['+__bk$i_set+'].';
-    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
     else {
 var __bk$f_setc_0_k = __il$setci["k"];
-if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
 }
     }
   }
@@ -1930,15 +1926,14 @@ else {
 if (Array.isArray(__bk$f_set)) {
   for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
     var __il$setci = __bk$f_set[__bk$i_set];
-    var __bk$ppset = "set"+'['+__bk$i_set+'].';
-    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
     else {
 var __bk$f_setc_0_k = __il$setci["k"];
-if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
 }
     }
   }

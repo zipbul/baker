@@ -1,25 +1,16 @@
-import type { Transformer } from './interfaces';
+import type { LuxonLike, LuxonTransformerOptions, Transformer } from './interfaces';
 
 import { BakerError } from '../common';
-
-interface LuxonTransformerOptions {
-  format?: string;
-  zone?: string;
-}
-
-interface LuxonLike {
-  toISO(): string;
-  toFormat(f: string): string;
-}
-
-const LUXON_MISSING = "luxonTransformer requires the optional peer dependency 'luxon'. Install it with: bun add luxon";
+import { LUXON_MISSING } from './constants';
 
 async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transformer> {
   let luxon: typeof import('luxon');
   try {
     luxon = await import('luxon');
   } catch (e) {
-    throw new BakerError(LUXON_MISSING, { cause: e });
+    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; any other error (a module
+    // that IS installed but threw during evaluation) surfaces untouched, not a misleading "install it".
+    throw (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND' ? new BakerError(LUXON_MISSING, { cause: e }) : e;
   }
   const { DateTime } = luxon;
   const zone = opts?.zone ?? 'utc';
@@ -57,5 +48,4 @@ async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transfo
   };
 }
 
-export type { LuxonTransformerOptions };
 export { luxonTransformer };

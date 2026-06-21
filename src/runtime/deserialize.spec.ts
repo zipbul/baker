@@ -6,8 +6,8 @@ import type { SealedExecutors } from '../seal/interfaces';
 
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { Baker } from '../baker';
-import { Field } from '../decorators/field';
 import { isBakerIssueSet, BakerError } from '../common/errors';
+import { Field } from '../decorators/field';
 import { isString } from '../rules/typechecker';
 import { runDeserialize } from './deserialize';
 
@@ -39,7 +39,10 @@ describe('runDeserialize', () => {
 
   it('should return T instance when deserialize returns valid value', async () => {
     const instance = { name: 'Alice' };
-    const result = await runDeserialize(sealedFor(() => instance), { name: 'Alice' });
+    const result = await runDeserialize(
+      sealedFor(() => instance),
+      { name: 'Alice' },
+    );
     expect(isBakerIssueSet(result)).toBe(false);
     expect(result).toBe(instance);
   });
@@ -75,7 +78,10 @@ describe('runDeserialize', () => {
 
   it('should return BakerIssueSet when deserialize returns Err', async () => {
     const errors = [{ path: 'name', code: 'isString' }];
-    const result = await runDeserialize(sealedFor(() => err(errors)), { name: 42 });
+    const result = await runDeserialize(
+      sealedFor(() => err(errors)),
+      { name: 42 },
+    );
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
@@ -84,19 +90,28 @@ describe('runDeserialize', () => {
       { path: 'name', code: 'isString' },
       { path: 'email', code: 'isEmail' },
     ];
-    const result = await runDeserialize(sealedFor(() => err(errors)), {});
+    const result = await runDeserialize(
+      sealedFor(() => err(errors)),
+      {},
+    );
     assertBakerIssueSet(result);
     expect(result.errors).toEqual(errors);
   });
 
   it('should return BakerIssueSet(code:invalidInput) when deserialize returns invalidInput error', async () => {
-    const result = await runDeserialize(sealedFor(() => err([{ path: '', code: 'invalidInput' }])), null);
+    const result = await runDeserialize(
+      sealedFor(() => err([{ path: '', code: 'invalidInput' }])),
+      null,
+    );
     assertBakerIssueSet(result);
     expect(result.errors[0]!.code).toBe('invalidInput');
   });
 
   it('should return BakerIssueSet when deserialize returns Err for array input', async () => {
-    const result = await runDeserialize(sealedFor(() => err([{ path: '', code: 'invalidInput' }])), [1, 2, 3]);
+    const result = await runDeserialize(
+      sealedFor(() => err([{ path: '', code: 'invalidInput' }])),
+      [1, 2, 3],
+    );
     expect(isBakerIssueSet(result)).toBe(true);
   });
 
@@ -104,7 +119,10 @@ describe('runDeserialize', () => {
 
   it('should return T when deserialize succeeds with empty {} input for class with no fields', async () => {
     const instance = {};
-    const result = await runDeserialize(sealedFor(() => instance), {});
+    const result = await runDeserialize(
+      sealedFor(() => instance),
+      {},
+    );
     expect(result).toBe(instance);
   });
 
@@ -127,18 +145,27 @@ describe('runDeserialize', () => {
 
   it('should return direct value when isAsync is false', () => {
     const instance = {};
-    const result = runDeserialize(sealedFor(() => instance, { isAsync: false }), {});
+    const result = runDeserialize(
+      sealedFor(() => instance, { isAsync: false }),
+      {},
+    );
     expect(result).toBe(instance);
   });
 
   it('should use async path when isAsync is true', async () => {
     const instance = {};
-    const result = await runDeserialize(sealedFor(() => Promise.resolve(instance), { isAsync: true }), {});
+    const result = await runDeserialize(
+      sealedFor(() => Promise.resolve(instance), { isAsync: true }),
+      {},
+    );
     expect(result).toBe(instance);
   });
 
   it('should return BakerIssueSet when sync executor returns Err', async () => {
-    const result = await runDeserialize(sealedFor(() => err([{ path: 'x', code: 'fail' }]), { isAsync: false }), {});
+    const result = await runDeserialize(
+      sealedFor(() => err([{ path: 'x', code: 'fail' }]), { isAsync: false }),
+      {},
+    );
     expect(isBakerIssueSet(result)).toBe(true);
   });
 

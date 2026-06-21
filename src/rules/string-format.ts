@@ -1,9 +1,10 @@
 import type { EmitContext, EmittableRule } from './interfaces';
 
+import { BakerError } from '../common';
+import { TAX_ID_REGEXES } from './constants';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
 import { makeStringRule } from './string-shared';
-import { BakerError } from '../common';
 
 // Email — RFC 5322 simplified
 const EMAIL_RE =
@@ -158,20 +159,6 @@ const isJWT = makeStringRule(
     return `if (!re[${i}].test(${varName})) ${ctx.fail('isJWT')};`;
   },
 );
-
-// LatLong
-const LAT_LONG_RE = /^[-+]?([1-8]?\d(?:\.\d+)?|90(?:\.0+)?),\s*[-+]?(180(?:\.0+)?|1[0-7]\d(?:\.\d+)?|\d{1,2}(?:\.\d+)?)$/;
-
-function isLatLong(): EmittableRule {
-  return makeStringRule(
-    'isLatLong',
-    v => LAT_LONG_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(LAT_LONG_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isLatLong')};`;
-    },
-  );
-}
 
 // Locale — BCP 47 simplified. Variant subtags are `5*8alphanum` OR a digit followed by 3 alphanum
 // (e.g. the `1996` orthography variant in `de-DE-1996`).
@@ -370,142 +357,6 @@ function isByteLength(min: number, max?: number): EmittableRule {
   });
 }
 
-// isHash — per-algorithm hex regex (regex inline)
-
-const HASH_REGEXES: Record<string, RegExp> = {
-  md5: /^[a-f0-9]{32}$/i,
-  md4: /^[a-f0-9]{32}$/i,
-  md2: /^[a-f0-9]{32}$/i,
-  sha1: /^[a-f0-9]{40}$/i,
-  sha256: /^[a-f0-9]{64}$/i,
-  sha384: /^[a-f0-9]{96}$/i,
-  sha512: /^[a-f0-9]{128}$/i,
-  ripemd128: /^[a-f0-9]{32}$/i,
-  ripemd160: /^[a-f0-9]{40}$/i,
-  'tiger128,3': /^[a-f0-9]{32}$/i,
-  'tiger128,4': /^[a-f0-9]{32}$/i,
-  'tiger160,3': /^[a-f0-9]{40}$/i,
-  'tiger160,4': /^[a-f0-9]{40}$/i,
-  'tiger192,3': /^[a-f0-9]{48}$/i,
-  'tiger192,4': /^[a-f0-9]{48}$/i,
-  crc32: /^[a-f0-9]{8}$/i,
-  crc32b: /^[a-f0-9]{8}$/i,
-};
-
-function isHash(algorithm: string): EmittableRule {
-  const re = HASH_REGEXES[algorithm];
-  if (!re) {
-    throw new BakerError(`Unsupported algorithm: "${algorithm}" for isHash`);
-  }
-  return makeRule({
-    name: 'isHash',
-    requiresType: RequiredType.String,
-    constraints: { algorithm },
-    validate: value => typeof value === 'string' && re.test(value),
-    emit: (varName: string, ctx: EmitContext): string => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isHash')};`;
-    },
-  });
-}
-
-// isRFC3339 — RFC 3339 datetime
-
-const RFC3339_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
-
-const isRFC3339 = makeStringRule(
-  'isRFC3339',
-  v => RFC3339_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(RFC3339_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isRFC3339')};`;
-  },
-);
-
-// isMilitaryTime — HH:MM 24-hour format
-
-const MILITARY_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-
-const isMilitaryTime = makeStringRule(
-  'isMilitaryTime',
-  v => MILITARY_TIME_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(MILITARY_TIME_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isMilitaryTime')};`;
-  },
-);
-
-// isLatitude / isLongitude — a number, or a strictly-numeric string, within [lo, hi] (requiresType none)
-
-const NUMERIC_RANGE_RE = /^-?\d+(\.\d+)?$/;
-
-function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRule {
-  const check = (value: unknown): boolean => {
-    if (typeof value === 'number') {
-      return value >= lo && value <= hi;
-    }
-    if (typeof value === 'string') {
-      // parseFloat('90abc') = 90 — strict regex rejects trailing garbage; a match guarantees parseFloat is valid.
-      if (!NUMERIC_RANGE_RE.test(value)) {
-        return false;
-      }
-      const n = parseFloat(value);
-      return n >= lo && n <= hi;
-    }
-    return false;
-  };
-  return makeRule({
-    name,
-    constraints: {},
-    validate: check,
-    emit: (varName: string, ctx: EmitContext): string => {
-      const ri = ctx.addRegex(NUMERIC_RANGE_RE);
-      return (
-        `if(typeof ${varName}==='number'){if(${varName}<${lo}||${varName}>${hi})${ctx.fail(name)};}` +
-        `else if(typeof ${varName}==='string'){` +
-        `if(!re[${ri}].test(${varName})){${ctx.fail(name)}}` +
-        `else{var rg=parseFloat(${varName});if(rg<${lo}||rg>${hi})${ctx.fail(name)};}}` +
-        `else{${ctx.fail(name)};}`
-      );
-    },
-  });
-}
-
-const isLatitude = rangeNumberOrString('isLatitude', -90, 90);
-const isLongitude = rangeNumberOrString('isLongitude', -180, 180);
-
-// isEthereumAddress — 0x + 40 hex chars
-
-const ETH_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
-
-const isEthereumAddress = makeStringRule(
-  'isEthereumAddress',
-  v => ETH_ADDRESS_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ETH_ADDRESS_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isEthereumAddress')};`;
-  },
-);
-
-// isBtcAddress — P2PKH (1...), P2SH (3...), bech32 (bc1.../tb1...)
-
-const BTC_P2PKH_RE = /^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/;
-const BTC_P2SH_RE = /^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/;
-// bech32 (BIP-173): mainnet `bc1` / testnet `tb1`. Case-insensitive but never mixed-case — accept
-// all-lowercase or all-uppercase, reject a mix.
-const BTC_BECH32_RE = /^(?:(?:bc1|tb1)[a-z0-9]{6,87}|(?:BC1|TB1)[A-Z0-9]{6,87})$/;
-
-const isBtcAddress = makeStringRule(
-  'isBtcAddress',
-  v => BTC_P2PKH_RE.test(v) || BTC_P2SH_RE.test(v) || BTC_BECH32_RE.test(v),
-  (varName, ctx) => {
-    const i1 = ctx.addRegex(BTC_P2PKH_RE);
-    const i2 = ctx.addRegex(BTC_P2SH_RE);
-    const i3 = ctx.addRegex(BTC_BECH32_RE);
-    return `if (!re[${i1}].test(${varName}) && !re[${i2}].test(${varName}) && !re[${i3}].test(${varName})) ${ctx.fail('isBtcAddress')};`;
-  },
-);
-
 // isPhoneNumber — E.164 international phone number
 
 const PHONE_E164_RE = /^\+[1-9]\d{6,14}$/;
@@ -597,19 +448,6 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
 
 // isTaxId — locale-specific tax identifier (factory)
 
-const TAX_ID_REGEXES: Record<string, RegExp> = {
-  US: /^\d{2}-\d{7}$/, // EIN format: XX-XXXXXXX
-  KR: /^\d{3}-\d{2}-\d{5}$/, // Business Registration Number: XXX-XX-XXXXX
-  DE: /^\d{11}$/, // Steuernummer: 11 digits
-  FR: /^[0-9]{13}$/, // SIRET: 13 digits
-  GB: /^\d{10}$/, // UTR: 10 digits
-  IT: /^[A-Z]{6}\d{2}[A-Z]\d{2}[A-Z]\d{3}[A-Z]$/i, // Codice Fiscale
-  ES: /^[0-9A-Z]\d{7}[0-9A-Z]$/i, // NIF/NIE/CIF
-  AU: /^\d{11}$/, // ABN: 11 digits
-  CA: /^\d{9}$/, // BN: 9 digits
-  IN: /^[A-Z]{5}\d{4}[A-Z]$/i, // PAN: XXXXX9999X
-};
-
 function isTaxId(locale: string): EmittableRule {
   const re = TAX_ID_REGEXES[locale];
   if (!re) {
@@ -634,7 +472,6 @@ export {
   isIP,
   isMACAddress,
   isJWT,
-  isLatLong,
   isLocale,
   isDataURI,
   isFQDN,
@@ -643,13 +480,6 @@ export {
   isMimeType,
   isMagnetURI,
   isByteLength,
-  isHash,
-  isRFC3339,
-  isMilitaryTime,
-  isLatitude,
-  isLongitude,
-  isEthereumAddress,
-  isBtcAddress,
   isPhoneNumber,
   isStrongPassword,
   isTaxId,

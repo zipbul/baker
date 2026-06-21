@@ -11,3 +11,24 @@ export interface Transformer {
   deserialize(params: TransformParams): unknown;
   serialize(params: TransformParams): unknown;
 }
+
+export interface LuxonTransformerOptions {
+  format?: string;
+  zone?: string;
+}
+
+/** Structural shape of a Luxon DateTime — both methods required so an unrelated object isn't mangled. */
+export interface LuxonLike {
+  toISO(): string;
+  toFormat(f: string): string;
+}
+
+export interface MomentTransformerOptions {
+  format?: string;
+}
+
+/** Structural shape of a Moment — both methods required so an unrelated object isn't mangled. */
+export interface MomentLike {
+  toISOString(): string;
+  format(f: string): string;
+}

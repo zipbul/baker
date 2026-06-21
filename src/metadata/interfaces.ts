@@ -48,7 +48,7 @@ export interface ExcludeDef {
 
 /** A polymorphic discriminator subtype mapping — a class constructor keyed by its wire name. */
 export interface DiscriminatorSubType {
-  value: Function;
+  value: ClassCtor;
   name: string;
 }
 

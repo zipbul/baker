@@ -4,8 +4,8 @@ import type { RuntimeOptions } from '../common/interfaces';
 import type { SealedExecutors } from '../seal/interfaces';
 
 import { Baker } from '../baker';
-import { Field } from '../decorators/field';
 import { BakerError } from '../common/errors';
+import { Field } from '../decorators/field';
 import { isString } from '../rules/typechecker';
 import { resolveSerializeClass, runSerialize } from './serialize';
 
@@ -37,7 +37,10 @@ describe('runSerialize', () => {
 
   it('should return Record when serialize returns plain object', async () => {
     const record = { name: 'Alice' };
-    const result = await runSerialize(sealedFor(() => record), {});
+    const result = await runSerialize(
+      sealedFor(() => record),
+      {},
+    );
     expect(result).toBe(record);
   });
 
@@ -62,7 +65,10 @@ describe('runSerialize', () => {
   // ── Edge ──────────────────────────────────────────────────────────────────
 
   it('should return empty object when serialize returns {} for instance with no registered fields', async () => {
-    const result = await runSerialize(sealedFor(() => ({})), {});
+    const result = await runSerialize(
+      sealedFor(() => ({})),
+      {},
+    );
     expect(result).toEqual({});
   });
 
@@ -83,13 +89,19 @@ describe('runSerialize', () => {
 
   it('should return direct value when isSerializeAsync is false', () => {
     const record = { x: 1 };
-    const result = runSerialize(sealedFor(() => record, { isSerializeAsync: false }), {});
+    const result = runSerialize(
+      sealedFor(() => record, { isSerializeAsync: false }),
+      {},
+    );
     expect(result).toBe(record);
   });
 
   it('should use async path when isSerializeAsync is true', async () => {
     const record = { y: 2 };
-    const result = await runSerialize(sealedFor(() => Promise.resolve(record), { isSerializeAsync: true }), {});
+    const result = await runSerialize(
+      sealedFor(() => Promise.resolve(record), { isSerializeAsync: true }),
+      {},
+    );
     expect(result).toBe(record);
   });
 });

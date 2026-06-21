@@ -6,7 +6,7 @@ import { makeRule } from './rule-plan';
 // Codegen for the isNumber maxDecimalPlaces check — `decimals = max(0, mantissaDigits - exponent)`
 // via toExponential(). Single source for both the inside-gate and standalone emit branches.
 function emitMaxDecimalCheck(varName: string, maxDecimalPlaces: number, ctx: EmitContext): string {
-  return `{ let exp=${varName}.toExponential().split('e'); let mant=(exp[0].split('.')[1]||'').length; let exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+  return `{ var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -216,8 +216,7 @@ export const isFunction = makeRule({
   name: 'isFunction',
   constraints: {},
   validate: value => typeof value === 'function',
-  emit: (varName: string, ctx: EmitContext): string =>
-    `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
+  emit: (varName: string, ctx: EmitContext): string => `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

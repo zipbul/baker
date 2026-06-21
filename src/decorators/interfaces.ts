@@ -3,6 +3,7 @@ import type { DiscriminatorDef } from '../metadata';
 import type { EmittableRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ExcludeMode } from './enums';
+
 import { ARRAY_OF } from './constants';
 
 // ─────────────────────────────────────────────────────────────────────────────

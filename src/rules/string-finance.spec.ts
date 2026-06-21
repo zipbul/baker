@@ -1,19 +1,9 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from './enums';
 
 import type { EmitContext } from './interfaces';
 
-import {
-  isISBN,
-  isISIN,
-  isISSN,
-  isEAN,
-  isBIC,
-  isCreditCard,
-  isIBAN,
-  isCurrency,
-  isISO4217CurrencyCode,
-} from './string';
+import { RequiredType } from './enums';
+import { isISBN, isISIN, isISSN, isEAN, isBIC, isCreditCard, isIBAN, isCurrency, isISO4217CurrencyCode } from './string';
 
 function makeCtx(refIndex: number = 0) {
   const addRefMock = mock((_fn: unknown) => refIndex);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
+import type { ClassCtor } from '../common';
 import type { RawClassMeta, RawPropertyMeta } from '../metadata';
 
 import { BakerError } from '../common';
@@ -16,7 +17,7 @@ function prop(over: Partial<RawPropertyMeta> = {}): RawPropertyMeta {
 class Sub {}
 metaStore.set(Sub, { x: prop() });
 
-function disc(d: { property: string; subTypes: { value: Function; name: string }[] }): RawClassMeta {
+function disc(d: { property: string; subTypes: { value: ClassCtor; name: string }[] }): RawClassMeta {
   return { f: prop({ type: { fn: () => Sub, discriminator: d } }) };
 }
 
@@ -24,15 +25,21 @@ describe('MetaValidator.validateShape', () => {
   class Host {}
 
   it('passes a valid discriminator', () => {
-    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Sub, name: 'sub' }] }))).not.toThrow();
+    expect(() =>
+      validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Sub, name: 'sub' }] })),
+    ).not.toThrow();
   });
 
   it('rejects an empty discriminator property', () => {
-    expect(() => validator.validateShape(Host, disc({ property: '', subTypes: [{ value: Sub, name: 's' }] }))).toThrow(BakerError);
+    expect(() => validator.validateShape(Host, disc({ property: '', subTypes: [{ value: Sub, name: 's' }] }))).toThrow(
+      BakerError,
+    );
   });
 
   it('rejects a reserved discriminator property (prototype-pollution vector)', () => {
-    expect(() => validator.validateShape(Host, disc({ property: '__proto__', subTypes: [{ value: Sub, name: 's' }] }))).toThrow(/reserved/);
+    expect(() => validator.validateShape(Host, disc({ property: '__proto__', subTypes: [{ value: Sub, name: 's' }] }))).toThrow(
+      /reserved/,
+    );
   });
 
   it('rejects empty subTypes', () => {
@@ -40,13 +47,15 @@ describe('MetaValidator.validateShape', () => {
   });
 
   it('rejects a subType with a non-string name', () => {
-    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Sub, name: '' }] }))).toThrow(/name must be/);
+    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Sub, name: '' }] }))).toThrow(
+      /name must be/,
+    );
   });
 
   it('rejects a subType whose value is not a constructor', () => {
-    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: 123 as never, name: 'x' }] }))).toThrow(
-      /class constructor/,
-    );
+    expect(() =>
+      validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: 123 as never, name: 'x' }] })),
+    ).toThrow(/class constructor/);
   });
 
   it('rejects duplicate subType names', () => {
@@ -59,7 +68,9 @@ describe('MetaValidator.validateShape', () => {
 
   it('rejects a subType class without @Field metadata', () => {
     class Bare {}
-    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Bare, name: 'bare' }] }))).toThrow(/no @Field/);
+    expect(() => validator.validateShape(Host, disc({ property: 'type', subTypes: [{ value: Bare, name: 'bare' }] }))).toThrow(
+      /no @Field/,
+    );
   });
 
   it('rejects a Set value-class target without @Field metadata', () => {

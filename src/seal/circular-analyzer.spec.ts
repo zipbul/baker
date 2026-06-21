@@ -26,7 +26,7 @@ function makeTypeMeta(fn: () => Function): RawClassMeta {
   };
 }
 
-function makeDiscriminatorMeta(subTypes: { value: Function; name: string }[]): RawClassMeta {
+function makeDiscriminatorMeta(subTypes: { value: ClassCtor; name: string }[]): RawClassMeta {
   return {
     field: {
       validation: [],

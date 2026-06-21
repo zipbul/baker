@@ -1,5 +1,5 @@
-import type { MetaObject, MetaCarrier } from './types';
 import type { RawClassMeta, RawPropertyMeta } from './interfaces';
+import type { MetaObject, MetaCarrier } from './types';
 
 import { BakerError } from '../common';
 import { RAW } from '../symbols';

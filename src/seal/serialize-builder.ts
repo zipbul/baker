@@ -1,9 +1,9 @@
 import type { RuntimeOptions } from '../common';
-import type { SealOptions, SealedExecutors } from './interfaces';
 import type { RawClassMeta, RawPropertyMeta, TransformDef } from '../metadata';
+import type { SealOptions, SealedExecutors } from './interfaces';
 
-import { CollectionType } from '../metadata';
 import { BakerError, Direction } from '../common';
+import { CollectionType } from '../metadata';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 import { SER_GEN as GEN } from './constants';
 
@@ -238,7 +238,7 @@ class SerializeBuilder<T> {
 
     // ③b nested @Type handling (H4) — supports type + transform combination (nested serialize → transform)
     const type = meta.type;
-    if (type && (type.resolvedClass || type.discriminator || (type.fn && meta.flags.validateNested))) {
+    if (type && (type.resolvedClass || type.discriminator || (type.fn !== undefined && meta.flags.validateNested))) {
       // Determine array/each mode
       const hasEach = type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
       const outputTarget = `${GEN.out}[${JSON.stringify(outputKey)}]`;
@@ -280,7 +280,9 @@ class SerializeBuilder<T> {
           // output, symmetric with the deserialize side rejecting an unknown discriminator value.
           const validNamesJson = JSON.stringify(JSON.stringify(subTypes.map(s => s.name)));
           const recvExpr = `(${itemVar} == null ? ${itemVar} : ${itemVar}[${JSON.stringify(property)}])`;
-          const msgPrefix = JSON.stringify(`${className}.${fieldKey}: value matches no discriminator subtype (received discriminator=`);
+          const msgPrefix = JSON.stringify(
+            `${className}.${fieldKey}: value matches no discriminator subtype (received discriminator=`,
+          );
           code +=
             `} else { throw new BakerError(${msgPrefix} + JSON.stringify(${recvExpr}) + ` +
             `${JSON.stringify(', expected one of ')} + ${validNamesJson} + ${JSON.stringify(')')}); }\n`;
@@ -314,8 +316,9 @@ class SerializeBuilder<T> {
           nestedCode += `${outputTarget} = ${GEN.outItem}${sk};`;
         }
       } else {
-        // Existing simple nested logic
-        const nestedCls = type.resolvedClass ?? (type.fn() as Function);
+        // Existing simple nested logic. resolvedClass is always set on this branch — seal assigns
+        // resolvedClass and validateNested together, so reaching here guarantees the former.
+        const nestedCls = type.resolvedClass!;
         const nestedSealed = this.resolveExecutor(nestedCls);
         const execIdx = this.execs.length;
         this.execs.push(nestedSealed);

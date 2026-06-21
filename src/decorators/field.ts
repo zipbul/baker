@@ -1,13 +1,13 @@
-import type { EmittableRule, InternalRule } from '../rules';
 import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
+import type { EmittableRule, InternalRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ArrayOfMarker, FieldOptions } from './interfaces';
 import type { FieldDecorator, RuleArg } from './types';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
 import { metaStore } from '../metadata';
-import { ExcludeMode } from './enums';
 import { ARRAY_OF, FIELD_OPTION_KEYS } from './constants';
+import { ExcludeMode } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (compiles to per-rule `each: true`)
@@ -101,7 +101,10 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
   return { rules: args as RuleArg[], options: {} };
 }
 
-/** Copy the field-level groups/message/context options onto a rule def (only when provided). */
+// Copy the field-level groups/message/context options onto a rule def (only when provided). The
+// message/context copy is REQUIRED, not redundant: the per-element ('each') emission path reads
+// `rd.message`/`rd.context` directly via computeRuleExtras and does NOT fall back to the field-level
+// meta.message/meta.context (that fallback only covers the non-each, field-own-path failures).
 function decorateRuleDef(rd: RuleDef, options: FieldOptions): RuleDef {
   if (options.groups !== undefined) {
     rd.groups = options.groups;

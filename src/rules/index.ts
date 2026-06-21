@@ -5,7 +5,7 @@
 export * from './public';
 
 // Internal surface — consumed cross-domain but NOT part of the published `./rules`.
-export { createRule } from './create-rule';
+// (createRule is part of the public surface and comes through `export * from './public'` above.)
 export { emitRulePlan } from './rule-plan';
 export { RequiredType } from './enums';
 export type { EmittableRule, InternalRule, EmitContext } from './interfaces';

@@ -152,7 +152,9 @@ describe('isCurrency', () => {
 
 describe('isMagnetURI', () => {
   it('valid → passes', async () => {
-    const result = await baker.deserialize(MagnetURIDto, { value: 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a' });
+    const result = await baker.deserialize(MagnetURIDto, {
+      value: 'magnet:?xt=urn:btih:c12fe1c06bba254a9dc9f519b335aa7c1367a88a',
+    });
     expect(isBakerIssueSet(result)).toBe(false);
   });
   it('invalid → error code isMagnetURI', async () => {

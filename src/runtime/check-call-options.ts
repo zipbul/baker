@@ -1,15 +1,7 @@
 import type { RuntimeOptions } from '../common';
 
 import { BakerError } from '../common';
-import { BAKER_CONFIG_KEYS } from '../config';
-import { SEAL_OPTION_KEYS } from '../seal';
-
-const CALL_OPTION_KEYS = new Set<string>(['groups']);
-// Seal-time keys rejected per-call: the public BakerConfig names (single source: BAKER_CONFIG_KEYS)
-// plus the internal SealOptions names they normalize to (single source: SEAL_OPTION_KEYS). Both are
-// derived from their key sets, so a renamed/added option can never silently fall through to the
-// generic "unknown option" message.
-const SEAL_TIME_KEYS = new Set<string>([...BAKER_CONFIG_KEYS, ...SEAL_OPTION_KEYS]);
+import { CALL_OPTION_KEYS, SEAL_TIME_KEYS } from './constants';
 
 /**
  * @internal — validate per-call options object at public-API entry.
@@ -35,13 +27,11 @@ export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
     throw new BakerError(`Call options must be a plain object literal. Received instance of ${ctorName}.`);
   }
   for (const key of Object.keys(opts)) {
-    if (CALL_OPTION_KEYS.has(key)) {
-      if (key === 'groups') {
-        const groups = (opts as RuntimeOptions).groups;
-        if (groups !== undefined && (!Array.isArray(groups) || groups.some(g => typeof g !== 'string'))) {
-          const received = Array.isArray(groups) ? 'an array with a non-string element' : typeof groups;
-          throw new BakerError(`Call option 'groups' must be a string[] of group names. Received: ${received}.`);
-        }
+    if (key === 'groups') {
+      const groups = (opts as RuntimeOptions).groups;
+      if (groups !== undefined && (!Array.isArray(groups) || groups.some(g => typeof g !== 'string'))) {
+        const received = Array.isArray(groups) ? 'an array with a non-string element' : typeof groups;
+        throw new BakerError(`Call option 'groups' must be a string[] of group names. Received: ${received}.`);
       }
       continue;
     }

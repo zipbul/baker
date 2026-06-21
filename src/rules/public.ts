@@ -1,3 +1,4 @@
+export { createRule } from './create-rule';
 export {
   isString,
   isNumber,

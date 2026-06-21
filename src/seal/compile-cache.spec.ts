@@ -2,14 +2,14 @@ import { describe, it, expect } from 'bun:test';
 
 import { Baker, Field } from '../../index';
 import { isNumber, isString } from '../rules/index';
-import { CompileCache, compileCache } from './compile-cache';
+import { compileCache } from './compile-cache';
 
 // The (class, config) cache: same-config bakers share one compiled executor; different-config
 // bakers get distinct entries. Sharing is invisible behaviourally — verified via the cache itself.
 
 describe('(class, config) executor cache', () => {
   it('two bakers with the SAME config reuse one cached executor (compile once)', () => {
-    const fp = CompileCache.fingerprint({ stopAtFirstError: true });
+    const fp = compileCache.fingerprint({ stopAtFirstError: true });
 
     const a = new Baker({ stopAtFirstError: true });
     @a.Recipe
@@ -42,8 +42,8 @@ describe('(class, config) executor cache', () => {
     b.seal();
 
     // SealOptions key (BakerConfig's `autoConvert` normalizes to `enableImplicitConversion`)
-    const fpStrict = CompileCache.fingerprint({ enableImplicitConversion: false });
-    const fpLoose = CompileCache.fingerprint({ enableImplicitConversion: true });
+    const fpStrict = compileCache.fingerprint({ enableImplicitConversion: false });
+    const fpLoose = compileCache.fingerprint({ enableImplicitConversion: true });
 
     expect(fpStrict).not.toBe(fpLoose);
     expect(compileCache.get(D, fpStrict)).toBeDefined();
@@ -52,9 +52,9 @@ describe('(class, config) executor cache', () => {
   });
 
   it('new Baker() and new Baker({}) share a fingerprint (all defaults → "00000")', () => {
-    expect(CompileCache.fingerprint({})).toBe('00000');
+    expect(compileCache.fingerprint({})).toBe('00000');
     expect(
-      CompileCache.fingerprint({
+      compileCache.fingerprint({
         enableImplicitConversion: false,
         exposeDefaultValues: false,
         stopAtFirstError: false,
@@ -65,7 +65,7 @@ describe('(class, config) executor cache', () => {
   });
 
   it('nested DTOs are cached too — a root cache-hit transitively reuses cached nested executors', () => {
-    const fp = CompileCache.fingerprint({});
+    const fp = compileCache.fingerprint({});
     const a = new Baker();
     class Inner {
       @Field(isNumber()) k!: number;
@@ -91,7 +91,7 @@ describe('(class, config) executor cache', () => {
   });
 
   it('circular graph caches fully back-patched executors (not throwing placeholders)', () => {
-    const fp = CompileCache.fingerprint({});
+    const fp = compileCache.fingerprint({});
     const a = new Baker();
     @a.Recipe
     class Node {
@@ -106,7 +106,7 @@ describe('(class, config) executor cache', () => {
   });
 
   it('a failed seal does not pollute the cache (commit is post-success)', () => {
-    const fp = CompileCache.fingerprint({});
+    const fp = compileCache.fingerprint({});
     const x = new Baker();
     @x.Recipe
     class GoodOne {

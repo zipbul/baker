@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
 import { Baker, isBakerIssueSet, Field } from '../../index';
-import { assertBakerIssueSet } from '../integration/helpers/assert';
 import {
   isString,
   isEmail,
@@ -15,6 +14,7 @@ import {
   contains,
   length,
 } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 
 const baker = new Baker();
 

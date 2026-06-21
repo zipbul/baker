@@ -1,8 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from './enums';
 
 import type { EmitContext } from './interfaces';
 
+import { RequiredType } from './enums';
 import { isHexadecimal, isOctal, isHexColor, isRgbColor, isHSL, isBase32, isBase58, isBase64 } from './string';
 
 function makeCtx(refIndex: number = 0) {

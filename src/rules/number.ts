@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from './interfaces';
 
-import { RequiredType, RuleOp } from './enums';
 import { BakerError } from '../common';
+import { RequiredType, RuleOp } from './enums';
 import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────

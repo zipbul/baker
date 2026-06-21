@@ -3,17 +3,17 @@ import type { Result, ResultAsync } from '@zipbul/result';
 import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 
 import type { RuntimeOptions, BakerIssue } from '../common';
-import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
-import type { DeserializeExecutor, ValidateExecutor } from './types';
 import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata';
 import type { EmitContext, RulePlanCache } from '../rules';
+import type { TypeGateConfig } from './deserialize-codegen';
+import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
+import type { DeserializeExecutor, ValidateExecutor } from './types';
 
 import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
 import { emitRulePlan } from '../rules';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE, GATE_ONLY_ASSERTERS } from './constants';
-import type { TypeGateConfig } from './deserialize-codegen';
 import {
   toVarName,
   resolveGuardKey,
@@ -128,16 +128,25 @@ class DeserializeBuilder {
    * and overrides `pathPrefix`/`varPrefix`/`inputExpr`.
    */
   private createChild(pathPrefix: string, varPrefix: string, inputExpr: string): DeserializeBuilder {
-    return new DeserializeBuilder(this.Class, this.merged, this.options, this.needsCircularCheck, this.isAsync, this.resolve, this.validateOnly, {
-      regexes: this.regexes,
-      refs: this.refs,
-      execs: this.execs,
-      inlineCounter: this.inlineCounter,
-      inlineNestedClasses: this.inlineNestedClasses,
-      pathPrefix,
-      varPrefix,
-      inputExpr,
-    });
+    return new DeserializeBuilder(
+      this.Class,
+      this.merged,
+      this.options,
+      this.needsCircularCheck,
+      this.isAsync,
+      this.resolve,
+      this.validateOnly,
+      {
+        regexes: this.regexes,
+        refs: this.refs,
+        execs: this.execs,
+        inlineCounter: this.inlineCounter,
+        inlineNestedClasses: this.inlineNestedClasses,
+        pathPrefix,
+        varPrefix,
+        inputExpr,
+      },
+    );
   }
 
   // ── Entry point ────────────────────────────────────────────────────────────
@@ -418,8 +427,8 @@ class DeserializeBuilder {
     // Collection (Map/Set) auto conversion
     if (meta.type?.collection) {
       code += this.validateOnly
-        ? this.generateCollectionCodeValidateOnly(fieldKey, varName, meta, emitCtx)
-        : this.generateCollectionCode(fieldKey, varName, meta, emitCtx);
+        ? this.generateCollectionCodeValidateOnly(fieldKey, varName, meta, emitCtx, fieldGroups)
+        : this.generateCollectionCode(fieldKey, varName, meta, emitCtx, fieldGroups);
       return code;
     }
 
@@ -648,8 +657,16 @@ class DeserializeBuilder {
     let code = '';
     const sk = (this.varPrefix || '') + sanitizeKey(fieldKey); // cached — was called up to 4× in this function before
 
-    const { effectiveGateType, gateCondition, gateErrorCode, gateEmitCtx, otherGeneral, gateDeps, typeAsserter, enableConversion } =
-      config;
+    const {
+      effectiveGateType,
+      gateCondition,
+      gateErrorCode,
+      gateEmitCtx,
+      otherGeneral,
+      gateDeps,
+      typeAsserter,
+      enableConversion,
+    } = config;
 
     // Helper: emit inner validation rules
     const emitInnerRules = (indent: string): string => {
@@ -919,7 +936,9 @@ class DeserializeBuilder {
       }
 
       // Type gate fail — reflect message/context if typeAsserter rd exists
-      const gateEmitCtx = resolved.typeAsserter ? this.makeRuleEmitCtx(emitCtx, fieldKey, varName, resolved.typeAsserter) : emitCtx;
+      const gateEmitCtx = resolved.typeAsserter
+        ? this.makeRuleEmitCtx(emitCtx, fieldKey, varName, resolved.typeAsserter)
+        : emitCtx;
 
       code += this.emitTypedRules(
         fieldKey,
@@ -961,9 +980,66 @@ class DeserializeBuilder {
     return sealed;
   }
 
+  /**
+   * Emit element ('each') validation for a DECLARED collection (`@Type(() => Set/Map)`). Shared by the
+   * Set/Map × deserialize/validate-only sites so element rules get the same group filtering, per-element
+   * `value` binding (for function messages), and path indexing as the canonical `emitEachRules` path.
+   * `iterableExpr` must yield the element values (Set → the set, Map → `.values()`, array input → the array).
+   */
+  private emitDeclaredEachRules(
+    fieldKey: string,
+    eachRules: RuleDef[],
+    iterableExpr: string,
+    sk: string,
+    emitCtx: EmitContext,
+    fieldGroups: string[] | undefined,
+    indent: string,
+  ): string {
+    if (eachRules.length === 0) {
+      return '';
+    }
+    const idxVar = `${GEN.setIdx}${sk}`;
+    const elemVar = `__bk$el${sk}`;
+    const prefixVar = `__bk$ep_${sk}`;
+    const prefixInit = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['` : `${JSON.stringify(fieldKey)}+'['`;
+    let code = `${indent}var ${prefixVar} = ${prefixInit};\n`;
+    // Rule-first iteration — one element loop PER rule, group guard hoisted outside the loop.
+    // Matches the canonical emitEachRules ordering (issues are rule-major) and its guard placement.
+    for (const rd of eachRules) {
+      // value in a function message refers to the per-iteration ELEMENT, not the whole collection.
+      const extra = this.computeRuleExtras(rd, fieldKey, elemVar);
+      const rdGroups = rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups) ? rd.groups : null;
+      const guardOpen = rdGroups
+        ? `${indent}if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rdGroups)}) {\n`
+        : '';
+      const guardClose = rdGroups ? `${indent}}\n` : '';
+      const failFn = (c: string) =>
+        this.collectErrors
+          ? `${GEN.errList}.push({path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}})`
+          : this.validateOnly
+            ? `return [{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}]`
+            : `return err([{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
+      const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
+      code += guardOpen;
+      code += `${indent}  var ${idxVar} = 0;\n`;
+      code += `${indent}  for (var ${elemVar} of ${iterableExpr}) {\n`;
+      code += `${indent}    ${rd.rule.emit(elemVar, colEmitCtx)}\n`;
+      code += `${indent}    ${idxVar}++;\n`;
+      code += `${indent}  }\n`;
+      code += guardClose;
+    }
+    return code;
+  }
+
   // ── generateCollectionCode — Map/Set auto conversion ──
 
-  private generateCollectionCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext): string {
+  private generateCollectionCode(
+    fieldKey: string,
+    varName: string,
+    meta: RawPropertyMeta,
+    emitCtx: EmitContext,
+    fieldGroups: string[] | undefined,
+  ): string {
     const { collectErrors, execs } = this;
     const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
     const type = meta.type!;
@@ -1009,25 +1085,17 @@ class DeserializeBuilder {
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = new Set(${varName});\n`;
       }
 
-      // each validation rules (per element)
+      // each validation rules (per element) — iterate the materialized Set
       const eachRules = meta.validation.filter(rd => rd.each);
-      if (eachRules.length > 0) {
-        const siVar = `${GEN.setIdx}${sk}`;
-        const svVar = `${GEN.setVal}${sk}`;
-        code += `  var ${siVar} = 0;\n`;
-        code += `  for (var ${svVar} of ${GEN.out}[${JSON.stringify(fieldKey)}]) {\n`;
-        for (const rd of eachRules) {
-          const extra = this.computeRuleExtras(rd, fieldKey, varName);
-          const failFn = (c: string) =>
-            collectErrors
-              ? `${GEN.errList}.push({path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}})`
-              : `return err([{path:${JSON.stringify(fieldKey)}+'['+${siVar}+']',code:${JSON.stringify(c)}${extra}}])`;
-          const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
-          code += `    ${rd.rule.emit(svVar, colEmitCtx)}\n`;
-        }
-        code += `    ${siVar}++;\n`;
-        code += `  }\n`;
-      }
+      code += this.emitDeclaredEachRules(
+        fieldKey,
+        eachRules,
+        `${GEN.out}[${JSON.stringify(fieldKey)}]`,
+        sk,
+        emitCtx,
+        fieldGroups,
+        '  ',
+      );
 
       code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
@@ -1067,6 +1135,18 @@ class DeserializeBuilder {
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
       }
 
+      // each validation rules (per value) — iterate the materialized Map's values
+      const eachRules = meta.validation.filter(rd => rd.each);
+      code += this.emitDeclaredEachRules(
+        fieldKey,
+        eachRules,
+        `${GEN.out}[${JSON.stringify(fieldKey)}].values()`,
+        sk,
+        emitCtx,
+        fieldGroups,
+        '  ',
+      );
+
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
 
@@ -1080,7 +1160,13 @@ class DeserializeBuilder {
    * single-object discriminator path but dispatches the `switch` per element, reporting nested
    * errors at `field[i].` paths and the invalid-discriminator error at the `field[i]` element path.
    */
-  private generateDiscriminatorEachCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext, sk: string): string {
+  private generateDiscriminatorEachCode(
+    fieldKey: string,
+    varName: string,
+    meta: RawPropertyMeta,
+    emitCtx: EmitContext,
+    sk: string,
+  ): string {
     const { collectErrors, execs } = this;
     const disc = meta.type!.discriminator!;
     const keepDisc = meta.type!.keepDiscriminatorProperty === true;
@@ -1257,7 +1343,13 @@ class DeserializeBuilder {
    * executor returns `null` on success or an error-array on failure (no Result wrapper), so each
    * element's result is iterated directly. Element errors report `field[i].` / `field[i]` paths.
    */
-  private generateDiscriminatorEachCodeValidateOnly(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext, sk: string): string {
+  private generateDiscriminatorEachCodeValidateOnly(
+    fieldKey: string,
+    varName: string,
+    meta: RawPropertyMeta,
+    emitCtx: EmitContext,
+    sk: string,
+  ): string {
     const { collectErrors, execs } = this;
     const disc = meta.type!.discriminator!;
     const discProp = JSON.stringify(disc.property);
@@ -1325,7 +1417,9 @@ class DeserializeBuilder {
         const canInline = subMerged && !this.inlineNestedClasses.has(sub.value);
         code += `  case ${JSON.stringify(sub.name)}:\n`;
         if (canInline) {
-          const ppExpr = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
+          const ppExpr = this.pathPrefix
+            ? `${this.pathPrefix}+${JSON.stringify(fieldKey + '.')}`
+            : JSON.stringify(fieldKey + '.');
           const vpPrefix = `${sk}_d${sanitizeKey(sub.name)}_`;
           code += this.emitInlineNestedBlock(subMerged!, sub.value, varName, ppExpr, vpPrefix);
         } else {
@@ -1365,24 +1459,21 @@ class DeserializeBuilder {
 
         if (useInline) {
           // INLINE: generate validation code directly in the loop body.
-          // Emit the per-iteration path as a single local var — both the invalidInput error
-          // path and the nested block reference it, avoiding two identical 3-string concats.
+          // The per-iteration path prefix is emitted as an EXPRESSION (not a precomputed var) so it is
+          // built only at the cold error-push sites — the happy path allocates no path string per
+          // element (measured ~4x faster on large valid arrays).
           const itemVar = `__il$${sk}item`;
-          const ppVar = `__bk$pp${sk}`;
-          const ppExpr = ppVar;
-          const ppInit = this.pathPrefix
+          const ppExpr = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
           const vpPrefix = `${sk}i_`;
 
           code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
-          code += `    var ${ppVar} = ${ppInit};\n`;
-          // Input type guard for the item — uses the cached prefix
           code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
           if (collectErrors) {
-            code += `${GEN.errList}.push({path:${ppVar},code:'invalidInput'});\n`;
+            code += `${GEN.errList}.push({path:${ppExpr},code:'invalidInput'});\n`;
           } else {
-            code += `return [{path:${ppVar},code:'invalidInput'}];\n`;
+            code += `return [{path:${ppExpr},code:'invalidInput'}];\n`;
           }
           code += `    else {\n`;
           code += this.emitInlineNestedBlock(nestedMerged!, nestedCls, itemVar, ppExpr, vpPrefix);
@@ -1407,7 +1498,9 @@ class DeserializeBuilder {
         code += `if (${varName} != null && typeof ${varName} === 'object' && !Array.isArray(${varName})) {\n`;
 
         if (useInline) {
-          const ppExpr = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey + '.')}` : JSON.stringify(fieldKey + '.');
+          const ppExpr = this.pathPrefix
+            ? `${this.pathPrefix}+${JSON.stringify(fieldKey + '.')}`
+            : JSON.stringify(fieldKey + '.');
           const vpPrefix = `${sk}_`;
           code += this.emitInlineNestedBlock(nestedMerged!, nestedCls, varName, ppExpr, vpPrefix);
         } else {
@@ -1431,6 +1524,7 @@ class DeserializeBuilder {
     varName: string,
     meta: RawPropertyMeta,
     emitCtx: EmitContext,
+    fieldGroups: string[] | undefined,
   ): string {
     const { collectErrors, execs } = this;
     const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
@@ -1465,24 +1559,22 @@ class DeserializeBuilder {
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
 
         if (useInline) {
-          // Cache per-iteration path prefix into a single local var — itemInvalidPathExpr was
-          // identical to ppExpr (two copies of the same 3-string concat in the emitted body).
+          // Per-iteration path prefix is emitted as an EXPRESSION (not a precomputed var) so it is built
+          // only at the cold error-push sites — the happy path allocates no path string per element.
           const itemVar = `__il$${sk}ci`;
-          const ppVar = `__bk$pp${sk}`;
-          const ppInit = this.pathPrefix
+          const ppExpr = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
           const vpPrefix = `${sk}c_`;
           code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
-          code += `    var ${ppVar} = ${ppInit};\n`;
           code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
           if (collectErrors) {
-            code += `${GEN.errList}.push({path:${ppVar},code:'invalidInput'});\n`;
+            code += `${GEN.errList}.push({path:${ppExpr},code:'invalidInput'});\n`;
           } else {
-            code += `return [{path:${ppVar},code:'invalidInput'}];\n`;
+            code += `return [{path:${ppExpr},code:'invalidInput'}];\n`;
           }
           code += `    else {\n`;
-          code += this.emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppVar, vpPrefix);
+          code += this.emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix);
           code += `    }\n`;
         } else {
           const execIdx = execs.length;
@@ -1497,33 +1589,9 @@ class DeserializeBuilder {
         code += `  }\n`;
       }
 
-      // each validation — iterate input array directly
+      // each validation — iterate the input array directly
       const eachRules = meta.validation.filter(rd => rd.each);
-      if (eachRules.length > 0) {
-        const eiVar = `${GEN.index}${sk}e`;
-        const prefixVar = `__bk$ep_${sk}`;
-        code += `  for (var ${eiVar}=0; ${eiVar}<${varName}.length; ${eiVar}++) {\n`;
-        // Declare the shared path-prefix var on the first each-rule only (a local flag, not a scan of
-        // the generated text — `var` hoists, so one declaration serves every rule in this loop).
-        let prefixDeclared = false;
-        for (const rd of eachRules) {
-          const extra = this.computeRuleExtras(rd, fieldKey, varName);
-          const failFn = (c: string) =>
-            collectErrors
-              ? `${GEN.errList}.push({path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}})`
-              : `return [{path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}}]`;
-          const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
-          if (!prefixDeclared) {
-            prefixDeclared = true;
-            const prefixInit = this.pathPrefix
-              ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['`
-              : `${JSON.stringify(fieldKey)}+'['`;
-            code += `  var ${prefixVar} = ${prefixInit};\n`;
-          }
-          code += `    ${rd.rule.emit(`${varName}[${eiVar}]`, colEmitCtx)}\n`;
-        }
-        code += `  }\n`;
-      }
+      code += this.emitDeclaredEachRules(fieldKey, eachRules, varName, sk, emitCtx, fieldGroups, '  ');
 
       code += `} else { ${emitCtx.fail('isArray')}; }\n`;
     } else {
@@ -1568,6 +1636,10 @@ class DeserializeBuilder {
         code += `  }\n`;
       }
 
+      // each validation rules (per value) — iterate the input object's values
+      const eachRules = meta.validation.filter(rd => rd.each);
+      code += this.emitDeclaredEachRules(fieldKey, eachRules, `Object.values(${varName})`, sk, emitCtx, fieldGroups, '  ');
+
       code += `} else { ${emitCtx.fail('isObject')}; }\n`;
     }
 
@@ -1605,7 +1677,6 @@ class DeserializeBuilder {
     };
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Exported entry functions — thin wrappers over DeserializeBuilder (signatures unchanged)

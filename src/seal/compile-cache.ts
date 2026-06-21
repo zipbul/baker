@@ -32,7 +32,7 @@ class CompileCache {
    * Canonical fingerprint of a SealOptions — the seal-affecting booleans in fixed order. `{}` and a
    * fully-defaulted object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key.
    */
-  static fingerprint(o: SealOptions): string {
+  fingerprint(o: SealOptions): string {
     let fp = '';
     for (const key of SEAL_OPTION_KEYS) {
       fp += o[key] ? '1' : '0';
@@ -69,5 +69,4 @@ class CompileCache {
   }
 }
 
-export { CompileCache };
 export const compileCache = new CompileCache();

@@ -1,6 +1,7 @@
+import type { Result } from '@zipbul/result';
+
 import { isErr } from '@zipbul/result';
 
-import type { Result } from '@zipbul/result';
 import type { RuntimeOptions, BakerIssue, BakerIssueSet } from '../common';
 import type { SealedExecutors } from '../seal';
 

@@ -1,9 +1,9 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from './enums';
-import { BakerError } from '../common';
 
 import type { EmitContext } from './interfaces';
 
+import { BakerError } from '../common';
+import { RequiredType } from './enums';
 import {
   isEmail,
   isURL,
@@ -1061,4 +1061,3 @@ describe('isTaxId', () => {
     expect(r1).not.toBe(r2);
   });
 });
-

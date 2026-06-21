@@ -2,8 +2,8 @@ import { describe, it, expect, mock } from 'bun:test';
 
 import type { EmitContext } from './interfaces';
 
-import { createRule } from './create-rule';
 import { oneOf, arrayEvery } from './combinators';
+import { createRule } from './create-rule';
 import { isString, isBoolean, isNumber } from './typechecker';
 
 // addRef returns incrementing indices so multiple branches map to distinct refs[i].

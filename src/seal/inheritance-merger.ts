@@ -5,7 +5,7 @@ import type { RawClassMeta, MetaStore } from '../metadata';
  * reads RAW through as an injected collaborator.
  *
  * Merge rules:
- * - validation: union merge (both parent and child apply, duplicate rules removed)
+ * - validation: union by ruleName — child wins on a same-ruleName collision; otherwise parent rules are appended
  * - transform: child takes priority, inherits from parent if absent in child
  * - expose: child takes priority, inherits from parent if absent in child
  * - exclude: child takes priority, inherits from parent if absent in child

@@ -602,7 +602,9 @@ describe('isHash', () => {
     @Field(isHash('md5')) v!: string;
   }
   it('passes', async () => {
-    expect(((await baker.deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe('d41d8cd98f00b204e9800998ecf8427e');
+    expect(((await baker.deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe(
+      'd41d8cd98f00b204e9800998ecf8427e',
+    );
   });
   it('rejected', async () => {
     expect(isBakerIssueSet(await baker.deserialize(D, { v: 'nothash' }))).toBe(true);

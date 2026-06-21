@@ -240,7 +240,12 @@ export interface TypeGateConfig {
 }
 
 /** Generate nested-result handling for deserialize mode (pure) */
-export function generateNestedResultCode(fieldKey: string, resultVar: string, collectErrors: boolean, pathPrefix?: string): string {
+export function generateNestedResultCode(
+  fieldKey: string,
+  resultVar: string,
+  collectErrors: boolean,
+  pathPrefix?: string,
+): string {
   const sk = sanitizeKey(fieldKey);
   // Prepend the current scope's path prefix so an executor reached from inside an inlined block
   // (e.g. a circular nested DTO) keeps the full path, not just `fieldKey.`.
@@ -302,7 +307,12 @@ export function generateNestedEachResultCode(
 }
 
 /** Generate validate-mode nested result handling (null check instead of isErr) (pure) */
-export function generateValidateNestedResult(fieldKey: string, resultVar: string, collectErrors: boolean, pathPrefix?: string): string {
+export function generateValidateNestedResult(
+  fieldKey: string,
+  resultVar: string,
+  collectErrors: boolean,
+  pathPrefix?: string,
+): string {
   const sk = sanitizeKey(fieldKey);
   const ppVar = `__bk$pp${sk}`;
   // Prepend the current scope's path prefix (see generateNestedResultCode).

@@ -1,8 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from './enums';
 
 import type { EmitContext } from './interfaces';
 
+import { RequiredType } from './enums';
 import {
   isString,
   isNumber,

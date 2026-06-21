@@ -34,7 +34,6 @@ export {
   isIP,
   isMACAddress,
   isJWT,
-  isLatLong,
   isLocale,
   isDataURI,
   isFQDN,
@@ -43,18 +42,15 @@ export {
   isMimeType,
   isMagnetURI,
   isByteLength,
-  isHash,
-  isRFC3339,
-  isMilitaryTime,
-  isLatitude,
-  isLongitude,
-  isEthereumAddress,
-  isBtcAddress,
   isPhoneNumber,
   isStrongPassword,
   isTaxId,
 } from './string-format';
 export type { IsURLOptions, IsMACAddressOptions, IsFQDNOptions, IsStrongPasswordOptions } from './string-format';
+
+export { isLatLong, isLatitude, isLongitude } from './string-geo';
+export { isEthereumAddress, isBtcAddress, isHash } from './string-crypto';
+export { isRFC3339, isMilitaryTime } from './string-datetime';
 
 export {
   isISO8601,
@@ -70,15 +66,5 @@ export {
 } from './string-identifier';
 export type { IsISO8601Options } from './string-identifier';
 
-export {
-  isISBN,
-  isISIN,
-  isISSN,
-  isEAN,
-  isBIC,
-  isCreditCard,
-  isIBAN,
-  isCurrency,
-  isISO4217CurrencyCode,
-} from './string-finance';
+export { isISBN, isISIN, isISSN, isEAN, isBIC, isCreditCard, isIBAN, isCurrency, isISO4217CurrencyCode } from './string-finance';
 export type { IsISSNOptions, IsIBANOptions } from './string-finance';

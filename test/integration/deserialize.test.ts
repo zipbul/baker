@@ -330,8 +330,8 @@ describe('M4 — validation groups runtime filtering', () => {
   });
 
   it('fields without groups are always executed', async () => {
-    expect(isBakerIssueSet(await baker.deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] }))).toBe(
-      true,
-    );
+    expect(
+      isBakerIssueSet(await baker.deserialize(AdminOnlyDto, { secret: 'ok', id: 'not-a-number' }, { groups: ['viewer'] })),
+    ).toBe(true);
   });
 });

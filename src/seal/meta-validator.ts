@@ -1,7 +1,7 @@
 import type { RawClassMeta, MetaStore } from '../metadata';
 
-import { CollectionType } from '../metadata';
 import { BakerError } from '../common';
+import { CollectionType } from '../metadata';
 import { RESERVED_PROPERTY_NAMES } from './constants';
 
 /**
@@ -39,7 +39,9 @@ export class MetaValidator {
           );
         }
         if (!Array.isArray(disc.subTypes) || disc.subTypes.length === 0) {
-          throw new BakerError(`${className}.${key}: discriminator.subTypes must be a non-empty array of { value, name } entries.`);
+          throw new BakerError(
+            `${className}.${key}: discriminator.subTypes must be a non-empty array of { value, name } entries.`,
+          );
         }
         const seenNames = new Set<string>();
         for (let i = 0; i < disc.subTypes.length; i++) {

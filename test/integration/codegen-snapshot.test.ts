@@ -9,18 +9,11 @@ import { describe, expect, it } from 'bun:test';
 import type { BakerConfig } from '../../src/config';
 
 import { Baker, Field, arrayOf } from '../../index';
-import { configNormalizer } from '../../src/config';
-import { CompileCache, compileCache } from '../../src/seal/compile-cache';
-import {
-  isBoolean,
-  isEmail,
-  isNumber,
-  isString,
-  min,
-  minLength,
-} from '../../src/rules/index';
+import { normalizeConfig } from '../../src/config';
+import { isBoolean, isEmail, isNumber, isString, min, minLength } from '../../src/rules/index';
+import { compileCache } from '../../src/seal/compile-cache';
 
-const fpOf = (cfg?: BakerConfig): string => CompileCache.fingerprint(cfg ? configNormalizer.normalize(cfg) : {});
+const fpOf = (cfg?: BakerConfig): string => compileCache.fingerprint(cfg ? normalizeConfig(cfg) : {});
 
 /** Seal `Dto` under `cfg`, then return the generated source of all three executors. */
 function codegen(Dto: Function, cfg?: BakerConfig): { deserialize: string; validate: string; serialize: string } {
