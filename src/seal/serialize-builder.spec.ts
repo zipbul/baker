@@ -1,8 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
 
 import type { RuntimeOptions } from '../common/interfaces';
-import type { RawClassMeta } from '../metadata/types';
-import type { SealedExecutors } from './types';
+import type { RawClassMeta } from '../metadata/interfaces';
+import type { SealedExecutors } from './interfaces';
 
 import { CollectionType } from '../metadata/enums';
 import { isString } from '../rules/typechecker';

@@ -30,6 +30,20 @@ describe('checkCallOptions — only `groups` is a valid per-call option', () => 
     expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: ['a'] })).not.toThrow();
   });
 
+  it('groups as a non-array throws BakerError', () => {
+    // Untyped call boundary: a string would otherwise flow into `new Set(opts.groups)` and split into
+    // characters in generated code, silently misbehaving instead of failing cleanly.
+    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: 'admin' })).toThrow(/groups.*string\[\]/);
+  });
+
+  it('groups with a non-string element throws BakerError', () => {
+    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: ['a', 1] })).toThrow(/groups.*string\[\]/);
+  });
+
+  it('groups as an empty array is fine (no group filtering)', () => {
+    expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: [] })).not.toThrow();
+  });
+
   it('deserialize with unsupported per-call option throws BakerError', () => {
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, { stopAtFirstError: true })).toThrow(BakerError);
   });

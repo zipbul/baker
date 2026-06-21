@@ -1,10 +1,13 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
 import type { ClassCtor } from '../common/types';
-import type { RawClassMeta } from '../metadata/types';
+import type { RawClassMeta } from '../metadata/interfaces';
 
-import { setRaw } from '../metadata/meta-access';
-import { analyzeCircular } from './circular-analyzer';
+import { metaStore } from '../metadata';
+import { CircularAnalyzer } from './circular-analyzer';
+import { InheritanceMerger } from './inheritance-merger';
+
+const analyzer = new CircularAnalyzer(new InheritanceMerger(metaStore));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — manual RAW meta setup
@@ -53,11 +56,11 @@ describe('analyzeCircular', () => {
   it('should return false when DTO has no @Type fields', () => {
     // Arrange
     class NoTypeDto {}
-    setRaw(NoTypeDto, {
+    metaStore.set(NoTypeDto, {
       name: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const result = analyzeCircular(NoTypeDto);
+    const result = analyzer.analyze(NoTypeDto);
     // Assert
     expect(result).toBe(false);
   });
@@ -65,16 +68,16 @@ describe('analyzeCircular', () => {
   it('should return false for linear A -> B chain with no cycle', () => {
     // Arrange
     class BDto {}
-    setRaw(BDto, {});
+    metaStore.set(BDto, {});
 
     class ADto {}
-    setRaw(
+    metaStore.set(
       ADto,
       makeTypeMeta(() => BDto),
     );
 
     // Act
-    const result = analyzeCircular(ADto);
+    const result = analyzer.analyze(ADto);
     // Assert
     expect(result).toBe(false);
   });
@@ -83,12 +86,12 @@ describe('analyzeCircular', () => {
     // Arrange — B has no [RAW]
     class BNoRaw {}
     class ADto {}
-    setRaw(
+    metaStore.set(
       ADto,
       makeTypeMeta(() => BNoRaw),
     );
     // Act
-    const result = analyzeCircular(ADto);
+    const result = analyzer.analyze(ADto);
     // Assert
     expect(result).toBe(false);
   });
@@ -98,12 +101,12 @@ describe('analyzeCircular', () => {
   it('should return true when class references itself (self-loop)', () => {
     // Arrange
     class SelfRefDto {}
-    setRaw(
+    metaStore.set(
       SelfRefDto,
       makeTypeMeta(() => SelfRefDto),
     );
     // Act
-    const result = analyzeCircular(SelfRefDto);
+    const result = analyzer.analyze(SelfRefDto);
     // Assert
     expect(result).toBe(true);
   });
@@ -113,18 +116,38 @@ describe('analyzeCircular', () => {
     class BDto2 {}
     class ADto2 {}
 
-    setRaw(
+    metaStore.set(
       ADto2,
       makeTypeMeta(() => BDto2),
     );
-    setRaw(
+    metaStore.set(
       BDto2,
       makeTypeMeta(() => ADto2),
     );
 
     // Act
-    const result = analyzeCircular(ADto2);
+    const result = analyzer.analyze(ADto2);
     // Assert
+    expect(result).toBe(true);
+  });
+
+  it('should detect a cycle that exists only through an inherited @Type field', () => {
+    // Arrange — Base declares @Type(() => Derived); Derived extends Base and inherits that field,
+    // so Derived -> Derived is a cycle visible only in the inheritance-merged metadata (not in getRaw).
+    class Base {}
+    class Derived extends Base {}
+    metaStore.set(
+      Base,
+      makeTypeMeta(() => Derived),
+    );
+    metaStore.set(Derived, {
+      label: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
+    });
+
+    // Act
+    const result = analyzer.analyze(Derived);
+
+    // Assert — the inherited @Type field forms a self-cycle
     expect(result).toBe(true);
   });
 
@@ -132,14 +155,14 @@ describe('analyzeCircular', () => {
     // Arrange
     class ContentDto {}
     class ParentDto {}
-    setRaw(
+    metaStore.set(
       ContentDto,
       makeTypeMeta(() => ParentDto),
     );
-    setRaw(ParentDto, makeDiscriminatorMeta([{ value: ContentDto, name: 'content' }]));
+    metaStore.set(ParentDto, makeDiscriminatorMeta([{ value: ContentDto, name: 'content' }]));
 
     // Act
-    const result = analyzeCircular(ParentDto);
+    const result = analyzer.analyze(ParentDto);
     // Assert
     expect(result).toBe(true);
   });
@@ -147,16 +170,16 @@ describe('analyzeCircular', () => {
   it('should detect cycle via second discriminator subType (covers discriminator loop body)', () => {
     // Arrange — A.fn → B (no cycle), A.discriminator.subTypes[1] → C → A (cycle)
     class BDto {}
-    setRaw(BDto, {}); // no @Type, no cycle
+    metaStore.set(BDto, {}); // no @Type, no cycle
 
     class CDto {}
     class ADto {}
 
-    setRaw(
+    metaStore.set(
       CDto,
       makeTypeMeta(() => ADto),
     ); // C → A (creates cycle)
-    setRaw(ADto, {
+    metaStore.set(ADto, {
       field: {
         validation: [],
         transform: [],
@@ -177,7 +200,7 @@ describe('analyzeCircular', () => {
     });
 
     // Act
-    const result = analyzeCircular(ADto);
+    const result = analyzer.analyze(ADto);
     // Assert
     expect(result).toBe(true);
   });
@@ -189,9 +212,9 @@ describe('analyzeCircular', () => {
   it('should return false when merged has no fields (empty object)', () => {
     // Arrange
     class EmptyDto {}
-    setRaw(EmptyDto, {});
+    metaStore.set(EmptyDto, {});
     // Act
-    const result = analyzeCircular(EmptyDto);
+    const result = analyzer.analyze(EmptyDto);
     // Assert
     expect(result).toBe(false);
   });
@@ -201,10 +224,10 @@ describe('analyzeCircular', () => {
   it('should return the same result on repeated calls (idempotent)', () => {
     // Arrange
     class IdemDto {}
-    setRaw(IdemDto, {});
+    metaStore.set(IdemDto, {});
     // Act
-    const first = analyzeCircular(IdemDto);
-    const second = analyzeCircular(IdemDto);
+    const first = analyzer.analyze(IdemDto);
+    const second = analyzer.analyze(IdemDto);
     // Assert
     expect(first).toBe(second);
   });
@@ -218,20 +241,20 @@ describe('analyzeCircular', () => {
     class CDto {}
     class DDto {}
 
-    setRaw(
+    metaStore.set(
       BDto,
       makeTypeMeta(() => ADto),
     );
-    setRaw(
+    metaStore.set(
       CDto,
       makeTypeMeta(() => ADto),
     );
-    setRaw(
+    metaStore.set(
       DDto,
       makeTypeMeta(() => ADto),
     );
 
-    setRaw(
+    metaStore.set(
       ADto,
       makeDiscriminatorMeta([
         { value: BDto, name: 'b' },
@@ -241,7 +264,7 @@ describe('analyzeCircular', () => {
     );
 
     // Act — should terminate without stack overflow
-    const result = analyzeCircular(ADto);
+    const result = analyzer.analyze(ADto);
 
     // Assert — cycle exists (A → B → A)
     expect(result).toBe(true);
@@ -254,11 +277,11 @@ describe('analyzeCircular', () => {
     class CDto {}
     class DDto {}
 
-    setRaw(BDto, {});
-    setRaw(CDto, {});
-    setRaw(DDto, {});
+    metaStore.set(BDto, {});
+    metaStore.set(CDto, {});
+    metaStore.set(DDto, {});
 
-    setRaw(
+    metaStore.set(
       ADto,
       makeDiscriminatorMeta([
         { value: BDto, name: 'b' },
@@ -268,7 +291,7 @@ describe('analyzeCircular', () => {
     );
 
     // Act
-    const result = analyzeCircular(ADto);
+    const result = analyzer.analyze(ADto);
 
     // Assert — no cycle
     expect(result).toBe(false);
@@ -279,20 +302,20 @@ describe('analyzeCircular', () => {
   it('should throw BakerError when lazy type function throws', () => {
     // Arrange
     class LazyThrowDto {}
-    setRaw(
+    metaStore.set(
       LazyThrowDto,
       makeTypeMeta(() => {
         throw new Error('boom');
       }),
     );
     // Act / Assert
-    expect(() => analyzeCircular(LazyThrowDto)).toThrow('boom');
+    expect(() => analyzer.analyze(LazyThrowDto)).toThrow('boom');
   });
 
   it('should include class name in BakerError when lazy type throws', () => {
     // Arrange
     class NamedThrowDto {}
-    setRaw(
+    metaStore.set(
       NamedThrowDto,
       makeTypeMeta(() => {
         throw new Error('broken ref');
@@ -300,7 +323,7 @@ describe('analyzeCircular', () => {
     );
     // Act / Assert
     try {
-      analyzeCircular(NamedThrowDto);
+      analyzer.analyze(NamedThrowDto);
       expect.unreachable();
     } catch (e) {
       expect((e as Error).message).toContain('NamedThrowDto');

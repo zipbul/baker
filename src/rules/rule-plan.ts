@@ -1,5 +1,6 @@
 import type { RequiredType } from './enums';
-import type { EmitContext, InternalRule, RulePlan, RulePlanCheck, RulePlanExpr } from './types';
+import type { EmitContext, InternalRule, RulePlan } from './interfaces';
+import type { RulePlanCheck, RulePlanExpr } from './types';
 
 import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import { defineRuleMetadata } from './rule-metadata';
@@ -11,17 +12,9 @@ type RulePlanCache = {
 
 const planValue = (): RulePlanExpr => ({ kind: RulePlanExprKind.Value });
 
-const planLength = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
-  kind: RulePlanExprKind.Member,
-  object,
-  property: 'length',
-});
+const planLength = (): RulePlanExpr => ({ kind: RulePlanExprKind.Member, property: 'length' });
 
-const planTime = (object: RulePlanExpr = planValue()): RulePlanExpr => ({
-  kind: RulePlanExprKind.Call0,
-  object,
-  method: 'getTime',
-});
+const planTime = (): RulePlanExpr => ({ kind: RulePlanExprKind.Call0, method: 'getTime' });
 
 const planLiteral = (value: number): RulePlanExpr => ({ kind: RulePlanExprKind.Literal, value });
 
@@ -117,18 +110,17 @@ function isSelfComparison(check: RulePlanCheck): boolean {
 }
 
 function exprEqual(a: RulePlanExpr, b: RulePlanExpr): boolean {
-  if (a.kind !== b.kind) {
-    return false;
-  }
+  // Each `b.kind === …` check narrows `b` to the same member as `a` (no casts). Value/Member/Call0
+  // carry no distinguishing data beyond `kind`, so kind-equality is full equality; only Literal compares a value.
   switch (a.kind) {
     case RulePlanExprKind.Value:
-      return true;
-    case RulePlanExprKind.Literal:
-      return a.value === (b as typeof a).value;
+      return b.kind === RulePlanExprKind.Value;
     case RulePlanExprKind.Member:
-      return exprEqual(a.object, (b as typeof a).object);
+      return b.kind === RulePlanExprKind.Member;
     case RulePlanExprKind.Call0:
-      return a.method === (b as typeof a).method && exprEqual(a.object, (b as typeof a).object);
+      return b.kind === RulePlanExprKind.Call0;
+    case RulePlanExprKind.Literal:
+      return b.kind === RulePlanExprKind.Literal && a.value === b.value;
     default:
       // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.
       return a satisfies never;
@@ -150,9 +142,9 @@ function emitPlanExpr(expr: RulePlanExpr, varName: string, cache?: RulePlanCache
     case RulePlanExprKind.Literal:
       return String(expr.value);
     case RulePlanExprKind.Member:
-      return cache?.length ?? `${emitPlanExpr(expr.object, varName, cache)}.length`;
+      return cache?.length ?? `${varName}.length`;
     case RulePlanExprKind.Call0:
-      return cache?.time ?? `${emitPlanExpr(expr.object, varName, cache)}.getTime()`;
+      return cache?.time ?? `${varName}.getTime()`;
     default:
       // Compile-time exhaustiveness: adding a RulePlanExpr.kind without a case fails to compile here.
       return expr satisfies never;

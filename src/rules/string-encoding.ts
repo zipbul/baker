@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
@@ -115,7 +115,9 @@ const isBase58 = makeStringRule(
 
 // Base64
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/;
-const BASE64_URL_RE = /^[A-Za-z0-9_-]+={0,2}$/;
+// URL-safe Base64 (RFC 4648 §5): `-_` alphabet, padding optional — but the length must still form
+// valid 4-char blocks (a lone trailing char is not valid Base64), mirroring the strict BASE64_RE.
+const BASE64_URL_RE = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2}(?:==)?|[A-Za-z0-9_-]{3}=?|[A-Za-z0-9_-]{4})$/;
 
 interface IsBase64Options {
   urlSafe?: boolean;
@@ -132,7 +134,7 @@ function isBase64(options?: IsBase64Options): EmittableRule {
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
     },
     RequiredType.String,
-    { urlSafe: options?.urlSafe },
+    options?.urlSafe !== undefined ? { urlSafe: options.urlSafe } : {},
   );
 }
 

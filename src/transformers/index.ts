@@ -5,4 +5,5 @@
 export * from './public';
 
 // Internal surface — consumed cross-domain but NOT necessarily part of the published `./transformers`.
-export type { Transformer, TransformParams, TransformFunction } from './types';
+export type { Transformer, TransformParams } from './interfaces';
+export type { TransformFunction } from './types';

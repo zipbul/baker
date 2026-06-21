@@ -1,4 +1,4 @@
-import type { Transformer } from './types';
+import type { Transformer } from './interfaces';
 
 import { BakerError } from '../common';
 
@@ -26,7 +26,12 @@ async function momentTransformer(opts?: MomentTransformerOptions): Promise<Trans
   return {
     deserialize: ({ value }) => {
       if (typeof value === 'string' || value instanceof Date) {
-        return moment(value);
+        // Parse in UTC (moment.utc) so a zoneless string resolves to the same instant on every host —
+        // local-time parsing would make serialized output machine-dependent. Matches luxon's UTC default.
+        // Pass an unparseable value through untouched (symmetric with isoStringTransformer) rather
+        // than returning an Invalid moment the validator cannot distinguish from a real one.
+        const m = moment.utc(value);
+        return m.isValid() ? m : value;
       }
       return value;
     },

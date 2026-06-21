@@ -8,4 +8,4 @@ export * from './public';
 export { createRule } from './create-rule';
 export { emitRulePlan } from './rule-plan';
 export { RequiredType } from './enums';
-export type { EmittableRule, InternalRule, EmitContext } from './types';
+export type { EmittableRule, InternalRule, EmitContext } from './interfaces';

@@ -1,4 +1,4 @@
-import type { Transformer } from './types';
+import type { Transformer } from './interfaces';
 
 export function roundTransformer(precision = 0): Transformer {
   const factor = Math.pow(10, precision);

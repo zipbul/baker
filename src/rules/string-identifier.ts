@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
@@ -52,16 +52,21 @@ function isISO8601(options?: IsISO8601Options): EmittableRule {
       validate: validateStrict,
       emit: (varName: string, ctx: EmitContext): string => {
         const i = ctx.addRegex(ISO8601_RE);
+        // Single `__iso_ok` flag so the rule fails AT MOST once: in collect-errors mode `ctx.fail()`
+        // pushes without returning, so the date and time checks must funnel into one failure. The time
+        // check runs only when the date portion is valid, mirroring `validateISO8601Strict`'s early returns.
         return (
           `if (!re[${i}].test(${varName})) ${ctx.fail('isISO8601')};\n` +
-          `else { var dm=${varName}.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);` +
+          `else {var __iso_ok=true;` +
+          `var dm=${varName}.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);` +
           `if(dm){var mo=Number(dm[2]);` +
-          `if(mo<1||mo>12){${ctx.fail('isISO8601')}}` +
+          `if(mo<1||mo>12){__iso_ok=false;}` +
           `else if(dm[3]!==undefined){var da=Number(dm[3]),md=new Date(Number(dm[1]),mo,0).getDate();` +
-          `if(da<1||da>md){${ctx.fail('isISO8601')}}}}` +
-          `var tm=${varName}.match(/T(\\d{2}):(\\d{2}):(\\d{2})/);` +
+          `if(da<1||da>md){__iso_ok=false;}}}` +
+          `if(__iso_ok){var tm=${varName}.match(/T(\\d{2}):(\\d{2}):(\\d{2})/);` +
           `if(tm){var hh=Number(tm[1]),mm=Number(tm[2]),ss=Number(tm[3]);` +
-          `if(hh<0||hh>23||mm<0||mm>59||ss<0||ss>60)${ctx.fail('isISO8601')};} }`
+          `if(hh<0||hh>23||mm<0||mm>59||ss<0||ss>60)__iso_ok=false;}}` +
+          `if(!__iso_ok)${ctx.fail('isISO8601')};}`
         );
       },
     });
@@ -363,7 +368,6 @@ const ISO31661A3_CODES = new Set([
   'ALA',
   'ALB',
   'AND',
-  'ANT',
   'ARE',
   'ARG',
   'ARM',

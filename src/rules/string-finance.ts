@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
@@ -136,9 +136,9 @@ const isISIN = makeStringRule('isISIN', validateISINStr, (varName, ctx) => {
   return (
     `if (!re[${i}].test(${varName})) ${ctx.fail('isISIN')};\n` +
     `else { var isSum=0,isAlt=false;\n` +
-    `for(var isI=${varName}.length-1;isI>=0;isI--){var isCd=${varName}.charCodeAt(isI);` +
-    `if(isCd<=57){var isN=isCd-48;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}` +
-    `else{var isVal=isCd-55;var isO=isVal%10;var isN=isO;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;` +
+    `for(var isI=${varName}.length-1;isI>=0;isI--){var isCd=${varName}.charCodeAt(isI),isN;` +
+    `if(isCd<=57){isN=isCd-48;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}` +
+    `else{var isVal=isCd-55;var isO=isVal%10;isN=isO;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;` +
     `isN=(isVal-isO)/10;if(isAlt){isN*=2;if(isN>9)isN-=9;}isSum+=isN;isAlt=!isAlt;}}\n` +
     `if(isSum%10!==0)${ctx.fail('isISIN')}; }`
   );
@@ -157,7 +157,8 @@ function validateISSN(value: string, options?: IsISSNOptions): boolean {
   if (!re.test(s)) {
     return false;
   }
-  const digits = s.replace(/-/g, '');
+  // `s` already has hyphens stripped when !requireHyphen; only the hyphenated form needs stripping.
+  const digits = requireHyphen ? s.replace(/-/g, '') : s;
   let sum = 0;
   for (let i = 0; i < 7; i++) {
     sum += (8 - i) * (digits.charCodeAt(i) - 48);
@@ -176,15 +177,16 @@ function isISSN(options?: IsISSNOptions): EmittableRule {
   return makeRule({
     name: 'isISSN',
     requiresType: RequiredType.String,
-    constraints: { requireHyphen: options?.requireHyphen },
+    constraints: { requireHyphen },
     validate: validateIssn,
     emit: (varName: string, ctx: EmitContext): string => {
       const ri = ctx.addRegex(formatRe);
       const strip = requireHyphen ? varName : `${varName}.replace(/-/g,'')`;
+      const idExpr = requireHyphen ? `issn.replace(/-/g,'')` : 'issn';
       return (
         `{var issn=${strip};` +
         `if(!re[${ri}].test(issn)){${ctx.fail('isISSN')}}` +
-        `else{var id=issn.replace(/-/g,''),iss=0;` +
+        `else{var id=${idExpr},iss=0;` +
         `for(var ii=0;ii<7;ii++)iss+=(8-ii)*(id.charCodeAt(ii)-48);` +
         `var il=id[7]==='X'?10:(id.charCodeAt(7)-48);iss+=il;` +
         `if(iss%11!==0)${ctx.fail('isISSN')};}}`
@@ -250,7 +252,7 @@ function isCurrency(): EmittableRule {
   );
 }
 
-// Credit Card — Luhn algorithm (§4.8 C)
+// Credit Card — Luhn algorithm
 function luhn(str: string): boolean {
   const s = str.replace(/[\s-]/g, '');
   if (s.length === 0 || !/^\d+$/.test(s)) {
@@ -404,7 +406,7 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
   return makeRule({
     name: 'isIBAN',
     requiresType: RequiredType.String,
-    constraints: { allowSpaces: options?.allowSpaces },
+    constraints: { allowSpaces },
     validate: validateIban,
     emit: (varName: string, ctx: EmitContext): string => {
       const baseRi = ctx.addRegex(/^[A-Z]{2}\d{2}[A-Z0-9]+$/);
@@ -424,7 +426,7 @@ function isIBAN(options?: IsIBANOptions): EmittableRule {
   });
 }
 
-// isISO4217CurrencyCode — ISO 4217 currency code set (§4.8 C: ref-based)
+// isISO4217CurrencyCode — ISO 4217 currency code set (ref-based)
 
 const ISO4217_CODES = new Set([
   'AED',

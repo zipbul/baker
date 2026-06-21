@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';

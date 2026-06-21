@@ -5,8 +5,13 @@ import { toBakerIssueSet, BakerError } from '../common';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// run* helpers — post-resolution dispatch, shared by the global functions and Baker methods
+// run* helpers — post-resolution dispatch, shared by the Baker validate methods
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Map a validate result (`BakerIssue[] | null`) to the public `true | BakerIssueSet` shape. */
+function unwrapValidate(result: BakerIssue[] | null): true | BakerIssueSet {
+  return result === null ? true : toBakerIssueSet(result);
+}
 
 function runValidate(
   sealed: SealedExecutors<unknown>,
@@ -15,12 +20,10 @@ function runValidate(
 ): true | BakerIssueSet | Promise<true | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   if (sealed.isAsync) {
-    return (sealed.validate(input, checkedOpts) as Promise<BakerIssue[] | null>).then((result): true | BakerIssueSet =>
-      result === null ? true : toBakerIssueSet(result),
-    );
+    return Promise.resolve(sealed.validate(input, checkedOpts)).then(unwrapValidate);
   }
-  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
-  return result === null ? true : toBakerIssueSet(result);
+  // Sync branch: `isAsync` false guarantees the sync arm; the cast only drops the unreachable Promise arm.
+  return unwrapValidate(sealed.validate(input, checkedOpts) as BakerIssue[] | null);
 }
 
 function runValidateSync(
@@ -33,8 +36,7 @@ function runValidateSync(
   if (sealed.isAsync) {
     throw new BakerError(`validateSync(${className}): DTO has async rules/transforms. Use validateAsync() instead.`);
   }
-  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
-  return result === null ? true : toBakerIssueSet(result);
+  return unwrapValidate(sealed.validate(input, checkedOpts) as BakerIssue[] | null);
 }
 
 function runValidateAsync(
@@ -44,12 +46,9 @@ function runValidateAsync(
 ): Promise<true | BakerIssueSet> {
   const checkedOpts = checkCallOptions(options);
   if (sealed.isAsync) {
-    return (sealed.validate(input, checkedOpts) as Promise<BakerIssue[] | null>).then((r): true | BakerIssueSet =>
-      r === null ? true : toBakerIssueSet(r),
-    );
+    return Promise.resolve(sealed.validate(input, checkedOpts)).then(unwrapValidate);
   }
-  const result = sealed.validate(input, checkedOpts) as BakerIssue[] | null;
-  return Promise.resolve(result === null ? true : toBakerIssueSet(result));
+  return Promise.resolve(unwrapValidate(sealed.validate(input, checkedOpts) as BakerIssue[] | null));
 }
 
 export { runValidate, runValidateSync, runValidateAsync };

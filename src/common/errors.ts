@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerIssue — Individual field error (§12.2)
+// BakerIssue — Individual field error
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -25,7 +25,7 @@ export interface BakerIssue {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerIssueSet — Validation failure return (§12.2)
+// BakerIssueSet — Validation failure return
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Symbol tag for isBakerIssueSet() type guard — collision-proof discriminator */
@@ -63,7 +63,7 @@ export function toBakerIssueSet(errors: BakerIssue[]): BakerIssueSet {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BakerError — the single throw channel (§12.2)
+// BakerError — the single throw channel
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**

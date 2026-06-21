@@ -200,12 +200,12 @@ var __bk$f_inner = input["inner"];
 if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
 else {
 if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
-var __bk$f_inner_k = __bk$f_inner["k"];
-if (__bk$f_inner_k === undefined || __bk$f_inner_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_inner_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (isNaN(__bk$f_inner_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (__bk$f_inner_k === Infinity || __bk$f_inner_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
 }
 } else { __bk$errors.push({path:"inner",code:"isObject"}); }
 }
@@ -306,22 +306,22 @@ return __bk$out;
 var __bk$out = {};
 var __bk$fv_set = instance["set"];
 if (__bk$fv_set != null) {
-  var __bk$sa = [];
-  for (var __bk$si of __bk$fv_set) {
-    __bk$sa.push(__bk$si == null ? __bk$si : execs[0].serialize(__bk$si, opts));
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
   }
-  __bk$out["set"] = __bk$sa;
+  __bk$out["set"] = __bk$saset;
 } else {
   __bk$out["set"] = __bk$fv_set;
 }
 var __bk$fv_map = instance["map"];
 if (__bk$fv_map != null) {
-  var __bk$m = Object.create(null);
-  for (var __bk$me of __bk$fv_map) {
-    if (typeof __bk$me[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$me[0] + '). Map serialization requires string keys.'); }
-    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : execs[1].serialize(__bk$me[1], opts);
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
   }
-  __bk$out["map"] = __bk$m;
+  __bk$out["map"] = __bk$mmap;
 } else {
   __bk$out["map"] = __bk$fv_map;
 }
@@ -342,12 +342,12 @@ if (Array.isArray(__bk$f_set)) {
     var __bk$ppset = "set"+'['+__bk$i_set+'].';
     if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
     else {
-var __bk$f_setc_k = __il$setci["k"];
-if (__bk$f_setc_k === undefined || __bk$f_setc_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_k === Infinity || __bk$f_setc_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
 }
     }
   }
@@ -363,12 +363,12 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     var __il$mapmi = __bk$f_map[__bk$kmap];
     if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
     else {
-var __bk$f_mapm_k = __il$mapmi["k"];
-if (__bk$f_mapm_k === undefined || __bk$f_mapm_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_mapm_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (isNaN(__bk$f_mapm_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (__bk$f_mapm_k === Infinity || __bk$f_mapm_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
 }
     }
   }
@@ -626,16 +626,16 @@ var __bk$f_inner = input["inner"];
 if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
 else {
 if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
-var __bk$f_inner_k = __bk$f_inner["k"];
-if (__bk$f_inner_k === undefined || __bk$f_inner_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
 else {
-var __bk$skip_k = false;
-if (typeof __bk$f_inner_k !== 'number' || isNaN(__bk$f_inner_k)) {
-  __bk$f_inner_k = Number(__bk$f_inner_k);
-  if (isNaN(__bk$f_inner_k)) { __bk$errors.push({path:"inner."+"k",code:"conversionFailed"}); __bk$skip_k = true; }
+var __bk$skip_inner_0_k = false;
+if (typeof __bk$f_inner_0_k !== 'number' || isNaN(__bk$f_inner_0_k)) {
+  __bk$f_inner_0_k = Number(__bk$f_inner_0_k);
+  if (isNaN(__bk$f_inner_0_k)) { __bk$errors.push({path:"inner."+"k",code:"conversionFailed"}); __bk$skip_inner_0_k = true; }
 }
-if (!__bk$skip_k) {
-  if (__bk$f_inner_k === Infinity || __bk$f_inner_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+if (!__bk$skip_inner_0_k) {
+  if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
 }
 }
 } else { __bk$errors.push({path:"inner",code:"isObject"}); }
@@ -737,22 +737,22 @@ return __bk$out;
 var __bk$out = {};
 var __bk$fv_set = instance["set"];
 if (__bk$fv_set != null) {
-  var __bk$sa = [];
-  for (var __bk$si of __bk$fv_set) {
-    __bk$sa.push(__bk$si == null ? __bk$si : execs[0].serialize(__bk$si, opts));
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
   }
-  __bk$out["set"] = __bk$sa;
+  __bk$out["set"] = __bk$saset;
 } else {
   __bk$out["set"] = __bk$fv_set;
 }
 var __bk$fv_map = instance["map"];
 if (__bk$fv_map != null) {
-  var __bk$m = Object.create(null);
-  for (var __bk$me of __bk$fv_map) {
-    if (typeof __bk$me[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$me[0] + '). Map serialization requires string keys.'); }
-    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : execs[1].serialize(__bk$me[1], opts);
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
   }
-  __bk$out["map"] = __bk$m;
+  __bk$out["map"] = __bk$mmap;
 } else {
   __bk$out["map"] = __bk$fv_map;
 }
@@ -773,16 +773,16 @@ if (Array.isArray(__bk$f_set)) {
     var __bk$ppset = "set"+'['+__bk$i_set+'].';
     if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
     else {
-var __bk$f_setc_k = __il$setci["k"];
-if (__bk$f_setc_k === undefined || __bk$f_setc_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
 else {
-var __bk$skip_k = false;
-if (typeof __bk$f_setc_k !== 'number' || isNaN(__bk$f_setc_k)) {
-  __bk$f_setc_k = Number(__bk$f_setc_k);
-  if (isNaN(__bk$f_setc_k)) { __bk$errors.push({path:__bk$ppset+"k",code:"conversionFailed"}); __bk$skip_k = true; }
+var __bk$skip_setc_0_k = false;
+if (typeof __bk$f_setc_0_k !== 'number' || isNaN(__bk$f_setc_0_k)) {
+  __bk$f_setc_0_k = Number(__bk$f_setc_0_k);
+  if (isNaN(__bk$f_setc_0_k)) { __bk$errors.push({path:__bk$ppset+"k",code:"conversionFailed"}); __bk$skip_setc_0_k = true; }
 }
-if (!__bk$skip_k) {
-  if (__bk$f_setc_k === Infinity || __bk$f_setc_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (!__bk$skip_setc_0_k) {
+  if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
 }
 }
     }
@@ -799,16 +799,16 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     var __il$mapmi = __bk$f_map[__bk$kmap];
     if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
     else {
-var __bk$f_mapm_k = __il$mapmi["k"];
-if (__bk$f_mapm_k === undefined || __bk$f_mapm_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
 else {
-var __bk$skip_k = false;
-if (typeof __bk$f_mapm_k !== 'number' || isNaN(__bk$f_mapm_k)) {
-  __bk$f_mapm_k = Number(__bk$f_mapm_k);
-  if (isNaN(__bk$f_mapm_k)) { __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"conversionFailed"}); __bk$skip_k = true; }
+var __bk$skip_mapm_1_k = false;
+if (typeof __bk$f_mapm_1_k !== 'number' || isNaN(__bk$f_mapm_1_k)) {
+  __bk$f_mapm_1_k = Number(__bk$f_mapm_1_k);
+  if (isNaN(__bk$f_mapm_1_k)) { __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"conversionFailed"}); __bk$skip_mapm_1_k = true; }
 }
-if (!__bk$skip_k) {
-  if (__bk$f_mapm_k === Infinity || __bk$f_mapm_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+if (!__bk$skip_mapm_1_k) {
+  if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
 }
 }
     }
@@ -930,10 +930,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
   if (isErr(__bk$r_inner)) {
     var __bk$re_inner = __bk$r_inner.data;
     var __bk$ppinner = "inner.";
-    if(__bk$re_inner[0].message===undefined&&__bk$re_inner[0].context===undefined)return err([{path:__bk$ppinner+__bk$re_inner[0].path,code:__bk$re_inner[0].code}]);
-    var __neinner={path:__bk$ppinner+__bk$re_inner[0].path,code:__bk$re_inner[0].code};
-    if(__bk$re_inner[0].message!==undefined)__neinner.message=__bk$re_inner[0].message;
-    if(__bk$re_inner[0].context!==undefined)__neinner.context=__bk$re_inner[0].context;
+    var __neinner_e=__bk$re_inner[0];
+    if(__neinner_e.message===undefined&&__neinner_e.context===undefined)return err([{path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code}]);
+    var __neinner={path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code};
+    if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+    if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
     return err([__neinner]);
   } else { __bk$out["inner"] = __bk$r_inner; }
 } else { return err([{path:"inner",code:"isObject"}]); }
@@ -996,12 +997,12 @@ var __bk$f_inner = input["inner"];
 if (__bk$f_inner === undefined || __bk$f_inner === null) return [{path:"inner",code:"isDefined"}];
 else {
 if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
-var __bk$f_inner_k = __bk$f_inner["k"];
-if (__bk$f_inner_k === undefined || __bk$f_inner_k === null) return [{path:"inner."+"k",code:"isDefined"}];
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) return [{path:"inner."+"k",code:"isDefined"}];
 else {
-if (typeof __bk$f_inner_k !== 'number') return [{path:"inner."+"k",code:"isNumber"}];
-else if (isNaN(__bk$f_inner_k)) return [{path:"inner."+"k",code:"isNumber"}];
-else if (__bk$f_inner_k === Infinity || __bk$f_inner_k === -Infinity) return [{path:"inner."+"k",code:"isNumber"}];
+if (typeof __bk$f_inner_0_k !== 'number') return [{path:"inner."+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_inner_0_k)) return [{path:"inner."+"k",code:"isNumber"}];
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) return [{path:"inner."+"k",code:"isNumber"}];
 }
 } else { return [{path:"inner",code:"isObject"}]; }
 }
@@ -1052,10 +1053,11 @@ if (Array.isArray(__bk$f_set)) {
     if (isErr(__bk$r_set)) {
       var __bk$re_set = __bk$r_set.data;
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
-      if(__bk$re_set[0].message===undefined&&__bk$re_set[0].context===undefined)return err([{path:__bk$ppset+__bk$re_set[0].path,code:__bk$re_set[0].code}]);
-    var __neset={path:__bk$ppset+__bk$re_set[0].path,code:__bk$re_set[0].code};
-    if(__bk$re_set[0].message!==undefined)__neset.message=__bk$re_set[0].message;
-    if(__bk$re_set[0].context!==undefined)__neset.context=__bk$re_set[0].context;
+      var __neset_e=__bk$re_set[0];
+    if(__neset_e.message===undefined&&__neset_e.context===undefined)return err([{path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code}]);
+    var __neset={path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code};
+    if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+    if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
     return err([__neset]);
     } else { __bk$arr_set.add(__bk$r_set); }
   }
@@ -1074,10 +1076,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     if (isErr(__bk$r_map)) {
       var __bk$re_map = __bk$r_map.data;
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
-      if(__bk$re_map[0].message===undefined&&__bk$re_map[0].context===undefined)return err([{path:__bk$ppmap+__bk$re_map[0].path,code:__bk$re_map[0].code}]);
-    var __nemap={path:__bk$ppmap+__bk$re_map[0].path,code:__bk$re_map[0].code};
-    if(__bk$re_map[0].message!==undefined)__nemap.message=__bk$re_map[0].message;
-    if(__bk$re_map[0].context!==undefined)__nemap.context=__bk$re_map[0].context;
+      var __nemap_e=__bk$re_map[0];
+    if(__nemap_e.message===undefined&&__nemap_e.context===undefined)return err([{path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code}]);
+    var __nemap={path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code};
+    if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+    if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
     return err([__nemap]);
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
   }
@@ -1093,22 +1096,22 @@ return __bk$out;
 var __bk$out = {};
 var __bk$fv_set = instance["set"];
 if (__bk$fv_set != null) {
-  var __bk$sa = [];
-  for (var __bk$si of __bk$fv_set) {
-    __bk$sa.push(__bk$si == null ? __bk$si : execs[0].serialize(__bk$si, opts));
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
   }
-  __bk$out["set"] = __bk$sa;
+  __bk$out["set"] = __bk$saset;
 } else {
   __bk$out["set"] = __bk$fv_set;
 }
 var __bk$fv_map = instance["map"];
 if (__bk$fv_map != null) {
-  var __bk$m = Object.create(null);
-  for (var __bk$me of __bk$fv_map) {
-    if (typeof __bk$me[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$me[0] + '). Map serialization requires string keys.'); }
-    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : execs[1].serialize(__bk$me[1], opts);
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
   }
-  __bk$out["map"] = __bk$m;
+  __bk$out["map"] = __bk$mmap;
 } else {
   __bk$out["map"] = __bk$fv_map;
 }
@@ -1128,12 +1131,12 @@ if (Array.isArray(__bk$f_set)) {
     var __bk$ppset = "set"+'['+__bk$i_set+'].';
     if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) return [{path:__bk$ppset,code:'invalidInput'}];
     else {
-var __bk$f_setc_k = __il$setci["k"];
-if (__bk$f_setc_k === undefined || __bk$f_setc_k === null) return [{path:__bk$ppset+"k",code:"isDefined"}];
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) return [{path:__bk$ppset+"k",code:"isDefined"}];
 else {
-if (typeof __bk$f_setc_k !== 'number') return [{path:__bk$ppset+"k",code:"isNumber"}];
-else if (isNaN(__bk$f_setc_k)) return [{path:__bk$ppset+"k",code:"isNumber"}];
-else if (__bk$f_setc_k === Infinity || __bk$f_setc_k === -Infinity) return [{path:__bk$ppset+"k",code:"isNumber"}];
+if (typeof __bk$f_setc_0_k !== 'number') return [{path:__bk$ppset+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_setc_0_k)) return [{path:__bk$ppset+"k",code:"isNumber"}];
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) return [{path:__bk$ppset+"k",code:"isNumber"}];
 }
     }
   }
@@ -1149,12 +1152,12 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     var __il$mapmi = __bk$f_map[__bk$kmap];
     if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) return [{path:"map"+'['+__bk$kmap+'].',code:'invalidInput'}];
     else {
-var __bk$f_mapm_k = __il$mapmi["k"];
-if (__bk$f_mapm_k === undefined || __bk$f_mapm_k === null) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"}];
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"}];
 else {
-if (typeof __bk$f_mapm_k !== 'number') return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
-else if (isNaN(__bk$f_mapm_k)) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
-else if (__bk$f_mapm_k === Infinity || __bk$f_mapm_k === -Infinity) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+if (typeof __bk$f_mapm_1_k !== 'number') return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_mapm_1_k)) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
 }
     }
   }
@@ -1371,12 +1374,12 @@ var __bk$f_inner = input["inner"];
 if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
 else {
 if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
-var __bk$f_inner_k = __bk$f_inner["k"];
-if (__bk$f_inner_k === undefined || __bk$f_inner_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_inner_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (isNaN(__bk$f_inner_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (__bk$f_inner_k === Infinity || __bk$f_inner_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
 }
 } else { __bk$errors.push({path:"inner",code:"isObject"}); }
 }
@@ -1478,22 +1481,22 @@ return __bk$out;
 var __bk$out = {};
 var __bk$fv_set = instance["set"];
 if (__bk$fv_set != null) {
-  var __bk$sa = [];
-  for (var __bk$si of __bk$fv_set) {
-    __bk$sa.push(__bk$si == null ? __bk$si : execs[0].serialize(__bk$si, opts));
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
   }
-  __bk$out["set"] = __bk$sa;
+  __bk$out["set"] = __bk$saset;
 } else {
   __bk$out["set"] = __bk$fv_set;
 }
 var __bk$fv_map = instance["map"];
 if (__bk$fv_map != null) {
-  var __bk$m = Object.create(null);
-  for (var __bk$me of __bk$fv_map) {
-    if (typeof __bk$me[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$me[0] + '). Map serialization requires string keys.'); }
-    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : execs[1].serialize(__bk$me[1], opts);
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
   }
-  __bk$out["map"] = __bk$m;
+  __bk$out["map"] = __bk$mmap;
 } else {
   __bk$out["map"] = __bk$fv_map;
 }
@@ -1515,12 +1518,12 @@ if (Array.isArray(__bk$f_set)) {
     var __bk$ppset = "set"+'['+__bk$i_set+'].';
     if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
     else {
-var __bk$f_setc_k = __il$setci["k"];
-if (__bk$f_setc_k === undefined || __bk$f_setc_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_k === Infinity || __bk$f_setc_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
 }
     }
   }
@@ -1536,12 +1539,12 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     var __il$mapmi = __bk$f_map[__bk$kmap];
     if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
     else {
-var __bk$f_mapm_k = __il$mapmi["k"];
-if (__bk$f_mapm_k === undefined || __bk$f_mapm_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_mapm_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (isNaN(__bk$f_mapm_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (__bk$f_mapm_k === Infinity || __bk$f_mapm_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
 }
     }
   }
@@ -1757,12 +1760,12 @@ var __bk$f_inner = Object.hasOwn(input, "inner") ? input["inner"] : __bk$defs["i
 if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
 else {
 if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
-var __bk$f_inner_k = __bk$f_inner["k"];
-if (__bk$f_inner_k === undefined || __bk$f_inner_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_inner_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (isNaN(__bk$f_inner_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
-else if (__bk$f_inner_k === Infinity || __bk$f_inner_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
 }
 } else { __bk$errors.push({path:"inner",code:"isObject"}); }
 }
@@ -1863,22 +1866,22 @@ return __bk$out;
 var __bk$out = {};
 var __bk$fv_set = instance["set"];
 if (__bk$fv_set != null) {
-  var __bk$sa = [];
-  for (var __bk$si of __bk$fv_set) {
-    __bk$sa.push(__bk$si == null ? __bk$si : execs[0].serialize(__bk$si, opts));
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
   }
-  __bk$out["set"] = __bk$sa;
+  __bk$out["set"] = __bk$saset;
 } else {
   __bk$out["set"] = __bk$fv_set;
 }
 var __bk$fv_map = instance["map"];
 if (__bk$fv_map != null) {
-  var __bk$m = Object.create(null);
-  for (var __bk$me of __bk$fv_map) {
-    if (typeof __bk$me[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$me[0] + '). Map serialization requires string keys.'); }
-    __bk$m[__bk$me[0]] = __bk$me[1] == null ? __bk$me[1] : execs[1].serialize(__bk$me[1], opts);
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
   }
-  __bk$out["map"] = __bk$m;
+  __bk$out["map"] = __bk$mmap;
 } else {
   __bk$out["map"] = __bk$fv_map;
 }
@@ -1900,12 +1903,12 @@ if (Array.isArray(__bk$f_set)) {
     var __bk$ppset = "set"+'['+__bk$i_set+'].';
     if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:__bk$ppset,code:'invalidInput'});
     else {
-var __bk$f_setc_k = __il$setci["k"];
-if (__bk$f_setc_k === undefined || __bk$f_setc_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:__bk$ppset+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_setc_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (isNaN(__bk$f_setc_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
-else if (__bk$f_setc_k === Infinity || __bk$f_setc_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:__bk$ppset+"k",code:"isNumber"});
 }
     }
   }
@@ -1921,12 +1924,12 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
     var __il$mapmi = __bk$f_map[__bk$kmap];
     if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
     else {
-var __bk$f_mapm_k = __il$mapmi["k"];
-if (__bk$f_mapm_k === undefined || __bk$f_mapm_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
 else {
-if (typeof __bk$f_mapm_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (isNaN(__bk$f_mapm_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
-else if (__bk$f_mapm_k === Infinity || __bk$f_mapm_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
 }
     }
   }

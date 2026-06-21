@@ -1,16 +1,20 @@
 import { describe, it, expect, afterEach, spyOn } from 'bun:test';
 
-import type { RawClassMeta, RuleDef } from '../metadata/types';
+import type { RawClassMeta, RuleDef } from '../metadata/interfaces';
+import type { SealOptions, SealedExecutors } from './interfaces';
 
 import { assertBakerIssueSet } from '../../test/integration/helpers/assert';
 import { sealClass } from '../../test/integration/helpers/seal';
 import { unseal } from '../../test/integration/helpers/unseal';
 import { BakerError, isBakerIssueSet } from '../common/errors';
-import { setRaw } from '../metadata/meta-access';
+import { metaStore } from '../metadata';
 import { min, max } from '../rules/number';
 import { isString } from '../rules/typechecker';
-import { circularPlaceholder } from './circular-placeholder';
-import { mergeInheritance } from './merge-inheritance';
+import { CircularPlaceholder } from './circular-placeholder';
+import { InheritanceMerger } from './inheritance-merger';
+import { sealRegistry } from './seal';
+
+const merger = new InheritanceMerger(metaStore);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -51,7 +55,7 @@ describe('sealClass', () => {
   it('should register the class in the baker after sealing', () => {
     // Arrange
     class UserDto {}
-    setRaw(UserDto, makeStringField('name'));
+    metaStore.set(UserDto, makeStringField('name'));
     // Act
     const b = sealClass(UserDto);
     // Assert — the baker can run the sealed class without throwing "not sealed by this baker"
@@ -62,7 +66,7 @@ describe('sealClass', () => {
   it('should seal a DTO with @IsString field — deserialize returns instance for valid input', async () => {
     // Arrange
     class PersonDto {}
-    setRaw(PersonDto, makeStringField('name'));
+    metaStore.set(PersonDto, makeStringField('name'));
     const b = sealClass(PersonDto);
     // Act
     const result = await b.deserialize(PersonDto, { name: 'Alice' });
@@ -75,7 +79,7 @@ describe('sealClass', () => {
   it('should seal a DTO with @IsString field — deserialize returns error for invalid input', async () => {
     // Arrange
     class PersonDto2 {}
-    setRaw(PersonDto2, makeStringField('name'));
+    metaStore.set(PersonDto2, makeStringField('name'));
     const b = sealClass(PersonDto2);
     // Act
     const result = await b.deserialize(PersonDto2, { name: 42 });
@@ -88,10 +92,10 @@ describe('sealClass', () => {
   it('should seal @Type nested DTO so nested class is also sealed', () => {
     // Arrange
     class AddressDto {}
-    setRaw(AddressDto, makeStringField('city'));
+    metaStore.set(AddressDto, makeStringField('city'));
 
     class OrderDto {}
-    setRaw(OrderDto, {
+    metaStore.set(OrderDto, {
       address: {
         validation: [],
         transform: [],
@@ -112,7 +116,7 @@ describe('sealClass', () => {
   it('should throw BakerError when @Expose has both deserializeOnly and serializeOnly', () => {
     // Arrange
     class BadExposeDto {}
-    setRaw(BadExposeDto, {
+    metaStore.set(BadExposeDto, {
       field: {
         validation: [{ rule: isString }],
         transform: [],
@@ -131,7 +135,7 @@ describe('sealClass', () => {
   it('should handle circular @Type via placeholder without infinite recursion', () => {
     // Arrange — self-referencing DTO
     class TreeDto {}
-    setRaw(TreeDto, {
+    metaStore.set(TreeDto, {
       value: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       child: {
         validation: [],
@@ -151,7 +155,7 @@ describe('sealClass', () => {
   it('should succeed when DTO has no fields (empty metadata)', () => {
     // Arrange
     class EmptyDto {}
-    setRaw(EmptyDto, makeEmptyMeta());
+    metaStore.set(EmptyDto, makeEmptyMeta());
     // Act / Assert
     let b!: ReturnType<typeof sealClass>;
     expect(() => {
@@ -165,7 +169,7 @@ describe('sealClass', () => {
   it('should produce equivalent executors after seal → unseal → seal cycle', async () => {
     // Arrange
     class IdempDto {}
-    setRaw(IdempDto, makeStringField('name'));
+    metaStore.set(IdempDto, makeStringField('name'));
     const b1 = sealClass(IdempDto);
     const firstResult = await b1.deserialize(IdempDto, { name: 'Bob' });
 
@@ -184,8 +188,8 @@ describe('sealClass', () => {
     // Arrange — parent DTO with a polymorphic discriminator field
     class DogDto {}
     class CatDto {}
-    setRaw(DogDto, makeEmptyMeta());
-    setRaw(CatDto, makeEmptyMeta());
+    metaStore.set(DogDto, makeEmptyMeta());
+    metaStore.set(CatDto, makeEmptyMeta());
 
     class AnimalContainerDto {}
     const raw: RawClassMeta = {
@@ -207,7 +211,7 @@ describe('sealClass', () => {
         flags: { validateNested: true },
       },
     };
-    setRaw(AnimalContainerDto, raw);
+    metaStore.set(AnimalContainerDto, raw);
 
     // Act
     const b = sealClass(AnimalContainerDto);
@@ -223,10 +227,10 @@ describe('sealClass', () => {
   it('should auto-set validateNested when @Type points to a DTO class (replaces DX-5 warning)', () => {
     // Arrange
     class NestedTarget {}
-    setRaw(NestedTarget, makeEmptyMeta());
+    metaStore.set(NestedTarget, makeEmptyMeta());
 
     class AutoNestedDto {}
-    setRaw(AutoNestedDto, {
+    metaStore.set(AutoNestedDto, {
       nested: {
         validation: [],
         transform: [],
@@ -250,10 +254,10 @@ describe('sealClass', () => {
   it('should recursively seal nested DTOs', () => {
     // Arrange — parent + nested DTO
     class Nested {}
-    setRaw(Nested, makeStringField('val'));
+    metaStore.set(Nested, makeStringField('val'));
 
     class Parent {}
-    setRaw(Parent, {
+    metaStore.set(Parent, {
       child: {
         validation: [],
         transform: [],
@@ -275,7 +279,7 @@ describe('sealClass', () => {
   it('should throw BakerError when @Type returns invalid value (null/non-function)', () => {
     // Arrange
     class BadTypeDto {}
-    setRaw(BadTypeDto, {
+    metaStore.set(BadTypeDto, {
       field: {
         validation: [],
         transform: [],
@@ -294,10 +298,10 @@ describe('sealClass', () => {
     class BrokenNested {}
     const brokenRaw: RawClassMeta = Object.create(null) as RawClassMeta;
     brokenRaw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
-    setRaw(BrokenNested, brokenRaw);
+    metaStore.set(BrokenNested, brokenRaw);
 
     class ParentDto {}
-    setRaw(ParentDto, {
+    metaStore.set(ParentDto, {
       child: {
         validation: [],
         transform: [],
@@ -318,10 +322,10 @@ describe('sealClass', () => {
   it('should auto-set validateNested even when @Type field has serializeOnly-only transforms', () => {
     // Arrange — transform has serializeOnly, @Type points to DTO → auto nested
     class NestedA {}
-    setRaw(NestedA, makeEmptyMeta());
+    metaStore.set(NestedA, makeEmptyMeta());
 
     class AutoNestedTransformDto {}
-    setRaw(AutoNestedTransformDto, {
+    metaStore.set(AutoNestedTransformDto, {
       nested: {
         validation: [],
         transform: [{ fn: () => 'x', options: { serializeOnly: true } }],
@@ -343,10 +347,10 @@ describe('sealClass', () => {
   it('should invoke transform.filter callback and skip warn when @Type field has bidirectional transform', () => {
     // Arrange — bidirectional transform → filter returns true → length=1 → no warn
     class NestedB {}
-    setRaw(NestedB, makeEmptyMeta());
+    metaStore.set(NestedB, makeEmptyMeta());
 
     class NoWarnTransformDto {}
-    setRaw(NoWarnTransformDto, {
+    metaStore.set(NoWarnTransformDto, {
       nested: {
         validation: [],
         transform: [{ fn: () => 'x' }],
@@ -374,9 +378,9 @@ describe('mergeInheritance', () => {
     // Arrange
     class StandaloneDto {}
     const raw = makeStringField('name');
-    setRaw(StandaloneDto, raw);
+    metaStore.set(StandaloneDto, raw);
     // Act
-    const merged = mergeInheritance(StandaloneDto);
+    const merged = merger.merge(StandaloneDto);
     // Assert
     expect(merged.name).toBeDefined();
     expect(merged.name!.validation.length).toBe(1);
@@ -385,16 +389,16 @@ describe('mergeInheritance', () => {
   it('should union-merge validation rules from parent and child', () => {
     // Arrange
     class BaseDto {}
-    setRaw(BaseDto, {
+    metaStore.set(BaseDto, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
 
     class ChildDto extends BaseDto {}
-    setRaw(ChildDto, {
+    metaStore.set(ChildDto, {
       name: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildDto);
+    const merged = merger.merge(ChildDto);
     // Assert — both isString and min(1) should be present
     expect(merged.name!.validation.length).toBe(2);
   });
@@ -405,15 +409,15 @@ describe('mergeInheritance', () => {
     const childFn = ({ value }: { value: unknown }): unknown => (value as string).toLowerCase();
 
     class BaseTr {}
-    setRaw(BaseTr, {
+    metaStore.set(BaseTr, {
       name: { validation: [], transform: [{ fn: parentFn }], expose: [], exclude: null, type: null, flags: {} },
     });
     class ChildTr extends BaseTr {}
-    setRaw(ChildTr, {
+    metaStore.set(ChildTr, {
       name: { validation: [], transform: [{ fn: childFn }], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildTr);
+    const merged = merger.merge(ChildTr);
     // Assert — only child transform
     expect(merged.name!.transform.length).toBe(1);
     expect(merged.name!.transform[0]!.fn).toBe(childFn);
@@ -423,15 +427,15 @@ describe('mergeInheritance', () => {
     // Arrange
     const parentFn2 = ({ value }: { value: unknown }): unknown => value;
     class BaseTr2 {}
-    setRaw(BaseTr2, {
+    metaStore.set(BaseTr2, {
       x: { validation: [], transform: [{ fn: parentFn2 }], expose: [], exclude: null, type: null, flags: {} },
     });
     class ChildTr2 extends BaseTr2 {}
-    setRaw(ChildTr2, {
+    metaStore.set(ChildTr2, {
       x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildTr2);
+    const merged = merger.merge(ChildTr2);
     // Assert — parent transform inherited
     expect(merged.x!.transform.length).toBe(1);
     expect(merged.x!.transform[0]!.fn).toBe(parentFn2);
@@ -440,15 +444,15 @@ describe('mergeInheritance', () => {
   it('should override parent expose with child expose when child has @Expose', () => {
     // Arrange
     class BaseEx {}
-    setRaw(BaseEx, {
+    metaStore.set(BaseEx, {
       field: { validation: [], transform: [], expose: [{ name: 'parent_name' }], exclude: null, type: null, flags: {} },
     });
     class ChildEx extends BaseEx {}
-    setRaw(ChildEx, {
+    metaStore.set(ChildEx, {
       field: { validation: [], transform: [], expose: [{ name: 'child_name' }], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildEx);
+    const merged = merger.merge(ChildEx);
     // Assert — child name used, not parent
     expect(merged.field!.expose[0]!.name).toBe('child_name');
   });
@@ -456,15 +460,15 @@ describe('mergeInheritance', () => {
   it('should inherit parent expose when child has no @Expose', () => {
     // Arrange
     class BaseEx2 {}
-    setRaw(BaseEx2, {
+    metaStore.set(BaseEx2, {
       field: { validation: [], transform: [], expose: [{ name: 'parent_exposed' }], exclude: null, type: null, flags: {} },
     });
     class ChildEx2 extends BaseEx2 {}
-    setRaw(ChildEx2, {
+    metaStore.set(ChildEx2, {
       field: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildEx2);
+    const merged = merger.merge(ChildEx2);
     // Assert — parent expose inherited
     expect(merged.field!.expose.length).toBe(1);
     expect(merged.field!.expose[0]!.name).toBe('parent_exposed');
@@ -473,15 +477,15 @@ describe('mergeInheritance', () => {
   it('should inherit parent exclude when child has no exclude', () => {
     // Arrange
     class BaseExcl {}
-    setRaw(BaseExcl, {
+    metaStore.set(BaseExcl, {
       secret: { validation: [], transform: [], expose: [], exclude: { serializeOnly: true }, type: null, flags: {} },
     });
     class ChildExcl extends BaseExcl {}
-    setRaw(ChildExcl, {
+    metaStore.set(ChildExcl, {
       secret: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildExcl);
+    const merged = merger.merge(ChildExcl);
     // Assert
     expect(merged.secret!.exclude).toEqual({ serializeOnly: true });
   });
@@ -490,15 +494,15 @@ describe('mergeInheritance', () => {
     // Arrange
     class NestedDto {}
     class BaseType {}
-    setRaw(BaseType, {
+    metaStore.set(BaseType, {
       nested: { validation: [], transform: [], expose: [], exclude: null, type: { fn: () => NestedDto }, flags: {} },
     });
     class ChildType extends BaseType {}
-    setRaw(ChildType, {
+    metaStore.set(ChildType, {
       nested: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildType);
+    const merged = merger.merge(ChildType);
     // Assert
     expect(merged.nested!.type?.fn()).toBe(NestedDto);
   });
@@ -506,15 +510,15 @@ describe('mergeInheritance', () => {
   it('should apply child-first flag merge (isOptional)', () => {
     // Arrange
     class BaseFlag {}
-    setRaw(BaseFlag, {
+    metaStore.set(BaseFlag, {
       age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: { isOptional: true } },
     });
     class ChildFlag extends BaseFlag {}
-    setRaw(ChildFlag, {
+    metaStore.set(ChildFlag, {
       age: { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildFlag);
+    const merged = merger.merge(ChildFlag);
     // Assert — parent flag inherited (child has none)
     expect(merged.age!.flags.isOptional).toBe(true);
   });
@@ -523,15 +527,15 @@ describe('mergeInheritance', () => {
     // Arrange — same rule instance in both parent and child
     const sharedRule = isString;
     class BaseDup {}
-    setRaw(BaseDup, {
+    metaStore.set(BaseDup, {
       f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     class ChildDup extends BaseDup {}
-    setRaw(ChildDup, {
+    metaStore.set(ChildDup, {
       f: { validation: [{ rule: sharedRule }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(ChildDup);
+    const merged = merger.merge(ChildDup);
     // Assert — deduplicated
     expect(merged.f!.validation.length).toBe(1);
   });
@@ -541,11 +545,11 @@ describe('mergeInheritance', () => {
   it('should not include child in chain when child has no own RAW (inherits via prototype)', () => {
     // Arrange
     class ParentNR {}
-    setRaw(ParentNR, makeStringField('x'));
+    metaStore.set(ParentNR, makeStringField('x'));
     class ChildNR extends ParentNR {}
     // ChildNR has NO own RAW — inherits ParentNR[RAW] via prototype chain
     // Act
-    const merged = mergeInheritance(ChildNR);
+    const merged = merger.merge(ChildNR);
     // Assert — parent field accessible, not double-merged
     expect(merged.x).toBeDefined();
     expect(merged.x!.validation.length).toBe(1);
@@ -554,13 +558,13 @@ describe('mergeInheritance', () => {
   it('should not double-merge parent rules when child inherits RAW via prototype', () => {
     // Arrange
     class BaseNR2 {}
-    setRaw(BaseNR2, {
+    metaStore.set(BaseNR2, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     class ChildNR2 extends BaseNR2 {}
     // ChildNR2 has no own RAW — rule must appear exactly once
     // Act
-    const merged = mergeInheritance(ChildNR2);
+    const merged = merger.merge(ChildNR2);
     // Assert
     expect(merged.name!.validation.length).toBe(1);
   });
@@ -568,13 +572,13 @@ describe('mergeInheritance', () => {
   it('should skip intermediate class without own RAW in 3-level chain', () => {
     // Arrange
     class GrandNR {}
-    setRaw(GrandNR, makeStringField('a'));
+    metaStore.set(GrandNR, makeStringField('a'));
     class MidNR extends GrandNR {}
     // MidNR has no own RAW
     class ChildNR3 extends MidNR {}
-    setRaw(ChildNR3, makeStringField('b'));
+    metaStore.set(ChildNR3, makeStringField('b'));
     // Act
-    const merged = mergeInheritance(ChildNR3);
+    const merged = merger.merge(ChildNR3);
     // Assert — both fields present, each exactly once
     expect(merged.a).toBeDefined();
     expect(merged.b).toBeDefined();
@@ -585,19 +589,19 @@ describe('mergeInheritance', () => {
   it('should handle 3-level inheritance chain correctly', () => {
     // Arrange
     class GrandParent {}
-    setRaw(GrandParent, {
+    metaStore.set(GrandParent, {
       x: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     class ParentLevel extends GrandParent {}
-    setRaw(ParentLevel, {
+    metaStore.set(ParentLevel, {
       x: { validation: [{ rule: min(1) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     class Child3 extends ParentLevel {}
-    setRaw(Child3, {
+    metaStore.set(Child3, {
       x: { validation: [{ rule: max(100) }], transform: [], expose: [], exclude: null, type: null, flags: {} },
     });
     // Act
-    const merged = mergeInheritance(Child3);
+    const merged = merger.merge(Child3);
     // Assert — all 3 rules in union
     expect(merged.x!.validation.length).toBe(3);
   });
@@ -624,7 +628,7 @@ describe('sealOne — banned field names (C5)', () => {
   it('should throw BakerError when a field is named __proto__', () => {
     // Arrange
     class BannedProtoDto {}
-    setRaw(BannedProtoDto, makeRawWithBannedKey('__proto__'));
+    metaStore.set(BannedProtoDto, makeRawWithBannedKey('__proto__'));
     // Act / Assert
     expect(() => sealClass(BannedProtoDto)).toThrow(BakerError);
   });
@@ -634,7 +638,7 @@ describe('sealOne — banned field names (C5)', () => {
     class BannedConstructorDto {}
     const raw: RawClassMeta = Object.create(null) as RawClassMeta;
     raw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
-    setRaw(BannedConstructorDto, raw);
+    metaStore.set(BannedConstructorDto, raw);
     // Act / Assert
     expect(() => sealClass(BannedConstructorDto)).toThrow(BakerError);
   });
@@ -644,7 +648,7 @@ describe('sealOne — banned field names (C5)', () => {
     class BannedPrototypeDto {}
     const raw: RawClassMeta = Object.create(null) as RawClassMeta;
     raw['prototype'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
-    setRaw(BannedPrototypeDto, raw);
+    metaStore.set(BannedPrototypeDto, raw);
     // Act / Assert
     expect(() => sealClass(BannedPrototypeDto)).toThrow(BakerError);
   });
@@ -665,7 +669,7 @@ describe('sealOne — banned field names (C5)', () => {
       writable: true,
       configurable: true,
     });
-    setRaw(MixedBannedDto, raw);
+    metaStore.set(MixedBannedDto, raw);
     // Act / Assert
     expect(() => sealClass(MixedBannedDto)).toThrow(BakerError);
   });
@@ -673,9 +677,54 @@ describe('sealOne — banned field names (C5)', () => {
   it('should not throw BakerError for __PROTO__ (uppercase — not a banned name)', () => {
     // Arrange — same letters but different case, not a reserved name
     class UpperCaseDto {}
-    setRaw(UpperCaseDto, makeRawWithBannedKey('__PROTO__'));
+    metaStore.set(UpperCaseDto, makeRawWithBannedKey('__PROTO__'));
     // Act / Assert
     expect(() => sealClass(UpperCaseDto)).not.toThrow();
+  });
+
+  it('should throw BakerError when discriminator.property is a reserved name (__proto__)', () => {
+    // Arrange — the discriminator property is written back onto the result; a reserved name there is
+    // the one spot the banned-name gate previously missed.
+    class DiscSub {}
+    metaStore.set(DiscSub, makeStringField('x'));
+    class DiscReservedDto {}
+    metaStore.set(DiscReservedDto, {
+      pet: {
+        validation: [],
+        transform: [],
+        expose: [],
+        exclude: null,
+        type: { fn: () => DiscSub, discriminator: { property: '__proto__', subTypes: [{ name: 'a', value: DiscSub }] } },
+        flags: { validateNested: true },
+      },
+    });
+    // Act / Assert
+    expect(() => sealClass(DiscReservedDto)).toThrow(BakerError);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sealRegistry — transactional rollback is precise (only this run's insertions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('sealRegistry — transactional rollback', () => {
+  it('rolls back only this run’s insertions, preserving pre-existing executors', () => {
+    // Arrange — a pre-existing executor (e.g. from a prior successful seal) already sits in the map.
+    const preExisting = new CircularPlaceholder('PreExistingDto');
+    class PreExistingDto {}
+    const executors = new Map<Function, SealedExecutors<unknown>>([[PreExistingDto, preExisting]]);
+
+    // A registry whose only class fails to seal (banned field name) → the run throws.
+    class FailingDto {}
+    const raw = Object.create(null) as RawClassMeta;
+    raw['constructor'] = { validation: [], transform: [], expose: [], exclude: null, type: null, flags: {} };
+    metaStore.set(FailingDto, raw);
+
+    // Act / Assert — seal fails...
+    expect(() => sealRegistry(new Set<Function>([FailingDto]), {} as SealOptions, executors)).toThrow(BakerError);
+    // ...but the pre-existing executor must survive (rollback removes only what this run inserted).
+    expect(executors.get(PreExistingDto)).toBe(preExisting);
+    expect(executors.has(FailingDto)).toBe(false);
   });
 });
 
@@ -688,7 +737,7 @@ describe('analyzeAsync — discriminator', () => {
     // Arrange — SubA has an async transform
     class SubA {}
     const asyncFn = async ({ value }: { value: unknown }): Promise<unknown> => value;
-    setRaw(SubA, {
+    metaStore.set(SubA, {
       val: {
         validation: [{ rule: isString }],
         transform: [{ fn: asyncFn }],
@@ -700,10 +749,10 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     class SubB {}
-    setRaw(SubB, makeStringField('val'));
+    metaStore.set(SubB, makeStringField('val'));
 
     class ParentDisc {}
-    setRaw(ParentDisc, {
+    metaStore.set(ParentDisc, {
       child: {
         validation: [],
         transform: [],
@@ -736,7 +785,7 @@ describe('analyzeAsync — discriminator', () => {
     class CircSubA {}
     class CircSubB {}
 
-    setRaw(CircSubA, {
+    metaStore.set(CircSubA, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       other: {
         validation: [],
@@ -747,7 +796,7 @@ describe('analyzeAsync — discriminator', () => {
         flags: { validateNested: true },
       },
     });
-    setRaw(CircSubB, {
+    metaStore.set(CircSubB, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       other: {
         validation: [],
@@ -760,7 +809,7 @@ describe('analyzeAsync — discriminator', () => {
     });
 
     class CircParent {}
-    setRaw(CircParent, {
+    metaStore.set(CircParent, {
       child: {
         validation: [],
         transform: [],
@@ -796,7 +845,7 @@ describe('analyzeAsync — discriminator', () => {
     class DiscB {}
     class DiscC {}
 
-    setRaw(DiscB, {
+    metaStore.set(DiscB, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       ref: {
         validation: [],
@@ -807,7 +856,7 @@ describe('analyzeAsync — discriminator', () => {
         flags: { validateNested: true },
       },
     });
-    setRaw(DiscC, {
+    metaStore.set(DiscC, {
       name: { validation: [{ rule: isString }], transform: [], expose: [], exclude: null, type: null, flags: {} },
       ref: {
         validation: [],
@@ -818,7 +867,7 @@ describe('analyzeAsync — discriminator', () => {
         flags: { validateNested: true },
       },
     });
-    setRaw(DiscA, {
+    metaStore.set(DiscA, {
       child: {
         validation: [],
         transform: [],
@@ -858,19 +907,19 @@ describe('analyzeAsync — discriminator', () => {
 
 describe('circularPlaceholder', () => {
   it('returns an executor whose deserialize/serialize/validate all throw BakerError', () => {
-    const ph = circularPlaceholder('PendingDto');
+    const ph = new CircularPlaceholder('PendingDto');
     expect(() => ph.deserialize({}, undefined)).toThrow(BakerError);
     expect(() => ph.serialize({}, undefined)).toThrow(BakerError);
     expect(() => ph.validate({}, undefined)).toThrow(BakerError);
   });
 
   it('names the still-sealing class in the thrown message', () => {
-    const ph = circularPlaceholder('PendingDto');
+    const ph = new CircularPlaceholder('PendingDto');
     expect(() => ph.deserialize({}, undefined)).toThrow(/PendingDto is still being sealed/);
   });
 
   it('is marked synchronous (isAsync / isSerializeAsync both false)', () => {
-    const ph = circularPlaceholder('PendingDto');
+    const ph = new CircularPlaceholder('PendingDto');
     expect(ph.isAsync).toBe(false);
     expect(ph.isSerializeAsync).toBe(false);
   });

@@ -5,7 +5,7 @@ import { BakerError } from '../common';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// serialize — Public API (§5.2)
+// resolveSerializeClass — derive the (forgery-checked) constructor from an instance
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -30,7 +30,7 @@ function resolveSerializeClass(instance: unknown, fnName: string): Function {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// run* helpers — post-resolution dispatch, shared by the global functions and Baker methods
+// run* helpers — post-resolution dispatch, shared by the Baker serialize methods
 // ─────────────────────────────────────────────────────────────────────────────
 
 function runSerialize<T>(
@@ -39,9 +39,8 @@ function runSerialize<T>(
   options?: RuntimeOptions,
 ): Record<string, unknown> | Promise<Record<string, unknown>> {
   const checkedOpts = checkCallOptions(options);
-  return sealed.isSerializeAsync
-    ? (sealed.serialize(instance, checkedOpts) as Promise<Record<string, unknown>>)
-    : (sealed.serialize(instance, checkedOpts) as Record<string, unknown>);
+  // `sealed.serialize` already returns the sync|async union — return it as-is, no cast.
+  return sealed.serialize(instance, checkedOpts);
 }
 
 function runSerializeSync<T>(
@@ -54,6 +53,7 @@ function runSerializeSync<T>(
   if (sealed.isSerializeAsync) {
     throw new BakerError(`serializeSync(${className}): DTO has async serialize transforms. Use serializeAsync() instead.`);
   }
+  // Sync branch: `isSerializeAsync` false guarantees the sync arm; the cast only drops the Promise arm.
   return sealed.serialize(instance, checkedOpts) as Record<string, unknown>;
 }
 
@@ -63,9 +63,8 @@ function runSerializeAsync<T>(
   options?: RuntimeOptions,
 ): Promise<Record<string, unknown>> {
   const checkedOpts = checkCallOptions(options);
-  return sealed.isSerializeAsync
-    ? (sealed.serialize(instance, checkedOpts) as Promise<Record<string, unknown>>)
-    : Promise.resolve(sealed.serialize(instance, checkedOpts) as Record<string, unknown>);
+  // `Promise.resolve` unifies both arms of the sync|async union — no cast needed.
+  return Promise.resolve(sealed.serialize(instance, checkedOpts));
 }
 
 export { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync };

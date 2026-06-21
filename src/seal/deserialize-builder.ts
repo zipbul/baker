@@ -3,18 +3,18 @@ import type { Result, ResultAsync } from '@zipbul/result';
 import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
 
 import type { RuntimeOptions, BakerIssue } from '../common';
-import type { SealOptions } from './interfaces';
+import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
+import type { DeserializeExecutor, ValidateExecutor } from './types';
 import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata';
 import type { EmitContext } from '../rules';
-import type { SealedExecutors } from './types';
 
 import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
 import { emitRulePlan } from '../rules';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
-import type { CategorizedRules, ResolvedTypeGate, TypeGateConfig } from './deserialize-codegen';
+import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE, GATE_ONLY_ASSERTERS } from './constants';
+import type { TypeGateConfig } from './deserialize-codegen';
 import {
-  GEN,
   nestedErrPush,
   nestedErrReturn,
   toVarName,
@@ -23,20 +23,14 @@ import {
   wrapGroupsGuard,
   sameGroups,
   generateConversionCode,
-  PRIMITIVE_TYPE_HINTS,
-  ASSERTER_TO_GATE,
-  GATE_ONLY_ASSERTERS,
   categorizeRules,
   generateNestedResultCode,
   generateValidateNestedResult,
 } from './deserialize-codegen';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// DeserializeBuilder — new Function-based executor generation (§4.9)
+// DeserializeBuilder — new Function-based executor generation
 // ─────────────────────────────────────────────────────────────────────────────
-
-type DeserializeExecutor<T> = (input: unknown, opts?: RuntimeOptions) => Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
-type ValidateExecutor = (input: unknown, opts?: RuntimeOptions) => BakerIssue[] | null | Promise<BakerIssue[] | null>;
 
 /**
  * Class-based deserialize/validate code generator. Instance fields are the single source of truth
@@ -62,6 +56,15 @@ class DeserializeBuilder {
   readonly regexes: RegExp[];
   readonly refs: unknown[];
   readonly execs: SealedExecutors<unknown>[];
+
+  /**
+   * Monotonic id source for inline-nested blocks, shared across child builders (boxed so children
+   * mutate the same counter). Each inline block stamps a unique id into its `varPrefix`, making every
+   * generated variable name globally unique within the function — so distinct nested scopes can never
+   * collide regardless of field-name shapes. Deterministic (fixed traversal order) → byte-identical
+   * code across re-seals, preserving compile-cache sharing.
+   */
+  readonly inlineCounter: { n: number };
 
   /** Track classes being inlined to detect circular references (shared across child builders). */
   inlineNestedClasses?: Set<Function>;
@@ -102,6 +105,7 @@ class DeserializeBuilder {
       this.regexes = scope.regexes;
       this.refs = scope.refs;
       this.execs = scope.execs;
+      this.inlineCounter = scope.inlineCounter;
       if (scope.inlineNestedClasses) {
         this.inlineNestedClasses = scope.inlineNestedClasses;
       }
@@ -114,6 +118,7 @@ class DeserializeBuilder {
       this.regexes = [];
       this.refs = [];
       this.execs = [];
+      this.inlineCounter = { n: 0 };
     }
   }
 
@@ -127,6 +132,7 @@ class DeserializeBuilder {
       regexes: this.regexes,
       refs: this.refs,
       execs: this.execs,
+      inlineCounter: this.inlineCounter,
       inlineNestedClasses: this.inlineNestedClasses,
       pathPrefix,
       varPrefix,
@@ -159,7 +165,7 @@ class DeserializeBuilder {
       body += `var ${GEN.errList} = [];\n`;
     }
 
-    // preamble: input type guard (§4.9)
+    // preamble: input type guard
     body += `if (input == null || typeof input !== 'object' || Array.isArray(input)) return ${wrapErr("[{path:'',code:'invalidInput'}]")};\n`;
 
     // WeakSet guard (circular references) — N-3 fix: WeakSet lives per-call, threaded through
@@ -178,7 +184,7 @@ class DeserializeBuilder {
       body += `try {\n`;
     }
 
-    // Whitelist check (§7.2) — reject undeclared fields
+    // Whitelist check — reject undeclared fields
     if (options?.whitelist) {
       const allowedKeys = new Set<string>();
       for (const [fieldKey, meta] of Object.entries(merged)) {
@@ -198,7 +204,7 @@ class DeserializeBuilder {
       }
     }
 
-    // Groups variable — only when expose groups or validation rule groups exist (§4.9, §M4).
+    // Groups variable — only when expose groups or validation rule groups exist.
     // Single for-of with early break avoids Object.values alloc + closure allocations.
     let hasGroupsField = false;
     for (const fk in merged) {
@@ -244,7 +250,7 @@ class DeserializeBuilder {
       body += `} finally { __seen.delete(input); }\n`;
     }
 
-    // sourceURL (§4.9)
+    // sourceURL
     // Sanitize class name so it cannot inject newlines / */ that would break out of the comment.
     const safeClsName = Class.name.replace(/[^\w$.-]/g, '_');
     body += `//# sourceURL=baker://${safeClsName}/${validateOnly ? 'validate' : 'deserialize'}\n`;
@@ -333,7 +339,7 @@ class DeserializeBuilder {
       extractCode = `var ${varName} = ${inputObj}[${extractKeyJson}];\n`;
     }
 
-    // groups check wrap (§4.5)
+    // groups check wrap
     let fieldStart = '';
     let fieldEnd = '';
     if (exposeGroups && exposeGroups.length > 0) {
@@ -344,14 +350,14 @@ class DeserializeBuilder {
     // inner content (extract + optional guard + validation + assign)
     let innerCode = extractCode;
 
-    // ② null/undefined guard — @IsOptional, @IsNullable, @IsDefined combinations (§4.3, Phase5)
-    const useOptionalGuard = !!(meta.flags.isOptional && !meta.flags.isDefined);
+    // ② null/undefined guard — optional / nullable combinations
+    const useOptionalGuard = meta.flags.isOptional === true;
     const isNullable = meta.flags.isNullable === true;
 
     const validationCode = this.generateValidationCode(fieldKey, varName, meta, emitCtx, exposeGroups);
     const assignNull = this.validateOnly ? '' : `${GEN.out}[${JSON.stringify(fieldKey)}] = null;\n`;
 
-    const guardKey = resolveGuardKey(isNullable, useOptionalGuard, meta.flags.isDefined ?? false);
+    const guardKey = resolveGuardKey(isNullable, useOptionalGuard);
     innerCode += GUARD_STRATEGIES[guardKey]({ varName, emitCtx, assignNull, validationCode });
 
     // ① @ValidateIf outer wrap
@@ -377,7 +383,7 @@ class DeserializeBuilder {
 
     let code = '';
 
-    // @Transform (deserialize direction) — before validation (§4.3 ⑤)
+    // @Transform (deserialize direction) — before validation
     const dsTransforms = meta.transform.filter(td => !td.options?.serializeOnly);
     if (dsTransforms.length > 0) {
       const fkJson = JSON.stringify(fieldKey);
@@ -417,7 +423,7 @@ class DeserializeBuilder {
       return code;
     }
 
-    // @ValidateNested + @Type (§8.1)
+    // @ValidateNested + @Type
     if (meta.flags.validateNested && meta.type?.fn) {
       code += this.validateOnly
         ? this.generateNestedCodeValidateOnly(fieldKey, varName, meta, emitCtx)
@@ -534,7 +540,7 @@ class DeserializeBuilder {
         timeCount += 1;
       }
     }
-    const sk = sanitizeKey(fieldKey);
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
     const lengthVar = lengthCount > 1 ? `${GEN.arr}${sk}len` : null;
     const timeVar = timeCount > 1 ? `${GEN.arr}${sk}time` : null;
 
@@ -572,7 +578,7 @@ class DeserializeBuilder {
     return code;
   }
 
-  // ── buildRulesCode — type guard + marker pattern (§4.3, §4.10) ──
+  // ── buildRulesCode — type guard + marker pattern ──
   // Decomposed into: categorizeRules → resolveTypeGate → emitTypedRules / emitGeneralRules / emitEachRules
 
   /** resolveTypeGate — determine effective gate type from asserters/conversion/type hints */
@@ -640,7 +646,7 @@ class DeserializeBuilder {
     fieldGroups?: string[],
   ): string {
     let code = '';
-    const sk = sanitizeKey(fieldKey); // cached — was called up to 4× in this function before
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey); // cached — was called up to 4× in this function before
 
     const { effectiveGateType, gateCondition, gateErrorCode, gateEmitCtx, otherGeneral, gateDeps, typeAsserter, enableConversion } =
       config;
@@ -656,14 +662,14 @@ class DeserializeBuilder {
       return this.emitRuleList(fieldKey, varName, rules, emitCtx, indent, fieldGroups, true);
     };
 
-    if (collectErrors) {
-      const canConvert =
-        enableConversion &&
-        (effectiveGateType === 'string' ||
-          effectiveGateType === 'number' ||
-          effectiveGateType === 'boolean' ||
-          effectiveGateType === 'date');
+    const canConvert =
+      enableConversion &&
+      (effectiveGateType === 'string' ||
+        effectiveGateType === 'number' ||
+        effectiveGateType === 'boolean' ||
+        effectiveGateType === 'date');
 
+    if (collectErrors) {
       if (canConvert) {
         // Conversion mode: try convert on gate failure, skip field if conversion fails
         const skipVar = `${GEN.skip}${sk}`;
@@ -695,13 +701,6 @@ class DeserializeBuilder {
         code += `}\n`;
       }
     } else {
-      const canConvert =
-        enableConversion &&
-        (effectiveGateType === 'string' ||
-          effectiveGateType === 'number' ||
-          effectiveGateType === 'boolean' ||
-          effectiveGateType === 'date');
-
       if (canConvert) {
         code += `if (${gateCondition}) {\n`;
         code += generateConversionCode(effectiveGateType, varName, fieldKey, null, false, emitCtx);
@@ -732,6 +731,7 @@ class DeserializeBuilder {
     fieldGroups?: string[],
   ): string {
     let code = '';
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
 
     if (collectErrors) {
       if (generalRules.length === 0) {
@@ -741,7 +741,7 @@ class DeserializeBuilder {
       } else if (this.validateOnly) {
         code += this.emitRuleList(fieldKey, varName, generalRules, emitCtx, '', fieldGroups);
       } else {
-        const markVar = `${GEN.mark}${sanitizeKey(fieldKey)}`;
+        const markVar = `${GEN.mark}${sk}`;
         code += `var ${markVar} = ${GEN.errList}.length;\n`;
         code += this.emitRuleList(fieldKey, varName, generalRules, emitCtx, '', fieldGroups);
         code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
@@ -773,7 +773,7 @@ class DeserializeBuilder {
     // pathKey must honor this.pathPrefix so inlined nested DTOs report full path.
     // Without this, validate(Parent, ...) returned `tags[1]` while deserialize returned `nested.tags[1]`.
     const pathKey = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
-    const sk = sanitizeKey(fieldKey);
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
     const iVar = `${GEN.index}${sk}`;
     const siVar = `${GEN.setIdx}${sk}`;
     const svVar = `${GEN.setVal}${sk}`;
@@ -943,18 +943,32 @@ class DeserializeBuilder {
     return code;
   }
 
+  /**
+   * Resolve a nested class's sealed executor. seal() seals every nested DTO (step 4) before deserialize
+   * codegen (step 6), so this is always present; throwing on `undefined` turns a would-be runtime
+   * "Cannot read 'deserialize'/'merged' of undefined" into a clear seal-time error and removes the cast.
+   */
+  private resolveExecutor(cls: Function): SealedExecutors<unknown> {
+    const sealed = this.resolve(cls);
+    if (sealed === undefined) {
+      throw new BakerError(`${this.Class.name}: nested class '${cls.name}' was not sealed before deserialize codegen.`);
+    }
+    return sealed;
+  }
+
   // ── generateCollectionCode — Map/Set auto conversion ──
 
   private generateCollectionCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext): string {
     const { collectErrors, execs } = this;
-    const sk = sanitizeKey(fieldKey);
-    const collection = meta.type!.collection!;
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
+    const type = meta.type!;
+    const collection = type.collection!;
     const awaitKw = this.isAsync ? 'await ' : '';
 
     // nested DTO executor (if present)
     let execIdx = -1;
-    if (meta.type!.resolvedCollectionValue) {
-      const nestedSealed = this.resolve(meta.type!.resolvedCollectionValue) as SealedExecutors<unknown>;
+    if (type.resolvedCollectionValue) {
+      const nestedSealed = this.resolveExecutor(type.resolvedCollectionValue);
       execIdx = execs.length;
       execs.push(nestedSealed);
     }
@@ -1078,7 +1092,7 @@ class DeserializeBuilder {
     return code;
   }
 
-  // ── generateNestedCode — @ValidateNested + @Type (§8.1, §8.2) ──
+  // ── generateNestedCode — @ValidateNested + @Type ──
 
   private generateNestedCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext): string {
     const { collectErrors, execs } = this;
@@ -1088,17 +1102,17 @@ class DeserializeBuilder {
     }
 
     let code = '';
-    const sk = sanitizeKey(fieldKey);
+    const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
 
     if (meta.type.discriminator) {
-      // §8.3 discriminator
+      // discriminator
       const discProp = JSON.stringify(meta.type.discriminator.property);
       code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
       code += `switch (${GEN.disc}${sk}) {\n`;
       for (const sub of meta.type.discriminator.subTypes) {
-        const nestedSealed = this.resolve(sub.value) as SealedExecutors<unknown> | undefined;
+        const nestedSealed = this.resolveExecutor(sub.value);
         const execIdx = execs.length;
-        execs.push(nestedSealed as SealedExecutors<unknown>);
+        execs.push(nestedSealed);
         const awaitKwD = this.isAsync ? 'await ' : '';
         code += `  case ${JSON.stringify(sub.name)}:\n`;
         code += `    var ${GEN.result}${sk} = ${awaitKwD}execs[${execIdx}].deserialize(${varName}, opts);\n`;
@@ -1116,17 +1130,18 @@ class DeserializeBuilder {
         code += `  default: return err([{path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}}]);\n`;
       }
       code += `}\n`;
-      // keepDiscriminatorProperty: preserve discriminator property in result object (PB-3)
-      if (meta.type.keepDiscriminatorProperty) {
+      // keepDiscriminatorProperty: preserve discriminator property in result object (PB-3).
+      // `=== true` matches the serialize side exactly (default drop) — symmetric, not a truthy check.
+      if (meta.type.keepDiscriminatorProperty === true) {
         const fkJson = JSON.stringify(fieldKey);
         code += `{var __dh=${GEN.out}[${fkJson}]; if(__dh!=null) __dh[${discProp}]=${GEN.disc}${sk};}\n`;
       }
     } else {
-      // §8.1 simple nested or §8.2 each array
+      // simple nested or each array
       const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-      const nestedSealed = this.resolve(nestedCls) as SealedExecutors<unknown> | undefined;
+      const nestedSealed = this.resolveExecutor(nestedCls);
       const execIdx = execs.length;
-      execs.push(nestedSealed as SealedExecutors<unknown>);
+      execs.push(nestedSealed);
 
       // Check if validateNested each (array) — meta.type is already proven non-null above
       const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
@@ -1199,7 +1214,10 @@ class DeserializeBuilder {
     const inlinedSet = this.inlineNestedClasses!;
     inlinedSet.add(nestedClass);
 
-    const child = this.createChild(pathPrefixExpr, varPrefix, inputExpr);
+    // Stamp a unique id into this block's varPrefix so every generated name in the child scope is
+    // globally unique — two nested scopes can never collide even if their field-name shapes would
+    // otherwise concatenate to the same prefix.
+    const child = this.createChild(pathPrefixExpr, `${varPrefix}${this.inlineCounter.n++}_`, inputExpr);
 
     let code = '';
     for (const [fieldKey, meta] of Object.entries(nestedMerged)) {
@@ -1229,7 +1247,7 @@ class DeserializeBuilder {
       code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
       code += `switch (${GEN.disc}${sk}) {\n`;
       for (const sub of meta.type.discriminator.subTypes) {
-        const subSealed = this.resolve(sub.value) as SealedExecutors<unknown>;
+        const subSealed = this.resolveExecutor(sub.value);
         const subMerged = subSealed.merged;
         const canInline = subMerged && !this.inlineNestedClasses.has(sub.value);
         code += `  case ${JSON.stringify(sub.name)}:\n`;
@@ -1257,7 +1275,7 @@ class DeserializeBuilder {
       code += `}\n`;
     } else {
       const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
-      const nestedSealed = this.resolve(nestedCls) as SealedExecutors<unknown>;
+      const nestedSealed = this.resolveExecutor(nestedCls);
       const nestedMerged = nestedSealed.merged;
       const hasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
 
@@ -1360,7 +1378,8 @@ class DeserializeBuilder {
   ): string {
     const { collectErrors, execs } = this;
     const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
-    const collection = meta.type!.collection!;
+    const type = meta.type!;
+    const collection = type.collection!;
     const awaitKw = this.isAsync ? 'await ' : '';
 
     if (!this.inlineNestedClasses) {
@@ -1371,9 +1390,9 @@ class DeserializeBuilder {
     let nestedCls: Function | undefined;
     let nestedSealed: SealedExecutors<unknown> | undefined;
     let nestedMerged: RawClassMeta | undefined;
-    if (meta.type!.resolvedCollectionValue) {
-      nestedCls = meta.type!.resolvedCollectionValue;
-      nestedSealed = this.resolve(nestedCls) as SealedExecutors<unknown>;
+    if (type.resolvedCollectionValue) {
+      nestedCls = type.resolvedCollectionValue;
+      nestedSealed = this.resolveExecutor(nestedCls);
       nestedMerged = nestedSealed.merged;
     }
     const useInline = nestedCls && nestedMerged && !this.inlineNestedClasses.has(nestedCls);
@@ -1443,16 +1462,20 @@ class DeserializeBuilder {
       const eachRules = meta.validation.filter(rd => rd.each);
       if (eachRules.length > 0) {
         const eiVar = `${GEN.index}${sk}e`;
+        const prefixVar = `__bk$ep_${sk}`;
         code += `  for (var ${eiVar}=0; ${eiVar}<${varName}.length; ${eiVar}++) {\n`;
+        // Declare the shared path-prefix var on the first each-rule only (a local flag, not a scan of
+        // the generated text — `var` hoists, so one declaration serves every rule in this loop).
+        let prefixDeclared = false;
         for (const rd of eachRules) {
-          const prefixVar = `__bk$ep_${sk}`;
           const extra = this.computeRuleExtras(rd, fieldKey, varName);
           const failFn = (c: string) =>
             collectErrors
               ? `${GEN.errList}.push({path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}})`
               : `return [{path:${prefixVar}+${eiVar}+']',code:${JSON.stringify(c)}${extra}}]`;
           const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
-          if (!code.includes(`var ${prefixVar}`)) {
+          if (!prefixDeclared) {
+            prefixDeclared = true;
             const prefixInit = this.pathPrefix
               ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['`
               : `${JSON.stringify(fieldKey)}+'['`;
@@ -1561,19 +1584,6 @@ class DeserializeBuilder {
   }
 }
 
-/** Writable view of the builder's data fields — used to populate a child instance created via
- *  Object.create (bypassing the constructor so reference arrays can be shared). */
-/** Inline-nested scope a parent builder hands to a child: the shared mutable accumulator (reference
- *  arrays + circular-tracking set) plus the child's own path/var/input expression overrides. */
-interface ChildScope {
-  regexes: RegExp[];
-  refs: unknown[];
-  execs: SealedExecutors<unknown>[];
-  inlineNestedClasses: Set<Function> | undefined;
-  pathPrefix: string;
-  varPrefix: string;
-  inputExpr: string;
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Exported entry functions — thin wrappers over DeserializeBuilder (signatures unchanged)

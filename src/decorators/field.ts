@@ -4,11 +4,11 @@ import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { Transformer } from '../transformers';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
-import { ensureMeta } from '../metadata';
+import { metaStore } from '../metadata';
 import { ExcludeMode } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayOf — Array element validation marker (replaces each: true)
+// arrayOf — Array element validation marker (compiles to per-rule `each: true`)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ARRAY_OF = Symbol.for('baker:arrayOf');
@@ -28,8 +28,7 @@ interface ArrayOfMarker {
  * ```
  */
 function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
-  const marker: { rules: EmittableRule[]; [key: symbol]: true } = { rules, [ARRAY_OF]: true };
-  return marker as ArrayOfMarker;
+  return { rules, [ARRAY_OF]: true };
 }
 
 function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
@@ -173,35 +172,37 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
   return { rules: args as RuleArg[], options: {} };
 }
 
+/** Copy the field-level groups/message/context options onto a rule def (only when provided). */
+function decorateRuleDef(rd: RuleDef, options: FieldOptions): RuleDef {
+  if (options.groups !== undefined) {
+    rd.groups = options.groups;
+  }
+  if (options.message !== undefined) {
+    rd.message = options.message;
+  }
+  if (options.context !== undefined) {
+    rd.context = options.context;
+  }
+  return rd;
+}
+
+/** Copy the field-level groups option onto an expose def (only when provided). */
+function withGroups(ed: ExposeDef, options: FieldOptions): ExposeDef {
+  if (options.groups !== undefined) {
+    ed.groups = options.groups;
+  }
+  return ed;
+}
+
 /** Register validation rules + handle arrayOf */
 function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: FieldOptions): void {
   for (const rule of rules) {
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
-        const rd: RuleDef = { rule: innerRule, each: true };
-        if (options.groups !== undefined) {
-          rd.groups = options.groups;
-        }
-        if (options.message !== undefined) {
-          rd.message = options.message;
-        }
-        if (options.context !== undefined) {
-          rd.context = options.context;
-        }
-        meta.validation.push(rd);
+        meta.validation.push(decorateRuleDef({ rule: innerRule, each: true }, options));
       }
     } else {
-      const rd: RuleDef = { rule: rule as InternalRule };
-      if (options.groups !== undefined) {
-        rd.groups = options.groups;
-      }
-      if (options.message !== undefined) {
-        rd.message = options.message;
-      }
-      if (options.context !== undefined) {
-        rd.context = options.context;
-      }
-      meta.validation.push(rd);
+      meta.validation.push(decorateRuleDef({ rule: rule as InternalRule }, options));
     }
   }
 }
@@ -209,25 +210,13 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
 /** Handle expose 5-branch logic */
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
-    const ed: ExposeDef = { name: options.name };
-    if (options.groups !== undefined) {
-      ed.groups = options.groups;
-    }
-    meta.expose.push(ed);
+    meta.expose.push(withGroups({ name: options.name }, options));
   } else if (options.deserializeName || options.serializeName) {
     if (options.deserializeName) {
-      const ed: ExposeDef = { name: options.deserializeName, deserializeOnly: true };
-      if (options.groups !== undefined) {
-        ed.groups = options.groups;
-      }
-      meta.expose.push(ed);
+      meta.expose.push(withGroups({ name: options.deserializeName, deserializeOnly: true }, options));
     }
     if (options.serializeName) {
-      const ed: ExposeDef = { name: options.serializeName, serializeOnly: true };
-      if (options.groups !== undefined) {
-        ed.groups = options.groups;
-      }
-      meta.expose.push(ed);
+      meta.expose.push(withGroups({ name: options.serializeName, serializeOnly: true }, options));
     }
   } else if (options.groups) {
     meta.expose.push({ groups: options.groups });
@@ -297,7 +286,7 @@ function Field(...args: unknown[]): FieldDecorator {
       throw new BakerError(`@Field: symbol property keys are not supported. Use a string property name.`);
     }
     const propertyKey = context.name;
-    const meta = ensureMeta(context.metadata, propertyKey);
+    const meta = metaStore.ensure(context.metadata, propertyKey);
 
     const { rules, options } = parseFieldArgs(args);
 
@@ -307,6 +296,14 @@ function Field(...args: unknown[]): FieldDecorator {
     if (options.name && (options.deserializeName || options.serializeName)) {
       throw new BakerError(
         `@Field on ${propertyKey}: 'name' cannot be combined with 'deserializeName'/'serializeName'. Use one or the other.`,
+      );
+    }
+
+    // `mapValue` (Map value type) and `setValue` (Set element type) both fill the single collection
+    // value slot — providing both is ambiguous and would silently drop one. Reject it instead.
+    if (options.mapValue !== undefined && options.setValue !== undefined) {
+      throw new BakerError(
+        `@Field on ${propertyKey}: 'mapValue' and 'setValue' cannot both be set — use 'mapValue' for a Map value type and 'setValue' for a Set element type.`,
       );
     }
 

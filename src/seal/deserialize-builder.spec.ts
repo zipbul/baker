@@ -2,10 +2,9 @@ import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
 import type { BakerIssue } from '../common/errors';
-import type { SealOptions } from './interfaces';
-import type { RawClassMeta } from '../metadata/types';
-import type { EmittableRule } from '../rules/types';
-import type { SealedExecutors } from './types';
+import type { SealOptions, SealedExecutors } from './interfaces';
+import type { RawClassMeta } from '../metadata/interfaces';
+import type { EmittableRule } from '../rules/interfaces';
 
 import { assertIsErr } from '../../test/integration/helpers/assert';
 import { isNotEmpty } from '../rules/common';
@@ -287,28 +286,6 @@ describe('buildDeserializeCode', () => {
     assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs.some((e: BakerIssue) => e.path === 'name')).toBe(true);
-  });
-
-  it('should treat @IsDefined as overriding @IsOptional (undefined still fails)', async () => {
-    // Arrange
-    class IsDef {
-      val!: string;
-    }
-    const merged: RawClassMeta = {
-      val: {
-        validation: [{ rule: isString }],
-        transform: [],
-        expose: [],
-        exclude: null,
-        type: null,
-        flags: { isOptional: true, isDefined: true }, // IsDefined wins
-      },
-    };
-    const exec = buildDeserializeCode(IsDef, merged, undefined, false, false, resolve);
-    // Act — undefined should fail (no optional guard when isDefined)
-    const result = await exec({});
-    // Assert
-    expect(isErr(result)).toBe(true);
   });
 
   // ── Corner ─────────────────────────────────────────────────────────────────
@@ -844,7 +821,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
 
   // A no-op rule to trigger hasEach:true path without failing validation
   const alwaysPass: EmittableRule = Object.assign((_v: unknown): boolean => true, {
-    emit: (_varName: string, _ctx: import('../rules/types').EmitContext): string => '',
+    emit: (_varName: string, _ctx: import('../rules/interfaces').EmitContext): string => '',
     ruleName: 'alwaysPass',
   });
 
@@ -961,7 +938,7 @@ it('should support rules that call addExecutor on EmitContext', async () => {
   };
 
   const customRule: EmittableRule = Object.assign((value: unknown): boolean => typeof value === 'string', {
-    emit(varName: string, ctx: import('../rules/types').EmitContext): string {
+    emit(varName: string, ctx: import('../rules/interfaces').EmitContext): string {
       // exercise addExecutor to cover L657-658
       ctx.addExecutor(dummySealedExec);
       // return a simple validation check (always pass for string)

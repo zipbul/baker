@@ -1,3 +1,4 @@
 // Directory barrel — config normalization (BakerConfig → SealOptions).
-export { normalizeConfig } from './configure';
-export type { BakerConfig } from './configure';
+export { ConfigNormalizer, configNormalizer } from './config-normalizer';
+export { BAKER_CONFIG_KEYS } from './constants';
+export type { BakerConfig } from './interfaces';

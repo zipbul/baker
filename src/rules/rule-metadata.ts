@@ -1,4 +1,4 @@
-import type { EmittableRule, InternalRule, RulePlan } from './types';
+import type { EmittableRule, InternalRule, RulePlan } from './interfaces';
 
 // Type boundary — the single place that brands a bare validator function with
 // the readonly metadata properties declared on InternalRule. All other modules
@@ -28,7 +28,7 @@ export function defineRuleMetadata(fn: InternalRule, meta: RuleMetadata): void {
   if (meta.isAsync !== undefined) {
     target.isAsync = meta.isAsync;
   }
-  if (meta.plan) {
+  if (meta.plan !== undefined) {
     target.plan = meta.plan;
   }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { RequiredType } from './enums';
 
-import type { EmitContext } from './types';
+import type { EmitContext } from './interfaces';
 
 import {
   minLength,
@@ -251,6 +251,31 @@ describe('matches', () => {
   it('should return false for empty string when pattern requires content', () => {
     const rule = matches(/^[a-z]+$/);
     expect(rule('')).toBe(false);
+  });
+
+  it('should be stateless across calls when the pattern carries a global flag', () => {
+    const rule = matches(/^[a-z]+$/g);
+    expect(rule('abc')).toBe(true);
+    // A stateful (g-flagged) regex advances lastIndex, so the second identical value would wrongly fail.
+    expect(rule('abc')).toBe(true);
+    expect(rule('abc')).toBe(true);
+  });
+
+  it('should be stateless across calls when the pattern carries a sticky flag', () => {
+    const rule = matches(/^[a-z]+$/y);
+    expect(rule('abc')).toBe(true);
+    expect(rule('abc')).toBe(true);
+  });
+
+  it('should be stateless when the global flag comes from the string-and-modifiers form', () => {
+    const rule = matches('^[a-z]+$', 'gi');
+    expect(rule('ABC')).toBe(true);
+    expect(rule('ABC')).toBe(true);
+  });
+
+  it('should preserve non-stateful flags such as case-insensitive', () => {
+    const rule = matches(/^[a-z]+$/i);
+    expect(rule('ABC')).toBe(true);
   });
 });
 
@@ -626,33 +651,33 @@ describe('isNumberString', () => {
   });
 });
 
-describe('isNumberString — no_symbols option', () => {
-  it('should reject "+123" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('+123')).toBe(false);
+describe('isNumberString — noSymbols option', () => {
+  it('should reject "+123" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('+123')).toBe(false);
   });
 
-  it('should reject "-456" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('-456')).toBe(false);
+  it('should reject "-456" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('-456')).toBe(false);
   });
 
-  it('should reject "1.5" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('1.5')).toBe(false);
+  it('should reject "1.5" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('1.5')).toBe(false);
   });
 
-  it('should reject "1e5" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('1e5')).toBe(false);
+  it('should reject "1e5" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('1e5')).toBe(false);
   });
 
-  it('should accept "123" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('123')).toBe(true);
+  it('should accept "123" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('123')).toBe(true);
   });
 
-  it('should accept "0" when no_symbols is true', () => {
-    expect(isNumberString({ no_symbols: true })('0')).toBe(true);
+  it('should accept "0" when noSymbols is true', () => {
+    expect(isNumberString({ noSymbols: true })('0')).toBe(true);
   });
 
-  it('should accept "+123" when no_symbols is false (default)', () => {
-    expect(isNumberString({ no_symbols: false })('+123')).toBe(true);
+  it('should accept "+123" when noSymbols is false (default)', () => {
+    expect(isNumberString({ noSymbols: false })('+123')).toBe(true);
   });
 
   it('should accept "+123" when no options provided', () => {

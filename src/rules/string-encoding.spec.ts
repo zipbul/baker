@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { RequiredType } from './enums';
 
-import type { EmitContext } from './types';
+import type { EmitContext } from './interfaces';
 
 import { isHexadecimal, isOctal, isHexColor, isRgbColor, isHSL, isBase32, isBase58, isBase64 } from './string';
 
@@ -203,6 +203,14 @@ describe('isBase64', () => {
 
   it('should return true for URL-safe Base64 when urlSafe option is true', () => {
     expect(isBase64({ urlSafe: true })('SGVsbG8gV29ybGQ')).toBe(true);
+  });
+
+  it('should reject a URL-safe string with an invalid Base64 length (single char)', () => {
+    expect(isBase64({ urlSafe: true })('a')).toBe(false);
+  });
+
+  it('should reject a malformed padded URL-safe string', () => {
+    expect(isBase64({ urlSafe: true })('a===')).toBe(false);
   });
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isBase64', () => {

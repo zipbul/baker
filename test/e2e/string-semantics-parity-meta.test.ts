@@ -36,11 +36,11 @@ afterEach(() => unseal());
 
 type StringRuleCase = {
   name: string;
-  rule: import('../../src/rules/types').EmittableRule;
+  rule: import('../../src/rules/interfaces').EmittableRule;
   samples: unknown[];
 };
 
-async function dtoPasses(rule: import('../../src/rules/types').EmittableRule, value: unknown): Promise<boolean> {
+async function dtoPasses(rule: import('../../src/rules/interfaces').EmittableRule, value: unknown): Promise<boolean> {
   class Dto {
     @Field(rule)
     value!: unknown;

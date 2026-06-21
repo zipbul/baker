@@ -1,23 +1,12 @@
 import type { Result, ResultAsync } from '@zipbul/result';
 
-import type { BakerIssue, RuntimeOptions } from '../common';
-import type { RawClassMeta } from '../metadata';
+import type { RuntimeOptions, BakerIssue } from '../common';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SealedExecutors — Dual executor stored in the Baker's per-instance executor map (§2.1)
-// ─────────────────────────────────────────────────────────────────────────────
+/** Compiled deserialize executor — Result pattern (or its async variant), produced by the builder. */
+export type DeserializeExecutor<T> = (
+  input: unknown,
+  opts?: RuntimeOptions,
+) => Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
 
-export interface SealedExecutors<T> {
-  /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
-  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
-  /** Internal executor — always succeeds. serialize assumes no validation */
-  serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
-  /** Internal executor — validate-only (no object creation). Returns null on success, BakerIssue[] on failure */
-  validate(input: unknown, options?: RuntimeOptions): BakerIssue[] | null | Promise<BakerIssue[] | null>;
-  /** true if the deserialize direction has async rules/transforms/nested */
-  isAsync: boolean;
-  /** true if the serialize direction has async transforms/nested */
-  isSerializeAsync: boolean;
-  /** Merged metadata cache — used internally by unseal helper */
-  merged?: RawClassMeta;
-}
+/** Compiled validate-only executor — null on success, BakerIssue[] on failure (or its async variant). */
+export type ValidateExecutor = (input: unknown, opts?: RuntimeOptions) => BakerIssue[] | null | Promise<BakerIssue[] | null>;

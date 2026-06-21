@@ -30,4 +30,14 @@ describe('momentTransformer — happy path', () => {
     expect(t.deserialize!({ value: 42 } as never)).toBe(42);
     expect(t.serialize!({ value: 42 } as never)).toBe(42);
   });
+
+  it('parses input in UTC mode so a zoneless string is machine-independent (matches luxon)', async () => {
+    // A zoneless string must resolve to the same instant on every host; local-time parsing makes the
+    // serialized output depend on the machine timezone. `bun test` forces TZ=UTC, which would hide an
+    // output-based assertion — so assert the parse mode (moment.utc → isUTC()===true) instead, which is
+    // timezone-independent. Mirrors luxonTransformer's `zone: 'utc'` default.
+    const t = await momentTransformer();
+    const m = t.deserialize!({ value: '2021-06-15T12:00:00' } as never) as { isUTC(): boolean };
+    expect(m.isUTC()).toBe(true);
+  });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { EmitContext } from './types';
+import type { EmitContext } from './interfaces';
 
 import { createRule } from './create-rule';
 import { oneOf, arrayEvery } from './combinators';
@@ -57,10 +57,6 @@ describe('oneOf', () => {
 
   it('should throw at construction when given zero branches', () => {
     expect(() => oneOf()).toThrow();
-  });
-
-  it('should throw at construction when given a non-rule branch', () => {
-    expect(() => oneOf(isString, 123 as unknown as typeof isString)).toThrow();
   });
 
   it('should have ruleName oneOf and undefined requiresType', () => {
@@ -164,10 +160,6 @@ describe('arrayEvery', () => {
 
   it('should throw at construction when given zero rules', () => {
     expect(() => arrayEvery()).toThrow();
-  });
-
-  it('should throw at construction when given a non-rule', () => {
-    expect(() => arrayEvery(123 as unknown as typeof isString)).toThrow();
   });
 
   it('should return a Promise resolving to true when async element rules all pass', async () => {

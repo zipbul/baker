@@ -172,10 +172,10 @@ describe('isNumberString', () => {
   });
 });
 
-describe('isNumberString({ no_symbols: true })', () => {
+describe('isNumberString({ noSymbols: true })', () => {
   @baker.Recipe
   class NumStrictDto {
-    @Field(isNumberString({ no_symbols: true })) v!: string;
+    @Field(isNumberString({ noSymbols: true })) v!: string;
   }
   it('pure digits passes', async () => {
     expect(((await baker.deserialize<NumStrictDto>(NumStrictDto, { v: '12345' })) as NumStrictDto).v).toBe('12345');
@@ -439,10 +439,10 @@ describe('isFQDN', () => {
   });
 });
 
-describe('isFQDN({ require_tld: false })', () => {
+describe('isFQDN({ requireTld: false })', () => {
   @baker.Recipe
   class HostDto {
-    @Field(isFQDN({ require_tld: false })) host!: string;
+    @Field(isFQDN({ requireTld: false })) host!: string;
   }
   it('single-label hostname passes', async () => {
     const r = (await baker.deserialize<HostDto>(HostDto, { host: 'localhost' })) as HostDto;

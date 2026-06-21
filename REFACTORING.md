@@ -214,10 +214,30 @@ A/B don't touch codegen but the harness should exist before C.
     published dir into `public.ts` (curated published surface) + `index.ts` (full internal barrel) so
     every cross-domain import routes through `../<dir>` with no deep import~~ — **DONE**.
 
+11. ~~**DI class extraction (collaborator-owned state)** — lift the seal/metadata/config stage logic
+    from free functions into constructor-injected classes whose methods read `this`/private `#fields`
+    (the "uses-`this`" test; genuinely stateless helpers stay functions — `validateExposeStacks`, all
+    codegen emitters, the `runtime/` dispatchers): `MetaStore` (the single RAW-access boundary;
+    `metaStore` singleton, injected into `SealRun`/`Baker`), `InheritanceMerger(#meta)`,
+    `CircularAnalyzer(#merger)`, `AsyncAnalyzer(#resolve,#merger)`, `MetaValidator(#meta)`,
+    `ConfigNormalizer(#validKeys)`, and `CircularPlaceholder(#message)` (writable own/arrow executor
+    fields so `sealOne` can `Object.assign`-replace them in place, preserving reference identity).
+    `SealRun`'s constructor wires the collaborator graph by injection. Smear cleanup: builder/codegen
+    types → `seal/types.ts` + `seal/interfaces.ts` (`DeserializeExecutor`/`ValidateExecutor`/
+    `ChildScope`/`CategorizedRules`/`ResolvedTypeGate`); codegen data consts → `seal/constants.ts` as
+    distinct `DES_GEN`/`SER_GEN` (alias-imported as `GEN` → byte-identical) +
+    `PRIMITIVE_TYPE_HINTS`/`ASSERTER_TO_GATE`/`GATE_ONLY_ASSERTERS`. The `EmitContext`-coupled codegen
+    types (`GuardParams`/`TypeGateConfig`) stay internal to `deserialize-codegen.ts` so the
+    barrel-exported `interfaces.ts` keeps no `rules → seal` edge (which would close a `rules↔seal`
+    cycle)~~ — **DONE**.
+
 Result: `src/` root holds only `baker.ts` (composition root) + `symbols.ts` (pinned). All other code
 lives in its domain (`common/ metadata/ config/ rules/ transformers/ seal/ runtime/`). The builders and
-the seal pipeline are classes; their pure codegen utilities live in sibling `*-codegen`/`codegen-utils`
-modules. No `Object.create`/`as`-cast hacks, no `any`/`@ts-ignore`/`eslint-disable` in source. Junk-drawer
+the seal pipeline are classes; the seal/metadata/config stage logic is constructor-injected classes that
+own their collaborators/state as private `#fields` (`MetaStore`, `InheritanceMerger`, `CircularAnalyzer`,
+`AsyncAnalyzer`, `MetaValidator`, `ConfigNormalizer`, `CircularPlaceholder`), while genuinely stateless
+helpers (codegen emitters, `runtime/` dispatchers, `validateExposeStacks`) stay functions. Pure codegen
+utilities live in sibling `*-codegen`/`codegen-utils` modules. No `Object.create`/`as`-cast hacks, no `any`/`@ts-ignore`/`eslint-disable` in source. Junk-drawer
 `types.ts`/`enums.ts`/`interfaces.ts` are gone. Acyclic. **Barrels:** every directory has an `index.ts`;
 the three published dirs (`rules`/`transformers`/`decorators`) additionally have a `public.ts` — the
 package.json subpath publishes `public.ts` (curated), while same-repo code imports the full `index.ts`
@@ -228,7 +248,7 @@ Unit specs are co-located per source file. Each phase independently revertible; 
 ---
 
 ## Invariants (every commit)
-- `bunx tsc --noEmit` clean; `bun test` fully green (currently 2335 pass).
+- `bunx tsc --noEmit` clean; `bun test` fully green (currently 2397 pass).
 - Generated `new Function` bodies byte-identical (snapshot-checked from Phase C onward).
 - Public surface unchanged: `/index.ts` names+shapes, subpath barrels (`./rules`, `./transformers`,
   `./decorators`, `./symbols`), `package.json` exports. `./symbols` keeps pointing at root `symbols.ts`.

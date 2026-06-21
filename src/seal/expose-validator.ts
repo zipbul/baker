@@ -1,9 +1,10 @@
 import type { RawClassMeta, ExposeDef } from '../metadata';
 
 import { Direction, BakerError } from '../common';
+import { RESERVED_PROPERTY_NAMES } from './constants';
 
 /**
- * Static validation of @Expose stacks (§4.1, §3.3)
+ * Static validation of @Expose stacks
  *
  * Check 1: same @Expose entry has deserializeOnly: true + serializeOnly: true → excluded from both directions
  * Check 2: if 2+ @Expose entries in the same direction have overlapping groups → BakerError
@@ -23,9 +24,9 @@ function validateExposeStacks(merged: RawClassMeta, className?: string): void {
       }
       // Reserved output keys would corrupt the serialized object (e.g. a '__proto__' key sets the
       // prototype instead of an own property) — reject them as wire names, matching banned field names.
-      if (exp.name === '__proto__' || exp.name === 'constructor' || exp.name === 'prototype') {
+      if (exp.name !== undefined && RESERVED_PROPERTY_NAMES.has(exp.name)) {
         throw new BakerError(
-          `Invalid @Field name on '${prefix}${key}': '${exp.name}' is a reserved property name and cannot be used as a serialized key.`,
+          `Invalid @Expose name on '${prefix}${key}': '${exp.name}' is a reserved property name and cannot be used as a serialized key.`,
         );
       }
     }
@@ -51,7 +52,7 @@ function checkDirectionOverlap(key: string, entries: ExposeDef[], direction: Dir
       const bGroups = entries[j]!.groups ?? [];
       if (groupsOverlap(aGroups, bGroups)) {
         const bSet = new Set(bGroups);
-        const overlapping = aGroups.length === 0 ? [] : aGroups.filter(g => bSet.has(g));
+        const overlapping = aGroups.filter(g => bSet.has(g));
         throw new BakerError(
           `@Expose conflict on '${key}': 2 @Expose stacks with '${direction}' direction and overlapping groups [${overlapping.join(', ')}]. Each direction must have at most one @Expose per group set.`,
         );

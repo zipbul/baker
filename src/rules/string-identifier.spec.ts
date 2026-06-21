@@ -1,6 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { EmitContext } from './types';
+import type { EmitContext } from './interfaces';
 
 import {
   isISO8601,
@@ -130,6 +130,10 @@ describe('isISO31661Alpha3', () => {
 
   it('should return false for invalid 3-letter code', () => {
     expect(isISO31661Alpha3('XXX')).toBe(false);
+  });
+
+  it('should return false for ANT (Netherlands Antilles, withdrawn from ISO 3166-1 in 2010)', () => {
+    expect(isISO31661Alpha3('ANT')).toBe(false);
   });
 
   it('should call ctx.addRef and generate test code when calling emit() and have ruleName isISO31661Alpha3', () => {

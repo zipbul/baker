@@ -1,16 +1,13 @@
 import type { RuntimeOptions } from '../common';
 
 import { BakerError } from '../common';
+import { BAKER_CONFIG_KEYS } from '../config';
 
 const CALL_OPTION_KEYS = new Set<string>(['groups']);
+// Seal-time keys rejected per-call: the public BakerConfig names (single source: BAKER_CONFIG_KEYS)
+// plus the internal SealOptions aliases they normalize to.
 const SEAL_TIME_KEYS = new Set<string>([
-  // BakerConfig (public, configure-time)
-  'autoConvert',
-  'allowClassDefaults',
-  'stopAtFirstError',
-  'forbidUnknown',
-  'debug',
-  // SealOptions (internal, legacy aliases — same set covered by public names)
+  ...BAKER_CONFIG_KEYS,
   'enableImplicitConversion',
   'exposeDefaultValues',
   'whitelist',
@@ -41,6 +38,13 @@ export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
   }
   for (const key of Object.keys(opts)) {
     if (CALL_OPTION_KEYS.has(key)) {
+      if (key === 'groups') {
+        const groups = (opts as RuntimeOptions).groups;
+        if (groups !== undefined && (!Array.isArray(groups) || groups.some(g => typeof g !== 'string'))) {
+          const received = Array.isArray(groups) ? 'an array with a non-string element' : typeof groups;
+          throw new BakerError(`Call option 'groups' must be a string[] of group names. Received: ${received}.`);
+        }
+      }
       continue;
     }
     if (SEAL_TIME_KEYS.has(key)) {

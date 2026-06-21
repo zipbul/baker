@@ -1,7 +1,7 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { RequiredType } from './enums';
 
-import type { EmitContext } from './types';
+import type { EmitContext } from './interfaces';
 
 import {
   isEmail,
@@ -237,9 +237,9 @@ describe('isMACAddress', () => {
     expect(isMACAddress().ruleName).toBe('isMACAddress');
   });
 
-  it('should generate no-separator regex check code when emit() is called with no_separators:true', () => {
+  it('should generate no-separator regex check code when emit() is called with noSeparators:true', () => {
     const { ctx, addRegexMock, failMock } = makeCtx(0);
-    const code = isMACAddress({ no_separators: true }).emit('v', ctx);
+    const code = isMACAddress({ noSeparators: true }).emit('v', ctx);
     expect(addRegexMock).toHaveBeenCalledTimes(1);
     expect(code).toBeTruthy();
     expect(failMock).toHaveBeenCalledWith('isMACAddress');
@@ -303,6 +303,10 @@ describe('isLocale', () => {
 
   it('should return false for invalid locale', () => {
     expect(isLocale('a')).toBe(false);
+  });
+
+  it('should return true for a BCP 47 tag with a digit-led 4-char variant subtag (de-DE-1996)', () => {
+    expect(isLocale('de-DE-1996')).toBe(true);
   });
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isLocale', () => {
@@ -857,6 +861,18 @@ describe('isBtcAddress', () => {
 
   it('should return true for a valid bech32 address', () => {
     expect(isBtcAddress('bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')).toBe(true);
+  });
+
+  it('should return true for an all-uppercase bech32 address (BIP-173)', () => {
+    expect(isBtcAddress('BC1QAR0SRRR7XFKVY5L643LYDNW9RE59GTZZWF5MDQ')).toBe(true);
+  });
+
+  it('should return true for a testnet bech32 address (tb1)', () => {
+    expect(isBtcAddress('tb1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')).toBe(true);
+  });
+
+  it('should return false for a mixed-case bech32 address', () => {
+    expect(isBtcAddress('bc1QAR0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq')).toBe(false);
   });
 
   it('should return false for clearly invalid address', () => {

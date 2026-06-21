@@ -114,22 +114,33 @@ class OwnerArrayDto {
 }
 
 describe('discriminator — serialize', () => {
-  it('should serialize single discriminator field with instanceof dispatch', async () => {
+  it('should serialize single discriminator field with instanceof dispatch (default drops discriminator key)', async () => {
     const dog = Object.assign(new DogDto(), { breed: 'Shiba' });
     const owner = Object.assign(new OwnerDto(), { name: 'Alice', pet: dog });
     const result = await baker.serialize(owner);
-    expect(result.pet).toEqual({ breed: 'Shiba', type: 'dog' });
+    expect(result.pet).toEqual({ breed: 'Shiba' });
   });
 
-  it('should serialize array discriminator field with instanceof dispatch', async () => {
+  it('should serialize array discriminator field with instanceof dispatch (default drops discriminator key)', async () => {
     const dog = Object.assign(new DogDto(), { breed: 'Poodle' });
     const cat = Object.assign(new CatDto(), { indoor: true });
     const owner = Object.assign(new OwnerArrayDto(), { name: 'Bob', pets: [dog, cat] });
     const result = await baker.serialize(owner);
-    expect(result.pets).toEqual([
-      { breed: 'Poodle', type: 'dog' },
-      { indoor: true, type: 'cat' },
-    ]);
+    expect(result.pets).toEqual([{ breed: 'Poodle' }, { indoor: true }]);
+  });
+
+  it('keepDiscriminatorProperty:true → serialize retains the discriminator key', async () => {
+    const dog = Object.assign(new DogDto(), { breed: 'Shiba' });
+    const owner = Object.assign(new OwnerKeepDiscDto(), { pet: dog });
+    const result = await baker.serialize(owner);
+    expect(result.pet).toEqual({ breed: 'Shiba', kind: 'dog' });
+  });
+
+  it('default (unset) → discriminator key dropped symmetrically across deserialize + serialize (round-trip)', async () => {
+    const de = (await baker.deserialize(OwnerDto, { name: 'Z', pet: { type: 'cat', indoor: true } })) as OwnerDto;
+    expect((de.pet as { type?: unknown }).type).toBeUndefined();
+    const ser = await baker.serialize(de);
+    expect((ser.pet as { type?: unknown }).type).toBeUndefined();
   });
 });
 

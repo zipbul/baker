@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// RuntimeOptions — per-call runtime options (§5.3). Seam type: seal threads it through
+// RuntimeOptions — per-call runtime options. Seam type: seal threads it through
 // SealedExecutors' signature, runtime consumes it — neither stage owns it.
 // ─────────────────────────────────────────────────────────────────────────────
 

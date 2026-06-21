@@ -39,6 +39,16 @@ describe('@Field — target guards', () => {
     expect(() => Field({ name: 'wire', serializeName: 'out' })(undefined, fieldContext({}))).toThrow(/cannot be combined/);
   });
 
+  it('rejects providing both mapValue and setValue', () => {
+    class Foo {}
+    expect(() => Field({ type: () => Map, mapValue: () => Foo, setValue: () => Foo })(undefined, fieldContext({}))).toThrow(
+      BakerError,
+    );
+    expect(() => Field({ type: () => Map, mapValue: () => Foo, setValue: () => Foo })(undefined, fieldContext({}))).toThrow(
+      /cannot both be set/,
+    );
+  });
+
   it('accepts a normal instance field', () => {
     expect(() => Field(isString)(undefined, fieldContext({ name: 'name' }))).not.toThrow();
   });

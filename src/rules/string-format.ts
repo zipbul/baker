@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
@@ -74,7 +74,7 @@ function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
 const IPV4_RE =
   /^(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)\.(25[0-5]|2[0-4]\d|1\d{2}|[1-9]\d|\d)$/;
 const IPV6_RE =
-  /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^::$|^::1$|^::(?:ffff(?::0{1,4})?:)?(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$|^(?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
+  /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^::$|^::(?:ffff(?::0{1,4})?:)?(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$|^(?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
 function isIP(version?: 4 | 6): EmittableRule {
   return makeRule({
@@ -111,7 +111,7 @@ function isIP(version?: 4 | 6): EmittableRule {
 
 // MAC Address
 interface IsMACAddressOptions {
-  no_separators?: boolean;
+  noSeparators?: boolean;
 }
 
 const MAC_COLON_RE = /^[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}$/;
@@ -119,21 +119,22 @@ const MAC_HYPHEN_RE = /^[0-9a-fA-F]{2}(?:-[0-9a-fA-F]{2}){5}$/;
 const MAC_NO_SEP_RE = /^[0-9a-fA-F]{12}$/;
 
 function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
+  const noSeparators = options?.noSeparators ?? false;
   return makeRule({
     name: 'isMACAddress',
     requiresType: RequiredType.String,
-    constraints: { no_separators: options?.no_separators },
+    constraints: { noSeparators },
     validate: value => {
       if (typeof value !== 'string') {
         return false;
       }
-      if (options?.no_separators) {
+      if (noSeparators) {
         return MAC_NO_SEP_RE.test(value);
       }
       return MAC_COLON_RE.test(value) || MAC_HYPHEN_RE.test(value);
     },
     emit: (varName: string, ctx: EmitContext): string => {
-      if (options?.no_separators) {
+      if (noSeparators) {
         const i = ctx.addRegex(MAC_NO_SEP_RE);
         return `if (!re[${i}].test(${varName})) ${ctx.fail('isMACAddress')};`;
       }
@@ -169,8 +170,9 @@ function isLatLong(): EmittableRule {
   );
 }
 
-// Locale — BCP 47 simplified
-const LOCALE_RE = /^[a-zA-Z]{2,3}(?:-[a-zA-Z]{4})?(?:-(?:[a-zA-Z]{2}|\d{3}))?(?:-[a-zA-Z\d]{5,8})*$/;
+// Locale — BCP 47 simplified. Variant subtags are `5*8alphanum` OR a digit followed by 3 alphanum
+// (e.g. the `1996` orthography variant in `de-DE-1996`).
+const LOCALE_RE = /^[a-zA-Z]{2,3}(?:-[a-zA-Z]{4})?(?:-(?:[a-zA-Z]{2}|\d{3}))?(?:-(?:[a-zA-Z\d]{5,8}|\d[a-zA-Z\d]{3}))*$/;
 const isLocale = makeStringRule(
   'isLocale',
   v => LOCALE_RE.test(v),
@@ -193,15 +195,15 @@ const isDataURI = makeStringRule(
 
 // FQDN
 interface IsFQDNOptions {
-  require_tld?: boolean;
-  allow_underscores?: boolean;
-  allow_trailing_dot?: boolean;
+  requireTld?: boolean;
+  allowUnderscores?: boolean;
+  allowTrailingDot?: boolean;
 }
 
 function isFQDN(options?: IsFQDNOptions): EmittableRule {
-  const requireTld = options?.require_tld !== false;
-  const allowUnderscores = options?.allow_underscores ?? false;
-  const allowTrailingDot = options?.allow_trailing_dot ?? false;
+  const requireTld = options?.requireTld !== false;
+  const allowUnderscores = options?.allowUnderscores ?? false;
+  const allowTrailingDot = options?.allowTrailingDot ?? false;
 
   const partRe = allowUnderscores ? /^[a-zA-Z0-9_-]+$/ : /^[a-zA-Z0-9-]+$/;
 
@@ -222,7 +224,8 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
     }
     if (requireTld) {
       const tld = parts[parts.length - 1];
-      if (!tld || tld.length < 2 || !/^[a-zA-Z]{2,}$/.test(tld)) {
+      // `/^[a-zA-Z]{2,}$/` already rejects anything shorter than 2; `!tld` narrows the `string | undefined` index.
+      if (!tld || !/^[a-zA-Z]{2,}$/.test(tld)) {
         return false;
       }
     }
@@ -243,11 +246,7 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
   return makeRule({
     name: 'isFQDN',
     requiresType: RequiredType.String,
-    constraints: {
-      require_tld: options?.require_tld,
-      allow_underscores: options?.allow_underscores,
-      allow_trailing_dot: options?.allow_trailing_dot,
-    },
+    constraints: { requireTld, allowUnderscores, allowTrailingDot },
     validate: validateFqdn,
     emit: (varName: string, ctx: EmitContext): string => {
       const ri = ctx.addRegex(partRe);
@@ -268,7 +267,7 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
       if (requireTld) {
         code += `if(fp.length<2)${ctx.fail('isFQDN')};`;
         code += `else{var tld=fp[fp.length-1];`;
-        code += `if(!tld||tld.length<2||!re[${tldRi}].test(tld))${ctx.fail('isFQDN')};`;
+        code += `if(!tld||!re[${tldRi}].test(tld))${ctx.fail('isFQDN')};`;
         code += `else{${loopBlock}}`; // close tld inner else block
         code += '}'; // close tld outer else block
       } else {
@@ -368,7 +367,7 @@ function isByteLength(min: number, max?: number): EmittableRule {
   });
 }
 
-// isHash — per-algorithm hex regex (§4.8 B: regex inline)
+// isHash — per-algorithm hex regex (regex inline)
 
 const HASH_REGEXES: Record<string, RegExp> = {
   md5: /^[a-f0-9]{32}$/i,
@@ -407,7 +406,7 @@ function isHash(algorithm: string): EmittableRule {
   });
 }
 
-// isRFC3339 — RFC 3339 datetime (§4.8 B)
+// isRFC3339 — RFC 3339 datetime
 
 const RFC3339_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/i;
 
@@ -420,7 +419,7 @@ const isRFC3339 = makeStringRule(
   },
 );
 
-// isMilitaryTime — HH:MM 24-hour format (§4.8 B)
+// isMilitaryTime — HH:MM 24-hour format
 
 const MILITARY_TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -433,79 +432,46 @@ const isMilitaryTime = makeStringRule(
   },
 );
 
-// isLatitude — string or number, -90 to 90 (requiresType none)
+// isLatitude / isLongitude — a number, or a strictly-numeric string, within [lo, hi] (requiresType none)
 
-function checkLatitude(value: unknown): boolean {
-  if (typeof value === 'number') {
-    return value >= -90 && value <= 90;
-  }
-  if (typeof value === 'string') {
-    const n = parseFloat(value);
-    if (isNaN(n)) {
-      return false;
+const NUMERIC_RANGE_RE = /^-?\d+(\.\d+)?$/;
+
+function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRule {
+  const check = (value: unknown): boolean => {
+    if (typeof value === 'number') {
+      return value >= lo && value <= hi;
     }
-    // parseFloat('90abc') = 90 — strict regex check rejects trailing garbage
-    if (!/^-?\d+(\.\d+)?$/.test(value)) {
-      return false;
+    if (typeof value === 'string') {
+      // parseFloat('90abc') = 90 — strict regex rejects trailing garbage; a match guarantees parseFloat is valid.
+      if (!NUMERIC_RANGE_RE.test(value)) {
+        return false;
+      }
+      const n = parseFloat(value);
+      return n >= lo && n <= hi;
     }
-    return n >= -90 && n <= 90;
-  }
-  return false;
+    return false;
+  };
+  return makeRule({
+    name,
+    constraints: {},
+    validate: check,
+    emit: (varName: string, ctx: EmitContext): string => {
+      const ri = ctx.addRegex(NUMERIC_RANGE_RE);
+      return (
+        `if(typeof ${varName}==='number'){if(${varName}<${lo}||${varName}>${hi})${ctx.fail(name)};}` +
+        `else if(typeof ${varName}==='string'){` +
+        `if(!re[${ri}].test(${varName})){${ctx.fail(name)}}` +
+        `else{var rg=parseFloat(${varName});if(rg<${lo}||rg>${hi})${ctx.fail(name)};}}` +
+        `else{${ctx.fail(name)};}`
+      );
+    },
+  });
 }
 
-const isLatitude = makeRule({
-  name: 'isLatitude',
-  constraints: {},
-  validate: checkLatitude,
-  emit: (varName: string, ctx: EmitContext): string => {
-    const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
-    return (
-      `if(typeof ${varName}==='number'){if(${varName}<-90||${varName}>90)${ctx.fail('isLatitude')};}` +
-      `else if(typeof ${varName}==='string'){` +
-      // Regex catches non-numeric strings; if it matches, parseFloat is guaranteed valid (no isNaN check needed)
-      `if(!re[${ri}].test(${varName})){${ctx.fail('isLatitude')}}` +
-      `else{var lt=parseFloat(${varName});if(lt<-90||lt>90)${ctx.fail('isLatitude')};}}` +
-      `else{${ctx.fail('isLatitude')};}`
-    );
-  },
-});
+const isLatitude = rangeNumberOrString('isLatitude', -90, 90);
+const isLongitude = rangeNumberOrString('isLongitude', -180, 180);
 
-// isLongitude — string or number, -180 to 180 (requiresType none)
-
-function checkLongitude(value: unknown): boolean {
-  if (typeof value === 'number') {
-    return value >= -180 && value <= 180;
-  }
-  if (typeof value === 'string') {
-    const n = parseFloat(value);
-    if (isNaN(n)) {
-      return false;
-    }
-    if (!/^-?\d+(\.\d+)?$/.test(value)) {
-      return false;
-    }
-    return n >= -180 && n <= 180;
-  }
-  return false;
-}
-
-const isLongitude = makeRule({
-  name: 'isLongitude',
-  constraints: {},
-  validate: checkLongitude,
-  emit: (varName: string, ctx: EmitContext): string => {
-    const ri = ctx.addRegex(/^-?\d+(\.\d+)?$/);
-    return (
-      `if(typeof ${varName}==='number'){if(${varName}<-180||${varName}>180)${ctx.fail('isLongitude')};}` +
-      `else if(typeof ${varName}==='string'){` +
-      `if(!re[${ri}].test(${varName})){${ctx.fail('isLongitude')}}` +
-      `else{var ln=parseFloat(${varName});if(ln<-180||ln>180)${ctx.fail('isLongitude')};}}` +
-      `else{${ctx.fail('isLongitude')};}`
-    );
-  },
-});
-
-// isEthereumAddress — 0x + 40 hex chars (§4.8 B)
+// isEthereumAddress — 0x + 40 hex chars
 
 const ETH_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
@@ -518,11 +484,13 @@ const isEthereumAddress = makeStringRule(
   },
 );
 
-// isBtcAddress — P2PKH (1...), P2SH (3...), bech32 (bc1...) (§4.8 B)
+// isBtcAddress — P2PKH (1...), P2SH (3...), bech32 (bc1.../tb1...)
 
 const BTC_P2PKH_RE = /^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/;
 const BTC_P2SH_RE = /^3[a-km-zA-HJ-NP-Z1-9]{25,34}$/;
-const BTC_BECH32_RE = /^(bc1)[a-z0-9]{6,87}$/;
+// bech32 (BIP-173): mainnet `bc1` / testnet `tb1`. Case-insensitive but never mixed-case — accept
+// all-lowercase or all-uppercase, reject a mix.
+const BTC_BECH32_RE = /^(?:(?:bc1|tb1)[a-z0-9]{6,87}|(?:BC1|TB1)[A-Z0-9]{6,87})$/;
 
 const isBtcAddress = makeStringRule(
   'isBtcAddress',
@@ -535,7 +503,7 @@ const isBtcAddress = makeStringRule(
   },
 );
 
-// isPhoneNumber — E.164 international phone number (§4.8 B)
+// isPhoneNumber — E.164 international phone number
 
 const PHONE_E164_RE = /^\+[1-9]\d{6,14}$/;
 
@@ -548,7 +516,7 @@ const isPhoneNumber = makeStringRule(
   },
 );
 
-// isStrongPassword — strong password check (§4.8 C: factory)
+// isStrongPassword — strong password check (factory)
 
 interface IsStrongPasswordOptions {
   minLength?: number;
@@ -624,7 +592,7 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
   });
 }
 
-// isTaxId — locale-specific tax identifier (§4.8 C: factory)
+// isTaxId — locale-specific tax identifier (factory)
 
 const TAX_ID_REGEXES: Record<string, RegExp> = {
   US: /^\d{2}-\d{7}$/, // EIN format: XX-XXXXXXX

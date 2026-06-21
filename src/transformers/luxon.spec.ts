@@ -30,4 +30,17 @@ describe('luxonTransformer — happy path', () => {
     expect(t.deserialize!({ value: 42 } as never)).toBe(42);
     expect(t.serialize!({ value: 42 } as never)).toBe(42);
   });
+
+  it('passes an unparseable date string through untouched (no Invalid-DateTime laundering)', async () => {
+    // Mirrors momentTransformer's contract: a bad input must NOT become a fake-valid DateTime that
+    // later serializes to null / "Invalid DateTime".
+    const t = await luxonTransformer();
+    expect(t.deserialize!({ value: 'not-a-date' } as never)).toBe('not-a-date');
+  });
+
+  it('passes an unparseable Date through untouched', async () => {
+    const t = await luxonTransformer();
+    const invalid = new Date('not-a-date');
+    expect(t.deserialize!({ value: invalid } as never)).toBe(invalid);
+  });
 });

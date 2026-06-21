@@ -1,35 +1,11 @@
 import type { RawPropertyMeta, RuleDef } from '../metadata';
 import type { EmitContext } from '../rules';
+import type { CategorizedRules } from './interfaces';
 
 import { BakerError } from '../common';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
+import { DES_GEN as GEN } from './constants';
 import { GuardKey } from './enums';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Generated variable name prefixes — centralised to prevent typo-related bugs
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const GEN = {
-  field: '__bk$f_',
-  index: '__bk$i_',
-  setIdx: '__bk$si_',
-  setVal: '__bk$sv_',
-  mapIdx: '__bk$mi_',
-  mapVal: '__bk$mv_',
-  mark: '__bk$mark_',
-  skip: '__bk$skip_',
-  result: '__bk$r_',
-  errors: '__bk$re_',
-  arr: '__bk$arr_',
-  disc: '__bk$dt_',
-  nestedIdx: '__bk$j_',
-  out: '__bk$out',
-  errList: '__bk$errors',
-  groups: '__bk$groups',
-  group0: '__bk$group0',
-  groupsSet: '__bk$groupsSet',
-  key: '__bk$k',
-} as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — code generation utilities (pure, module-level)
@@ -52,11 +28,14 @@ export function nestedErrPush(errList: string, pathExpr: string, errItemExpr: st
 /** Generate nested error return code that propagates message/context fields */
 export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string, validateOnly?: boolean): string {
   const ret = (arr: string) => (validateOnly ? `return ${arr};\n` : `return err(${arr});\n`);
+  // Cache errItemExpr once — mirrors nestedErrPush, avoids repeated property reads in the generated body.
+  const eVar = `${tmpVar}_e`;
   return (
-    `if(${errItemExpr}.message===undefined&&${errItemExpr}.context===undefined)${ret(`[{path:${pathExpr},code:${errItemExpr}.code}]`)}` +
-    `    var ${tmpVar}={path:${pathExpr},code:${errItemExpr}.code};\n` +
-    `    if(${errItemExpr}.message!==undefined)${tmpVar}.message=${errItemExpr}.message;\n` +
-    `    if(${errItemExpr}.context!==undefined)${tmpVar}.context=${errItemExpr}.context;\n` +
+    `var ${eVar}=${errItemExpr};\n` +
+    `    if(${eVar}.message===undefined&&${eVar}.context===undefined)${ret(`[{path:${pathExpr},code:${eVar}.code}]`)}` +
+    `    var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
+    `    if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
+    `    if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `    ${ret(`[${tmpVar}]`)}`
   );
 }
@@ -73,15 +52,12 @@ export function toVarName(key: string, prefix?: string): string {
 // nullable/optional guard — truth-table strategy pattern (D-3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function resolveGuardKey(isNullable: boolean, useOptionalGuard: boolean, isDefined: boolean): GuardKey {
+export function resolveGuardKey(isNullable: boolean, useOptionalGuard: boolean): GuardKey {
   if (isNullable && useOptionalGuard) {
     return GuardKey.NullableOptional;
   }
   if (isNullable) {
     return GuardKey.Nullable;
-  }
-  if (isDefined) {
-    return GuardKey.Defined;
   }
   if (useOptionalGuard) {
     return GuardKey.Optional;
@@ -89,6 +65,10 @@ export function resolveGuardKey(isNullable: boolean, useOptionalGuard: boolean, 
   return GuardKey.Default;
 }
 
+// GuardParams and TypeGateConfig stay in this internal (non-barrel) module rather than seal/interfaces.ts:
+// both reference rules' EmitContext, and seal/interfaces.ts is imported by rules/interfaces.ts (for
+// EmitContext.addExecutor → SealedExecutors), so housing them in the barrel-exported file would close a
+// rules ↔ seal cycle. The rules-free codegen types (CategorizedRules/ResolvedTypeGate) live in interfaces.ts.
 export interface GuardParams {
   varName: string;
   emitCtx: EmitContext;
@@ -97,7 +77,7 @@ export interface GuardParams {
 }
 
 export const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
-  // Case 4: @IsNullable + @IsOptional — assign null, skip undefined
+  // Case 4: nullable + optional — assign null, skip undefined
   [GuardKey.NullableOptional]({ varName, assignNull, validationCode }) {
     let code = `if (${varName} === null) { ${assignNull}}\n`;
     code += `else if (${varName} !== undefined) {\n`;
@@ -105,7 +85,7 @@ export const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
     code += '}\n';
     return code;
   },
-  // Case 3: @IsNullable (+ optional @IsDefined — same behavior)
+  // Case 3: nullable — reject undefined, assign and accept null
   [GuardKey.Nullable]({ varName, emitCtx, assignNull, validationCode }) {
     let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
     code += `else if (${varName} !== null) {\n`;
@@ -113,20 +93,14 @@ export const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
     code += `} else { ${assignNull}}\n`;
     return code;
   },
-  // @IsDefined — reject only undefined, null/""/0 etc. pass through to subsequent validation
-  [GuardKey.Defined]({ varName, emitCtx, validationCode }) {
-    let code = `if (${varName} === undefined) ${emitCtx.fail('isDefined')};\n`;
-    code += validationCode;
-    return code;
-  },
-  // Case 2: @IsOptional — skip entirely on undefined/null
+  // Case 2: optional — skip entirely on undefined/null
   [GuardKey.Optional]({ varName, validationCode }) {
     let code = `if (${varName} !== undefined && ${varName} !== null) {\n`;
     code += validationCode;
     code += '}\n';
     return code;
   },
-  // Case 1: No flags (default) — reject undefined/null
+  // Case 1: no flags (default) — reject undefined/null
   [GuardKey.Default]({ varName, emitCtx, validationCode }) {
     let code = `if (${varName} === undefined || ${varName} === null) ${emitCtx.fail('isDefined')};\n`;
     code += `else {\n`;
@@ -137,7 +111,7 @@ export const GUARD_STRATEGIES: Record<GuardKey, (p: GuardParams) => string> = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// wrapGroupsGuard — per-rule validation groups check wrapper (§M4)
+// wrapGroupsGuard — per-rule validation groups check wrapper
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -200,36 +174,7 @@ export function generateConversionCode(
   }
 }
 
-/** `@Type`() primitive builtin → target type mapping */
-export const PRIMITIVE_TYPE_HINTS: Record<string, string> = {
-  Number: 'number',
-  Boolean: 'boolean',
-  String: 'string',
-  Date: 'date',
-};
-
-/** Asserter rule name → gate type mapping */
-export const ASSERTER_TO_GATE: Record<string, string> = {
-  isString: 'string',
-  isNumber: 'number',
-  isBoolean: 'boolean',
-  isDate: 'date',
-  isInt: 'number',
-  isArray: 'array',
-  isObject: 'object',
-};
-
-/** Asserters whose gate check fully subsumes the rule (skip emit inside gate) */
-export const GATE_ONLY_ASSERTERS = new Set(['isString', 'isBoolean', 'isDate', 'isArray', 'isObject']);
-
 /** Result of categorizeRules — each/nonEach split and typed dependency classification */
-export interface CategorizedRules {
-  each: RuleDef[];
-  generalRules: RuleDef[];
-  /** The single typed dependency group (if any) after conflict check */
-  typedDeps: { type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object'; deps: RuleDef[] } | undefined;
-}
-
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts (pure) */
 export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validation']): CategorizedRules {
   // Single-pass partition — was 9 separate .filter() passes over the same array, each allocating
@@ -280,23 +225,6 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   }
 
   return { each, generalRules, typedDeps: chosen };
-}
-
-/** Result of resolveTypeGate — effective gate type and related metadata */
-export interface ResolvedTypeGate {
-  effectiveGateType: string | null;
-  /** The typed dependency rules (from requiresType) */
-  gateDeps: RuleDef[];
-  /** Index of the type asserter within generalRules (-1 if none) */
-  typeAsserterIdx: number;
-  /** The type asserter rule def (if found) */
-  typeAsserter: RuleDef | undefined;
-  /** Whether conversion is enabled for this field */
-  enableConversion: boolean;
-  /** Whether this gate was inferred from asserter only (no typed deps) */
-  asserterInferredGate: string | null;
-  /** Whether this gate was inferred from @Type hint */
-  typeHintGate: string | null;
 }
 
 /** Config object for emitTypedRules — bundles closure-captured vars into explicit parameter */

@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { CacheKey } from '../common';
 import { RequiredType, RuleOp } from './enums';
@@ -72,7 +72,12 @@ function notContains(seed: string): EmittableRule {
 }
 
 function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
-  const re = pattern instanceof RegExp ? pattern : new RegExp(pattern, modifiers);
+  // Strip stateful flags (g/y): the compiled regex is shared in the executor closure and reused for
+  // every value, so a stateful `lastIndex` would make `.test()` alternate true/false across calls.
+  // Rebuilding from source also detaches any externally-shared RegExp instance.
+  const source = pattern instanceof RegExp ? pattern.source : pattern;
+  const flags = (pattern instanceof RegExp ? pattern.flags : (modifiers ?? '')).replace(/[gy]/g, '');
+  const re = new RegExp(source, flags);
   return makeRule({
     name: 'matches',
     requiresType: RequiredType.String,
@@ -202,7 +207,7 @@ const isBooleanString = makeRule({
 });
 
 interface IsNumberStringOptions {
-  no_symbols?: boolean;
+  noSymbols?: boolean;
 }
 
 const NO_SYMBOLS_RE = /^[0-9]+$/;
@@ -212,7 +217,7 @@ const NO_SYMBOLS_RE = /^[0-9]+$/;
 const NUMERIC_STRING_RE = /^[+-]?(?:[0-9]*\.)?[0-9]+$/;
 
 function isNumberString(options?: IsNumberStringOptions): EmittableRule {
-  const noSymbols = options?.no_symbols ?? false;
+  const noSymbols = options?.noSymbols ?? false;
   const re = noSymbols ? NO_SYMBOLS_RE : NUMERIC_STRING_RE;
 
   return makeStringRule(
@@ -223,7 +228,7 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
     },
     RequiredType.String,
-    { no_symbols: noSymbols },
+    { noSymbols },
   );
 }
 

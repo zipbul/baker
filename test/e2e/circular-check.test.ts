@@ -19,6 +19,24 @@ class TreeNode {
   child?: TreeNode;
 }
 
+// ─── Cycle introduced only through an inherited @Type field ──────────────────
+// InheritedBase declares `next: () => InheritedDerived`; InheritedDerived extends it and inherits
+// that field → InheritedDerived -> InheritedDerived is a cycle visible only in the merged metadata.
+@baker.Recipe
+class InheritedBase {
+  @Field(isString)
+  value!: string;
+
+  @Field({ optional: true, type: () => InheritedDerived })
+  next?: InheritedDerived;
+}
+
+@baker.Recipe
+class InheritedDerived extends InheritedBase {
+  @Field({ optional: true })
+  extra?: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('circular reference detection', () => {
@@ -37,6 +55,16 @@ describe('circular reference detection', () => {
     circular.child.child = circular; // circular reference
 
     const result = await baker.deserialize(TreeNode, circular);
+    assertBakerIssueSet(result);
+    const err = result.errors.find(e => e.code === 'circular');
+    expect(err).toBeDefined();
+  });
+
+  it('cycle through an inherited @Type field → circular error (not stack overflow)', async () => {
+    const circular: { value: string; extra: string; next?: unknown } = { value: 'a', extra: 'x' };
+    circular.next = circular; // self-reference via the field inherited from InheritedBase
+
+    const result = await baker.deserialize(InheritedDerived, circular);
     assertBakerIssueSet(result);
     const err = result.errors.find(e => e.code === 'circular');
     expect(err).toBeDefined();

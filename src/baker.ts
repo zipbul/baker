@@ -1,8 +1,8 @@
 import type { BakerConfig } from './config';
-import type { BakerIssueSet, RuntimeOptions } from './common';
+import type { BakerIssueSet, ClassCtor, RuntimeOptions } from './common';
 import type { SealOptions, SealedExecutors } from './seal';
 
-import { normalizeConfig } from './config';
+import { configNormalizer } from './config';
 import { BakerError } from './common';
 import { sealRegistry } from './seal';
 import {
@@ -47,7 +47,7 @@ export class Baker {
   #sealed = false;
 
   constructor(config?: BakerConfig) {
-    this.#options = config === undefined ? Object.freeze({}) : normalizeConfig(config);
+    this.#options = config === undefined ? Object.freeze({}) : configNormalizer.normalize(config);
   }
 
   /** Class decorator — registers the class as a root of this baker. Use as `@app.Recipe`. */
@@ -88,31 +88,31 @@ export class Baker {
   }
 
   deserialize = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): T | BakerIssueSet | Promise<T | BakerIssueSet> => runDeserialize<T>(this.#require(Class), input, options);
 
-  deserializeSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): T | BakerIssueSet =>
+  deserializeSync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): T | BakerIssueSet =>
     runDeserializeSync<T>(this.#require(Class), Class.name, input, options);
 
   deserializeAsync = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): Promise<T | BakerIssueSet> => runDeserializeAsync<T>(this.#require(Class), input, options);
 
   validate = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): true | BakerIssueSet | Promise<true | BakerIssueSet> => runValidate(this.#require(Class), input, options);
 
-  validateSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerIssueSet =>
+  validateSync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): true | BakerIssueSet =>
     runValidateSync(this.#require(Class), Class.name, input, options);
 
   validateAsync = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): Promise<true | BakerIssueSet> => runValidateAsync(this.#require(Class), input, options);

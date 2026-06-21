@@ -1,5 +1,4 @@
-import type { SealOptions } from './interfaces';
-import type { SealedExecutors } from './types';
+import type { SealOptions, SealedExecutors } from './interfaces';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (class, config) executor cache — content-addressed sharing across bakers
@@ -16,45 +15,59 @@ import type { SealedExecutors } from './types';
  * executor per (class, config) for the class's lifetime — bounded for a fixed DTO/config set (the
  * intended "seal once at startup" usage); a program that dynamically generates classes/configs would
  * grow it without eviction.
+ *
+ * The cache owns its WeakMap as a private field (no module-level mutable state) and is exposed as a
+ * single process-global instance, `compileCache` — the single source of truth for compiled executors.
  */
-let compileCache = new WeakMap<Function, Map<string, SealedExecutors<unknown>>>();
+class CompileCache {
+  #cache: WeakMap<Function, Map<string, SealedExecutors<unknown>>>;
 
-/** Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
- * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key. */
-export function configFingerprint(o: SealOptions): string {
-  return (
-    (o.enableImplicitConversion ? '1' : '0') +
-    (o.exposeDefaultValues ? '1' : '0') +
-    (o.stopAtFirstError ? '1' : '0') +
-    (o.whitelist ? '1' : '0') +
-    (o.debug ? '1' : '0')
-  );
-}
-
-export function getCached(cls: Function, fp: string): SealedExecutors<unknown> | undefined {
-  return compileCache.get(cls)?.get(fp);
-}
-
-export function setCached(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
-  let m = compileCache.get(cls);
-  if (m === undefined) {
-    m = new Map();
-    compileCache.set(cls, m);
+  constructor() {
+    this.#cache = new WeakMap();
   }
-  m.set(fp, exec);
+
+  /**
+   * Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
+   * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key.
+   */
+  static fingerprint(o: SealOptions): string {
+    return (
+      (o.enableImplicitConversion ? '1' : '0') +
+      (o.exposeDefaultValues ? '1' : '0') +
+      (o.stopAtFirstError ? '1' : '0') +
+      (o.whitelist ? '1' : '0') +
+      (o.debug ? '1' : '0')
+    );
+  }
+
+  get(cls: Function, fp: string): SealedExecutors<unknown> | undefined {
+    return this.#cache.get(cls)?.get(fp);
+  }
+
+  set(cls: Function, fp: string, exec: SealedExecutors<unknown>): void {
+    let m = this.#cache.get(cls);
+    if (m === undefined) {
+      m = new Map();
+      this.#cache.set(cls, m);
+    }
+    m.set(fp, exec);
+  }
+
+  /** Test-only: drop a single class's cached executors so a re-seal recompiles it. */
+  clear(cls: Function): void {
+    this.#cache.delete(cls);
+  }
+
+  /**
+   * Test-only: drop the ENTIRE cache. Used by `unseal()` so a test that re-seals classes starts from a
+   * clean slate — a whole-cache reset (vs per-class) is the only way to avoid the partial-clear state
+   * where a cached root still references a nested whose entry was dropped (a root + its nested are
+   * always compiled together, so they must be invalidated together).
+   */
+  clearAll(): void {
+    this.#cache = new WeakMap();
+  }
 }
 
-/** Test-only: drop a single class's cached executors so a re-seal recompiles it. */
-export function clearCached(cls: Function): void {
-  compileCache.delete(cls);
-}
-
-/**
- * Test-only: drop the ENTIRE cache. Used by `unseal()` so a test that re-seals classes starts from a
- * clean slate — a whole-cache reset (vs per-class) is the only way to avoid the partial-clear state
- * where a cached root still references a nested whose entry was dropped (a root + its nested are always
- * compiled together, so they must be invalidated together).
- */
-export function clearAllCached(): void {
-  compileCache = new WeakMap();
-}
+export { CompileCache };
+export const compileCache = new CompileCache();

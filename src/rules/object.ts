@@ -1,4 +1,4 @@
-import type { EmitContext, EmittableRule } from './types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
@@ -35,7 +35,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
   return makeRule({
     name: 'isNotEmptyObject',
     requiresType: RequiredType.Object,
-    constraints: { nullable: options?.nullable },
+    constraints: options?.nullable !== undefined ? { nullable: options.nullable } : {},
     validate,
     // Codegen: for-in with break — measured ~1 ns faster than Object.keys allocation
     // (Bun 1.3.13 / i7-13700K). The generated body is not subject to source-lint rules.

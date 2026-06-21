@@ -131,6 +131,11 @@ describe('unixSecondsTransformer', () => {
     const plain = await baker.serialize(result);
     expect(plain.value).toBe(epoch);
   });
+
+  it('passes a non-finite number through untouched (no manufactured Invalid Date)', () => {
+    expect(unixSecondsTransformer.deserialize({ value: NaN, key: 'value', obj: {} })).toBeNaN();
+    expect(unixSecondsTransformer.deserialize({ value: Infinity, key: 'value', obj: {} })).toBe(Infinity);
+  });
 });
 
 // ─── 6. unixMillisTransformer ───────────────────────────────────────────────
