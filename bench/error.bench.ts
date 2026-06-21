@@ -10,15 +10,14 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, configure, isBakerIssueSet, seal } from '../index';
+import { Baker, Field, isBakerIssueSet } from '../index';
 import { isNumber, min } from '../src/rules/index';
 import { ERROR_ALL_FAIL } from './data';
 
+const baker = new Baker({ stopAtFirstError: false });
+
 // ── Baker ────────────────────────────────────────────────────────────────────
-
-configure({ stopAtFirstError: false });
-
-@Recipe
+@baker.Recipe
 class BakerIssueSet {
   @Field(isNumber(), min(1)) f0!: number;
   @Field(isNumber(), min(1)) f1!: number;
@@ -32,8 +31,8 @@ class BakerIssueSet {
   @Field(isNumber(), min(1)) f9!: number;
 }
 // warm seal
-seal();
-await deserialize(BakerIssueSet, ERROR_ALL_FAIL);
+baker.seal();
+await baker.deserialize(BakerIssueSet, ERROR_ALL_FAIL);
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -115,7 +114,7 @@ let sinkNum = 0;
 
 group('error collection — 10 fields all invalid', () => {
   bench('baker', () => {
-    const r = deserialize(BakerIssueSet, ERROR_ALL_FAIL);
+    const r = baker.deserialize(BakerIssueSet, ERROR_ALL_FAIL);
     sinkNum += isBakerIssueSet(r) ? (r as unknown as { errors: unknown[] }).errors.length : 1;
   });
   bench('zod', () => {

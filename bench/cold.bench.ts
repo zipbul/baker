@@ -9,16 +9,18 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, seal } from '../index';
+import { Baker, Field } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { unseal } from '../test/integration/helpers/unseal';
+
+const baker = new Baker();
 
 const input = { name: 'Alice', email: 'alice@example.com', age: 30, active: true, tag: 'ok' };
 
 // ── Baker ────────────────────────────────────────────────────────────────────
 // Baker's seal is one-time per class. To measure cold start, we use unseal helper.
 
-@Recipe
+@baker.Recipe
 class BakerCold {
   @Field(isString, minLength(2)) name!: string;
   @Field(isString, isEmail()) email!: string;
@@ -27,8 +29,8 @@ class BakerCold {
   @Field(isString) tag!: string;
 }
 // warm once to verify correctness
-seal();
-await deserialize(BakerCold, input);
+baker.seal();
+await baker.deserialize(BakerCold, input);
 
 // ── TypeBox ──────────────────────────────────────────────────────────────────
 // ── AJV ──────────────────────────────────────────────────────────────────────
@@ -51,8 +53,8 @@ await deserialize(BakerCold, input);
 group('cold start — schema define + compile + first validate', () => {
   bench('baker (unseal + re-seal + validate)', async () => {
     unseal();
-    seal();
-    await deserialize(BakerCold, input);
+    baker.seal();
+    await baker.deserialize(BakerCold, input);
   });
 
   bench('zod (define + parse)', () => {

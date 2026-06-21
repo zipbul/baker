@@ -11,13 +11,15 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
+import { Baker, Field, isBakerIssueSet } from '../index';
 import { isString, isEmail, isNumber, isBoolean, min, max, minLength } from '../src/rules/index';
 import { SIMPLE_VALID, SIMPLE_INVALID } from './data';
 
+const baker = new Baker();
+
 // ── Baker ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class BakerSimple {
   @Field(isString, minLength(2)) name!: string;
   @Field(isString, isEmail()) email!: string;
@@ -25,7 +27,7 @@ class BakerSimple {
   @Field(isBoolean) active!: boolean;
   @Field(isString) tag!: string;
 }
-seal();
+baker.seal();
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -103,7 +105,7 @@ let sinkNum = 0;
 
 group('simple object — valid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerSimple, SIMPLE_VALID) as BakerSimple;
+    const r = baker.deserialize(BakerSimple, SIMPLE_VALID) as BakerSimple;
     sinkNum += r.tag.length;
   });
   bench('zod', () => {
@@ -136,7 +138,7 @@ group('simple object — valid input', () => {
 
 group('simple object — invalid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerSimple, SIMPLE_INVALID);
+    const r = baker.deserialize(BakerSimple, SIMPLE_INVALID);
     if (isBakerIssueSet(r)) {
       sinkNum += r.errors.length;
     } else {

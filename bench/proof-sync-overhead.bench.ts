@@ -1,7 +1,9 @@
 import { bench, group, run } from 'mitata';
 
-import { createRule, deserialize, Field, Recipe, seal } from '../index';
+import { Baker, createRule, Field } from '../index';
 import { isString } from '../src/rules/index';
+
+const baker = new Baker();
 
 const directRule = (value: unknown) => typeof value === 'string';
 const wrappedRule = createRule({
@@ -9,19 +11,19 @@ const wrappedRule = createRule({
   validate: directRule,
 });
 
-@Recipe
+@baker.Recipe
 class BuiltinDto {
   @Field(isString)
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class CustomRuleDto {
   @Field(wrappedRule)
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class TransformDto {
   @Field(isString, {
     transform: {
@@ -33,10 +35,10 @@ class TransformDto {
 }
 
 // Warm seal
-seal();
-deserialize(BuiltinDto, { value: 'x' });
-deserialize(CustomRuleDto, { value: 'x' });
-deserialize(TransformDto, { value: 'x' });
+baker.seal();
+baker.deserialize(BuiltinDto, { value: 'x' });
+baker.deserialize(CustomRuleDto, { value: 'x' });
+baker.deserialize(TransformDto, { value: 'x' });
 
 let sink: unknown;
 
@@ -50,15 +52,15 @@ group('proof — sync overhead hotspots', () => {
   });
 
   bench('deserialize builtin rule DTO', () => {
-    sink = deserialize(BuiltinDto, { value: 'x' });
+    sink = baker.deserialize(BuiltinDto, { value: 'x' });
   });
 
   bench('deserialize custom rule DTO', () => {
-    sink = deserialize(CustomRuleDto, { value: 'x' });
+    sink = baker.deserialize(CustomRuleDto, { value: 'x' });
   });
 
   bench('deserialize sync transform DTO', () => {
-    sink = deserialize(TransformDto, { value: 'x' });
+    sink = baker.deserialize(TransformDto, { value: 'x' });
   });
 });
 

@@ -1,21 +1,23 @@
 import { bench, group, run } from 'mitata';
 
-import { Field, Recipe, deserialize, serialize, seal } from '../index';
+import { Baker, Field } from '../index';
 import { isString, minLength } from '../src/rules/index';
 
-@Recipe
+const baker = new Baker();
+
+@baker.Recipe
 class PlainDto {
   @Field(isString, minLength(1))
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class GroupDto {
   @Field(isString, minLength(1), { groups: ['admin'] })
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class OneTransformDto {
   @Field(isString, {
     transform: {
@@ -26,7 +28,7 @@ class OneTransformDto {
   value!: string;
 }
 
-@Recipe
+@baker.Recipe
 class TwoTransformDto {
   @Field(isString, {
     transform: [
@@ -37,11 +39,11 @@ class TwoTransformDto {
   value!: string;
 }
 
-seal();
-deserialize(PlainDto, { value: 'x' });
-deserialize(GroupDto, { value: 'x' }, { groups: ['admin'] });
-deserialize(OneTransformDto, { value: 'x' });
-deserialize(TwoTransformDto, { value: 'x' });
+baker.seal();
+baker.deserialize(PlainDto, { value: 'x' });
+baker.deserialize(GroupDto, { value: 'x' }, { groups: ['admin'] });
+baker.deserialize(OneTransformDto, { value: 'x' });
+baker.deserialize(TwoTransformDto, { value: 'x' });
 
 const serOne = Object.assign(new OneTransformDto(), { value: 'x' });
 const serTwo = Object.assign(new TwoTransformDto(), { value: 'x' });
@@ -50,27 +52,27 @@ let sink: unknown;
 
 group('proof — optimization candidates', () => {
   bench('deserialize plain field', () => {
-    sink = deserialize(PlainDto, { value: 'x' });
+    sink = baker.deserialize(PlainDto, { value: 'x' });
   });
 
   bench('deserialize grouped field with groups', () => {
-    sink = deserialize(GroupDto, { value: 'x' }, { groups: ['admin'] });
+    sink = baker.deserialize(GroupDto, { value: 'x' }, { groups: ['admin'] });
   });
 
   bench('deserialize one sync transform', () => {
-    sink = deserialize(OneTransformDto, { value: 'x' });
+    sink = baker.deserialize(OneTransformDto, { value: 'x' });
   });
 
   bench('deserialize two sync transforms', () => {
-    sink = deserialize(TwoTransformDto, { value: 'x' });
+    sink = baker.deserialize(TwoTransformDto, { value: 'x' });
   });
 
   bench('serialize one sync transform', () => {
-    sink = serialize(serOne);
+    sink = baker.serialize(serOne);
   });
 
   bench('serialize two sync transforms', () => {
-    sink = serialize(serTwo);
+    sink = baker.serialize(serTwo);
   });
 });
 

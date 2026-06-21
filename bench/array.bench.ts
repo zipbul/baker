@@ -10,23 +10,25 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
+import { Baker, Field, isBakerIssueSet } from '../index';
 import { isString, isNumber, min, arrayMinSize } from '../src/rules/index';
 import { ARRAY_VALID } from './data';
 
+const baker = new Baker();
+
 // ── Baker ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class BakerItem {
   @Field(isString) name!: string;
   @Field(isNumber(), min(0)) value!: number;
 }
-@Recipe
+@baker.Recipe
 class BakerList {
   @Field(arrayMinSize(1), { type: () => [BakerItem] }) items!: BakerItem[];
 }
-seal();
-await deserialize(BakerList, ARRAY_VALID);
+baker.seal();
+await baker.deserialize(BakerList, ARRAY_VALID);
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -103,7 +105,7 @@ let sinkNum = 0;
 
 group('array 1000 items — valid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerList, ARRAY_VALID);
+    const r = baker.deserialize(BakerList, ARRAY_VALID);
     sinkNum += isBakerIssueSet(r) ? r.errors.length : (r as { items: unknown[] }).items.length;
   });
   bench('zod', () => {
