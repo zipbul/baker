@@ -410,6 +410,69 @@ describe('async serialize: discriminator + array (each)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// async deserialize/validate: discriminator + array (exercises the `await` codegen branch)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('discriminator + array — async deserialize/validate', () => {
+  const ab = new Baker();
+  @ab.Recipe
+  class CatA {
+    @Field(isString) kind!: string;
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } })
+    meow!: string;
+  }
+  @ab.Recipe
+  class DogA {
+    @Field(isString) kind!: string;
+    @Field(isString) bark!: string;
+  }
+  @ab.Recipe
+  class OwnerA {
+    @Field({
+      type: () => [CatA],
+      discriminator: {
+        property: 'kind',
+        subTypes: [
+          { value: CatA, name: 'cat' },
+          { value: DogA, name: 'dog' },
+        ],
+      },
+    })
+    pets!: (CatA | DogA)[];
+  }
+  ab.seal();
+
+  it('deserialize resolves a discriminated array through an async element transform', async () => {
+    const r = await ab.deserialize(OwnerA, {
+      pets: [
+        { kind: 'cat', meow: 'nya' },
+        { kind: 'dog', bark: 'woof' },
+      ],
+    });
+    expect(isBakerIssueSet(r)).toBe(false);
+    expect((r as OwnerA).pets).toHaveLength(2);
+  });
+
+  it('deserialize reports invalidDiscriminator at the element path (async)', async () => {
+    const r = await ab.deserialize(OwnerA, { pets: [{ kind: 'fish' }] });
+    assertBakerIssueSet(r);
+    const bad = r.errors.find(e => e.path === 'pets[0]');
+    expect(bad).toBeDefined();
+    expect(bad!.code).toBe('invalidDiscriminator');
+  });
+
+  it('validate accepts a valid discriminated array (async)', async () => {
+    const r = await ab.validate(OwnerA, {
+      pets: [
+        { kind: 'cat', meow: 'nya' },
+        { kind: 'dog', bark: 'woof' },
+      ],
+    });
+    expect(r).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // discriminator + array under stopAtFirstError (exercises the early-return branches)
 // ─────────────────────────────────────────────────────────────────────────────
 
