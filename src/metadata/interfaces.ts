@@ -46,12 +46,21 @@ export interface ExcludeDef {
   serializeOnly?: boolean;
 }
 
+/** A polymorphic discriminator subtype mapping — a class constructor keyed by its wire name. */
+export interface DiscriminatorSubType {
+  value: Function;
+  name: string;
+}
+
+/** Polymorphic discriminator config — shared single source between @Field options and the IR TypeDef. */
+export interface DiscriminatorDef {
+  property: string;
+  subTypes: DiscriminatorSubType[];
+}
+
 export interface TypeDef {
   fn: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
-  discriminator?: {
-    property: string;
-    subTypes: { value: Function; name: string }[];
-  };
+  discriminator?: DiscriminatorDef;
   keepDiscriminatorProperty?: boolean;
   /** seal-time normalization result — true if fn() returns an array */
   isArray?: boolean;

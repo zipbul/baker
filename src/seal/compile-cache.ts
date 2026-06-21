@@ -19,6 +19,18 @@ import type { SealOptions, SealedExecutors } from './interfaces';
  * The cache owns its WeakMap as a private field (no module-level mutable state) and is exposed as a
  * single process-global instance, `compileCache` — the single source of truth for compiled executors.
  */
+// Every seal-affecting option, in fixed fingerprint order. Typed as `Record<keyof SealOptions, true>`
+// so adding (or removing) a SealOptions field is a COMPILE error here until the fingerprint covers it —
+// without this, a new option would silently collide two configs onto the same key and share a wrong
+// executor across bakers. The literal's key order is the fingerprint's bit order.
+const FINGERPRINT_KEYS = Object.keys({
+  enableImplicitConversion: true,
+  exposeDefaultValues: true,
+  stopAtFirstError: true,
+  whitelist: true,
+  debug: true,
+} satisfies Record<keyof SealOptions, true>) as (keyof SealOptions)[];
+
 class CompileCache {
   #cache: WeakMap<Function, Map<string, SealedExecutors<unknown>>>;
 
@@ -27,17 +39,15 @@ class CompileCache {
   }
 
   /**
-   * Canonical fingerprint of a SealOptions — the 5 booleans in fixed order. `{}` and a fully-defaulted
-   * object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key.
+   * Canonical fingerprint of a SealOptions — the seal-affecting booleans in fixed order. `{}` and a
+   * fully-defaulted object both map to "00000", so `new Baker()` and `new Baker({})` share a cache key.
    */
   static fingerprint(o: SealOptions): string {
-    return (
-      (o.enableImplicitConversion ? '1' : '0') +
-      (o.exposeDefaultValues ? '1' : '0') +
-      (o.stopAtFirstError ? '1' : '0') +
-      (o.whitelist ? '1' : '0') +
-      (o.debug ? '1' : '0')
-    );
+    let fp = '';
+    for (const key of FINGERPRINT_KEYS) {
+      fp += o[key] ? '1' : '0';
+    }
+    return fp;
   }
 
   get(cls: Function, fp: string): SealedExecutors<unknown> | undefined {

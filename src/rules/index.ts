@@ -9,3 +9,4 @@ export { createRule } from './create-rule';
 export { emitRulePlan } from './rule-plan';
 export { RequiredType } from './enums';
 export type { EmittableRule, InternalRule, EmitContext } from './interfaces';
+export type { RulePlanCache } from './types';

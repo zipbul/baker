@@ -28,6 +28,11 @@ export interface SealOptions {
 // SealedExecutors — Dual executor stored in the Baker's per-instance executor map
 // ─────────────────────────────────────────────────────────────────────────────
 
+// NOTE: deserialize/serialize/validate are declared with METHOD syntax (not arrow-property aliases)
+// on purpose — methods are bivariant in their parameters, which is what lets a concrete
+// `SealedExecutors<SomeDto>` be stored as `SealedExecutors<unknown>` (the type used throughout the
+// executor maps and `execs[]`). Switching to the `DeserializeExecutor`/`ValidateExecutor` aliases
+// (arrow types) would make the parameters contravariant and break that upcast.
 export interface SealedExecutors<T> {
   /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
   deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;

@@ -60,6 +60,16 @@ describe('isISO8601', () => {
     expect(isISO8601({ strict: true })('2023-02-30')).toBe(false);
   });
 
+  // Same proleptic Gregorian leap rule as isDateString — years 0–99 must not be remapped to 1900–1999.
+  it.each([
+    ['0000-02-29', true],
+    ['0001-02-29', false],
+    ['2000-02-29', true],
+    ['1900-02-29', false],
+  ])('strict: true leap validity: %s -> %s', (input, expected) => {
+    expect(isISO8601({ strict: true })(input)).toBe(expected);
+  });
+
   it('should reject an out-of-range month in a year-month string with strict: true', () => {
     expect(isISO8601({ strict: true })('2021-13')).toBe(false);
     expect(isISO8601({ strict: true })('2021-00')).toBe(false);
@@ -214,6 +224,21 @@ describe('isDateString', () => {
 
   it('should return false for invalid date string format', () => {
     expect(isDateString()('15/01/2023')).toBe(false);
+  });
+
+  // Calendar validity must use the proleptic Gregorian leap rule for ALL years, including 0–99.
+  // `new Date(year, …)` remaps a 0–99 year argument to 1900–1999, so year 0 (a leap year by the
+  // 400 rule) was mis-judged against 1900 (not a leap year).
+  it.each([
+    ['0000-02-29', true], // year 0: divisible by 400 -> leap
+    ['0001-02-29', false], // year 1: not divisible by 4 -> not leap
+    ['0004-02-29', true], // year 4: divisible by 4 -> leap
+    ['2000-02-29', true], // divisible by 400 -> leap
+    ['1900-02-29', false], // divisible by 100, not 400 -> not leap
+    ['2024-02-29', true],
+    ['2023-02-29', false],
+  ])('calendar leap validity: %s -> %s', (input, expected) => {
+    expect(isDateString()(input)).toBe(expected);
   });
 
   it('should call ctx.addRegex and generate test code when calling emit() and have ruleName isDateString', () => {

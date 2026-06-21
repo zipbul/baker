@@ -6,7 +6,7 @@ import type { RuntimeOptions, BakerIssue } from '../common';
 import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
 import type { DeserializeExecutor, ValidateExecutor } from './types';
 import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata';
-import type { EmitContext } from '../rules';
+import type { EmitContext, RulePlanCache } from '../rules';
 
 import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
@@ -557,7 +557,7 @@ class DeserializeBuilder {
       const gatedCtx = insideTypeGate ? { ...ruleEmitCtx, insideTypeGate: true } : ruleEmitCtx;
       let emitted: string;
       if (sg && rd.rule.plan && (lengthVar || timeVar)) {
-        const cache: { length?: string; time?: string } = {};
+        const cache: RulePlanCache = {};
         if (rd.rule.plan.cacheKey === CacheKey.Length && lengthVar) {
           cache.length = lengthVar;
         }
@@ -781,6 +781,9 @@ class DeserializeBuilder {
     const mvVar = `${GEN.mapVal}${sk}`;
     const prefixVar = `__bk$ep_${sk}`;
     const kindVar = `__bk$ck${sk}`;
+    // Per-iteration element binding — a message function on an `each` rule must receive the failing
+    // ELEMENT as `value` (matching the element-level path `field[i]`), not the whole collection.
+    const elemVar = `__bk$el${sk}`;
 
     // Collection kind + non-collection (isArray) rejection are FIELD-level, not per-rule: compute the
     // kind once and reject a non-array/Set/Map a single time. Emitting these inside the per-rule loop
@@ -790,7 +793,8 @@ class DeserializeBuilder {
     code += `if (${kindVar} === 0) ${emitCtx.fail('isArray')};\n`;
 
     for (const rd of eachRules) {
-      const extra = this.computeRuleExtras(rd, fieldKey, varName);
+      // `value` in a message/context refs the per-iteration element binding (declared in each loop body).
+      const extra = this.computeRuleExtras(rd, fieldKey, elemVar);
       // Cache the groups-guard predicate once — was previously evaluated twice (open + close)
       const rdGroups = rd.groups && rd.groups.length > 0 && !sameGroups(rd.groups, fieldGroups) ? rd.groups : null;
       const eachGuardOpen = rdGroups
@@ -838,7 +842,8 @@ class DeserializeBuilder {
         let block = '';
         block += `  ${col.counterDecl}`;
         block += `  ${col.loopHeader} {\n`;
-        block += '    ' + rd.rule.emit(col.elemExpr, colEmitCtx) + '\n';
+        block += `    var ${elemVar} = ${col.elemExpr};\n`;
+        block += '    ' + rd.rule.emit(elemVar, colEmitCtx) + '\n';
         if (col.counterInc) {
           block += `    ${col.counterInc}`;
         }
@@ -1094,6 +1099,71 @@ class DeserializeBuilder {
 
   // ── generateNestedCode — @ValidateNested + @Type ──
 
+  /**
+   * generateDiscriminatorEachCode — deserialize an ARRAY of discriminated DTOs. Mirrors the
+   * single-object discriminator path but dispatches the `switch` per element, reporting nested
+   * errors at `field[i].` paths and the invalid-discriminator error at the `field[i]` element path.
+   */
+  private generateDiscriminatorEachCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext, sk: string): string {
+    const { collectErrors, execs } = this;
+    const disc = meta.type!.discriminator!;
+    const keepDisc = meta.type!.keepDiscriminatorProperty === true;
+    const discProp = JSON.stringify(disc.property);
+    const awaitKwD = this.isAsync ? 'await ' : '';
+    const iVar = `${GEN.index}${sk}`;
+    const itemVar = `__bk$di${sk}`;
+    const discVar = `${GEN.disc}${sk}`;
+    const resVar = `${GEN.result}${sk}`;
+    const errs = `${GEN.errors}${sk}`;
+    const nIdx = `${GEN.nestedIdx}${sk}`;
+    const ppBase = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
+    const elemPathPrefix = `${ppBase}+'['+${iVar}+'].'`;
+    const elemPath = `${ppBase}+'['+${iVar}+']'`;
+    const validNamesJson = JSON.stringify(disc.subTypes.map(s => s.name));
+
+    let code = `if (Array.isArray(${varName})) {\n`;
+    // Array-level (non-each) rules — e.g. arrayMinSize/arrayMaxSize — run once on the array itself.
+    const nonEachRules = meta.validation.filter(rd => !rd.each);
+    code += this.emitRuleList(fieldKey, varName, nonEachRules, emitCtx, '  ');
+    code += `  var ${GEN.arr}${sk} = [];\n`;
+    code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
+    code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
+    code += `    var ${discVar} = ${itemVar} && ${itemVar}[${discProp}];\n`;
+    code += `    switch (${discVar}) {\n`;
+    for (const sub of disc.subTypes) {
+      const nestedSealed = this.resolveExecutor(sub.value);
+      const execIdx = execs.length;
+      execs.push(nestedSealed);
+      code += `      case ${JSON.stringify(sub.name)}: {\n`;
+      code += `        var ${resVar} = ${awaitKwD}execs[${execIdx}].deserialize(${itemVar}, opts);\n`;
+      code += `        if (isErr(${resVar})) {\n`;
+      code += `          var ${errs} = ${resVar}.data;\n`;
+      code += `          var __bk$pp${sk} = ${elemPathPrefix};\n`;
+      if (collectErrors) {
+        code += `          for (var ${nIdx}=0; ${nIdx}<${errs}.length; ${nIdx}++) {\n`;
+        code += `          ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${errs}[${nIdx}].path`, `${errs}[${nIdx}]`, `__ne${sk}`);
+        code += `          }\n`;
+      } else {
+        code += `          ` + nestedErrReturn(`__bk$pp${sk}+${errs}[0].path`, `${errs}[0]`, `__ne${sk}`);
+      }
+      code += `        } else {\n`;
+      if (keepDisc) {
+        code += `          ${resVar}[${discProp}] = ${discVar};\n`;
+      }
+      code += `          ${GEN.arr}${sk}.push(${resVar});\n`;
+      code += `        }\n`;
+      code += `        break;\n`;
+      code += `      }\n`;
+    }
+    const discCtx = `{path:${elemPath},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
+    code += collectErrors ? `      default: ${GEN.errList}.push(${discCtx});\n` : `      default: return err([${discCtx}]);\n`;
+    code += `    }\n`;
+    code += `  }\n`;
+    code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
+    code += `} else { ${emitCtx.fail('isArray')}; }\n`;
+    return code;
+  }
+
   private generateNestedCode(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext): string {
     const { collectErrors, execs } = this;
 
@@ -1105,6 +1175,12 @@ class DeserializeBuilder {
     const sk = (this.varPrefix || '') + sanitizeKey(fieldKey);
 
     if (meta.type.discriminator) {
+      // An array of discriminated DTOs (`type: () => [Base]` + discriminator) dispatches the switch
+      // PER ELEMENT — the single-object path below reads the discriminator off the array itself.
+      const discHasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+      if (discHasEach) {
+        return this.generateDiscriminatorEachCode(fieldKey, varName, meta, emitCtx, sk);
+      }
       // discriminator
       const discProp = JSON.stringify(meta.type.discriminator.property);
       code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;
@@ -1228,6 +1304,60 @@ class DeserializeBuilder {
     return code;
   }
 
+  /**
+   * generateDiscriminatorEachCodeValidateOnly — validate an ARRAY of discriminated DTOs. The validate
+   * executor returns `null` on success or an error-array on failure (no Result wrapper), so each
+   * element's result is iterated directly. Element errors report `field[i].` / `field[i]` paths.
+   */
+  private generateDiscriminatorEachCodeValidateOnly(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext, sk: string): string {
+    const { collectErrors, execs } = this;
+    const disc = meta.type!.discriminator!;
+    const discProp = JSON.stringify(disc.property);
+    const awaitKwD = this.isAsync ? 'await ' : '';
+    const iVar = `${GEN.index}${sk}`;
+    const itemVar = `__bk$di${sk}`;
+    const discVar = `${GEN.disc}${sk}`;
+    const resVar = `${GEN.result}${sk}`;
+    const nIdx = `${GEN.nestedIdx}${sk}`;
+    const ppBase = this.pathPrefix ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
+    const elemPathPrefix = `${ppBase}+'['+${iVar}+'].'`;
+    const elemPath = `${ppBase}+'['+${iVar}+']'`;
+    const validNamesJson = JSON.stringify(disc.subTypes.map(s => s.name));
+
+    let code = `if (Array.isArray(${varName})) {\n`;
+    const nonEachRules = meta.validation.filter(rd => !rd.each);
+    code += this.emitRuleList(fieldKey, varName, nonEachRules, emitCtx, '  ');
+    code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
+    code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
+    code += `    var ${discVar} = ${itemVar} && ${itemVar}[${discProp}];\n`;
+    code += `    switch (${discVar}) {\n`;
+    for (const sub of disc.subTypes) {
+      const subSealed = this.resolveExecutor(sub.value);
+      const execIdx = execs.length;
+      execs.push(subSealed);
+      code += `      case ${JSON.stringify(sub.name)}: {\n`;
+      code += `        var ${resVar} = ${awaitKwD}execs[${execIdx}].validate(${itemVar}, opts);\n`;
+      code += `        if (${resVar} !== null) {\n`;
+      code += `          var __bk$pp${sk} = ${elemPathPrefix};\n`;
+      if (collectErrors) {
+        code += `          for (var ${nIdx}=0; ${nIdx}<${resVar}.length; ${nIdx}++) {\n`;
+        code += `          ` + nestedErrPush(GEN.errList, `__bk$pp${sk}+${resVar}[${nIdx}].path`, `${resVar}[${nIdx}]`, `__ne${sk}`);
+        code += `          }\n`;
+      } else {
+        code += `          ` + nestedErrReturn(`__bk$pp${sk}+${resVar}[0].path`, `${resVar}[0]`, `__ne${sk}`, true);
+      }
+      code += `        }\n`;
+      code += `        break;\n`;
+      code += `      }\n`;
+    }
+    const discCtx = `{path:${elemPath},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
+    code += collectErrors ? `      default: ${GEN.errList}.push(${discCtx});\n` : `      default: return [${discCtx}];\n`;
+    code += `    }\n`;
+    code += `  }\n`;
+    code += `} else { ${emitCtx.fail('isArray')}; }\n`;
+    return code;
+  }
+
   private generateNestedCodeValidateOnly(fieldKey: string, varName: string, meta: RawPropertyMeta, emitCtx: EmitContext): string {
     const { collectErrors, execs } = this;
     if (!meta.type) {
@@ -1242,6 +1372,11 @@ class DeserializeBuilder {
     }
 
     if (meta.type.discriminator) {
+      // Array of discriminated DTOs — validate the switch per element (see generateNestedCode).
+      const discHasEach = meta.type.isArray || meta.flags.validateNestedEach || meta.validation.some(rd => rd.each);
+      if (discHasEach) {
+        return this.generateDiscriminatorEachCodeValidateOnly(fieldKey, varName, meta, emitCtx, sk);
+      }
       // Discriminator — inline each subType's validation
       const discProp = JSON.stringify(meta.type.discriminator.property);
       code += `var ${GEN.disc}${sk} = ${varName} && ${varName}[${discProp}];\n`;

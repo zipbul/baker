@@ -3,6 +3,7 @@ import type { EmitContext, EmittableRule } from './interfaces';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
 import { makeStringRule } from './string-shared';
+import { BakerError } from '../common';
 
 // Email — RFC 5322 simplified
 const EMAIL_RE =
@@ -391,15 +392,15 @@ const HASH_REGEXES: Record<string, RegExp> = {
 
 function isHash(algorithm: string): EmittableRule {
   const re = HASH_REGEXES[algorithm];
+  if (!re) {
+    throw new BakerError(`Unsupported algorithm: "${algorithm}" for isHash`);
+  }
   return makeRule({
     name: 'isHash',
     requiresType: RequiredType.String,
     constraints: { algorithm },
-    validate: value => typeof value === 'string' && !!re && re.test(value),
+    validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
-      if (!re) {
-        return ctx.fail('isHash') + ';';
-      }
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isHash')};`;
     },
@@ -609,15 +610,15 @@ const TAX_ID_REGEXES: Record<string, RegExp> = {
 
 function isTaxId(locale: string): EmittableRule {
   const re = TAX_ID_REGEXES[locale];
+  if (!re) {
+    throw new BakerError(`Unsupported locale: "${locale}" for isTaxId`);
+  }
   return makeRule({
     name: 'isTaxId',
     requiresType: RequiredType.String,
     constraints: { locale },
-    validate: value => typeof value === 'string' && !!re && re.test(value),
+    validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
-      if (!re) {
-        return ctx.fail('isTaxId') + ';';
-      }
       const i = ctx.addRegex(re);
       return `if (!re[${i}].test(${varName})) ${ctx.fail('isTaxId')};`;
     },

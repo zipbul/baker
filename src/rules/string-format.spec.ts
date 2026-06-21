@@ -1,5 +1,6 @@
 import { describe, it, expect, mock } from 'bun:test';
 import { RequiredType } from './enums';
+import { BakerError } from '../common';
 
 import type { EmitContext } from './interfaces';
 
@@ -606,11 +607,8 @@ describe('isHash', () => {
     expect(failMock).toHaveBeenCalledWith('isHash');
   });
 
-  it('should generate immediate fail code for unknown algorithm emit', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isHash('unknownAlgo' as never).emit('v', ctx);
-    expect(code).toContain('isHash');
-    expect(failMock).toHaveBeenCalledWith('isHash');
+  it('should throw at construction for an unknown algorithm (fail-fast, like locale rules)', () => {
+    expect(() => isHash('unknownAlgo')).toThrow(BakerError);
   });
 });
 
@@ -1028,10 +1026,6 @@ describe('isTaxId', () => {
     expect(isTaxId('GB')('1234567890')).toBe(true);
   });
 
-  it('should return false for unsupported locale', () => {
-    expect(isTaxId('XX')('123')).toBe(false);
-  });
-
   it('should return false for non-string input', () => {
     expect(isTaxId('US')(123 as never)).toBe(false);
   });
@@ -1048,11 +1042,8 @@ describe('isTaxId', () => {
     expect(failMock).toHaveBeenCalledWith('isTaxId');
   });
 
-  it('should emit fail-only code for unknown locale (covers L1464 !re branch)', () => {
-    const { ctx, failMock } = makeCtx();
-    const code = isTaxId('XX-UNKNOWN').emit('v', ctx);
-    expect(code).toContain('isTaxId');
-    expect(failMock).toHaveBeenCalledWith('isTaxId');
+  it('should throw at construction for an unknown locale (fail-fast, like locale rules)', () => {
+    expect(() => isTaxId('XX-UNKNOWN')).toThrow(BakerError);
   });
 
   it('should return independent rule objects on multiple factory calls', () => {

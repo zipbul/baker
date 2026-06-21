@@ -276,7 +276,14 @@ class SerializeBuilder<T> {
             }
             code += `  ${GEN.outItem}${sk} = ${GEN.serResult}${sk};\n`;
           }
-          code += `} else { ${GEN.outItem}${sk} = ` + itemVar + '; }\n';
+          // No subtype matched — throw instead of leaking the raw (un-serialized) instance into the
+          // output, symmetric with the deserialize side rejecting an unknown discriminator value.
+          const validNamesJson = JSON.stringify(JSON.stringify(subTypes.map(s => s.name)));
+          const recvExpr = `(${itemVar} == null ? ${itemVar} : ${itemVar}[${JSON.stringify(property)}])`;
+          const msgPrefix = JSON.stringify(`${className}.${fieldKey}: value matches no discriminator subtype (received discriminator=`);
+          code +=
+            `} else { throw new BakerError(${msgPrefix} + JSON.stringify(${recvExpr}) + ` +
+            `${JSON.stringify(', expected one of ')} + ${validNamesJson} + ${JSON.stringify(')')}); }\n`;
           return code;
         };
 

@@ -149,18 +149,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -217,18 +220,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -570,18 +576,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -648,18 +657,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -948,18 +960,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) return err([{path:"tags",code:"isArray"}]);
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') return err([{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}]);
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}]);
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') return err([{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}]);
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}]);
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') return err([{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}]);
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}]);
     __bk$mi_tags++;
   }
 }
@@ -1014,18 +1029,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) return [{path:"tags",code:"isArray"}];
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') return [{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}];
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}];
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') return [{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}];
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}];
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') return [{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}];
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}];
     __bk$mi_tags++;
   }
 }
@@ -1322,18 +1340,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -1391,18 +1412,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -1708,18 +1732,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }
@@ -1777,18 +1804,21 @@ var __bk$ep_tags = "tags"+'[';
 if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
 if (__bk$cktags === 1) {
     for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
-    if (typeof __bk$f_tags[__bk$i_tags] !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
   }
 } else if (__bk$cktags === 2) {
   var __bk$si_tags = 0;
   for (var __bk$sv_tags of __bk$f_tags) {
-    if (typeof __bk$sv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
     __bk$si_tags++;
   }
 } else if (__bk$cktags === 3) {
   var __bk$mi_tags = 0;
   for (var __bk$mv_tags of __bk$f_tags.values()) {
-    if (typeof __bk$mv_tags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
     __bk$mi_tags++;
   }
 }

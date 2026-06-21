@@ -782,6 +782,16 @@ describe('isDateString', () => {
   it('rejected', async () => {
     expect(isBakerIssueSet(await baker.deserialize(D, { v: 'notdate' }))).toBe(true);
   });
+  // Generated-code path must use the proleptic Gregorian leap rule for years 0–99 too (year 0 is leap).
+  it('accepts 0000-02-29 (year 0 is a leap year)', async () => {
+    expect(((await baker.deserialize(D, { v: '0000-02-29' })) as D).v).toBe('0000-02-29');
+  });
+  it('rejects 0001-02-29 (year 1 is not a leap year)', async () => {
+    expect(isBakerIssueSet(await baker.deserialize(D, { v: '0001-02-29' }))).toBe(true);
+  });
+  it('rejects 1900-02-29 (divisible by 100, not 400)', async () => {
+    expect(isBakerIssueSet(await baker.deserialize(D, { v: '1900-02-29' }))).toBe(true);
+  });
 });
 
 describe('isCurrency', () => {

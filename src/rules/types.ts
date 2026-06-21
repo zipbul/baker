@@ -11,3 +11,11 @@ export type RulePlanExpr =
 export type RulePlanCheck =
   | { kind: RulePlanCheckKind.Compare; left: RulePlanExpr; op: RuleOp; right: RulePlanExpr }
   | { kind: RulePlanCheckKind.And | RulePlanCheckKind.Or; checks: RulePlanCheck[] };
+
+// Accessor-cache the plan emit shares with its caller: when a field hoists `value.length` /
+// `value.getTime()` into a local, the emitter reuses that local instead of re-reading. The seal
+// builder constructs this and passes it to `emitRulePlan`, so the shape lives here as the contract.
+export type RulePlanCache = {
+  length?: string;
+  time?: string;
+};

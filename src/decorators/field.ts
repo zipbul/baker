@@ -1,22 +1,17 @@
-import type { ClassCtor } from '../common';
 import type { EmittableRule, InternalRule } from '../rules';
 import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { Transformer } from '../transformers';
+import type { ArrayOfMarker, FieldOptions } from './interfaces';
+import type { FieldDecorator, RuleArg } from './types';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
 import { metaStore } from '../metadata';
 import { ExcludeMode } from './enums';
+import { ARRAY_OF, FIELD_OPTION_KEYS } from './constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf — Array element validation marker (compiles to per-rule `each: true`)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ARRAY_OF = Symbol.for('baker:arrayOf');
-
-interface ArrayOfMarker {
-  readonly [key: symbol]: true;
-  readonly rules: EmittableRule[];
-}
 
 /**
  * Apply rules to each element of an array.
@@ -36,72 +31,8 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FieldOptions — @Field options object
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface FieldOptions {
-  /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
-  type?: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
-  /** Polymorphic discriminator configuration — used with type */
-  discriminator?: {
-    property: string;
-    subTypes: { value: Function; name: string }[];
-  };
-  /** Whether to keep the discriminator property in the result object */
-  keepDiscriminatorProperty?: boolean;
-  /** Validation rules array */
-  rules?: (EmittableRule | ArrayOfMarker)[];
-  /** Allow undefined */
-  optional?: boolean;
-  /** Allow null */
-  nullable?: boolean;
-  /** JSON key mapping (bidirectional) */
-  name?: string;
-  /** Deserialize direction key mapping (cannot be used with name) */
-  deserializeName?: string;
-  /** Serialize direction key mapping (cannot be used with name) */
-  serializeName?: string;
-  /** Field exclusion — true: bidirectional, 'deserializeOnly': deserialization only, 'serializeOnly': serialization only */
-  exclude?: boolean | ExcludeMode;
-  /** Groups — field visibility control + conditional validation rule application */
-  groups?: string[];
-  /** Conditional validation — skip all field validation when false */
-  when?: (obj: Record<string, unknown>) => boolean;
-  /** Transformer or array of transformers (serialize direction applies in reverse order) */
-  transform?: Transformer | Transformer[];
-  /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
-  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
-  /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
-  context?: unknown;
-  /** Nested DTO class thunk for Map values — used with type: () => Map */
-  mapValue?: () => ClassCtor;
-  /** Nested DTO class thunk for Set elements — used with type: () => Set */
-  setValue?: () => ClassCtor;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FieldOptions detection — distinguish from EmittableRule/ArrayOfMarker
 // ─────────────────────────────────────────────────────────────────────────────
-
-const FIELD_OPTION_KEYS = new Set([
-  'type',
-  'discriminator',
-  'keepDiscriminatorProperty',
-  'rules',
-  'optional',
-  'nullable',
-  'name',
-  'deserializeName',
-  'serializeName',
-  'exclude',
-  'groups',
-  'when',
-  'transform',
-  'message',
-  'context',
-  'mapValue',
-  'setValue',
-]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
   if (typeof arg === 'function') {
@@ -124,8 +55,6 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers — Field() decorator decomposition
 // ─────────────────────────────────────────────────────────────────────────────
-
-type RuleArg = EmittableRule | ArrayOfMarker;
 
 /** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
 function assertRule(value: unknown, fieldKey: string, slot?: string): void {
@@ -263,8 +192,6 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 // ─────────────────────────────────────────────────────────────────────────────
 // @Field — Field decorator (4 overloads)
 // ─────────────────────────────────────────────────────────────────────────────
-
-type FieldDecorator = (value: undefined, context: ClassFieldDecoratorContext) => void;
 
 /** `@Field`() — empty field registration */
 function Field(): FieldDecorator;

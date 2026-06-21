@@ -1,14 +1,9 @@
 import type { RequiredType } from './enums';
 import type { EmitContext, InternalRule, RulePlan } from './interfaces';
-import type { RulePlanCheck, RulePlanExpr } from './types';
+import type { RulePlanCache, RulePlanCheck, RulePlanExpr } from './types';
 
 import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
 import { defineRuleMetadata } from './rule-metadata';
-
-type RulePlanCache = {
-  length?: string;
-  time?: string;
-};
 
 const planValue = (): RulePlanExpr => ({ kind: RulePlanExprKind.Value });
 

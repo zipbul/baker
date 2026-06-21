@@ -4,6 +4,22 @@ import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
 import { makeStringRule } from './string-shared';
 
+// Last calendar day of a month (1-based) under the proleptic Gregorian leap rule, valid for ALL years.
+// `new Date(year, month, 0)` cannot be used: a 0–99 year argument is remapped to 1900–1999 (so year 0,
+// a leap year by the 400 rule, would be judged against 1900). Pure arithmetic — also avoids a Date
+// allocation in the validation hot path.
+function lastDayOfMonth(year: number, month: number): number {
+  if (month === 2) {
+    return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 29 : 28;
+  }
+  return month === 4 || month === 6 || month === 9 || month === 11 ? 30 : 31;
+}
+
+// Codegen counterpart of `lastDayOfMonth` — inline expression over already-declared year/month vars.
+function lastDayOfMonthExpr(yExpr: string, mExpr: string): string {
+  return `(${mExpr}===2?(((${yExpr}%4===0&&${yExpr}%100!==0)||${yExpr}%400===0)?29:28):(${mExpr}===4||${mExpr}===6||${mExpr}===9||${mExpr}===11?30:31))`;
+}
+
 // ISO 8601
 const ISO8601_RE = /^\d{4}(?:-\d{2}(?:-\d{2}(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?)?)?)?$/;
 
@@ -26,7 +42,7 @@ function validateISO8601Strict(v: string): boolean {
   }
   if (m[3] !== undefined) {
     const day = Number(m[3]);
-    const maxDay = new Date(Number(m[1]), month, 0).getDate();
+    const maxDay = lastDayOfMonth(Number(m[1]), month);
     if (day < 1 || day > maxDay) {
       return false;
     }
@@ -61,7 +77,7 @@ function isISO8601(options?: IsISO8601Options): EmittableRule {
           `var dm=${varName}.match(/^(\\d{4})-(\\d{2})(?:-(\\d{2}))?/);` +
           `if(dm){var mo=Number(dm[2]);` +
           `if(mo<1||mo>12){__iso_ok=false;}` +
-          `else if(dm[3]!==undefined){var da=Number(dm[3]),md=new Date(Number(dm[1]),mo,0).getDate();` +
+          `else if(dm[3]!==undefined){var da=Number(dm[3]),dy=Number(dm[1]),md=${lastDayOfMonthExpr('dy', 'mo')};` +
           `if(da<1||da>md){__iso_ok=false;}}}` +
           `if(__iso_ok){var tm=${varName}.match(/T(\\d{2}):(\\d{2}):(\\d{2})/);` +
           `if(tm){var hh=Number(tm[1]),mm=Number(tm[2]),ss=Number(tm[3]);` +
@@ -667,7 +683,7 @@ function isCalendarValidDate(v: string): boolean {
   const y = Number(v.slice(0, 4));
   const m = Number(v.slice(5, 7));
   const d = Number(v.slice(8, 10));
-  const maxDay = new Date(y, m, 0).getDate();
+  const maxDay = lastDayOfMonth(y, m);
   return d >= 1 && d <= maxDay;
 }
 
@@ -677,7 +693,7 @@ function isDateString(): EmittableRule {
     return (
       `if (!re[${i}].test(${varName})) ${ctx.fail('isDateString')};\n` +
       `else { var y=Number(${varName}.slice(0,4)),m=Number(${varName}.slice(5,7)),d=Number(${varName}.slice(8,10));` +
-      `var md=new Date(y,m,0).getDate(); if(d<1||d>md)${ctx.fail('isDateString')}; }`
+      `var md=${lastDayOfMonthExpr('y', 'm')}; if(d<1||d>md)${ctx.fail('isDateString')}; }`
     );
   });
 }
