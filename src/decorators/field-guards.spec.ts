@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { BakerError } from '../errors';
+import { BakerError } from '../common/errors';
 import { isString } from '../rules/index';
 import { Field } from './field';
 
@@ -37,6 +37,16 @@ describe('@Field — target guards', () => {
   it('rejects combining name with deserializeName/serializeName', () => {
     expect(() => Field({ name: 'wire', deserializeName: 'in' })(undefined, fieldContext({}))).toThrow(BakerError);
     expect(() => Field({ name: 'wire', serializeName: 'out' })(undefined, fieldContext({}))).toThrow(/cannot be combined/);
+  });
+
+  it('rejects providing both mapValue and setValue', () => {
+    class Foo {}
+    expect(() => Field({ type: () => Map, mapValue: () => Foo, setValue: () => Foo })(undefined, fieldContext({}))).toThrow(
+      BakerError,
+    );
+    expect(() => Field({ type: () => Map, mapValue: () => Foo, setValue: () => Foo })(undefined, fieldContext({}))).toThrow(
+      /cannot both be set/,
+    );
   });
 
   it('accepts a normal instance field', () => {

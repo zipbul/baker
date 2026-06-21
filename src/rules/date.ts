@@ -1,10 +1,11 @@
-import type { EmittableRule } from '../types';
+import type { EmittableRule } from './interfaces';
 
-import { CacheKey, RequiredType, RuleOp } from '../enums';
-import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from '../rule-plan';
+import { CacheKey } from '../common';
+import { RequiredType, RuleOp } from './enums';
+import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// minDate — v >= date (inclusive, getTime comparison). (§4.8 C — refs function call)
+// minDate — v >= date (inclusive, getTime comparison). (refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function minDate(date: Date): EmittableRule {
@@ -23,7 +24,7 @@ export function minDate(date: Date): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// maxDate — v <= date (inclusive, getTime comparison). (§4.8 C — refs function call)
+// maxDate — v <= date (inclusive, getTime comparison). (refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function maxDate(date: Date): EmittableRule {

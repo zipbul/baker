@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import type { Transformer } from '../../src/types';
+import type { Transformer } from '../../src/transformers/interfaces';
 
 import { Baker, Field, BakerError, isBakerIssueSet } from '../../index';
 import { isString } from '../../src/rules/index';

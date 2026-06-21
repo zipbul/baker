@@ -3,10 +3,10 @@
 // (not per-class), because a cached root and its nested DTOs are compiled together and must be
 // invalidated together; clearing only some would leave a root referencing a dropped nested. Dropping
 // the whole cache means a later re-seal of any class recompiles its full graph consistently.
-import { clearAllCached } from '../../../src/seal/seal';
+import { compileCache } from '../../../src/seal/compile-cache';
 import { trackedSealed } from './seal';
 
 export function unseal(): void {
-  clearAllCached();
+  compileCache.clearAll();
   trackedSealed.clear();
 }

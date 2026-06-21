@@ -54,7 +54,9 @@ describe('enableImplicitConversion (autoConvert: true)', () => {
   });
 
   it('unconvertible value → conversionFailed', async () => {
-    expect(isBakerIssueSet(await baker.deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(ConvDto, { age: 'notanumber', active: true, createdAt: new Date() }))).toBe(
+      true,
+    );
   });
 
   it('explicit @Field transform present → conversion skipped', async () => {

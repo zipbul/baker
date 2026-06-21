@@ -1,7 +1,8 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { CacheKey, RequiredType, RuleOp } from '../enums';
-import { makePlannedRule, makeRule, planCompare, planLength } from '../rule-plan';
+import { CacheKey } from '../common';
+import { RequiredType, RuleOp } from './enums';
+import { makePlannedRule, makeRule, planCompare, planLength } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayContains(values) — array contains all specified values

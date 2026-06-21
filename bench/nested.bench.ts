@@ -10,32 +10,34 @@ import { bench, group, run } from 'mitata';
 import * as v from 'valibot';
 import { z } from 'zod';
 
-import { Field, Recipe, deserialize, isBakerIssueSet, seal } from '../index';
+import { Baker, Field, isBakerIssueSet } from '../index';
 import { isString, isNumber, min, minLength } from '../src/rules/index';
 import { NESTED_VALID, NESTED_INVALID } from './data';
 
+const baker = new Baker();
+
 // ── Baker ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class BakerAddress {
   @Field(isString, minLength(1)) street!: string;
   @Field(isString, minLength(1)) city!: string;
   @Field(isString, minLength(1)) zip!: string;
 }
-@Recipe
+@baker.Recipe
 class BakerCustomer {
   @Field(isString, minLength(1)) name!: string;
   @Field(isString) email!: string;
   @Field({ type: () => BakerAddress }) address!: BakerAddress;
 }
-@Recipe
+@baker.Recipe
 class BakerOrder {
   @Field(isString, minLength(1)) title!: string;
   @Field({ type: () => BakerCustomer }) customer!: BakerCustomer;
   @Field(isNumber(), min(0)) priority!: number;
 }
-seal();
-await deserialize(BakerOrder, NESTED_VALID);
+baker.seal();
+await baker.deserialize(BakerOrder, NESTED_VALID);
 
 // ── Zod ──────────────────────────────────────────────────────────────────────
 
@@ -143,7 +145,7 @@ let sinkNum = 0;
 
 group('nested 3-level — valid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerOrder, NESTED_VALID);
+    const r = baker.deserialize(BakerOrder, NESTED_VALID);
     sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {
@@ -176,7 +178,7 @@ group('nested 3-level — valid input', () => {
 
 group('nested 3-level — invalid input', () => {
   bench('baker', () => {
-    const r = deserialize(BakerOrder, NESTED_INVALID);
+    const r = baker.deserialize(BakerOrder, NESTED_INVALID);
     sinkNum += isBakerIssueSet(r) ? r.errors.length : 1;
   });
   bench('zod', () => {

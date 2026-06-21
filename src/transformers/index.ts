@@ -1,8 +1,9 @@
-export { trimTransformer, toLowerCaseTransformer, toUpperCaseTransformer } from './string.transformer';
-export { roundTransformer } from './number.transformer';
-export { unixSecondsTransformer, unixMillisTransformer, isoStringTransformer } from './date.transformer';
-export { csvTransformer, jsonTransformer } from './collection.transformer';
-export { luxonTransformer } from './luxon.transformer';
-export type { LuxonTransformerOptions } from './luxon.transformer';
-export { momentTransformer } from './moment.transformer';
-export type { MomentTransformerOptions } from './moment.transformer';
+// Directory barrel — the FULL internal surface other domains import via `../transformers`.
+// The published `./transformers` subpath points at `./public` (curated public surface) instead, so the
+// internal `TransformFunction` re-export never leaks into the public API.
+
+export * from './public';
+
+// Internal surface — consumed cross-domain but NOT necessarily part of the published `./transformers`.
+export type { Transformer, TransformParams } from './interfaces';
+export type { TransformFunction } from './types';

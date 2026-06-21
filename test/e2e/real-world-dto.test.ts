@@ -137,7 +137,9 @@ describe('CreateUserDto — validation failure', () => {
   });
 
   it('nested DTO validation failure', async () => {
-    expect(isBakerIssueSet(await baker.deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(true);
+    expect(isBakerIssueSet(await baker.deserialize(CreateUserDto, { ...validInput, address: { city: '', street: 'ok' } }))).toBe(
+      true,
+    );
   });
 });
 

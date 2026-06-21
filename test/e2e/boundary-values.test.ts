@@ -1,7 +1,6 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Baker, Field, isBakerIssueSet } from '../../index';
-import { assertBakerIssueSet } from '../integration/helpers/assert';
 import {
   isString,
   isNumber,
@@ -21,6 +20,7 @@ import {
   arrayMinSize,
   arrayMaxSize,
 } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 

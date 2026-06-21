@@ -94,7 +94,8 @@ describe('serialize parity meta', () => {
     expect(publicResult.pet).toBeUndefined();
 
     const adminResult = await baker.serialize(dto, { groups: ['admin'] });
-    expect(adminResult.pet).toEqual({ color: 'black', kind: 'dog' });
+    // keepDiscriminatorProperty unset → discriminator key dropped (symmetric with deserialize)
+    expect(adminResult.pet).toEqual({ color: 'black' });
   });
 
   it('roundtrips directional names and serialize output contract together', async () => {

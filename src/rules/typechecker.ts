@@ -1,10 +1,16 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { RequiredType } from '../enums';
-import { makeRule } from '../rule-plan';
+import { RequiredType } from './enums';
+import { makeRule } from './rule-plan';
+
+// Codegen for the isNumber maxDecimalPlaces check — `decimals = max(0, mantissaDigits - exponent)`
+// via toExponential(). Single source for both the inside-gate and standalone emit branches.
+function emitMaxDecimalCheck(varName: string, maxDecimalPlaces: number, ctx: EmitContext): string {
+  return `{ var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isString — typeof check (§4.8 A: operator inline)
+// isString — typeof check (operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isString = makeRule({
@@ -15,7 +21,7 @@ export const isString = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNumber — typeof + NaN/Infinity/maxDecimalPlaces options (§4.8 A)
+// isNumber — typeof + NaN/Infinity/maxDecimalPlaces options
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IsNumberOptions {
@@ -28,6 +34,19 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
   const allowNaN = options?.allowNaN ?? false;
   const allowInfinity = options?.allowInfinity ?? false;
   const maxDecimalPlaces = options?.maxDecimalPlaces;
+
+  // Expose only the options the caller actually set — omit undefined keys so `rule.constraints`
+  // has a consistent shape with the other factories (no phantom `allowNaN: undefined`).
+  const constraints: Record<string, unknown> = {};
+  if (options?.allowNaN !== undefined) {
+    constraints.allowNaN = options.allowNaN;
+  }
+  if (options?.allowInfinity !== undefined) {
+    constraints.allowInfinity = options.allowInfinity;
+  }
+  if (maxDecimalPlaces !== undefined) {
+    constraints.maxDecimalPlaces = maxDecimalPlaces;
+  }
 
   const validate = (value: unknown): boolean => {
     if (typeof value !== 'number') {
@@ -54,11 +73,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
 
   return makeRule({
     name: 'isNumber',
-    constraints: {
-      allowNaN: options?.allowNaN,
-      allowInfinity: options?.allowInfinity,
-      maxDecimalPlaces: options?.maxDecimalPlaces,
-    },
+    constraints,
     validate,
     emit: (varName: string, ctx: EmitContext): string => {
       if (ctx.insideTypeGate) {
@@ -68,7 +83,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
           code += `if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
         }
         if (maxDecimalPlaces !== undefined) {
-          code += `${code ? '\nelse ' : ''}{ var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+          code += `${code ? '\nelse ' : ''}${emitMaxDecimalCheck(varName, maxDecimalPlaces, ctx)}`;
         }
         return code;
       }
@@ -80,7 +95,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
         code += `\nelse if (${varName} === Infinity || ${varName} === -Infinity) ${ctx.fail('isNumber')};`;
       }
       if (maxDecimalPlaces !== undefined) {
-        code += `\nelse { var exp=${varName}.toExponential().split('e'); var mant=(exp[0].split('.')[1]||'').length; var exp2=parseInt(exp[1],10); if(Math.max(0,mant-exp2)>${maxDecimalPlaces}) ${ctx.fail('isNumber')}; }`;
+        code += `\nelse ${emitMaxDecimalCheck(varName, maxDecimalPlaces, ctx)}`;
       }
       return code;
     },
@@ -88,7 +103,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isBoolean — typeof check (§4.8 A)
+// isBoolean — typeof check
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isBoolean = makeRule({
@@ -99,7 +114,7 @@ export const isBoolean = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isDate — instanceof Date + getTime() NaN check (§4.8 A)
+// isDate — instanceof Date + getTime() NaN check
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isDate = makeRule({
@@ -111,11 +126,17 @@ export const isDate = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isEnum — factory: indexOf check using Object.values array (§4.8 C)
+// isEnum — factory: indexOf check using Object.values array
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isEnum(entity: object): EmittableRule {
-  const values = Object.values(entity);
+  // TS numeric enums compile to a reverse-mapped object ({ 0: 'Inactive', 1: 'Active', Active: 1,
+  // Inactive: 0 }), so Object.values would also yield the member-name strings. Read values through the
+  // non-numeric keys instead — this drops the reverse-map entries while keeping every real member,
+  // and works for string, numeric, and heterogeneous enums.
+  const values = Object.keys(entity)
+    .filter(key => Number.isNaN(Number(key)))
+    .map(key => (entity as Record<string, unknown>)[key]);
   // Set lookup is O(1); array indexOf is O(n). Measured (Bun/JSC):
   // - 4 items: indexOf 1.2 ns vs Set.has 2.2 ns (indexOf marginally faster)
   // - 50 items: indexOf 64 ns vs Set.has 8.4 ns (Set 7.5x faster)
@@ -139,7 +160,7 @@ export function isEnum(entity: object): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isInt — typeof + Number.isInteger check (§4.8 A)
+// isInt — typeof + Number.isInteger check
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isInt = makeRule({
@@ -154,7 +175,7 @@ export const isInt = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isArray — Array.isArray check (§4.8 A: operator inline)
+// isArray — Array.isArray check (operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isArray = makeRule({
@@ -165,7 +186,7 @@ export const isArray = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isObject — typeof object + non-null + non-array (§4.8 A)
+// isObject — typeof object + non-null + non-array
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isObject = makeRule({
@@ -195,8 +216,7 @@ export const isFunction = makeRule({
   name: 'isFunction',
   constraints: {},
   validate: value => typeof value === 'function',
-  emit: (varName: string, ctx: EmitContext): string =>
-    `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
+  emit: (varName: string, ctx: EmitContext): string => `if (typeof ${varName} !== 'function') ${ctx.fail('isFunction')};`,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -1,20 +1,17 @@
-import type { ClassCtor, EmittableRule, InternalRule, RawPropertyMeta, RuleDef, ExposeDef, TypeDef, Transformer } from '../types';
+import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
+import type { EmittableRule, InternalRule } from '../rules';
+import type { Transformer } from '../transformers';
+import type { ArrayOfMarker, FieldOptions } from './interfaces';
+import type { FieldDecorator, RuleArg } from './types';
 
-import { ensureMeta } from '../collect';
-import { Direction, ExcludeMode } from '../enums';
-import { BakerError } from '../errors';
-import { isAsyncFunction, isPromiseLike } from '../utils';
+import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
+import { metaStore } from '../metadata';
+import { ARRAY_OF, FIELD_OPTION_KEYS } from './constants';
+import { ExcludeMode } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// arrayOf — Array element validation marker (replaces each: true)
+// arrayOf — Array element validation marker (compiles to per-rule `each: true`)
 // ─────────────────────────────────────────────────────────────────────────────
-
-const ARRAY_OF = Symbol.for('baker:arrayOf');
-
-interface ArrayOfMarker {
-  readonly [key: symbol]: true;
-  readonly rules: EmittableRule[];
-}
 
 /**
  * Apply rules to each element of an array.
@@ -26,8 +23,7 @@ interface ArrayOfMarker {
  * ```
  */
 function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
-  const marker: { rules: EmittableRule[]; [key: symbol]: true } = { rules, [ARRAY_OF]: true };
-  return marker as ArrayOfMarker;
+  return { rules, [ARRAY_OF]: true };
 }
 
 function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
@@ -35,72 +31,8 @@ function isArrayOfMarker(arg: unknown): arg is ArrayOfMarker {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FieldOptions — @Field options object
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface FieldOptions {
-  /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
-  type?: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
-  /** Polymorphic discriminator configuration — used with type */
-  discriminator?: {
-    property: string;
-    subTypes: { value: Function; name: string }[];
-  };
-  /** Whether to keep the discriminator property in the result object */
-  keepDiscriminatorProperty?: boolean;
-  /** Validation rules array */
-  rules?: (EmittableRule | ArrayOfMarker)[];
-  /** Allow undefined */
-  optional?: boolean;
-  /** Allow null */
-  nullable?: boolean;
-  /** JSON key mapping (bidirectional) */
-  name?: string;
-  /** Deserialize direction key mapping (cannot be used with name) */
-  deserializeName?: string;
-  /** Serialize direction key mapping (cannot be used with name) */
-  serializeName?: string;
-  /** Field exclusion — true: bidirectional, 'deserializeOnly': deserialization only, 'serializeOnly': serialization only */
-  exclude?: boolean | ExcludeMode;
-  /** Groups — field visibility control + conditional validation rule application */
-  groups?: string[];
-  /** Conditional validation — skip all field validation when false */
-  when?: (obj: Record<string, unknown>) => boolean;
-  /** Transformer or array of transformers (serialize direction applies in reverse order) */
-  transform?: Transformer | Transformer[];
-  /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
-  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
-  /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
-  context?: unknown;
-  /** Nested DTO class thunk for Map values — used with type: () => Map */
-  mapValue?: () => ClassCtor;
-  /** Nested DTO class thunk for Set elements — used with type: () => Set */
-  setValue?: () => ClassCtor;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // FieldOptions detection — distinguish from EmittableRule/ArrayOfMarker
 // ─────────────────────────────────────────────────────────────────────────────
-
-const FIELD_OPTION_KEYS = new Set([
-  'type',
-  'discriminator',
-  'keepDiscriminatorProperty',
-  'rules',
-  'optional',
-  'nullable',
-  'name',
-  'deserializeName',
-  'serializeName',
-  'exclude',
-  'groups',
-  'when',
-  'transform',
-  'message',
-  'context',
-  'mapValue',
-  'setValue',
-]);
 
 function isFieldOptions(arg: unknown): arg is FieldOptions {
   if (typeof arg === 'function') {
@@ -123,8 +55,6 @@ function isFieldOptions(arg: unknown): arg is FieldOptions {
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers — Field() decorator decomposition
 // ─────────────────────────────────────────────────────────────────────────────
-
-type RuleArg = EmittableRule | ArrayOfMarker;
 
 /** W5: assert that a value is a valid baker rule (has `.emit` fn + `.ruleName` string). */
 function assertRule(value: unknown, fieldKey: string, slot?: string): void {
@@ -171,35 +101,40 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
   return { rules: args as RuleArg[], options: {} };
 }
 
+// Copy the field-level groups/message/context options onto a rule def (only when provided). The
+// message/context copy is REQUIRED, not redundant: the per-element ('each') emission path reads
+// `rd.message`/`rd.context` directly via computeRuleExtras and does NOT fall back to the field-level
+// meta.message/meta.context (that fallback only covers the non-each, field-own-path failures).
+function decorateRuleDef(rd: RuleDef, options: FieldOptions): RuleDef {
+  if (options.groups !== undefined) {
+    rd.groups = options.groups;
+  }
+  if (options.message !== undefined) {
+    rd.message = options.message;
+  }
+  if (options.context !== undefined) {
+    rd.context = options.context;
+  }
+  return rd;
+}
+
+/** Copy the field-level groups option onto an expose def (only when provided). */
+function withGroups(ed: ExposeDef, options: FieldOptions): ExposeDef {
+  if (options.groups !== undefined) {
+    ed.groups = options.groups;
+  }
+  return ed;
+}
+
 /** Register validation rules + handle arrayOf */
 function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: FieldOptions): void {
   for (const rule of rules) {
     if (isArrayOfMarker(rule)) {
       for (const innerRule of rule.rules) {
-        const rd: RuleDef = { rule: innerRule, each: true };
-        if (options.groups !== undefined) {
-          rd.groups = options.groups;
-        }
-        if (options.message !== undefined) {
-          rd.message = options.message;
-        }
-        if (options.context !== undefined) {
-          rd.context = options.context;
-        }
-        meta.validation.push(rd);
+        meta.validation.push(decorateRuleDef({ rule: innerRule, each: true }, options));
       }
     } else {
-      const rd: RuleDef = { rule: rule as InternalRule };
-      if (options.groups !== undefined) {
-        rd.groups = options.groups;
-      }
-      if (options.message !== undefined) {
-        rd.message = options.message;
-      }
-      if (options.context !== undefined) {
-        rd.context = options.context;
-      }
-      meta.validation.push(rd);
+      meta.validation.push(decorateRuleDef({ rule: rule as InternalRule }, options));
     }
   }
 }
@@ -207,25 +142,13 @@ function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: Field
 /** Handle expose 5-branch logic */
 function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
   if (options.name) {
-    const ed: ExposeDef = { name: options.name };
-    if (options.groups !== undefined) {
-      ed.groups = options.groups;
-    }
-    meta.expose.push(ed);
+    meta.expose.push(withGroups({ name: options.name }, options));
   } else if (options.deserializeName || options.serializeName) {
     if (options.deserializeName) {
-      const ed: ExposeDef = { name: options.deserializeName, deserializeOnly: true };
-      if (options.groups !== undefined) {
-        ed.groups = options.groups;
-      }
-      meta.expose.push(ed);
+      meta.expose.push(withGroups({ name: options.deserializeName, deserializeOnly: true }, options));
     }
     if (options.serializeName) {
-      const ed: ExposeDef = { name: options.serializeName, serializeOnly: true };
-      if (options.groups !== undefined) {
-        ed.groups = options.groups;
-      }
-      meta.expose.push(ed);
+      meta.expose.push(withGroups({ name: options.serializeName, serializeOnly: true }, options));
     }
   } else if (options.groups) {
     meta.expose.push({ groups: options.groups });
@@ -273,8 +196,6 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 // @Field — Field decorator (4 overloads)
 // ─────────────────────────────────────────────────────────────────────────────
 
-type FieldDecorator = (value: undefined, context: ClassFieldDecoratorContext) => void;
-
 /** `@Field`() — empty field registration */
 function Field(): FieldDecorator;
 /** `@Field`(isString(), email()) — variadic rules */
@@ -295,7 +216,7 @@ function Field(...args: unknown[]): FieldDecorator {
       throw new BakerError(`@Field: symbol property keys are not supported. Use a string property name.`);
     }
     const propertyKey = context.name;
-    const meta = ensureMeta(context.metadata, propertyKey);
+    const meta = metaStore.ensure(context.metadata, propertyKey);
 
     const { rules, options } = parseFieldArgs(args);
 
@@ -305,6 +226,14 @@ function Field(...args: unknown[]): FieldDecorator {
     if (options.name && (options.deserializeName || options.serializeName)) {
       throw new BakerError(
         `@Field on ${propertyKey}: 'name' cannot be combined with 'deserializeName'/'serializeName'. Use one or the other.`,
+      );
+    }
+
+    // `mapValue` (Map value type) and `setValue` (Set element type) both fill the single collection
+    // value slot — providing both is ambiguous and would silently drop one. Reject it instead.
+    if (options.mapValue !== undefined && options.setValue !== undefined) {
+      throw new BakerError(
+        `@Field on ${propertyKey}: 'mapValue' and 'setValue' cannot both be set — use 'mapValue' for a Map value type and 'setValue' for a Set element type.`,
       );
     }
 

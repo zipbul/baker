@@ -1,25 +1,7 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { BakerError } from '../errors';
-import { makeRule } from '../rule-plan';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Assert that a value is a baker rule (callable with `.emit` fn + `.ruleName` string). */
-function assertRuleArg(value: unknown, combinator: string): asserts value is EmittableRule {
-  if (
-    typeof value === 'function' &&
-    typeof (value as { emit?: unknown }).emit === 'function' &&
-    typeof (value as { ruleName?: unknown }).ruleName === 'string'
-  ) {
-    return;
-  }
-  throw new BakerError(
-    `${combinator}: every argument must be a baker rule (function with .emit and .ruleName). Use createRule() or import a rule from @zipbul/baker/rules.`,
-  );
-}
+import { BakerError } from '../common';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // oneOf — OR combinator: value matches at least one of the given rules.
@@ -30,9 +12,6 @@ function assertRuleArg(value: unknown, combinator: string): asserts value is Emi
 function oneOf(...branches: EmittableRule[]): EmittableRule {
   if (branches.length === 0) {
     throw new BakerError('oneOf requires at least one rule.');
-  }
-  for (const b of branches) {
-    assertRuleArg(b, 'oneOf');
   }
   const constraints = { oneOf: branches.map(b => b.ruleName) };
   const isAsync = branches.some(b => b.isAsync === true);
@@ -58,7 +37,10 @@ function oneOf(...branches: EmittableRule[]): EmittableRule {
     });
   }
 
-  const validate = (value: unknown): boolean => branches.some(b => b(value) as boolean);
+  // Sync branch: `isAsync` was false, so every branch returns boolean — view them as sync once here
+  // instead of asserting `as boolean` on each call.
+  const syncBranches = branches as ((value: unknown) => boolean)[];
+  const validate = (value: unknown): boolean => syncBranches.some(b => b(value));
   return makeRule({
     name: 'oneOf',
     constraints,
@@ -79,9 +61,6 @@ function oneOf(...branches: EmittableRule[]): EmittableRule {
 function arrayEvery(...rules: EmittableRule[]): EmittableRule {
   if (rules.length === 0) {
     throw new BakerError('arrayEvery requires at least one rule.');
-  }
-  for (const r of rules) {
-    assertRuleArg(r, 'arrayEvery');
   }
   const constraints = { arrayEvery: rules.map(r => r.ruleName) };
   const isAsync = rules.some(r => r.isAsync === true);
@@ -112,7 +91,9 @@ function arrayEvery(...rules: EmittableRule[]): EmittableRule {
     });
   }
 
-  const elementPredicate = (el: unknown): boolean => rules.every(r => r(el) as boolean);
+  // Sync branch: every rule returns boolean (see oneOf) — view them as sync once.
+  const syncRules = rules as ((value: unknown) => boolean)[];
+  const elementPredicate = (el: unknown): boolean => syncRules.every(r => r(el));
   const validate = (value: unknown): boolean => Array.isArray(value) && value.every(elementPredicate);
   return makeRule({
     name: 'arrayEvery',

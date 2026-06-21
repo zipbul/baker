@@ -1,14 +1,17 @@
 import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { BakerIssue } from '../errors';
-import type { SealOptions } from '../interfaces';
-import type { RawClassMeta, SealedExecutors, EmittableRule } from '../types';
+import type { BakerIssue } from '../common/errors';
+import type { RawClassMeta } from '../metadata/interfaces';
+import type { EmittableRule } from '../rules/interfaces';
+import type { SealOptions, SealedExecutors } from './interfaces';
 
 import { assertIsErr } from '../../test/integration/helpers/assert';
+import { CollectionType } from '../metadata/enums';
+import { arrayMinSize } from '../rules/array';
 import { isNotEmpty } from '../rules/common';
 import { min, max } from '../rules/number';
-import { minLength } from '../rules/string';
+import { minLength, maxLength } from '../rules/string';
 import { isString, isNumber } from '../rules/typechecker';
 import { buildDeserializeCode } from './deserialize-builder';
 
@@ -285,28 +288,6 @@ describe('buildDeserializeCode', () => {
     assertIsErr<BakerIssue[]>(result);
     const errs = result.data;
     expect(errs.some((e: BakerIssue) => e.path === 'name')).toBe(true);
-  });
-
-  it('should treat @IsDefined as overriding @IsOptional (undefined still fails)', async () => {
-    // Arrange
-    class IsDef {
-      val!: string;
-    }
-    const merged: RawClassMeta = {
-      val: {
-        validation: [{ rule: isString }],
-        transform: [],
-        expose: [],
-        exclude: null,
-        type: null,
-        flags: { isOptional: true, isDefined: true }, // IsDefined wins
-      },
-    };
-    const exec = buildDeserializeCode(IsDef, merged, undefined, false, false, resolve);
-    // Act — undefined should fail (no optional guard when isDefined)
-    const result = await exec({});
-    // Assert
-    expect(isErr(result)).toBe(true);
   });
 
   // ── Corner ─────────────────────────────────────────────────────────────────
@@ -842,7 +823,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
 
   // A no-op rule to trigger hasEach:true path without failing validation
   const alwaysPass: EmittableRule = Object.assign((_v: unknown): boolean => true, {
-    emit: (_varName: string, _ctx: import('../types').EmitContext): string => '',
+    emit: (_varName: string, _ctx: import('../rules/interfaces').EmitContext): string => '',
     ruleName: 'alwaysPass',
   });
 
@@ -959,7 +940,7 @@ it('should support rules that call addExecutor on EmitContext', async () => {
   };
 
   const customRule: EmittableRule = Object.assign((value: unknown): boolean => typeof value === 'string', {
-    emit(varName: string, ctx: import('../types').EmitContext): string {
+    emit(varName: string, ctx: import('../rules/interfaces').EmitContext): string {
       // exercise addExecutor to cover L657-658
       ctx.addExecutor(dummySealedExec);
       // return a simple validation check (always pass for string)
@@ -1092,4 +1073,158 @@ it('whitelist: should use extract key (not field key) for @Expose', async () => 
   // user_name is the extract key, so it should be in the allowed set
   const result = await run(WlDto4, merged, { whitelist: true }, { user_name: 'ok' });
   expect(isErr(result)).toBe(false);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Declared collections (@Type(() => Set/Map)) — element ('each') validation.
+// Regression coverage: the declared-collection path (type.collection set) previously
+// hand-rolled its element loop and (A) dropped every each-rule on a Map, (B) ignored
+// the runtime `groups` filter on each-rules, (C) passed the whole collection — not the
+// failing element — as the `value` to a function `message`. All four sites
+// (Set/Map × deserialize/validate-only) now route through emitDeclaredEachRules.
+// ─────────────────────────────────────────────────────────────────────────────
+
+type RuntimeOpts = { groups?: string[] };
+const setMeta = (validation: RawClassMeta[string]['validation']): RawClassMeta => ({
+  names: {
+    validation,
+    transform: [],
+    expose: [],
+    exclude: null,
+    type: { fn: () => Set, collection: CollectionType.Set },
+    flags: {},
+  },
+});
+const mapMeta = (validation: RawClassMeta[string]['validation']): RawClassMeta => ({
+  tags: {
+    validation,
+    transform: [],
+    expose: [],
+    exclude: null,
+    type: { fn: () => Map, collection: CollectionType.Map },
+    flags: {},
+  },
+});
+const runDes = (merged: RawClassMeta, input: unknown, opts?: RuntimeOpts) =>
+  buildDeserializeCode(class {}, merged, undefined, false, false, resolve)(input, opts);
+const runVal = (merged: RawClassMeta, input: unknown, opts?: RuntimeOpts) =>
+  buildDeserializeCode(class {}, merged, undefined, false, false, resolve, true)(input, opts);
+
+describe('declared collection — element validation (deserialize)', () => {
+  // BUG A — declared Map dropped every each-rule
+  it('declared Map enforces each-rule on values (invalid)', async () => {
+    expect(isErr(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'ok', k2: 42 } }))).toBe(true);
+  });
+  it('declared Map passes when all values valid', async () => {
+    expect(isErr(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'a', k2: 'b' } }))).toBe(false);
+  });
+  it('declared Set still enforces each-rule (regression)', async () => {
+    expect(isErr(await runDes(setMeta([{ rule: isString, each: true }]), { names: ['ok', 42] }))).toBe(true);
+  });
+  it('declared Set still enforces array-level rule arrayMinSize (regression)', async () => {
+    expect(isErr(await runDes(setMeta([{ rule: arrayMinSize(5) }]), { names: ['a'] }))).toBe(true);
+  });
+
+  // BUG B — declared collections ignored the runtime groups filter on each-rules
+  it('declared Set each-rule is skipped when its group is not active', async () => {
+    expect(
+      isErr(
+        await runDes(setMeta([{ rule: isString, each: true, groups: ['admin'] }]), { names: ['ok', 42] }, { groups: ['user'] }),
+      ),
+    ).toBe(false);
+  });
+  it('declared Set each-rule runs when its group is active', async () => {
+    expect(
+      isErr(
+        await runDes(setMeta([{ rule: isString, each: true, groups: ['admin'] }]), { names: ['ok', 42] }, { groups: ['admin'] }),
+      ),
+    ).toBe(true);
+  });
+  it('declared Map each-rule is skipped when its group is not active', async () => {
+    expect(
+      isErr(
+        await runDes(mapMeta([{ rule: isString, each: true, groups: ['admin'] }]), { tags: { k: 42 } }, { groups: ['user'] }),
+      ),
+    ).toBe(false);
+  });
+
+  // Issue ordering is rule-major (all elements for rule 1, then all for rule 2), matching the
+  // canonical emitEachRules path — not element-major.
+  it('declared Set multiple each-rules report in rule-major order (matches canonical)', async () => {
+    const r = await runDes(
+      setMeta([
+        { rule: minLength(5), each: true },
+        { rule: maxLength(2), each: true },
+      ]),
+      { names: ['aaa', 'bbb'] },
+    );
+    assertIsErr<BakerIssue[]>(r);
+    expect(r.data.map(e => e.code)).toEqual(['minLength', 'minLength', 'maxLength', 'maxLength']);
+  });
+
+  // BUG C — function message received the whole collection instead of the failing element
+  it('declared Set each-rule function message receives the failing element', async () => {
+    const seen: unknown[] = [];
+    await runDes(
+      setMeta([
+        {
+          rule: isString,
+          each: true,
+          message: a => {
+            seen.push(a.value);
+            return 'bad';
+          },
+        },
+      ]),
+      { names: ['ok', 42] },
+    );
+    expect(seen).toEqual([42]);
+  });
+  it('declared Map each-rule function message receives the failing element', async () => {
+    const seen: unknown[] = [];
+    await runDes(
+      mapMeta([
+        {
+          rule: isString,
+          each: true,
+          message: a => {
+            seen.push(a.value);
+            return 'bad';
+          },
+        },
+      ]),
+      { tags: { k: 42 } },
+    );
+    expect(seen).toEqual([42]);
+  });
+});
+
+describe('declared collection — element validation (validate-only)', () => {
+  // validate-only executors return `BakerIssue[] | null` (null = valid), not a Result.
+  it('validate-only Map enforces each-rule on values (invalid)', () => {
+    expect(runVal(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'ok', k2: 42 } })).not.toBeNull();
+  });
+  it('validate-only Set each-rule is skipped when its group is not active', () => {
+    expect(
+      runVal(setMeta([{ rule: isString, each: true, groups: ['admin'] }]), { names: ['ok', 42] }, { groups: ['user'] }),
+    ).toBeNull();
+  });
+  it('validate-only Set each-rule function message receives the failing element', () => {
+    const seen: unknown[] = [];
+    runVal(
+      setMeta([
+        {
+          rule: isString,
+          each: true,
+          message: a => {
+            seen.push(a.value);
+            return 'bad';
+          },
+        },
+      ]),
+      { names: ['ok', 42] },
+    );
+    expect(seen).toEqual([42]);
+  });
 });

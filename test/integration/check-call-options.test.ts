@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
-import type { RuntimeOptions } from '../../src/interfaces';
+import type { RuntimeOptions } from '../../src/common/interfaces';
 
 import { Baker, Field, BakerError } from '../../index';
 import { isString } from '../../src/rules/index';
@@ -28,6 +28,20 @@ function validateBad<T>(cls: new (...args: never[]) => T, input: unknown, opts: 
 describe('checkCallOptions — only `groups` is a valid per-call option', () => {
   it('deserialize with `groups` passes', () => {
     expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: ['a'] })).not.toThrow();
+  });
+
+  it('groups as a non-array throws BakerError', () => {
+    // Untyped call boundary: a string would otherwise flow into `new Set(opts.groups)` and split into
+    // characters in generated code, silently misbehaving instead of failing cleanly.
+    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: 'admin' })).toThrow(/groups.*string\[\]/);
+  });
+
+  it('groups with a non-string element throws BakerError', () => {
+    expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: ['a', 1] })).toThrow(/groups.*string\[\]/);
+  });
+
+  it('groups as an empty array is fine (no group filtering)', () => {
+    expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: [] })).not.toThrow();
   });
 
   it('deserialize with unsupported per-call option throws BakerError', () => {

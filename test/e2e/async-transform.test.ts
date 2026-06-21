@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach, beforeEach } from 'bun:test';
 
 import { Baker, Field } from '../../index';
+import { isAsyncFunction } from '../../src/common/utils';
 import { isString, isNumber } from '../../src/rules/index';
-import { isAsyncFunction } from '../../src/utils';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
 
@@ -89,9 +89,9 @@ describe('async @Transform — deserialize', () => {
     }
     const promiseDeserializeBaker = sealClass(PromiseDeserializeDto);
 
-    expect(() => promiseDeserializeBaker.deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' })).toThrow(
-      'deserialize transform returned Promise',
-    );
+    expect(() =>
+      promiseDeserializeBaker.deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' }),
+    ).toThrow('deserialize transform returned Promise');
   });
 });
 

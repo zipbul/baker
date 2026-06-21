@@ -48,6 +48,14 @@ class ArrayOfMessageDto {
 }
 
 @baker.Recipe
+class ArrayOfFnMessageDto {
+  @Field(arrayOf(minLength(5)), {
+    message: ({ value }) => `el:${JSON.stringify(value)}`,
+  })
+  tags!: string[];
+}
+
+@baker.Recipe
 class NoMessageDto {
   @Field(isString)
   name!: string;
@@ -195,6 +203,14 @@ describe('@Field message — used with arrayOf', () => {
     for (const error of result.errors) {
       expect(error.message).toBe('Each tag must be a non-empty string');
     }
+  });
+
+  it('function message receives the failing ELEMENT as value, not the whole array', async () => {
+    const result = await baker.deserialize(ArrayOfFnMessageDto, { tags: ['ab'] });
+    assertBakerIssueSet(result);
+    expect(result.errors[0]!.path).toBe('tags[0]');
+    // value must be the failing element 'ab' — not the whole array ['ab'].
+    expect(result.errors[0]!.message).toBe('el:"ab"');
   });
 });
 

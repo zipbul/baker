@@ -1,110 +1,12 @@
-export {
-  isString,
-  isNumber,
-  isBoolean,
-  isDate,
-  isEnum,
-  isInt,
-  isArray,
-  isObject,
-  isRegExp,
-  isFunction,
-  isStatelessRegExp,
-} from './typechecker';
-export type { IsNumberOptions } from './typechecker';
-export { oneOf, arrayEvery } from './combinators';
-export { min, max, isPositive, isNegative, isDivisibleBy } from './number';
-export { minDate, maxDate } from './date';
-export { equals, notEquals, isEmpty, isNotEmpty, isIn, isNotIn } from './common';
-export {
-  minLength,
-  maxLength,
-  length,
-  contains,
-  notContains,
-  matches,
-  isLowercase,
-  isUppercase,
-  isAscii,
-  isAlpha,
-  isAlphanumeric,
-  isHttpToken,
-  isOrigin,
-  isCorsOrigin,
-  isBooleanString,
-  isNumberString,
-  isDecimal,
-  isFullWidth,
-  isHalfWidth,
-  isVariableWidth,
-  isMultibyte,
-  isSurrogatePair,
-  isHexadecimal,
-  isOctal,
-  isEmail,
-  isURL,
-  isUUID,
-  isIP,
-  isHexColor,
-  isRgbColor,
-  isHSL,
-  isMACAddress,
-  isISBN,
-  isISIN,
-  isISO8601,
-  isISRC,
-  isISSN,
-  isJWT,
-  isLatLong,
-  isLocale,
-  isDataURI,
-  isFQDN,
-  isPort,
-  isEAN,
-  isISO31661Alpha2,
-  isISO31661Alpha3,
-  isBIC,
-  isFirebasePushId,
-  isSemVer,
-  isMongoId,
-  isJSON,
-  isBase32,
-  isBase58,
-  isBase64,
-  isDateString,
-  isMimeType,
-  isCurrency,
-  isMagnetURI,
-  isCreditCard,
-  isIBAN,
-  isByteLength,
-  isHash,
-  isRFC3339,
-  isMilitaryTime,
-  isLatitude,
-  isLongitude,
-  isEthereumAddress,
-  isBtcAddress,
-  isISO4217CurrencyCode,
-  isPhoneNumber,
-  isStrongPassword,
-  isTaxId,
-  isULID,
-  isCUID2,
-} from './string';
-export type {
-  IsURLOptions,
-  IsBase64Options,
-  IsMACAddressOptions,
-  IsIBANOptions,
-  IsISSNOptions,
-  IsFQDNOptions,
-  IsISO8601Options,
-  IsNumberStringOptions,
-  IsStrongPasswordOptions,
-} from './string';
-export { arrayContains, arrayNotContains, arrayMinSize, arrayMaxSize, arrayUnique, arrayNotEmpty } from './array';
-export { isNotEmptyObject, isInstance } from './object';
-export type { IsNotEmptyObjectOptions } from './object';
-export { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
-export { isUint8Array, isByteSize } from './binary';
+// Directory barrel — the FULL internal surface other domains import via `../rules`.
+// The published `./rules` subpath points at `./public` (curated public surface) instead, so these
+// internal re-exports (EmitContext / InternalRule / emitRulePlan) never leak into the public API.
+
+export * from './public';
+
+// Internal surface — consumed cross-domain but NOT part of the published `./rules`.
+// (createRule is part of the public surface and comes through `export * from './public'` above.)
+export { emitRulePlan } from './rule-plan';
+export { RequiredType } from './enums';
+export type { EmittableRule, InternalRule, EmitContext } from './interfaces';
+export type { RulePlanCache } from './types';

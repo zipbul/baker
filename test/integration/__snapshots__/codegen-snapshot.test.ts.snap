@@ -1,0 +1,1969 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`codegen byte-identity snapshot Simple @ default 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  var __bk$mark_name = __bk$errors.length;
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  var __bk$mark_age = __bk$errors.length;
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  var __bk$mark_email = __bk$errors.length;
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+var __bk$mark_active = __bk$errors.length;
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+if (__bk$errors.length === __bk$mark_active) __bk$out["active"] = __bk$f_active;
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://SimpleDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_name = instance["name"];
+__bk$out["name"] = __bk$fv_name;
+var __bk$fv_age = instance["age"];
+__bk$out["age"] = __bk$fv_age;
+var __bk$fv_email = instance["email"];
+__bk$out["email"] = __bk$fv_email;
+var __bk$fv_active = instance["active"];
+__bk$out["active"] = __bk$fv_active;
+return __bk$out;
+//# sourceURL=baker://SimpleDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://SimpleDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Nested @ default 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+var __bk$mark_id = __bk$errors.length;
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+if (__bk$errors.length === __bk$mark_id) __bk$out["id"] = __bk$f_id;
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+  var __bk$r_inner = execs[0].deserialize(__bk$f_inner, opts);
+  if (isErr(__bk$r_inner)) {
+    var __bk$re_inner = __bk$r_inner.data;
+    var __bk$ppinner = "inner.";
+    for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
+      var __neinner_e=__bk$re_inner[__bk$j_inner];
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
+      if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+      if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      __bk$errors.push(__neinner);}
+    }
+  } else { __bk$out["inner"] = __bk$r_inner; }
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+__bk$out["tags"] = __bk$f_tags;
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://NestedDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_id = instance["id"];
+__bk$out["id"] = __bk$fv_id;
+var __bk$fv_inner = instance["inner"];
+if (__bk$fv_inner != null) {
+  __bk$out["inner"] = execs[0].serialize(__bk$fv_inner, opts);
+} else {
+  __bk$out["inner"] = __bk$fv_inner;
+}
+var __bk$fv_tags = instance["tags"];
+__bk$out["tags"] = __bk$fv_tags;
+return __bk$out;
+//# sourceURL=baker://NestedDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+}
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://NestedDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Collection @ default 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  var __bk$arr_set = new Set();
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __bk$r_set = execs[0].deserialize(__bk$f_set[__bk$i_set], opts);
+    if (isErr(__bk$r_set)) {
+      var __bk$re_set = __bk$r_set.data;
+      var __bk$ppset = "set"+'['+__bk$i_set+'].';
+      for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
+      var __neset_e=__bk$re_set[__bk$j_set];
+      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
+      if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+      if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      __bk$errors.push(__neset);}
+      }
+    } else { __bk$arr_set.add(__bk$r_set); }
+  }
+  __bk$out["set"] = __bk$arr_set;
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$arr_map = new Map();
+  var __bk$mkmap = Object.keys(__bk$f_map);
+  for (var __bk$mimap=0; __bk$mimap<__bk$mkmap.length; __bk$mimap++) {
+    var __bk$kmap = __bk$mkmap[__bk$mimap];
+    var __bk$r_map = execs[1].deserialize(__bk$f_map[__bk$kmap], opts);
+    if (isErr(__bk$r_map)) {
+      var __bk$re_map = __bk$r_map.data;
+      var __bk$ppmap = "map"+'['+__bk$kmap+'].';
+      for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
+      var __nemap_e=__bk$re_map[__bk$j_map];
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
+      if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+      if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      __bk$errors.push(__nemap);}
+      }
+    } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
+  }
+  __bk$out["map"] = __bk$arr_map;
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://CollectionDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_set = instance["set"];
+if (__bk$fv_set != null) {
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
+  }
+  __bk$out["set"] = __bk$saset;
+} else {
+  __bk$out["set"] = __bk$fv_set;
+}
+var __bk$fv_map = instance["map"];
+if (__bk$fv_map != null) {
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
+  }
+  __bk$out["map"] = __bk$mmap;
+} else {
+  __bk$out["map"] = __bk$fv_map;
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __il$setci = __bk$f_set[__bk$i_set];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
+    else {
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$vkmap = Object.keys(__bk$f_map);
+  for (var __bk$vimap=0; __bk$vimap<__bk$vkmap.length; __bk$vimap++) {
+    var __bk$kmap = __bk$vkmap[__bk$vimap];
+    var __il$mapmi = __bk$f_map[__bk$kmap];
+    if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
+    else {
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://CollectionDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Simple @ autoConvert 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+var __bk$skip_name = false;
+if (typeof __bk$f_name !== 'string') {
+  __bk$f_name = String(__bk$f_name);
+}
+if (!__bk$skip_name) {
+  var __bk$mark_name = __bk$errors.length;
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+var __bk$skip_age = false;
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) {
+  __bk$f_age = Number(__bk$f_age);
+  if (isNaN(__bk$f_age)) { __bk$errors.push({path:"age",code:"conversionFailed"}); __bk$skip_age = true; }
+}
+if (!__bk$skip_age) {
+  var __bk$mark_age = __bk$errors.length;
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+var __bk$skip_email = false;
+if (typeof __bk$f_email !== 'string') {
+  __bk$f_email = String(__bk$f_email);
+}
+if (!__bk$skip_email) {
+  var __bk$mark_email = __bk$errors.length;
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+var __bk$skip_active = false;
+if (typeof __bk$f_active !== 'boolean') {
+  if (__bk$f_active === 'true' || __bk$f_active === '1' || __bk$f_active === 1) __bk$f_active = true;
+  else if (__bk$f_active === 'false' || __bk$f_active === '0' || __bk$f_active === 0) __bk$f_active = false;
+  else { __bk$errors.push({path:"active",code:"conversionFailed"}); __bk$skip_active = true; }
+}
+if (!__bk$skip_active) {
+  var __bk$mark_active = __bk$errors.length;
+  if (__bk$errors.length === __bk$mark_active) __bk$out["active"] = __bk$f_active;
+}
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://SimpleDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_name = instance["name"];
+__bk$out["name"] = __bk$fv_name;
+var __bk$fv_age = instance["age"];
+__bk$out["age"] = __bk$fv_age;
+var __bk$fv_email = instance["email"];
+__bk$out["email"] = __bk$fv_email;
+var __bk$fv_active = instance["active"];
+__bk$out["active"] = __bk$fv_active;
+return __bk$out;
+//# sourceURL=baker://SimpleDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+var __bk$skip_name = false;
+if (typeof __bk$f_name !== 'string') {
+  __bk$f_name = String(__bk$f_name);
+}
+if (!__bk$skip_name) {
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+var __bk$skip_age = false;
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) {
+  __bk$f_age = Number(__bk$f_age);
+  if (isNaN(__bk$f_age)) { __bk$errors.push({path:"age",code:"conversionFailed"}); __bk$skip_age = true; }
+}
+if (!__bk$skip_age) {
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+var __bk$skip_email = false;
+if (typeof __bk$f_email !== 'string') {
+  __bk$f_email = String(__bk$f_email);
+}
+if (!__bk$skip_email) {
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+var __bk$skip_active = false;
+if (typeof __bk$f_active !== 'boolean') {
+  if (__bk$f_active === 'true' || __bk$f_active === '1' || __bk$f_active === 1) __bk$f_active = true;
+  else if (__bk$f_active === 'false' || __bk$f_active === '0' || __bk$f_active === 0) __bk$f_active = false;
+  else { __bk$errors.push({path:"active",code:"conversionFailed"}); __bk$skip_active = true; }
+}
+if (!__bk$skip_active) {
+}
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://SimpleDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Nested @ autoConvert 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+var __bk$skip_id = false;
+if (typeof __bk$f_id !== 'string') {
+  __bk$f_id = String(__bk$f_id);
+}
+if (!__bk$skip_id) {
+  var __bk$mark_id = __bk$errors.length;
+  if (__bk$errors.length === __bk$mark_id) __bk$out["id"] = __bk$f_id;
+}
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+  var __bk$r_inner = execs[0].deserialize(__bk$f_inner, opts);
+  if (isErr(__bk$r_inner)) {
+    var __bk$re_inner = __bk$r_inner.data;
+    var __bk$ppinner = "inner.";
+    for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
+      var __neinner_e=__bk$re_inner[__bk$j_inner];
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
+      if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+      if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      __bk$errors.push(__neinner);}
+    }
+  } else { __bk$out["inner"] = __bk$r_inner; }
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+__bk$out["tags"] = __bk$f_tags;
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://NestedDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_id = instance["id"];
+__bk$out["id"] = __bk$fv_id;
+var __bk$fv_inner = instance["inner"];
+if (__bk$fv_inner != null) {
+  __bk$out["inner"] = execs[0].serialize(__bk$fv_inner, opts);
+} else {
+  __bk$out["inner"] = __bk$fv_inner;
+}
+var __bk$fv_tags = instance["tags"];
+__bk$out["tags"] = __bk$fv_tags;
+return __bk$out;
+//# sourceURL=baker://NestedDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+var __bk$skip_id = false;
+if (typeof __bk$f_id !== 'string') {
+  __bk$f_id = String(__bk$f_id);
+}
+if (!__bk$skip_id) {
+}
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+else {
+var __bk$skip_inner_0_k = false;
+if (typeof __bk$f_inner_0_k !== 'number' || isNaN(__bk$f_inner_0_k)) {
+  __bk$f_inner_0_k = Number(__bk$f_inner_0_k);
+  if (isNaN(__bk$f_inner_0_k)) { __bk$errors.push({path:"inner."+"k",code:"conversionFailed"}); __bk$skip_inner_0_k = true; }
+}
+if (!__bk$skip_inner_0_k) {
+  if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+}
+}
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://NestedDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Collection @ autoConvert 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  var __bk$arr_set = new Set();
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __bk$r_set = execs[0].deserialize(__bk$f_set[__bk$i_set], opts);
+    if (isErr(__bk$r_set)) {
+      var __bk$re_set = __bk$r_set.data;
+      var __bk$ppset = "set"+'['+__bk$i_set+'].';
+      for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
+      var __neset_e=__bk$re_set[__bk$j_set];
+      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
+      if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+      if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      __bk$errors.push(__neset);}
+      }
+    } else { __bk$arr_set.add(__bk$r_set); }
+  }
+  __bk$out["set"] = __bk$arr_set;
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$arr_map = new Map();
+  var __bk$mkmap = Object.keys(__bk$f_map);
+  for (var __bk$mimap=0; __bk$mimap<__bk$mkmap.length; __bk$mimap++) {
+    var __bk$kmap = __bk$mkmap[__bk$mimap];
+    var __bk$r_map = execs[1].deserialize(__bk$f_map[__bk$kmap], opts);
+    if (isErr(__bk$r_map)) {
+      var __bk$re_map = __bk$r_map.data;
+      var __bk$ppmap = "map"+'['+__bk$kmap+'].';
+      for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
+      var __nemap_e=__bk$re_map[__bk$j_map];
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
+      if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+      if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      __bk$errors.push(__nemap);}
+      }
+    } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
+  }
+  __bk$out["map"] = __bk$arr_map;
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://CollectionDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_set = instance["set"];
+if (__bk$fv_set != null) {
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
+  }
+  __bk$out["set"] = __bk$saset;
+} else {
+  __bk$out["set"] = __bk$fv_set;
+}
+var __bk$fv_map = instance["map"];
+if (__bk$fv_map != null) {
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
+  }
+  __bk$out["map"] = __bk$mmap;
+} else {
+  __bk$out["map"] = __bk$fv_map;
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __il$setci = __bk$f_set[__bk$i_set];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
+    else {
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
+else {
+var __bk$skip_setc_0_k = false;
+if (typeof __bk$f_setc_0_k !== 'number' || isNaN(__bk$f_setc_0_k)) {
+  __bk$f_setc_0_k = Number(__bk$f_setc_0_k);
+  if (isNaN(__bk$f_setc_0_k)) { __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"conversionFailed"}); __bk$skip_setc_0_k = true; }
+}
+if (!__bk$skip_setc_0_k) {
+  if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+}
+}
+    }
+  }
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$vkmap = Object.keys(__bk$f_map);
+  for (var __bk$vimap=0; __bk$vimap<__bk$vkmap.length; __bk$vimap++) {
+    var __bk$kmap = __bk$vkmap[__bk$vimap];
+    var __il$mapmi = __bk$f_map[__bk$kmap];
+    if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
+    else {
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+else {
+var __bk$skip_mapm_1_k = false;
+if (typeof __bk$f_mapm_1_k !== 'number' || isNaN(__bk$f_mapm_1_k)) {
+  __bk$f_mapm_1_k = Number(__bk$f_mapm_1_k);
+  if (isNaN(__bk$f_mapm_1_k)) { __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"conversionFailed"}); __bk$skip_mapm_1_k = true; }
+}
+if (!__bk$skip_mapm_1_k) {
+  if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+}
+}
+    }
+  }
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://CollectionDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Simple @ stopAtFirstError 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) return err([{path:"name",code:"isDefined"}]);
+else {
+if (typeof __bk$f_name !== 'string') return err([{path:"name",code:"isString"}]);
+if (__bk$f_name.length < 2) return err([{path:"name",code:"minLength"}]);
+__bk$out["name"] = __bk$f_name;
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) return err([{path:"age",code:"isDefined"}]);
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) return err([{path:"age",code:"isNumber"}]);
+if (__bk$f_age === Infinity || __bk$f_age === -Infinity) return err([{path:"age",code:"isNumber"}]);
+if (__bk$f_age < 0) return err([{path:"age",code:"min"}]);
+__bk$out["age"] = __bk$f_age;
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) return err([{path:"email",code:"isDefined"}]);
+else {
+if (typeof __bk$f_email !== 'string') return err([{path:"email",code:"isString"}]);
+if (!re[0].test(__bk$f_email)) return err([{path:"email",code:"isEmail"}]);
+__bk$out["email"] = __bk$f_email;
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) return err([{path:"active",code:"isDefined"}]);
+else {
+if (typeof __bk$f_active !== 'boolean') return err([{path:"active",code:"isBoolean"}]);
+__bk$out["active"] = __bk$f_active;
+}
+return __bk$out;
+//# sourceURL=baker://SimpleDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_name = instance["name"];
+__bk$out["name"] = __bk$fv_name;
+var __bk$fv_age = instance["age"];
+__bk$out["age"] = __bk$fv_age;
+var __bk$fv_email = instance["email"];
+__bk$out["email"] = __bk$fv_email;
+var __bk$fv_active = instance["active"];
+__bk$out["active"] = __bk$fv_active;
+return __bk$out;
+//# sourceURL=baker://SimpleDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) return [{path:"name",code:"isDefined"}];
+else {
+if (typeof __bk$f_name !== 'string') return [{path:"name",code:"isString"}];
+if (__bk$f_name.length < 2) return [{path:"name",code:"minLength"}];
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) return [{path:"age",code:"isDefined"}];
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) return [{path:"age",code:"isNumber"}];
+if (__bk$f_age === Infinity || __bk$f_age === -Infinity) return [{path:"age",code:"isNumber"}];
+if (__bk$f_age < 0) return [{path:"age",code:"min"}];
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) return [{path:"email",code:"isDefined"}];
+else {
+if (typeof __bk$f_email !== 'string') return [{path:"email",code:"isString"}];
+if (!re[0].test(__bk$f_email)) return [{path:"email",code:"isEmail"}];
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) return [{path:"active",code:"isDefined"}];
+else {
+if (typeof __bk$f_active !== 'boolean') return [{path:"active",code:"isBoolean"}];
+}
+return null;
+//# sourceURL=baker://SimpleDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Nested @ stopAtFirstError 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) return err([{path:"id",code:"isDefined"}]);
+else {
+if (typeof __bk$f_id !== 'string') return err([{path:"id",code:"isString"}]);
+__bk$out["id"] = __bk$f_id;
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) return err([{path:"inner",code:"isDefined"}]);
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+  var __bk$r_inner = execs[0].deserialize(__bk$f_inner, opts);
+  if (isErr(__bk$r_inner)) {
+    var __bk$re_inner = __bk$r_inner.data;
+    var __bk$ppinner = "inner.";
+    var __neinner_e=__bk$re_inner[0];
+    if(__neinner_e.message===undefined&&__neinner_e.context===undefined)return err([{path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code}]);
+    var __neinner={path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code};
+    if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+    if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+    return err([__neinner]);
+  } else { __bk$out["inner"] = __bk$r_inner; }
+} else { return err([{path:"inner",code:"isObject"}]); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) return err([{path:"tags",code:"isDefined"}]);
+else {
+__bk$out["tags"] = __bk$f_tags;
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) return err([{path:"tags",code:"isArray"}]);
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}]);
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}]);
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') return err([{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}]);
+    __bk$mi_tags++;
+  }
+}
+}
+return __bk$out;
+//# sourceURL=baker://NestedDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_id = instance["id"];
+__bk$out["id"] = __bk$fv_id;
+var __bk$fv_inner = instance["inner"];
+if (__bk$fv_inner != null) {
+  __bk$out["inner"] = execs[0].serialize(__bk$fv_inner, opts);
+} else {
+  __bk$out["inner"] = __bk$fv_inner;
+}
+var __bk$fv_tags = instance["tags"];
+__bk$out["tags"] = __bk$fv_tags;
+return __bk$out;
+//# sourceURL=baker://NestedDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) return [{path:"id",code:"isDefined"}];
+else {
+if (typeof __bk$f_id !== 'string') return [{path:"id",code:"isString"}];
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) return [{path:"inner",code:"isDefined"}];
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) return [{path:"inner."+"k",code:"isDefined"}];
+else {
+if (typeof __bk$f_inner_0_k !== 'number') return [{path:"inner."+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_inner_0_k)) return [{path:"inner."+"k",code:"isNumber"}];
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) return [{path:"inner."+"k",code:"isNumber"}];
+}
+} else { return [{path:"inner",code:"isObject"}]; }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) return [{path:"tags",code:"isDefined"}];
+else {
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) return [{path:"tags",code:"isArray"}];
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$i_tags+']',code:"isString"}];
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$si_tags+']',code:"isString"}];
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') return [{path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"}];
+    __bk$mi_tags++;
+  }
+}
+}
+return null;
+//# sourceURL=baker://NestedDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Collection @ stopAtFirstError 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) return err([{path:"set",code:"isDefined"}]);
+else {
+if (Array.isArray(__bk$f_set)) {
+  var __bk$arr_set = new Set();
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __bk$r_set = execs[0].deserialize(__bk$f_set[__bk$i_set], opts);
+    if (isErr(__bk$r_set)) {
+      var __bk$re_set = __bk$r_set.data;
+      var __bk$ppset = "set"+'['+__bk$i_set+'].';
+      var __neset_e=__bk$re_set[0];
+    if(__neset_e.message===undefined&&__neset_e.context===undefined)return err([{path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code}]);
+    var __neset={path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code};
+    if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+    if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+    return err([__neset]);
+    } else { __bk$arr_set.add(__bk$r_set); }
+  }
+  __bk$out["set"] = __bk$arr_set;
+} else { return err([{path:"set",code:"isArray"}]); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) return err([{path:"map",code:"isDefined"}]);
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$arr_map = new Map();
+  var __bk$mkmap = Object.keys(__bk$f_map);
+  for (var __bk$mimap=0; __bk$mimap<__bk$mkmap.length; __bk$mimap++) {
+    var __bk$kmap = __bk$mkmap[__bk$mimap];
+    var __bk$r_map = execs[1].deserialize(__bk$f_map[__bk$kmap], opts);
+    if (isErr(__bk$r_map)) {
+      var __bk$re_map = __bk$r_map.data;
+      var __bk$ppmap = "map"+'['+__bk$kmap+'].';
+      var __nemap_e=__bk$re_map[0];
+    if(__nemap_e.message===undefined&&__nemap_e.context===undefined)return err([{path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code}]);
+    var __nemap={path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code};
+    if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+    if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+    return err([__nemap]);
+    } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
+  }
+  __bk$out["map"] = __bk$arr_map;
+} else { return err([{path:"map",code:"isObject"}]); }
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_set = instance["set"];
+if (__bk$fv_set != null) {
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
+  }
+  __bk$out["set"] = __bk$saset;
+} else {
+  __bk$out["set"] = __bk$fv_set;
+}
+var __bk$fv_map = instance["map"];
+if (__bk$fv_map != null) {
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
+  }
+  __bk$out["map"] = __bk$mmap;
+} else {
+  __bk$out["map"] = __bk$fv_map;
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) return [{path:"set",code:"isDefined"}];
+else {
+if (Array.isArray(__bk$f_set)) {
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __il$setci = __bk$f_set[__bk$i_set];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) return [{path:"set"+'['+__bk$i_set+'].',code:'invalidInput'}];
+    else {
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"}];
+else {
+if (typeof __bk$f_setc_0_k !== 'number') return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_setc_0_k)) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) return [{path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"}];
+}
+    }
+  }
+} else { return [{path:"set",code:"isArray"}]; }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) return [{path:"map",code:"isDefined"}];
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$vkmap = Object.keys(__bk$f_map);
+  for (var __bk$vimap=0; __bk$vimap<__bk$vkmap.length; __bk$vimap++) {
+    var __bk$kmap = __bk$vkmap[__bk$vimap];
+    var __il$mapmi = __bk$f_map[__bk$kmap];
+    if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) return [{path:"map"+'['+__bk$kmap+'].',code:'invalidInput'}];
+    else {
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"}];
+else {
+if (typeof __bk$f_mapm_1_k !== 'number') return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+else if (isNaN(__bk$f_mapm_1_k)) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) return [{path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"}];
+}
+    }
+  }
+} else { return [{path:"map",code:"isObject"}]; }
+}
+return null;
+//# sourceURL=baker://CollectionDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Simple @ forbidUnknown 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  var __bk$mark_name = __bk$errors.length;
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  var __bk$mark_age = __bk$errors.length;
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  var __bk$mark_email = __bk$errors.length;
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+var __bk$mark_active = __bk$errors.length;
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+if (__bk$errors.length === __bk$mark_active) __bk$out["active"] = __bk$f_active;
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://SimpleDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_name = instance["name"];
+__bk$out["name"] = __bk$fv_name;
+var __bk$fv_age = instance["age"];
+__bk$out["age"] = __bk$fv_age;
+var __bk$fv_email = instance["email"];
+__bk$out["email"] = __bk$fv_email;
+var __bk$fv_active = instance["active"];
+__bk$out["active"] = __bk$fv_active;
+return __bk$out;
+//# sourceURL=baker://SimpleDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_name = input["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+}
+}
+var __bk$f_age = input["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+}
+}
+var __bk$f_email = input["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+}
+}
+var __bk$f_active = input["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://SimpleDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Nested @ forbidUnknown 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+var __bk$mark_id = __bk$errors.length;
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+if (__bk$errors.length === __bk$mark_id) __bk$out["id"] = __bk$f_id;
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+  var __bk$r_inner = execs[0].deserialize(__bk$f_inner, opts);
+  if (isErr(__bk$r_inner)) {
+    var __bk$re_inner = __bk$r_inner.data;
+    var __bk$ppinner = "inner.";
+    for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
+      var __neinner_e=__bk$re_inner[__bk$j_inner];
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
+      if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+      if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      __bk$errors.push(__neinner);}
+    }
+  } else { __bk$out["inner"] = __bk$r_inner; }
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+__bk$out["tags"] = __bk$f_tags;
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://NestedDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_id = instance["id"];
+__bk$out["id"] = __bk$fv_id;
+var __bk$fv_inner = instance["inner"];
+if (__bk$fv_inner != null) {
+  __bk$out["inner"] = execs[0].serialize(__bk$fv_inner, opts);
+} else {
+  __bk$out["inner"] = __bk$fv_inner;
+}
+var __bk$fv_tags = instance["tags"];
+__bk$out["tags"] = __bk$fv_tags;
+return __bk$out;
+//# sourceURL=baker://NestedDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_id = input["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+}
+var __bk$f_inner = input["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+}
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = input["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://NestedDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Collection @ forbidUnknown 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = Object.create(_Cls.prototype);
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  var __bk$arr_set = new Set();
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __bk$r_set = execs[0].deserialize(__bk$f_set[__bk$i_set], opts);
+    if (isErr(__bk$r_set)) {
+      var __bk$re_set = __bk$r_set.data;
+      var __bk$ppset = "set"+'['+__bk$i_set+'].';
+      for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
+      var __neset_e=__bk$re_set[__bk$j_set];
+      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
+      if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+      if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      __bk$errors.push(__neset);}
+      }
+    } else { __bk$arr_set.add(__bk$r_set); }
+  }
+  __bk$out["set"] = __bk$arr_set;
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$arr_map = new Map();
+  var __bk$mkmap = Object.keys(__bk$f_map);
+  for (var __bk$mimap=0; __bk$mimap<__bk$mkmap.length; __bk$mimap++) {
+    var __bk$kmap = __bk$mkmap[__bk$mimap];
+    var __bk$r_map = execs[1].deserialize(__bk$f_map[__bk$kmap], opts);
+    if (isErr(__bk$r_map)) {
+      var __bk$re_map = __bk$r_map.data;
+      var __bk$ppmap = "map"+'['+__bk$kmap+'].';
+      for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
+      var __nemap_e=__bk$re_map[__bk$j_map];
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
+      if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+      if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      __bk$errors.push(__nemap);}
+      }
+    } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
+  }
+  __bk$out["map"] = __bk$arr_map;
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://CollectionDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_set = instance["set"];
+if (__bk$fv_set != null) {
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
+  }
+  __bk$out["set"] = __bk$saset;
+} else {
+  __bk$out["set"] = __bk$fv_set;
+}
+var __bk$fv_map = instance["map"];
+if (__bk$fv_map != null) {
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
+  }
+  __bk$out["map"] = __bk$mmap;
+} else {
+  __bk$out["map"] = __bk$fv_map;
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var __bk$k=__wlk[__wli];if(!refs[0].has(__bk$k))__bk$errors.push({path:__bk$k,code:'whitelistViolation'});}}
+var __bk$f_set = input["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __il$setci = __bk$f_set[__bk$i_set];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
+    else {
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = input["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$vkmap = Object.keys(__bk$f_map);
+  for (var __bk$vimap=0; __bk$vimap<__bk$vkmap.length; __bk$vimap++) {
+    var __bk$kmap = __bk$vkmap[__bk$vimap];
+    var __il$mapmi = __bk$f_map[__bk$kmap];
+    if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
+    else {
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://CollectionDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Simple @ allowClassDefaults 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_name = Object.hasOwn(input, "name") ? input["name"] : __bk$out["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  var __bk$mark_name = __bk$errors.length;
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
+}
+}
+var __bk$f_age = Object.hasOwn(input, "age") ? input["age"] : __bk$out["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  var __bk$mark_age = __bk$errors.length;
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
+}
+}
+var __bk$f_email = Object.hasOwn(input, "email") ? input["email"] : __bk$out["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  var __bk$mark_email = __bk$errors.length;
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
+}
+}
+var __bk$f_active = Object.hasOwn(input, "active") ? input["active"] : __bk$out["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+var __bk$mark_active = __bk$errors.length;
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+if (__bk$errors.length === __bk$mark_active) __bk$out["active"] = __bk$f_active;
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://SimpleDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_name = instance["name"];
+__bk$out["name"] = __bk$fv_name;
+var __bk$fv_age = instance["age"];
+__bk$out["age"] = __bk$fv_age;
+var __bk$fv_email = instance["email"];
+__bk$out["email"] = __bk$fv_email;
+var __bk$fv_active = instance["active"];
+__bk$out["active"] = __bk$fv_active;
+return __bk$out;
+//# sourceURL=baker://SimpleDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$defs = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_name = Object.hasOwn(input, "name") ? input["name"] : __bk$defs["name"];
+if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"name",code:"isDefined"});
+else {
+if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
+else {
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+}
+}
+var __bk$f_age = Object.hasOwn(input, "age") ? input["age"] : __bk$defs["age"];
+if (__bk$f_age === undefined || __bk$f_age === null) __bk$errors.push({path:"age",code:"isDefined"});
+else {
+if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
+else {
+  if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+}
+}
+var __bk$f_email = Object.hasOwn(input, "email") ? input["email"] : __bk$defs["email"];
+if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:"email",code:"isDefined"});
+else {
+if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
+else {
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+}
+}
+var __bk$f_active = Object.hasOwn(input, "active") ? input["active"] : __bk$defs["active"];
+if (__bk$f_active === undefined || __bk$f_active === null) __bk$errors.push({path:"active",code:"isDefined"});
+else {
+if (typeof __bk$f_active !== 'boolean') __bk$errors.push({path:"active",code:"isBoolean"});
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://SimpleDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Nested @ allowClassDefaults 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_id = Object.hasOwn(input, "id") ? input["id"] : __bk$out["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+var __bk$mark_id = __bk$errors.length;
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+if (__bk$errors.length === __bk$mark_id) __bk$out["id"] = __bk$f_id;
+}
+var __bk$f_inner = Object.hasOwn(input, "inner") ? input["inner"] : __bk$out["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+  var __bk$r_inner = execs[0].deserialize(__bk$f_inner, opts);
+  if (isErr(__bk$r_inner)) {
+    var __bk$re_inner = __bk$r_inner.data;
+    var __bk$ppinner = "inner.";
+    for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
+      var __neinner_e=__bk$re_inner[__bk$j_inner];
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
+      if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
+      if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      __bk$errors.push(__neinner);}
+    }
+  } else { __bk$out["inner"] = __bk$r_inner; }
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = Object.hasOwn(input, "tags") ? input["tags"] : __bk$out["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+__bk$out["tags"] = __bk$f_tags;
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://NestedDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_id = instance["id"];
+__bk$out["id"] = __bk$fv_id;
+var __bk$fv_inner = instance["inner"];
+if (__bk$fv_inner != null) {
+  __bk$out["inner"] = execs[0].serialize(__bk$fv_inner, opts);
+} else {
+  __bk$out["inner"] = __bk$fv_inner;
+}
+var __bk$fv_tags = instance["tags"];
+__bk$out["tags"] = __bk$fv_tags;
+return __bk$out;
+//# sourceURL=baker://NestedDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$defs = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_id = Object.hasOwn(input, "id") ? input["id"] : __bk$defs["id"];
+if (__bk$f_id === undefined || __bk$f_id === null) __bk$errors.push({path:"id",code:"isDefined"});
+else {
+if (typeof __bk$f_id !== 'string') __bk$errors.push({path:"id",code:"isString"});
+}
+var __bk$f_inner = Object.hasOwn(input, "inner") ? input["inner"] : __bk$defs["inner"];
+if (__bk$f_inner === undefined || __bk$f_inner === null) __bk$errors.push({path:"inner",code:"isDefined"});
+else {
+if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(__bk$f_inner)) {
+var __bk$f_inner_0_k = __bk$f_inner["k"];
+if (__bk$f_inner_0_k === undefined || __bk$f_inner_0_k === null) __bk$errors.push({path:"inner."+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_inner_0_k !== 'number') __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (isNaN(__bk$f_inner_0_k)) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+else if (__bk$f_inner_0_k === Infinity || __bk$f_inner_0_k === -Infinity) __bk$errors.push({path:"inner."+"k",code:"isNumber"});
+}
+} else { __bk$errors.push({path:"inner",code:"isObject"}); }
+}
+var __bk$f_tags = Object.hasOwn(input, "tags") ? input["tags"] : __bk$defs["tags"];
+if (__bk$f_tags === undefined || __bk$f_tags === null) __bk$errors.push({path:"tags",code:"isDefined"});
+else {
+var __bk$cktags = Array.isArray(__bk$f_tags)?1:(__bk$f_tags instanceof Set?2:(__bk$f_tags instanceof Map?3:0));
+var __bk$ep_tags = "tags"+'[';
+if (__bk$cktags === 0) __bk$errors.push({path:"tags",code:"isArray"});
+if (__bk$cktags === 1) {
+    for (var __bk$i_tags=0; __bk$i_tags<__bk$f_tags.length; __bk$i_tags++) {
+    var __bk$eltags = __bk$f_tags[__bk$i_tags];
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$i_tags+']',code:"isString"});
+  }
+} else if (__bk$cktags === 2) {
+  var __bk$si_tags = 0;
+  for (var __bk$sv_tags of __bk$f_tags) {
+    var __bk$eltags = __bk$sv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$si_tags+']',code:"isString"});
+    __bk$si_tags++;
+  }
+} else if (__bk$cktags === 3) {
+  var __bk$mi_tags = 0;
+  for (var __bk$mv_tags of __bk$f_tags.values()) {
+    var __bk$eltags = __bk$mv_tags;
+    if (typeof __bk$eltags !== 'string') __bk$errors.push({path:__bk$ep_tags+__bk$mi_tags+']',code:"isString"});
+    __bk$mi_tags++;
+  }
+}
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://NestedDto/validate
+ }"
+,
+}
+`;
+
+exports[`codegen byte-identity snapshot Collection @ allowClassDefaults 1`] = `
+{
+  "deserialize": 
+"function(input, opts) { 'use strict';
+var __bk$out = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return err([{path:'',code:'invalidInput'}]);
+var __bk$f_set = Object.hasOwn(input, "set") ? input["set"] : __bk$out["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  var __bk$arr_set = new Set();
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __bk$r_set = execs[0].deserialize(__bk$f_set[__bk$i_set], opts);
+    if (isErr(__bk$r_set)) {
+      var __bk$re_set = __bk$r_set.data;
+      var __bk$ppset = "set"+'['+__bk$i_set+'].';
+      for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
+      var __neset_e=__bk$re_set[__bk$j_set];
+      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
+      if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
+      if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      __bk$errors.push(__neset);}
+      }
+    } else { __bk$arr_set.add(__bk$r_set); }
+  }
+  __bk$out["set"] = __bk$arr_set;
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = Object.hasOwn(input, "map") ? input["map"] : __bk$out["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$arr_map = new Map();
+  var __bk$mkmap = Object.keys(__bk$f_map);
+  for (var __bk$mimap=0; __bk$mimap<__bk$mkmap.length; __bk$mimap++) {
+    var __bk$kmap = __bk$mkmap[__bk$mimap];
+    var __bk$r_map = execs[1].deserialize(__bk$f_map[__bk$kmap], opts);
+    if (isErr(__bk$r_map)) {
+      var __bk$re_map = __bk$r_map.data;
+      var __bk$ppmap = "map"+'['+__bk$kmap+'].';
+      for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
+      var __nemap_e=__bk$re_map[__bk$j_map];
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
+      if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
+      if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      __bk$errors.push(__nemap);}
+      }
+    } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
+  }
+  __bk$out["map"] = __bk$arr_map;
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return err(__bk$errors);
+return __bk$out;
+//# sourceURL=baker://CollectionDto/deserialize
+ }"
+,
+  "serialize": 
+"function(instance, opts) { 'use strict';
+var __bk$out = {};
+var __bk$fv_set = instance["set"];
+if (__bk$fv_set != null) {
+  var __bk$saset = [];
+  for (var __bk$siset of __bk$fv_set) {
+    __bk$saset.push(__bk$siset == null ? __bk$siset : execs[0].serialize(__bk$siset, opts));
+  }
+  __bk$out["set"] = __bk$saset;
+} else {
+  __bk$out["set"] = __bk$fv_set;
+}
+var __bk$fv_map = instance["map"];
+if (__bk$fv_map != null) {
+  var __bk$mmap = Object.create(null);
+  for (var __bk$memap of __bk$fv_map) {
+    if (typeof __bk$memap[0] !== 'string') { throw new BakerError("CollectionDto" + ': Map field ' + "map" + ' has non-string key (' + typeof __bk$memap[0] + '). Map serialization requires string keys.'); }
+    __bk$mmap[__bk$memap[0]] = __bk$memap[1] == null ? __bk$memap[1] : execs[1].serialize(__bk$memap[1], opts);
+  }
+  __bk$out["map"] = __bk$mmap;
+} else {
+  __bk$out["map"] = __bk$fv_map;
+}
+return __bk$out;
+//# sourceURL=baker://CollectionDto/serialize
+ }"
+,
+  "validate": 
+"function(input, opts) { 'use strict';
+var __bk$defs = new _Cls();
+var __bk$errors = [];
+if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];
+var __bk$f_set = Object.hasOwn(input, "set") ? input["set"] : __bk$defs["set"];
+if (__bk$f_set === undefined || __bk$f_set === null) __bk$errors.push({path:"set",code:"isDefined"});
+else {
+if (Array.isArray(__bk$f_set)) {
+  for (var __bk$i_set=0; __bk$i_set<__bk$f_set.length; __bk$i_set++) {
+    var __il$setci = __bk$f_set[__bk$i_set];
+    if (__il$setci == null || typeof __il$setci !== 'object' || Array.isArray(__il$setci)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].',code:'invalidInput'});
+    else {
+var __bk$f_setc_0_k = __il$setci["k"];
+if (__bk$f_setc_0_k === undefined || __bk$f_setc_0_k === null) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_setc_0_k !== 'number') __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_setc_0_k)) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+else if (__bk$f_setc_0_k === Infinity || __bk$f_setc_0_k === -Infinity) __bk$errors.push({path:"set"+'['+__bk$i_set+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"set",code:"isArray"}); }
+}
+var __bk$f_map = Object.hasOwn(input, "map") ? input["map"] : __bk$defs["map"];
+if (__bk$f_map === undefined || __bk$f_map === null) __bk$errors.push({path:"map",code:"isDefined"});
+else {
+if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$f_map)) {
+  var __bk$vkmap = Object.keys(__bk$f_map);
+  for (var __bk$vimap=0; __bk$vimap<__bk$vkmap.length; __bk$vimap++) {
+    var __bk$kmap = __bk$vkmap[__bk$vimap];
+    var __il$mapmi = __bk$f_map[__bk$kmap];
+    if (__il$mapmi == null || typeof __il$mapmi !== 'object' || Array.isArray(__il$mapmi)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].',code:'invalidInput'});
+    else {
+var __bk$f_mapm_1_k = __il$mapmi["k"];
+if (__bk$f_mapm_1_k === undefined || __bk$f_mapm_1_k === null) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isDefined"});
+else {
+if (typeof __bk$f_mapm_1_k !== 'number') __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (isNaN(__bk$f_mapm_1_k)) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+else if (__bk$f_mapm_1_k === Infinity || __bk$f_mapm_1_k === -Infinity) __bk$errors.push({path:"map"+'['+__bk$kmap+'].'+"k",code:"isNumber"});
+}
+    }
+  }
+} else { __bk$errors.push({path:"map",code:"isObject"}); }
+}
+if (__bk$errors.length) return __bk$errors;
+return null;
+//# sourceURL=baker://CollectionDto/validate
+ }"
+,
+}
+`;

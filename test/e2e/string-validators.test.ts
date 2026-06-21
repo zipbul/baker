@@ -14,6 +14,7 @@ import {
   contains,
   length,
 } from '../../src/rules/index';
+import { assertBakerIssueSet } from '../integration/helpers/assert';
 
 const baker = new Baker();
 
@@ -162,6 +163,11 @@ describe('isISO8601 strict — codegen executor', () => {
   });
   it('rejects out-of-range day', async () => {
     await reject('2021-02-30');
+  });
+  it('emits exactly one isISO8601 issue when both date and time are out of range (collect-errors mode)', async () => {
+    const result = await baker.deserialize(ISO8601StrictDto, { ts: '2021-13-01T25:61:61' });
+    assertBakerIssueSet(result);
+    expect(result.errors.filter(e => e.code === 'isISO8601')).toHaveLength(1);
   });
 });
 

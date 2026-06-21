@@ -4,7 +4,6 @@ import { Field, Baker, isBakerIssueSet } from '../../index';
 import { isString, isNumber, isBoolean, min, max, minLength, arrayMinSize } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
-
 /**
  * Parity test: validate() must return the same errors as deserialize()
  * for every nesting scenario. This proves the inline code generation
@@ -777,4 +776,3 @@ describe('validate inline parity — discriminator array', () => {
     expectSameErrors(baker.deserialize(Shelter, input), baker.validate(Shelter, input), 'disc array invalid');
   });
 });
-

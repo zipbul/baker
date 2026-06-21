@@ -84,7 +84,9 @@ describe('codegen — integration', () => {
   });
 
   it('transform should be applied in generated deserialize code', async () => {
-    const result = (await baker.deserialize<CodegenTransformDto>(CodegenTransformDto, { text: '  trimmed  ' })) as CodegenTransformDto;
+    const result = (await baker.deserialize<CodegenTransformDto>(CodegenTransformDto, {
+      text: '  trimmed  ',
+    })) as CodegenTransformDto;
     expect(result.text).toBe('trimmed');
   });
 

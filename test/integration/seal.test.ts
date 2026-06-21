@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'bun:test';
 
 import { Field, Baker, createRule, isBakerIssueSet, BakerError } from '../../index';
-import { setRaw } from '../../src/meta-access';
+import { metaStore } from '../../src/metadata';
 import { isString, isNumber, isEmail, min } from '../../src/rules/index';
 import { assertBakerIssueSet } from './helpers/assert';
 
@@ -167,7 +167,7 @@ describe('baker.seal() — late-registered class', () => {
   it('seals a class registered via baker.Recipe with manually-set metadata', async () => {
     const b = new Baker();
     class LateDto {}
-    setRaw(LateDto, {
+    metaStore.set(LateDto, {
       value: {
         validation: [{ rule: isString }],
         transform: [],

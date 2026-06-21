@@ -1,6 +1,6 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // isUint8Array — instanceof guard (self-narrowing, no typeof gate; mirrors isRegExp)
@@ -10,8 +10,7 @@ export const isUint8Array = makeRule({
   name: 'isUint8Array',
   constraints: {},
   validate: value => value instanceof Uint8Array,
-  emit: (varName: string, ctx: EmitContext): string =>
-    `if (!(${varName} instanceof Uint8Array)) ${ctx.fail('isUint8Array')};`,
+  emit: (varName: string, ctx: EmitContext): string => `if (!(${varName} instanceof Uint8Array)) ${ctx.fail('isUint8Array')};`,
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,7 +28,7 @@ export const isUint8Array = makeRule({
 export function isByteSize(min: number, max?: number): EmittableRule {
   return makeRule({
     name: 'isByteSize',
-    constraints: { min, max },
+    constraints: max !== undefined ? { min, max } : { min },
     // Fail-form mirrors emit exactly (same as isByteLength), so validate() and the generated code
     // agree for ALL inputs — including degenerate NaN bounds, where pass-form (>= NaN) would reject
     // but the emitted (< NaN) accepts, breaking validate/emit parity.

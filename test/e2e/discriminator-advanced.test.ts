@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 
-import { Baker, Field, isBakerIssueSet } from '../../index';
+import { Baker, BakerError, Field, isBakerIssueSet } from '../../index';
 import { isString, isBoolean } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
@@ -113,23 +113,101 @@ class OwnerArrayDto {
   pets!: (DogDto | CatDto)[];
 }
 
+describe('discriminator — deserialize array (each)', () => {
+  it('deserializes an array of discriminated elements, dispatching per element', async () => {
+    const result = (await baker.deserialize(OwnerArrayDto, {
+      name: 'Bob',
+      pets: [
+        { type: 'dog', breed: 'Shiba' },
+        { type: 'cat', indoor: true },
+      ],
+    })) as OwnerArrayDto;
+    expect(result.name).toBe('Bob');
+    expect(result.pets).toHaveLength(2);
+    expect(result.pets[0]).toEqual({ breed: 'Shiba' } as DogDto);
+    expect(result.pets[1]).toEqual({ indoor: true } as unknown as CatDto);
+  });
+
+  it('reports invalidDiscriminator at the element path for a bad element', async () => {
+    const result = await baker.deserialize(OwnerArrayDto, {
+      name: 'Bob',
+      pets: [
+        { type: 'dog', breed: 'Shiba' },
+        { type: 'fish', glub: true },
+      ],
+    });
+    assertBakerIssueSet(result);
+    const bad = result.errors.find(e => e.path === 'pets[1]');
+    expect(bad).toBeDefined();
+    expect(bad!.code).toBe('invalidDiscriminator');
+  });
+
+  it('validates element fields with element-level paths', async () => {
+    const result = await baker.deserialize(OwnerArrayDto, {
+      name: 'Bob',
+      pets: [{ type: 'dog', breed: 123 }],
+    });
+    assertBakerIssueSet(result);
+    expect(result.errors.some(e => e.path === 'pets[0].breed')).toBe(true);
+  });
+
+  it('validate() accepts a valid discriminated array', async () => {
+    const result = await baker.validate(OwnerArrayDto, {
+      name: 'Bob',
+      pets: [
+        { type: 'dog', breed: 'Shiba' },
+        { type: 'cat', indoor: true },
+      ],
+    });
+    expect(result).toBe(true);
+  });
+
+  it('validate() reports invalidDiscriminator at the element path', async () => {
+    const result = await baker.validate(OwnerArrayDto, {
+      name: 'Bob',
+      pets: [{ type: 'fish', glub: true }],
+    });
+    assertBakerIssueSet(result);
+    const bad = result.errors.find(e => e.path === 'pets[0]');
+    expect(bad).toBeDefined();
+    expect(bad!.code).toBe('invalidDiscriminator');
+  });
+});
+
 describe('discriminator — serialize', () => {
-  it('should serialize single discriminator field with instanceof dispatch', async () => {
+  it('should serialize single discriminator field with instanceof dispatch (default drops discriminator key)', async () => {
     const dog = Object.assign(new DogDto(), { breed: 'Shiba' });
     const owner = Object.assign(new OwnerDto(), { name: 'Alice', pet: dog });
     const result = await baker.serialize(owner);
-    expect(result.pet).toEqual({ breed: 'Shiba', type: 'dog' });
+    expect(result.pet).toEqual({ breed: 'Shiba' });
   });
 
-  it('should serialize array discriminator field with instanceof dispatch', async () => {
+  it('should serialize array discriminator field with instanceof dispatch (default drops discriminator key)', async () => {
     const dog = Object.assign(new DogDto(), { breed: 'Poodle' });
     const cat = Object.assign(new CatDto(), { indoor: true });
     const owner = Object.assign(new OwnerArrayDto(), { name: 'Bob', pets: [dog, cat] });
     const result = await baker.serialize(owner);
-    expect(result.pets).toEqual([
-      { breed: 'Poodle', type: 'dog' },
-      { indoor: true, type: 'cat' },
-    ]);
+    expect(result.pets).toEqual([{ breed: 'Poodle' }, { indoor: true }]);
+  });
+
+  it('keepDiscriminatorProperty:true → serialize retains the discriminator key', async () => {
+    const dog = Object.assign(new DogDto(), { breed: 'Shiba' });
+    const owner = Object.assign(new OwnerKeepDiscDto(), { pet: dog });
+    const result = await baker.serialize(owner);
+    expect(result.pet).toEqual({ breed: 'Shiba', kind: 'dog' });
+  });
+
+  it('default (unset) → discriminator key dropped symmetrically across deserialize + serialize (round-trip)', async () => {
+    const de = (await baker.deserialize(OwnerDto, { name: 'Z', pet: { type: 'cat', indoor: true } })) as OwnerDto;
+    expect((de.pet as { type?: unknown }).type).toBeUndefined();
+    const ser = await baker.serialize(de);
+    expect((ser.pet as { type?: unknown }).type).toBeUndefined();
+  });
+
+  it('instance matching NO subtype → throws BakerError instead of leaking the raw object', () => {
+    // `pet` is a plain object, not an instance of any subtype (DogDto/CatDto).
+    const owner = Object.assign(new OwnerDto(), { name: 'Ghost', pet: { breed: 'ghost', venom: 'yes' } });
+    expect(() => baker.serializeSync(owner)).toThrow(BakerError);
   });
 });
 
@@ -328,6 +406,134 @@ describe('async serialize: discriminator + array (each)', () => {
     expect(Array.isArray(result.pets)).toBe(true);
     expect(result.pets).toHaveLength(2);
     expect(result.tag).toBe('<root>');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// async deserialize/validate: discriminator + array (exercises the `await` codegen branch)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('discriminator + array — async deserialize/validate', () => {
+  const ab = new Baker();
+  @ab.Recipe
+  class CatA {
+    @Field(isString) kind!: string;
+    @Field(isString, { transform: { deserialize: async ({ value }) => value, serialize: ({ value }) => value } })
+    meow!: string;
+  }
+  @ab.Recipe
+  class DogA {
+    @Field(isString) kind!: string;
+    @Field(isString) bark!: string;
+  }
+  @ab.Recipe
+  class OwnerA {
+    @Field({
+      type: () => [CatA],
+      discriminator: {
+        property: 'kind',
+        subTypes: [
+          { value: CatA, name: 'cat' },
+          { value: DogA, name: 'dog' },
+        ],
+      },
+    })
+    pets!: (CatA | DogA)[];
+  }
+  ab.seal();
+
+  it('deserialize resolves a discriminated array through an async element transform', async () => {
+    const r = await ab.deserialize(OwnerA, {
+      pets: [
+        { kind: 'cat', meow: 'nya' },
+        { kind: 'dog', bark: 'woof' },
+      ],
+    });
+    expect(isBakerIssueSet(r)).toBe(false);
+    expect((r as OwnerA).pets).toHaveLength(2);
+  });
+
+  it('deserialize reports invalidDiscriminator at the element path (async)', async () => {
+    const r = await ab.deserialize(OwnerA, { pets: [{ kind: 'fish' }] });
+    assertBakerIssueSet(r);
+    const bad = r.errors.find(e => e.path === 'pets[0]');
+    expect(bad).toBeDefined();
+    expect(bad!.code).toBe('invalidDiscriminator');
+  });
+
+  it('validate accepts a valid discriminated array (async)', async () => {
+    const r = await ab.validate(OwnerA, {
+      pets: [
+        { kind: 'cat', meow: 'nya' },
+        { kind: 'dog', bark: 'woof' },
+      ],
+    });
+    expect(r).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// discriminator + array under stopAtFirstError (exercises the early-return branches)
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('discriminator + array — stopAtFirstError (early return)', () => {
+  const sb = new Baker({ stopAtFirstError: true });
+  @sb.Recipe
+  class Cat2 {
+    @Field(isString) kind!: string;
+    @Field(isString) meow!: string;
+  }
+  @sb.Recipe
+  class Dog2 {
+    @Field(isString) kind!: string;
+    @Field(isString) bark!: string;
+  }
+  @sb.Recipe
+  class Owner2 {
+    @Field(isString) name!: string;
+    @Field({
+      type: () => [Cat2],
+      discriminator: {
+        property: 'kind',
+        subTypes: [
+          { value: Cat2, name: 'cat' },
+          { value: Dog2, name: 'dog' },
+        ],
+      },
+    })
+    pets!: (Cat2 | Dog2)[];
+  }
+  sb.seal();
+
+  it('deserialize returns invalidDiscriminator on the first bad element', async () => {
+    const r = await sb.deserialize(Owner2, { name: 'A', pets: [{ kind: 'fish' }] });
+    assertBakerIssueSet(r);
+    expect(r.errors[0]!.path).toBe('pets[0]');
+    expect(r.errors[0]!.code).toBe('invalidDiscriminator');
+  });
+
+  it('deserialize returns the first nested element error with element path', async () => {
+    const r = await sb.deserialize(Owner2, { name: 'A', pets: [{ kind: 'cat', meow: 123 }] });
+    assertBakerIssueSet(r);
+    expect(r.errors[0]!.path).toBe('pets[0].meow');
+  });
+
+  it('validate returns invalidDiscriminator on the first bad element', async () => {
+    const r = await sb.validate(Owner2, { name: 'A', pets: [{ kind: 'fish' }] });
+    assertBakerIssueSet(r);
+    expect(r.errors[0]!.path).toBe('pets[0]');
+    expect(r.errors[0]!.code).toBe('invalidDiscriminator');
+  });
+
+  it('deserialize succeeds on a valid array', async () => {
+    const r = (await sb.deserialize(Owner2, {
+      name: 'A',
+      pets: [
+        { kind: 'cat', meow: 'nya' },
+        { kind: 'dog', bark: 'woof' },
+      ],
+    })) as Owner2;
+    expect(r.pets).toHaveLength(2);
   });
 });
 

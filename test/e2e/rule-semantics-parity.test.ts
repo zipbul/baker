@@ -37,7 +37,7 @@ afterEach(() => unseal());
 
 type RuleCase = {
   name: string;
-  rule: import('../../src/types').EmittableRule;
+  rule: import('../../src/rules/interfaces').EmittableRule;
   samples: unknown[];
 };
 

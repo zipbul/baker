@@ -1,8 +1,8 @@
 import { describe, it, expect, mock } from 'bun:test';
-import { RequiredType } from '../enums';
 
-import type { EmitContext } from '../types';
+import type { EmitContext } from './interfaces';
 
+import { RequiredType } from './enums';
 import {
   isString,
   isNumber,
@@ -290,6 +290,35 @@ describe('isEnum', () => {
     const rule = isEnum(Status);
     // Act / Assert
     expect(rule(1)).toBe(true);
+  });
+
+  it('should return false for a numeric enum member NAME (reverse-mapping artifact)', () => {
+    // Arrange — TS numeric enums compile to a reverse-mapped object ({ 0:'Inactive', 1:'Active',
+    // Active:1, Inactive:0 }); the member-name strings must NOT count as valid values.
+    const rule = isEnum(Status);
+    // Act / Assert
+    expect(rule('Active')).toBe(false);
+    expect(rule('Inactive')).toBe(false);
+  });
+
+  it('should accept the zero value of a numeric enum', () => {
+    // Arrange — Inactive = 0 is falsy but a legitimate member value
+    const rule = isEnum(Status);
+    // Act / Assert
+    expect(rule(0)).toBe(true);
+  });
+
+  it('should handle heterogeneous (mixed numeric/string) enums', () => {
+    // Arrange — only the numeric member gets a reverse mapping
+    enum Mixed {
+      Num = 1,
+      Str = 'STR',
+    }
+    const rule = isEnum(Mixed);
+    // Act / Assert
+    expect(rule(1)).toBe(true);
+    expect(rule('STR')).toBe(true);
+    expect(rule('Num')).toBe(false);
   });
 
   it('should return false when value is not in enum', () => {

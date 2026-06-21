@@ -1,9 +1,9 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { makeRule } from '../rule-plan';
+import { makeRule } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// equals — strict equality (===). comparison value passed via refs (§4.8 C)
+// equals — strict equality (===). comparison value passed via refs
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function equals(comparison: unknown): EmittableRule {
@@ -35,7 +35,7 @@ export function notEquals(comparison: unknown): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isEmpty — only undefined | null | '' are treated as empty (§4.8 A)
+// isEmpty — only undefined | null | '' are treated as empty
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isEmpty = makeRule({
@@ -47,7 +47,7 @@ export const isEmpty = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotEmpty — any value other than undefined | null | '' (§4.8 A)
+// isNotEmpty — any value other than undefined | null | ''
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isNotEmpty = makeRule({
@@ -59,7 +59,7 @@ export const isNotEmpty = makeRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isIn — checks inclusion in array. O(1) lookup via Set (§4.8 C)
+// isIn — checks inclusion in array. O(1) lookup via Set
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isIn(array: unknown[]): EmittableRule {
@@ -76,7 +76,7 @@ export function isIn(array: unknown[]): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNotIn — checks exclusion from array. O(1) lookup via Set (§4.8 C)
+// isNotIn — checks exclusion from array. O(1) lookup via Set
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isNotIn(array: unknown[]): EmittableRule {

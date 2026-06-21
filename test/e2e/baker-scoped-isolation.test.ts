@@ -120,7 +120,13 @@ describe('Baker-scoped runtime — per-app config isolation', () => {
     class Owner {
       @Field({
         type: () => Dog,
-        discriminator: { property: 'kind', subTypes: [{ value: Dog, name: 'dog' }, { value: Cat, name: 'cat' }] },
+        discriminator: {
+          property: 'kind',
+          subTypes: [
+            { value: Dog, name: 'dog' },
+            { value: Cat, name: 'cat' },
+          ],
+        },
       })
       pet!: Dog | Cat;
     }

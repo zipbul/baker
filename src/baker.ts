@@ -1,14 +1,22 @@
-import type { BakerConfig } from './configure';
-import type { BakerIssueSet } from './errors';
-import type { RuntimeOptions, SealOptions } from './interfaces';
-import type { SealedExecutors } from './types';
+import type { BakerIssueSet, ClassCtor, RuntimeOptions } from './common';
+import type { BakerConfig } from './config';
+import type { SealOptions, SealedExecutors } from './seal';
 
-import { normalizeConfig } from './configure';
-import { BakerError } from './errors';
-import { runDeserialize, runDeserializeSync, runDeserializeAsync } from './functions/deserialize';
-import { resolveSerializeClass, runSerialize, runSerializeSync, runSerializeAsync } from './functions/serialize';
-import { runValidate, runValidateSync, runValidateAsync } from './functions/validate';
-import { sealRegistry } from './seal/seal';
+import { BakerError } from './common';
+import { normalizeConfig } from './config';
+import {
+  runDeserialize,
+  runDeserializeSync,
+  runDeserializeAsync,
+  resolveSerializeClass,
+  runSerialize,
+  runSerializeSync,
+  runSerializeAsync,
+  runValidate,
+  runValidateSync,
+  runValidateAsync,
+} from './runtime';
+import { sealRegistry } from './seal';
 
 /**
  * A baker — an isolated registration + seal + runtime boundary. Each `new Baker()` owns its own
@@ -39,7 +47,9 @@ export class Baker {
   #sealed = false;
 
   constructor(config?: BakerConfig) {
-    this.#options = config === undefined ? Object.freeze({}) : normalizeConfig(config);
+    // Route the no-config case through the normalizer too (config ?? {}) so "all defaults" has ONE
+    // canonical SealOptions shape (explicit `false`s), not a structurally-different empty object.
+    this.#options = normalizeConfig(config === undefined ? {} : config);
   }
 
   /** Class decorator — registers the class as a root of this baker. Use as `@app.Recipe`. */
@@ -80,34 +90,28 @@ export class Baker {
   }
 
   deserialize = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): T | BakerIssueSet | Promise<T | BakerIssueSet> => runDeserialize<T>(this.#require(Class), input, options);
 
-  deserializeSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): T | BakerIssueSet =>
+  deserializeSync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): T | BakerIssueSet =>
     runDeserializeSync<T>(this.#require(Class), Class.name, input, options);
 
-  deserializeAsync = <T>(
-    Class: new (...args: never[]) => T,
-    input: unknown,
-    options?: RuntimeOptions,
-  ): Promise<T | BakerIssueSet> => runDeserializeAsync<T>(this.#require(Class), input, options);
+  deserializeAsync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): Promise<T | BakerIssueSet> =>
+    runDeserializeAsync<T>(this.#require(Class), input, options);
 
   validate = <T>(
-    Class: new (...args: never[]) => T,
+    Class: ClassCtor<T>,
     input: unknown,
     options?: RuntimeOptions,
   ): true | BakerIssueSet | Promise<true | BakerIssueSet> => runValidate(this.#require(Class), input, options);
 
-  validateSync = <T>(Class: new (...args: never[]) => T, input: unknown, options?: RuntimeOptions): true | BakerIssueSet =>
+  validateSync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): true | BakerIssueSet =>
     runValidateSync(this.#require(Class), Class.name, input, options);
 
-  validateAsync = <T>(
-    Class: new (...args: never[]) => T,
-    input: unknown,
-    options?: RuntimeOptions,
-  ): Promise<true | BakerIssueSet> => runValidateAsync(this.#require(Class), input, options);
+  validateAsync = <T>(Class: ClassCtor<T>, input: unknown, options?: RuntimeOptions): Promise<true | BakerIssueSet> =>
+    runValidateAsync(this.#require(Class), input, options);
 
   serialize = <T>(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>> =>
     runSerialize(this.#require(resolveSerializeClass(instance, 'serialize')), instance, options);

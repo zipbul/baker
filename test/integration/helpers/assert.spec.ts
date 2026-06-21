@@ -1,9 +1,9 @@
 import { err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
-import type { BakerIssue } from '../../../src/errors';
+import type { BakerIssue } from '../../../src/common/errors';
 
-import { toBakerIssueSet } from '../../../src/errors';
+import { toBakerIssueSet } from '../../../src/common/errors';
 import { assertBakerIssueSet, assertDefined, assertIsErr, assertNotBakerIssueSet } from './assert';
 
 describe('test assert helpers', () => {

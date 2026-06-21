@@ -44,7 +44,11 @@ describe('inheritance — integration', () => {
   });
 
   it('should deserialize grandchild DTO with all ancestor fields', async () => {
-    const result = (await baker.deserialize<GrandChildDto>(GrandChildDto, { name: 'Bob', age: 30, active: true })) as GrandChildDto;
+    const result = (await baker.deserialize<GrandChildDto>(GrandChildDto, {
+      name: 'Bob',
+      age: 30,
+      active: true,
+    })) as GrandChildDto;
     expect(result.name).toBe('Bob');
     expect(result.age).toBe(30);
     expect(result.active).toBe(true);

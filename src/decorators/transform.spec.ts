@@ -1,11 +1,13 @@
 import { describe, it, expect, afterEach } from 'bun:test';
 
-import type { EmittableRule, RawPropertyMeta, TransformDef, TransformParams, TypeDef } from '../types';
+import type { RawPropertyMeta, TransformDef, TypeDef } from '../metadata/interfaces';
+import type { EmittableRule } from '../rules/interfaces';
+import type { TransformParams } from '../transformers/interfaces';
 
 import { assertDefined } from '../../test/integration/helpers/assert';
 import { applyField } from '../../test/integration/helpers/modern-decorator';
-import { ExcludeMode } from '../enums';
-import { deleteRaw, requireRaw } from '../meta-access';
+import { metaStore } from '../metadata';
+import { ExcludeMode } from './enums';
 import { Field } from './field';
 
 const createdCtors: Function[] = [];
@@ -17,7 +19,7 @@ function makeClass(): new () => unknown {
 }
 
 function fieldMeta(ctor: Function, key: string): RawPropertyMeta {
-  const m = requireRaw(ctor)[key];
+  const m = metaStore.require(ctor)[key];
   if (!m) {
     throw new Error(`${ctor.name}.${key} not registered`);
   }
@@ -42,7 +44,7 @@ function fieldTransform(ctor: Function, key: string, idx: number): TransformDef 
 
 afterEach(() => {
   for (const ctor of createdCtors) {
-    deleteRaw(ctor);
+    metaStore.delete(ctor);
   }
   createdCtors.length = 0;
 });

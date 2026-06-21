@@ -1,9 +1,10 @@
 import { describe, it, expect, mock } from 'bun:test';
 
-import type { RuntimeOptions } from '../interfaces';
-import type { RawClassMeta, SealedExecutors } from '../types';
+import type { RuntimeOptions } from '../common/interfaces';
+import type { RawClassMeta } from '../metadata/interfaces';
+import type { SealedExecutors } from './interfaces';
 
-import { CollectionType } from '../enums';
+import { CollectionType } from '../metadata/enums';
 import { isString } from '../rules/typechecker';
 import { buildSerializeCode } from './serialize-builder';
 
@@ -318,7 +319,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AddressDto },
+        type: { fn: () => AddressDto, resolvedClass: AddressDto },
         flags: { validateNested: true },
       },
     };
@@ -352,7 +353,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ItemDto },
+        type: { fn: () => ItemDto, resolvedClass: ItemDto },
         flags: { validateNested: true },
       },
     };
@@ -385,7 +386,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => ProfileDto },
+        type: { fn: () => ProfileDto, resolvedClass: ProfileDto },
         flags: { validateNested: true, isOptional: true },
       },
     };
@@ -442,7 +443,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto },
+        type: { fn: () => AsyncItemDto, resolvedClass: AsyncItemDto },
         flags: { validateNested: true },
       },
     };
@@ -476,7 +477,7 @@ describe('buildSerializeCode', () => {
         transform: [],
         expose: [],
         exclude: null,
-        type: { fn: () => AsyncItemDto2 },
+        type: { fn: () => AsyncItemDto2, resolvedClass: AsyncItemDto2 },
         flags: { validateNested: true },
       },
     };

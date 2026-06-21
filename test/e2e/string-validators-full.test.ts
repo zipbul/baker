@@ -172,10 +172,10 @@ describe('isNumberString', () => {
   });
 });
 
-describe('isNumberString({ no_symbols: true })', () => {
+describe('isNumberString({ noSymbols: true })', () => {
   @baker.Recipe
   class NumStrictDto {
-    @Field(isNumberString({ no_symbols: true })) v!: string;
+    @Field(isNumberString({ noSymbols: true })) v!: string;
   }
   it('pure digits passes', async () => {
     expect(((await baker.deserialize<NumStrictDto>(NumStrictDto, { v: '12345' })) as NumStrictDto).v).toBe('12345');
@@ -439,10 +439,10 @@ describe('isFQDN', () => {
   });
 });
 
-describe('isFQDN({ require_tld: false })', () => {
+describe('isFQDN({ requireTld: false })', () => {
   @baker.Recipe
   class HostDto {
-    @Field(isFQDN({ require_tld: false })) host!: string;
+    @Field(isFQDN({ requireTld: false })) host!: string;
   }
   it('single-label hostname passes', async () => {
     const r = (await baker.deserialize<HostDto>(HostDto, { host: 'localhost' })) as HostDto;
@@ -602,7 +602,9 @@ describe('isHash', () => {
     @Field(isHash('md5')) v!: string;
   }
   it('passes', async () => {
-    expect(((await baker.deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe('d41d8cd98f00b204e9800998ecf8427e');
+    expect(((await baker.deserialize(D, { v: 'd41d8cd98f00b204e9800998ecf8427e' })) as D).v).toBe(
+      'd41d8cd98f00b204e9800998ecf8427e',
+    );
   });
   it('rejected', async () => {
     expect(isBakerIssueSet(await baker.deserialize(D, { v: 'nothash' }))).toBe(true);
@@ -781,6 +783,16 @@ describe('isDateString', () => {
   });
   it('rejected', async () => {
     expect(isBakerIssueSet(await baker.deserialize(D, { v: 'notdate' }))).toBe(true);
+  });
+  // Generated-code path must use the proleptic Gregorian leap rule for years 0–99 too (year 0 is leap).
+  it('accepts 0000-02-29 (year 0 is a leap year)', async () => {
+    expect(((await baker.deserialize(D, { v: '0000-02-29' })) as D).v).toBe('0000-02-29');
+  });
+  it('rejects 0001-02-29 (year 1 is not a leap year)', async () => {
+    expect(isBakerIssueSet(await baker.deserialize(D, { v: '0001-02-29' }))).toBe(true);
+  });
+  it('rejects 1900-02-29 (divisible by 100, not 400)', async () => {
+    expect(isBakerIssueSet(await baker.deserialize(D, { v: '1900-02-29' }))).toBe(true);
   });
 });
 

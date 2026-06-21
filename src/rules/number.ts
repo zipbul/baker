@@ -1,11 +1,11 @@
-import type { EmitContext, EmittableRule } from '../types';
+import type { EmitContext, EmittableRule } from './interfaces';
 
-import { RequiredType, RuleOp } from '../enums';
-import { BakerError } from '../errors';
-import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from '../rule-plan';
+import { BakerError } from '../common';
+import { RequiredType, RuleOp } from './enums';
+import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue } from './rule-plan';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// min — v >= n check. requiresType='number' (§4.7, §4.8 A)
+// min — v >= n check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
@@ -29,7 +29,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// max — v <= n check. requiresType='number' (§4.7, §4.8 A)
+// max — v <= n check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
@@ -53,7 +53,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isPositive — v > 0 (0 not included). requiresType='number' (§4.8 A)
+// isPositive — v > 0 (0 not included). requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isPositive = makePlannedRule({
@@ -67,7 +67,7 @@ export const isPositive = makePlannedRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isNegative — v < 0 (0 not included). requiresType='number' (§4.8 A)
+// isNegative — v < 0 (0 not included). requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const isNegative = makePlannedRule({
@@ -81,7 +81,7 @@ export const isNegative = makePlannedRule({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// isDivisibleBy — v % n === 0 check. requiresType='number' (§4.8 A)
+// isDivisibleBy — v % n === 0 check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function isDivisibleBy(n: number): EmittableRule {

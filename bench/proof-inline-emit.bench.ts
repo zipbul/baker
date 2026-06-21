@@ -1,6 +1,6 @@
 import { bench, group, run } from 'mitata';
 
-import { Field, Recipe, deserialize, seal } from '../index';
+import { Baker, Field } from '../index';
 import {
   isNumberString,
   isISBN,
@@ -18,126 +18,128 @@ import {
 } from '../src/rules/index';
 import { isNotEmptyObject } from '../src/rules/object';
 
+const baker = new Baker();
+
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
-@Recipe
+@baker.Recipe
 class NumberStringDto {
   @Field(isNumberString()) value!: string;
 }
-@Recipe
+@baker.Recipe
 class ISBNDto {
   @Field(isISBN(13)) value!: string;
 }
-@Recipe
+@baker.Recipe
 class ISINDto {
   @Field(isISIN) value!: string;
 }
-@Recipe
+@baker.Recipe
 class ISO8601StrictDto {
   @Field(isISO8601({ strict: true })) value!: string;
 }
-@Recipe
+@baker.Recipe
 class ISSNDto {
   @Field(isISSN()) value!: string;
 }
-@Recipe
+@baker.Recipe
 class FQDNDto {
   @Field(isFQDN()) value!: string;
 }
-@Recipe
+@baker.Recipe
 class EANDto {
   @Field(isEAN) value!: string;
 }
-@Recipe
+@baker.Recipe
 class JSONDto {
   @Field(isJSON) value!: string;
 }
-@Recipe
+@baker.Recipe
 class IBANDto {
   @Field(isIBAN()) value!: string;
 }
-@Recipe
+@baker.Recipe
 class ByteLengthDto {
   @Field(isByteLength(1, 100)) value!: string;
 }
-@Recipe
+@baker.Recipe
 class LatitudeDto {
   @Field(isLatitude) value!: number;
 }
-@Recipe
+@baker.Recipe
 class LongitudeDto {
   @Field(isLongitude) value!: number;
 }
-@Recipe
+@baker.Recipe
 class StrongPasswordDto {
   @Field(isStrongPassword()) value!: string;
 }
-@Recipe
+@baker.Recipe
 class NotEmptyObjDto {
   @Field(isNotEmptyObject({ nullable: true })) value!: object;
 }
 
 // Warm seal
-seal();
-deserialize(NumberStringDto, { value: '123' });
-deserialize(ISBNDto, { value: '9780306406157' });
-deserialize(ISINDto, { value: 'US0378331005' });
-deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
-deserialize(ISSNDto, { value: '0378-5955' });
-deserialize(FQDNDto, { value: 'example.com' });
-deserialize(EANDto, { value: '73513537' });
-deserialize(JSONDto, { value: '{"a":1}' });
-deserialize(IBANDto, { value: 'DE89370400440532013000' });
-deserialize(ByteLengthDto, { value: 'hello' });
-deserialize(LatitudeDto, { value: 45.5 });
-deserialize(LongitudeDto, { value: -122.6 });
-deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
-deserialize(NotEmptyObjDto, { value: { a: 1 } });
+baker.seal();
+baker.deserialize(NumberStringDto, { value: '123' });
+baker.deserialize(ISBNDto, { value: '9780306406157' });
+baker.deserialize(ISINDto, { value: 'US0378331005' });
+baker.deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
+baker.deserialize(ISSNDto, { value: '0378-5955' });
+baker.deserialize(FQDNDto, { value: 'example.com' });
+baker.deserialize(EANDto, { value: '73513537' });
+baker.deserialize(JSONDto, { value: '{"a":1}' });
+baker.deserialize(IBANDto, { value: 'DE89370400440532013000' });
+baker.deserialize(ByteLengthDto, { value: 'hello' });
+baker.deserialize(LatitudeDto, { value: 45.5 });
+baker.deserialize(LongitudeDto, { value: -122.6 });
+baker.deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
+baker.deserialize(NotEmptyObjDto, { value: { a: 1 } });
 
 let sink: unknown;
 
 group('proof — inline emit validators (previously refs)', () => {
   bench('isNumberString', () => {
-    sink = deserialize(NumberStringDto, { value: '123' });
+    sink = baker.deserialize(NumberStringDto, { value: '123' });
   });
   bench('isISBN(13)', () => {
-    sink = deserialize(ISBNDto, { value: '9780306406157' });
+    sink = baker.deserialize(ISBNDto, { value: '9780306406157' });
   });
   bench('isISIN', () => {
-    sink = deserialize(ISINDto, { value: 'US0378331005' });
+    sink = baker.deserialize(ISINDto, { value: 'US0378331005' });
   });
   bench('isISO8601(strict)', () => {
-    sink = deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
+    sink = baker.deserialize(ISO8601StrictDto, { value: '2024-01-15T10:30:00Z' });
   });
   bench('isISSN', () => {
-    sink = deserialize(ISSNDto, { value: '0378-5955' });
+    sink = baker.deserialize(ISSNDto, { value: '0378-5955' });
   });
   bench('isFQDN', () => {
-    sink = deserialize(FQDNDto, { value: 'example.com' });
+    sink = baker.deserialize(FQDNDto, { value: 'example.com' });
   });
   bench('isEAN', () => {
-    sink = deserialize(EANDto, { value: '73513537' });
+    sink = baker.deserialize(EANDto, { value: '73513537' });
   });
   bench('isJSON', () => {
-    sink = deserialize(JSONDto, { value: '{"a":1}' });
+    sink = baker.deserialize(JSONDto, { value: '{"a":1}' });
   });
   bench('isIBAN', () => {
-    sink = deserialize(IBANDto, { value: 'DE89370400440532013000' });
+    sink = baker.deserialize(IBANDto, { value: 'DE89370400440532013000' });
   });
   bench('isByteLength', () => {
-    sink = deserialize(ByteLengthDto, { value: 'hello' });
+    sink = baker.deserialize(ByteLengthDto, { value: 'hello' });
   });
   bench('isLatitude', () => {
-    sink = deserialize(LatitudeDto, { value: 45.5 });
+    sink = baker.deserialize(LatitudeDto, { value: 45.5 });
   });
   bench('isLongitude', () => {
-    sink = deserialize(LongitudeDto, { value: -122.6 });
+    sink = baker.deserialize(LongitudeDto, { value: -122.6 });
   });
   bench('isStrongPassword', () => {
-    sink = deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
+    sink = baker.deserialize(StrongPasswordDto, { value: 'Str0ng!Pass' });
   });
   bench('isNotEmptyObject(nullable)', () => {
-    sink = deserialize(NotEmptyObjDto, { value: { a: 1 } });
+    sink = baker.deserialize(NotEmptyObjDto, { value: { a: 1 } });
   });
 });
 
