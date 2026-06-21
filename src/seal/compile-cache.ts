@@ -1,5 +1,7 @@
 import type { SealOptions, SealedExecutors } from './interfaces';
 
+import { SEAL_OPTION_KEYS } from './constants';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // (class, config) executor cache — content-addressed sharing across bakers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,18 +21,6 @@ import type { SealOptions, SealedExecutors } from './interfaces';
  * The cache owns its WeakMap as a private field (no module-level mutable state) and is exposed as a
  * single process-global instance, `compileCache` — the single source of truth for compiled executors.
  */
-// Every seal-affecting option, in fixed fingerprint order. Typed as `Record<keyof SealOptions, true>`
-// so adding (or removing) a SealOptions field is a COMPILE error here until the fingerprint covers it —
-// without this, a new option would silently collide two configs onto the same key and share a wrong
-// executor across bakers. The literal's key order is the fingerprint's bit order.
-const FINGERPRINT_KEYS = Object.keys({
-  enableImplicitConversion: true,
-  exposeDefaultValues: true,
-  stopAtFirstError: true,
-  whitelist: true,
-  debug: true,
-} satisfies Record<keyof SealOptions, true>) as (keyof SealOptions)[];
-
 class CompileCache {
   #cache: WeakMap<Function, Map<string, SealedExecutors<unknown>>>;
 
@@ -44,7 +34,7 @@ class CompileCache {
    */
   static fingerprint(o: SealOptions): string {
     let fp = '';
-    for (const key of FINGERPRINT_KEYS) {
+    for (const key of SEAL_OPTION_KEYS) {
       fp += o[key] ? '1' : '0';
     }
     return fp;

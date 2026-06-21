@@ -2,16 +2,14 @@ import type { RuntimeOptions } from '../common';
 
 import { BakerError } from '../common';
 import { BAKER_CONFIG_KEYS } from '../config';
+import { SEAL_OPTION_KEYS } from '../seal';
 
 const CALL_OPTION_KEYS = new Set<string>(['groups']);
 // Seal-time keys rejected per-call: the public BakerConfig names (single source: BAKER_CONFIG_KEYS)
-// plus the internal SealOptions aliases they normalize to.
-const SEAL_TIME_KEYS = new Set<string>([
-  ...BAKER_CONFIG_KEYS,
-  'enableImplicitConversion',
-  'exposeDefaultValues',
-  'whitelist',
-]);
+// plus the internal SealOptions names they normalize to (single source: SEAL_OPTION_KEYS). Both are
+// derived from their key sets, so a renamed/added option can never silently fall through to the
+// generic "unknown option" message.
+const SEAL_TIME_KEYS = new Set<string>([...BAKER_CONFIG_KEYS, ...SEAL_OPTION_KEYS]);
 
 /**
  * @internal — validate per-call options object at public-API entry.

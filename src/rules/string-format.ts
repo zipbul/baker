@@ -27,7 +27,7 @@ interface IsURLOptions {
   protocols?: string[];
 }
 
-const URL_PROTOCOLS_DEFAULT = ['http', 'https', 'ftp'];
+const URL_PROTOCOLS_DEFAULT = Object.freeze(['http', 'https', 'ftp']);
 
 function isURL(options?: IsURLOptions): EmittableRule {
   const protocols = options?.protocols ?? URL_PROTOCOLS_DEFAULT;
@@ -38,7 +38,9 @@ function isURL(options?: IsURLOptions): EmittableRule {
   return makeRule({
     name: 'isURL',
     requiresType: RequiredType.String,
-    constraints: { format: 'uri', protocols },
+    // Copy so each rule owns an independent, mutable constraints array (the frozen default and a
+    // caller-supplied array are both isolated from `rule.constraints`).
+    constraints: { format: 'uri', protocols: [...protocols] },
     validate: value => typeof value === 'string' && re.test(value),
     emit: (varName: string, ctx: EmitContext): string => {
       const i = ctx.addRegex(re);

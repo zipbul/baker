@@ -3,13 +3,14 @@ import type { DiscriminatorDef } from '../metadata';
 import type { EmittableRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ExcludeMode } from './enums';
+import { ARRAY_OF } from './constants';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // arrayOf marker — produced by arrayOf(...), compiles to per-rule `each: true`
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface ArrayOfMarker {
-  readonly [key: symbol]: true;
+  readonly [ARRAY_OF]: true;
   readonly rules: EmittableRule[];
 }
 

@@ -27,3 +27,7 @@ model. Several change observable behavior — review before upgrading:
 - **`isHash` / `isTaxId` reject an unknown algorithm/locale at construction (behavior change).** They
   previously returned a rule that always failed at runtime; they now throw a `BakerError` when called with
   an unsupported key, matching `isMobilePhone`/`isPostalCode`/`isIdentityCard`/`isPassportNumber`.
+
+- **`isURL` no longer shares its default-protocols array across rules.** With default protocols, every
+  `isURL()` rule exposed the same module-level `['http','https','ftp']` array on `rule.constraints`;
+  mutating one rule's constraints would have corrupted every other. Each rule now owns an independent copy.

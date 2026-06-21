@@ -1,8 +1,9 @@
 import type { FieldOptions } from './interfaces';
 
 // Brand symbol for the arrayOf() element-rules marker. Globally registered (Symbol.for) so a
-// bundler-duplicated copy of baker still recognizes a marker produced by the other copy.
-export const ARRAY_OF = Symbol.for('baker:arrayOf');
+// bundler-duplicated copy of baker still recognizes a marker produced by the other copy. Typed as
+// `unique symbol` so it can key the precise `ArrayOfMarker` shape (no catch-all index signature).
+export const ARRAY_OF: unique symbol = Symbol.for('baker:arrayOf');
 
 // The valid FieldOptions keys — the single source used to tell an options object apart from a
 // positional rule/marker. Built from a `Record<keyof FieldOptions, true>` literal so a new (or

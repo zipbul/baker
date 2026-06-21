@@ -1,5 +1,20 @@
+import type { SealOptions } from './interfaces';
+
 /** Built-in constructors that are NOT treated as nested DTOs during seal. */
 export const PRIMITIVE_CTORS = new Set<Function>([Number, String, Boolean, Date]);
+
+/**
+ * The runtime key list of {@link SealOptions}, in fixed order. Built from a `Record<keyof SealOptions,
+ * true>` so a new (or removed) SealOptions field is a COMPILE error here until covered. Single source
+ * for the compile-cache fingerprint (its bit order) and the runtime per-call seal-time-key rejection.
+ */
+export const SEAL_OPTION_KEYS = Object.keys({
+  enableImplicitConversion: true,
+  exposeDefaultValues: true,
+  stopAtFirstError: true,
+  whitelist: true,
+  debug: true,
+} satisfies Record<keyof SealOptions, true>) as (keyof SealOptions)[];
 
 /**
  * Property names that must never be used as a field key, an @Expose wire name, or a discriminator

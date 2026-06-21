@@ -24,6 +24,14 @@ describe('unixSecondsTransformer', () => {
   it('serialize passes a non-Date through untouched', () => {
     expect(unixSecondsTransformer.serialize!({ value: 42 } as never)).toBe(42);
   });
+
+  // Whole-second floor is the standard Unix-timestamp convention (matches `Math.floor(Date.now()/1000)`
+  // and `date +%s`): sub-second precision is dropped and a sub-second pre-epoch instant floors toward
+  // −∞, so -500ms → -1s (the second that contains it), NOT 0. Intentional, pinned against "fixes".
+  it('serialize floors sub-second precision (Unix-timestamp convention)', () => {
+    expect(unixSecondsTransformer.serialize!({ value: new Date(1500) } as never)).toBe(1);
+    expect(unixSecondsTransformer.serialize!({ value: new Date(-500) } as never)).toBe(-1);
+  });
 });
 
 describe('unixMillisTransformer', () => {

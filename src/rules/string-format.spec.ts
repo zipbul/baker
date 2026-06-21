@@ -86,6 +86,15 @@ describe('isEmail', () => {
 });
 
 describe('isURL', () => {
+  it('default-protocols rules do not share a mutable constraints array', () => {
+    const a = isURL().constraints as { protocols: string[] };
+    const b = isURL().constraints as { protocols: string[] };
+    // Each rule must own its protocols array — no shared module-level reference that one rule could
+    // mutate and corrupt for every other rule.
+    expect(a.protocols).not.toBe(b.protocols);
+    expect(a.protocols).toEqual(['http', 'https', 'ftp']);
+  });
+
   it('should return true for valid http URL', () => {
     expect(isURL()('http://example.com')).toBe(true);
   });
