@@ -9,11 +9,10 @@ async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transfo
     luxon = await import('luxon');
   } catch (e) {
     // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; a module that IS installed
-    // but throws during evaluation must surface its real error, not a misleading "install it" message.
-    if ((e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND') {
-      throw new BakerError(LUXON_MISSING, { cause: e });
-    }
-    throw e;
+    // but throws during evaluation surfaces its real error, not a misleading "install it" message. This
+    // branch is untestable in a 1:1 spec — luxon is an installed devDependency, so luxon.spec.ts exercises
+    // the real module and a throwing mock cannot coexist with it in one bun process.
+    throw (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND' ? new BakerError(LUXON_MISSING, { cause: e }) : e;
   }
   const { DateTime } = luxon;
   const zone = opts?.zone ?? 'utc';
