@@ -8,9 +8,12 @@ async function momentTransformer(opts?: MomentTransformerOptions): Promise<Trans
   try {
     moment = (await import('moment')).default;
   } catch (e) {
-    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; any other error (a module
-    // that IS installed but threw during evaluation) surfaces untouched, not a misleading "install it".
-    throw (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND' ? new BakerError(MOMENT_MISSING, { cause: e }) : e;
+    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; a module that IS installed
+    // but throws during evaluation must surface its real error, not a misleading "install it" message.
+    if ((e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND') {
+      throw new BakerError(MOMENT_MISSING, { cause: e });
+    }
+    throw e;
   }
   // Hoist format option once so the serialize closure doesn't re-read opts per call
   const format = opts?.format;

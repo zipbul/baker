@@ -8,9 +8,12 @@ async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transfo
   try {
     luxon = await import('luxon');
   } catch (e) {
-    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; any other error (a module
-    // that IS installed but threw during evaluation) surfaces untouched, not a misleading "install it".
-    throw (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND' ? new BakerError(LUXON_MISSING, { cause: e }) : e;
+    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; a module that IS installed
+    // but throws during evaluation must surface its real error, not a misleading "install it" message.
+    if ((e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND') {
+      throw new BakerError(LUXON_MISSING, { cause: e });
+    }
+    throw e;
   }
   const { DateTime } = luxon;
   const zone = opts?.zone ?? 'utc';
