@@ -2,7 +2,7 @@ import { describe, it, expect } from 'bun:test';
 
 import { Baker, Field } from '../../index';
 import { arrayOf } from '../../src/decorators/field';
-import { isString, isNumber, min, minLength, length } from '../../src/rules/index';
+import { isString, isNumber, min, minLength, length, arrayContains } from '../../src/rules/index';
 import { assertBakerIssueSet } from '../integration/helpers/assert';
 
 const baker = new Baker();
@@ -105,6 +105,13 @@ class ArrayDto {
 class GateDepDto {
   // `min` is the typed dependency (no explicit isNumber): it drives the type gate itself.
   @Field(min(5)) age!: number;
+}
+
+const callerRoles = ['admin'];
+
+@baker.Recipe
+class ArrayContainsDto {
+  @Field(arrayContains(callerRoles)) roles!: string[];
 }
 
 const collectBaker = new Baker({ stopAtFirstError: false });
@@ -222,5 +229,30 @@ describe('BakerIssue constraints', () => {
     assertBakerIssueSet(result);
     const c = result.errors[0]!.constraints as Record<string, unknown>;
     expect(Object.isFrozen(c)).toBe(true);
+  });
+
+  it('should deep-freeze nested constraint values so mutating an issue cannot corrupt later validation', () => {
+    const first = baker.deserializeSync(ArrayContainsDto, { roles: [] });
+    assertBakerIssueSet(first);
+    const values = (first.errors[0]!.constraints as { values: string[] }).values;
+    expect(Object.isFrozen(values)).toBe(true);
+    // Attempting to mutate the shared array must not corrupt the rule; a fresh failure still reports.
+    try {
+      (values as string[]).length = 0;
+    } catch {
+      /* frozen array throws in strict mode — that is the point */
+    }
+    const second = baker.deserializeSync(ArrayContainsDto, { roles: [] });
+    assertBakerIssueSet(second);
+    expect(second.errors[0]!.code).toBe('arrayContains');
+    expect((second.errors[0]!.constraints as { values: string[] }).values).toEqual(['admin']);
+  });
+
+  it('should NOT freeze the array the caller passed to the rule factory (no side effect)', () => {
+    // The exposed constraints are a frozen clone; the caller's own array stays mutable.
+    expect(Object.isFrozen(callerRoles)).toBe(false);
+    const result = baker.deserializeSync(ArrayContainsDto, { roles: [] });
+    assertBakerIssueSet(result);
+    expect((result.errors[0]!.constraints as { values: string[] }).values).not.toBe(callerRoles);
   });
 });
