@@ -46,7 +46,12 @@ export interface EmittableRule {
   readonly isAsync?: boolean;
 }
 
-/** @internal internal rule shape used by builders for optimization metadata */
+/**
+ * Internal rule shape used by builders for optimization metadata. Shared plumbing across the
+ * metadata↔builder boundary (RuleDef.rule, defineRuleMetadata); never reachable through the package
+ * `exports` map, and public rule factories return {@link EmittableRule}, so this type never appears
+ * in a consumer-visible declaration. Deliberately not stripped from internal declarations.
+ */
 export interface InternalRule extends EmittableRule {
   readonly plan?: RulePlan;
 }

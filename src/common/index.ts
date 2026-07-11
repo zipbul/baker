@@ -1,5 +1,5 @@
 // Directory barrel — cross-cutting primitives consumed across the pipeline.
-export { BakerError, isBakerIssueSet, toBakerIssueSet } from './errors';
+export { BakerError, isBakerIssueSet } from './errors';
 export type { BakerIssue, BakerIssueSet } from './errors';
 export { Direction, CacheKey } from './enums';
 export type { ClassCtor } from './types';

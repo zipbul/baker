@@ -1,5 +1,5 @@
 import type { RequiredType } from './enums';
-import type { EmitContext, InternalRule, RulePlan } from './interfaces';
+import type { EmitContext, EmittableRule, InternalRule, RulePlan } from './interfaces';
 import type { RulePlanCache, RulePlanCheck, RulePlanExpr } from './types';
 
 import { RuleOp, RulePlanCheckKind, RulePlanExprKind } from './enums';
@@ -28,7 +28,7 @@ function makePlannedRule(options: {
   constraints?: Record<string, unknown>;
   plan: RulePlan;
   validate: (value: unknown) => boolean;
-}): InternalRule {
+}): EmittableRule {
   const inner: Parameters<typeof makeRule>[0] = {
     name: options.name,
     requiresType: options.requiresType,
@@ -50,7 +50,7 @@ function makeRule(options: {
   constraints?: Record<string, unknown>;
   isAsync?: boolean;
   plan?: RulePlan;
-}): InternalRule {
+}): EmittableRule {
   const fn = ((value: unknown) => options.validate(value)) as InternalRule;
   const meta: Parameters<typeof defineRuleMetadata>[1] = {
     emit: options.emit,

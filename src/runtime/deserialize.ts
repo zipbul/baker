@@ -5,7 +5,8 @@ import { isErr } from '@zipbul/result';
 import type { RuntimeOptions, BakerIssue, BakerIssueSet } from '../common';
 import type { SealedExecutors } from '../seal';
 
-import { toBakerIssueSet, BakerError } from '../common';
+import { BakerError } from '../common';
+import { toBakerIssueSet } from '../common/errors';
 import { checkCallOptions } from './check-call-options';
 
 // ─────────────────────────────────────────────────────────────────────────────

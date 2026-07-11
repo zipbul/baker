@@ -4,6 +4,7 @@
     "noEmit": false,
     "declaration": true,
     "noEmitOnError": true,
+    "stripInternal": true,
     "emitDeclarationOnly": false,
     "module": "ESNext",
     "moduleResolution": "bundler",
