@@ -42,8 +42,9 @@ class UserDto {
 // Call once at startup, after this baker's DTOs are defined.
 baker.seal();
 
-// All rules here are sync, so deserialize returns the value directly (no await).
-const result = baker.deserialize(UserDto, {
+// All rules here are sync. `deserializeSync` returns `UserDto | BakerIssueSet` — a precise,
+// non-Promise type you can narrow and read directly.
+const result = baker.deserializeSync(UserDto, {
   name: 'Alice',
   age: 30,
   email: 'alice@test.com',
@@ -57,7 +58,9 @@ if (isBakerIssueSet(result)) {
 }
 ```
 
-`deserialize` returns either your typed instance or a `BakerIssueSet`; narrow between them with `isBakerIssueSet`. If any rule or transformer on the DTO is async, `deserialize` returns a `Promise` instead — `await` it (see [Runtime API](#runtime-api)).
+`deserializeSync` returns either your typed instance or a `BakerIssueSet`; narrow between them with `isBakerIssueSet`. If any rule or transformer on the DTO is async, use `deserializeAsync` and `await` it instead (see [Runtime API](#runtime-api)).
+
+> **Which variant?** The bare `deserialize` returns the honest sync-or-async union `T | BakerIssueSet | Promise<T | BakerIssueSet>`, so reading a property off its result does not typecheck — TypeScript cannot rule out the `Promise` arm. Use `deserializeSync` (throws if the DTO is async) or `deserializeAsync` (always a `Promise`) for a directly-usable type. The same applies to `validate`/`serialize`.
 
 ## Core Concepts
 
@@ -408,7 +411,7 @@ const isEven = createRule({
 
 ### `isBakerIssueSet(value)`
 
-Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ path, code, message?, context? }` issues.
+Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ path, code, message?, context?, constraints? }` issues. `constraints` carries the failing rule's parameters when it has any (e.g. `{ min: 5 }` for `min(5)`); type-check rules and structural failures omit it.
 
 ## Error Handling
 
@@ -418,11 +421,12 @@ baker separates two failure modes:
 - **`BakerIssueSet` (returned)** — a validation failure. `deserialize` and `validate` return it instead of throwing. Guard with `isBakerIssueSet` and read `.errors`.
 
 ```typescript
-const result = baker.deserialize(UserDto, input);
+const result = baker.deserializeSync(UserDto, input);
 
 if (isBakerIssueSet(result)) {
   for (const issue of result.errors) {
     console.log(`${issue.path}: ${issue.code}`); // e.g. "email: isEmail"
+    // issue.constraints holds the rule's parameters when present, e.g. { min: 5 } for min(5).
   }
 } else {
   // result is a typed UserDto
