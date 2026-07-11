@@ -11,31 +11,33 @@ import { GuardKey } from './enums';
 // Helpers — code generation utilities (pure, module-level)
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Generate nested error push code that propagates message/context fields */
+/** Generate nested error push code that propagates message/context/constraints fields */
 export function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
   // Cache errItemExpr once — avoids repeated property reads in the generated body
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `      if(${eVar}.message===undefined&&${eVar}.context===undefined){${errList}.push({path:${pathExpr},code:${eVar}.code});}\n` +
+    `      if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined){${errList}.push({path:${pathExpr},code:${eVar}.code});}\n` +
     `      else{var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `      if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `      if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
+    `      if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
     `      ${errList}.push(${tmpVar});}\n`
   );
 }
 
-/** Generate nested error return code that propagates message/context fields */
+/** Generate nested error return code that propagates message/context/constraints fields */
 export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string, validateOnly?: boolean): string {
   const ret = (arr: string) => (validateOnly ? `return ${arr};\n` : `return err(${arr});\n`);
   // Cache errItemExpr once — mirrors nestedErrPush, avoids repeated property reads in the generated body.
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `    if(${eVar}.message===undefined&&${eVar}.context===undefined)${ret(`[{path:${pathExpr},code:${eVar}.code}]`)}` +
+    `    if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined)${ret(`[{path:${pathExpr},code:${eVar}.code}]`)}` +
     `    var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `    if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `    if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
+    `    if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
     `    ${ret(`[${tmpVar}]`)}`
   );
 }

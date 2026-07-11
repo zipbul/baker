@@ -24,6 +24,8 @@ export interface EmitContext {
   insideTypeGate?: boolean;
   /** @internal Path expression for inline nested — used by makeRuleEmitCtx */
   pathExpr?: string;
+  /** @internal Resolved field-level issue extras (message/context) a rule falls back to — used by makeRuleEmitCtx */
+  fieldExtras?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

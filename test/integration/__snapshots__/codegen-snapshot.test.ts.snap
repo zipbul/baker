@@ -13,7 +13,7 @@ else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
   var __bk$mark_name = __bk$errors.length;
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
   if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
 }
 }
@@ -24,7 +24,7 @@ if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:
 else {
   var __bk$mark_age = __bk$errors.length;
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
   if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
 }
 }
@@ -34,7 +34,7 @@ else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
   var __bk$mark_email = __bk$errors.length;
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
   if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
 }
 }
@@ -74,7 +74,7 @@ if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"n
 else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
 }
 }
 var __bk$f_age = input["age"];
@@ -83,7 +83,7 @@ else {
 if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
 else {
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
 }
 }
 var __bk$f_email = input["email"];
@@ -91,7 +91,7 @@ if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:
 else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
 }
 }
 var __bk$f_active = input["active"];
@@ -131,10 +131,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
     var __bk$ppinner = "inner.";
     for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
       var __neinner_e=__bk$re_inner[__bk$j_inner];
-      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined&&__neinner_e.constraints===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
       else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
       if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
       if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      if(__neinner_e.constraints!==undefined)__neinner.constraints=__neinner_e.constraints;
       __bk$errors.push(__neinner);}
     }
   } else { __bk$out["inner"] = __bk$r_inner; }
@@ -266,10 +267,11 @@ if (Array.isArray(__bk$f_set)) {
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
       for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
       var __neset_e=__bk$re_set[__bk$j_set];
-      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      if(__neset_e.message===undefined&&__neset_e.context===undefined&&__neset_e.constraints===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
       else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
       if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
       if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      if(__neset_e.constraints!==undefined)__neset.constraints=__neset_e.constraints;
       __bk$errors.push(__neset);}
       }
     } else { __bk$arr_set.add(__bk$r_set); }
@@ -291,10 +293,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
       for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
       var __nemap_e=__bk$re_map[__bk$j_map];
-      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined&&__nemap_e.constraints===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
       else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
       if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
       if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      if(__nemap_e.constraints!==undefined)__nemap.constraints=__nemap_e.constraints;
       __bk$errors.push(__nemap);}
       }
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
@@ -403,7 +406,7 @@ if (typeof __bk$f_name !== 'string') {
 }
 if (!__bk$skip_name) {
   var __bk$mark_name = __bk$errors.length;
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
   if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
 }
 }
@@ -418,7 +421,7 @@ if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) {
 if (!__bk$skip_age) {
   var __bk$mark_age = __bk$errors.length;
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
   if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
 }
 }
@@ -431,7 +434,7 @@ if (typeof __bk$f_email !== 'string') {
 }
 if (!__bk$skip_email) {
   var __bk$mark_email = __bk$errors.length;
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
   if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
 }
 }
@@ -481,7 +484,7 @@ if (typeof __bk$f_name !== 'string') {
   __bk$f_name = String(__bk$f_name);
 }
 if (!__bk$skip_name) {
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
 }
 }
 var __bk$f_age = input["age"];
@@ -494,7 +497,7 @@ if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) {
 }
 if (!__bk$skip_age) {
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
 }
 }
 var __bk$f_email = input["email"];
@@ -505,7 +508,7 @@ if (typeof __bk$f_email !== 'string') {
   __bk$f_email = String(__bk$f_email);
 }
 if (!__bk$skip_email) {
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
 }
 }
 var __bk$f_active = input["active"];
@@ -557,10 +560,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
     var __bk$ppinner = "inner.";
     for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
       var __neinner_e=__bk$re_inner[__bk$j_inner];
-      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined&&__neinner_e.constraints===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
       else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
       if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
       if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      if(__neinner_e.constraints!==undefined)__neinner.constraints=__neinner_e.constraints;
       __bk$errors.push(__neinner);}
     }
   } else { __bk$out["inner"] = __bk$r_inner; }
@@ -702,10 +706,11 @@ if (Array.isArray(__bk$f_set)) {
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
       for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
       var __neset_e=__bk$re_set[__bk$j_set];
-      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      if(__neset_e.message===undefined&&__neset_e.context===undefined&&__neset_e.constraints===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
       else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
       if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
       if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      if(__neset_e.constraints!==undefined)__neset.constraints=__neset_e.constraints;
       __bk$errors.push(__neset);}
       }
     } else { __bk$arr_set.add(__bk$r_set); }
@@ -727,10 +732,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
       for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
       var __nemap_e=__bk$re_map[__bk$j_map];
-      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined&&__nemap_e.constraints===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
       else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
       if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
       if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      if(__nemap_e.constraints!==undefined)__nemap.constraints=__nemap_e.constraints;
       __bk$errors.push(__nemap);}
       }
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
@@ -843,7 +849,7 @@ var __bk$f_name = input["name"];
 if (__bk$f_name === undefined || __bk$f_name === null) return err([{path:"name",code:"isDefined"}]);
 else {
 if (typeof __bk$f_name !== 'string') return err([{path:"name",code:"isString"}]);
-if (__bk$f_name.length < 2) return err([{path:"name",code:"minLength"}]);
+if (__bk$f_name.length < 2) return err([{path:"name",code:"minLength",constraints:refs[0]}]);
 __bk$out["name"] = __bk$f_name;
 }
 var __bk$f_age = input["age"];
@@ -851,14 +857,14 @@ if (__bk$f_age === undefined || __bk$f_age === null) return err([{path:"age",cod
 else {
 if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) return err([{path:"age",code:"isNumber"}]);
 if (__bk$f_age === Infinity || __bk$f_age === -Infinity) return err([{path:"age",code:"isNumber"}]);
-if (__bk$f_age < 0) return err([{path:"age",code:"min"}]);
+if (__bk$f_age < 0) return err([{path:"age",code:"min",constraints:refs[1]}]);
 __bk$out["age"] = __bk$f_age;
 }
 var __bk$f_email = input["email"];
 if (__bk$f_email === undefined || __bk$f_email === null) return err([{path:"email",code:"isDefined"}]);
 else {
 if (typeof __bk$f_email !== 'string') return err([{path:"email",code:"isString"}]);
-if (!re[0].test(__bk$f_email)) return err([{path:"email",code:"isEmail"}]);
+if (!re[0].test(__bk$f_email)) return err([{path:"email",code:"isEmail",constraints:refs[2]}]);
 __bk$out["email"] = __bk$f_email;
 }
 var __bk$f_active = input["active"];
@@ -893,20 +899,20 @@ var __bk$f_name = input["name"];
 if (__bk$f_name === undefined || __bk$f_name === null) return [{path:"name",code:"isDefined"}];
 else {
 if (typeof __bk$f_name !== 'string') return [{path:"name",code:"isString"}];
-if (__bk$f_name.length < 2) return [{path:"name",code:"minLength"}];
+if (__bk$f_name.length < 2) return [{path:"name",code:"minLength",constraints:refs[0]}];
 }
 var __bk$f_age = input["age"];
 if (__bk$f_age === undefined || __bk$f_age === null) return [{path:"age",code:"isDefined"}];
 else {
 if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) return [{path:"age",code:"isNumber"}];
 if (__bk$f_age === Infinity || __bk$f_age === -Infinity) return [{path:"age",code:"isNumber"}];
-if (__bk$f_age < 0) return [{path:"age",code:"min"}];
+if (__bk$f_age < 0) return [{path:"age",code:"min",constraints:refs[1]}];
 }
 var __bk$f_email = input["email"];
 if (__bk$f_email === undefined || __bk$f_email === null) return [{path:"email",code:"isDefined"}];
 else {
 if (typeof __bk$f_email !== 'string') return [{path:"email",code:"isString"}];
-if (!re[0].test(__bk$f_email)) return [{path:"email",code:"isEmail"}];
+if (!re[0].test(__bk$f_email)) return [{path:"email",code:"isEmail",constraints:refs[2]}];
 }
 var __bk$f_active = input["active"];
 if (__bk$f_active === undefined || __bk$f_active === null) return [{path:"active",code:"isDefined"}];
@@ -941,10 +947,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
     var __bk$re_inner = __bk$r_inner.data;
     var __bk$ppinner = "inner.";
     var __neinner_e=__bk$re_inner[0];
-    if(__neinner_e.message===undefined&&__neinner_e.context===undefined)return err([{path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code}]);
+    if(__neinner_e.message===undefined&&__neinner_e.context===undefined&&__neinner_e.constraints===undefined)return err([{path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code}]);
     var __neinner={path:__bk$ppinner+__bk$re_inner[0].path,code:__neinner_e.code};
     if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
     if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+    if(__neinner_e.constraints!==undefined)__neinner.constraints=__neinner_e.constraints;
     return err([__neinner]);
   } else { __bk$out["inner"] = __bk$r_inner; }
 } else { return err([{path:"inner",code:"isObject"}]); }
@@ -1070,10 +1077,11 @@ if (Array.isArray(__bk$f_set)) {
       var __bk$re_set = __bk$r_set.data;
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
       var __neset_e=__bk$re_set[0];
-    if(__neset_e.message===undefined&&__neset_e.context===undefined)return err([{path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code}]);
+    if(__neset_e.message===undefined&&__neset_e.context===undefined&&__neset_e.constraints===undefined)return err([{path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code}]);
     var __neset={path:__bk$ppset+__bk$re_set[0].path,code:__neset_e.code};
     if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
     if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+    if(__neset_e.constraints!==undefined)__neset.constraints=__neset_e.constraints;
     return err([__neset]);
     } else { __bk$arr_set.add(__bk$r_set); }
   }
@@ -1093,10 +1101,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
       var __bk$re_map = __bk$r_map.data;
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
       var __nemap_e=__bk$re_map[0];
-    if(__nemap_e.message===undefined&&__nemap_e.context===undefined)return err([{path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code}]);
+    if(__nemap_e.message===undefined&&__nemap_e.context===undefined&&__nemap_e.constraints===undefined)return err([{path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code}]);
     var __nemap={path:__bk$ppmap+__bk$re_map[0].path,code:__nemap_e.code};
     if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
     if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+    if(__nemap_e.constraints!==undefined)__nemap.constraints=__nemap_e.constraints;
     return err([__nemap]);
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
   }
@@ -1199,7 +1208,7 @@ else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
   var __bk$mark_name = __bk$errors.length;
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[1]});
   if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
 }
 }
@@ -1210,7 +1219,7 @@ if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:
 else {
   var __bk$mark_age = __bk$errors.length;
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[2]});
   if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
 }
 }
@@ -1220,7 +1229,7 @@ else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
   var __bk$mark_email = __bk$errors.length;
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[3]});
   if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
 }
 }
@@ -1261,7 +1270,7 @@ if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"n
 else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[1]});
 }
 }
 var __bk$f_age = input["age"];
@@ -1270,7 +1279,7 @@ else {
 if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
 else {
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[2]});
 }
 }
 var __bk$f_email = input["email"];
@@ -1278,7 +1287,7 @@ if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:
 else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[3]});
 }
 }
 var __bk$f_active = input["active"];
@@ -1319,10 +1328,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
     var __bk$ppinner = "inner.";
     for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
       var __neinner_e=__bk$re_inner[__bk$j_inner];
-      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined&&__neinner_e.constraints===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
       else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
       if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
       if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      if(__neinner_e.constraints!==undefined)__neinner.constraints=__neinner_e.constraints;
       __bk$errors.push(__neinner);}
     }
   } else { __bk$out["inner"] = __bk$r_inner; }
@@ -1456,10 +1466,11 @@ if (Array.isArray(__bk$f_set)) {
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
       for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
       var __neset_e=__bk$re_set[__bk$j_set];
-      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      if(__neset_e.message===undefined&&__neset_e.context===undefined&&__neset_e.constraints===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
       else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
       if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
       if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      if(__neset_e.constraints!==undefined)__neset.constraints=__neset_e.constraints;
       __bk$errors.push(__neset);}
       }
     } else { __bk$arr_set.add(__bk$r_set); }
@@ -1481,10 +1492,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
       for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
       var __nemap_e=__bk$re_map[__bk$j_map];
-      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined&&__nemap_e.constraints===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
       else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
       if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
       if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      if(__nemap_e.constraints!==undefined)__nemap.constraints=__nemap_e.constraints;
       __bk$errors.push(__nemap);}
       }
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }
@@ -1591,7 +1603,7 @@ else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
   var __bk$mark_name = __bk$errors.length;
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
   if (__bk$errors.length === __bk$mark_name) __bk$out["name"] = __bk$f_name;
 }
 }
@@ -1602,7 +1614,7 @@ if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:
 else {
   var __bk$mark_age = __bk$errors.length;
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
   if (__bk$errors.length === __bk$mark_age) __bk$out["age"] = __bk$f_age;
 }
 }
@@ -1612,7 +1624,7 @@ else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
   var __bk$mark_email = __bk$errors.length;
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
   if (__bk$errors.length === __bk$mark_email) __bk$out["email"] = __bk$f_email;
 }
 }
@@ -1653,7 +1665,7 @@ if (__bk$f_name === undefined || __bk$f_name === null) __bk$errors.push({path:"n
 else {
 if (typeof __bk$f_name !== 'string') __bk$errors.push({path:"name",code:"isString"});
 else {
-  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength"});
+  if (__bk$f_name.length < 2) __bk$errors.push({path:"name",code:"minLength",constraints:refs[0]});
 }
 }
 var __bk$f_age = Object.hasOwn(input, "age") ? input["age"] : __bk$defs["age"];
@@ -1662,7 +1674,7 @@ else {
 if (typeof __bk$f_age !== 'number' || isNaN(__bk$f_age)) __bk$errors.push({path:"age",code:"isNumber"});
 else {
   if (__bk$f_age === Infinity || __bk$f_age === -Infinity) __bk$errors.push({path:"age",code:"isNumber"});
-  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min"});
+  if (__bk$f_age < 0) __bk$errors.push({path:"age",code:"min",constraints:refs[1]});
 }
 }
 var __bk$f_email = Object.hasOwn(input, "email") ? input["email"] : __bk$defs["email"];
@@ -1670,7 +1682,7 @@ if (__bk$f_email === undefined || __bk$f_email === null) __bk$errors.push({path:
 else {
 if (typeof __bk$f_email !== 'string') __bk$errors.push({path:"email",code:"isString"});
 else {
-  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail"});
+  if (!re[0].test(__bk$f_email)) __bk$errors.push({path:"email",code:"isEmail",constraints:refs[2]});
 }
 }
 var __bk$f_active = Object.hasOwn(input, "active") ? input["active"] : __bk$defs["active"];
@@ -1710,10 +1722,11 @@ if (__bk$f_inner != null && typeof __bk$f_inner === 'object' && !Array.isArray(_
     var __bk$ppinner = "inner.";
     for (var __bk$j_inner=0; __bk$j_inner<__bk$re_inner.length; __bk$j_inner++) {
       var __neinner_e=__bk$re_inner[__bk$j_inner];
-      if(__neinner_e.message===undefined&&__neinner_e.context===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
+      if(__neinner_e.message===undefined&&__neinner_e.context===undefined&&__neinner_e.constraints===undefined){__bk$errors.push({path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code});}
       else{var __neinner={path:__bk$ppinner+__bk$re_inner[__bk$j_inner].path,code:__neinner_e.code};
       if(__neinner_e.message!==undefined)__neinner.message=__neinner_e.message;
       if(__neinner_e.context!==undefined)__neinner.context=__neinner_e.context;
+      if(__neinner_e.constraints!==undefined)__neinner.constraints=__neinner_e.constraints;
       __bk$errors.push(__neinner);}
     }
   } else { __bk$out["inner"] = __bk$r_inner; }
@@ -1846,10 +1859,11 @@ if (Array.isArray(__bk$f_set)) {
       var __bk$ppset = "set"+'['+__bk$i_set+'].';
       for (var __bk$j_set=0; __bk$j_set<__bk$re_set.length; __bk$j_set++) {
       var __neset_e=__bk$re_set[__bk$j_set];
-      if(__neset_e.message===undefined&&__neset_e.context===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
+      if(__neset_e.message===undefined&&__neset_e.context===undefined&&__neset_e.constraints===undefined){__bk$errors.push({path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code});}
       else{var __neset={path:__bk$ppset+__bk$re_set[__bk$j_set].path,code:__neset_e.code};
       if(__neset_e.message!==undefined)__neset.message=__neset_e.message;
       if(__neset_e.context!==undefined)__neset.context=__neset_e.context;
+      if(__neset_e.constraints!==undefined)__neset.constraints=__neset_e.constraints;
       __bk$errors.push(__neset);}
       }
     } else { __bk$arr_set.add(__bk$r_set); }
@@ -1871,10 +1885,11 @@ if (__bk$f_map != null && typeof __bk$f_map === 'object' && !Array.isArray(__bk$
       var __bk$ppmap = "map"+'['+__bk$kmap+'].';
       for (var __bk$j_map=0; __bk$j_map<__bk$re_map.length; __bk$j_map++) {
       var __nemap_e=__bk$re_map[__bk$j_map];
-      if(__nemap_e.message===undefined&&__nemap_e.context===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
+      if(__nemap_e.message===undefined&&__nemap_e.context===undefined&&__nemap_e.constraints===undefined){__bk$errors.push({path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code});}
       else{var __nemap={path:__bk$ppmap+__bk$re_map[__bk$j_map].path,code:__nemap_e.code};
       if(__nemap_e.message!==undefined)__nemap.message=__nemap_e.message;
       if(__nemap_e.context!==undefined)__nemap.context=__nemap_e.context;
+      if(__nemap_e.constraints!==undefined)__nemap.constraints=__nemap_e.constraints;
       __bk$errors.push(__nemap);}
       }
     } else { __bk$arr_map.set(__bk$kmap, __bk$r_map); }

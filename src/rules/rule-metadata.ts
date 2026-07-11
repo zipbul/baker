@@ -23,7 +23,9 @@ export function defineRuleMetadata(fn: InternalRule, meta: RuleMetadata): void {
     target.requiresType = meta.requiresType;
   }
   if (meta.constraints !== undefined) {
-    target.constraints = meta.constraints;
+    // Frozen: this object is exposed on public BakerIssue.constraints (a shared reference across all
+    // calls), so it must not be mutable — a caller mutating an issue must not corrupt rule metadata.
+    target.constraints = Object.freeze(meta.constraints);
   }
   if (meta.isAsync !== undefined) {
     target.isAsync = meta.isAsync;
