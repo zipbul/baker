@@ -13,8 +13,8 @@ export function makeStringRule(
   buildEmit: (varName: string, ctx: EmitContext) => string,
   requiresType: RequiredType | undefined = RequiredType.String,
   constraints: Record<string, unknown> = {},
-): EmittableRule {
-  return makeRule({
+): EmittableRule<string> {
+  return makeRule<string>({
     name,
     requiresType,
     constraints,

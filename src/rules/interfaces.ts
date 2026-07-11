@@ -32,7 +32,7 @@ export interface EmitContext {
 // EmittableRule — Validation function + .emit()
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface EmittableRule {
+export interface EmittableRule<V = unknown> {
   (value: unknown): boolean | Promise<boolean>;
   emit(varName: string, ctx: EmitContext): string;
   readonly ruleName: string;
@@ -46,6 +46,13 @@ export interface EmittableRule {
   readonly constraints?: Record<string, unknown>;
   /** true when the rule is explicitly async and must be awaited */
   readonly isAsync?: boolean;
+  /**
+   * Phantom type carrying the value type this rule validates. Never set at runtime; it makes a rule's
+   * domain part of its type so `@Field` can reject a rule applied to a field of the wrong type
+   * (e.g. `@Field(isString) age!: number`). Covariant — `EmittableRule<string>` is an
+   * `EmittableRule<unknown>`, so rules stored as `EmittableRule[]` still compose.
+   */
+  readonly __v?: V;
 }
 
 /**
@@ -54,7 +61,7 @@ export interface EmittableRule {
  * `exports` map, and public rule factories return {@link EmittableRule}, so this type never appears
  * in a consumer-visible declaration. Deliberately not stripped from internal declarations.
  */
-export interface InternalRule extends EmittableRule {
+export interface InternalRule<V = unknown> extends EmittableRule<V> {
   readonly plan?: RulePlan;
 }
 

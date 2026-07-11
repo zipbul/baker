@@ -9,9 +9,9 @@ import { makeStringRule } from './string-shared';
 // Group A: Length / Range
 // ─────────────────────────────────────────────────────────────────────────────
 
-function minLength(min: number): EmittableRule {
+function minLength(min: number): EmittableRule<string> {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Lt, min) } as const;
-  return makePlannedRule({
+  return makePlannedRule<string>({
     name: 'minLength',
     requiresType: RequiredType.String,
     constraints: { min },
@@ -20,9 +20,9 @@ function minLength(min: number): EmittableRule {
   });
 }
 
-function maxLength(max: number): EmittableRule {
+function maxLength(max: number): EmittableRule<string> {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Gt, max) } as const;
-  return makePlannedRule({
+  return makePlannedRule<string>({
     name: 'maxLength',
     requiresType: RequiredType.String,
     constraints: { max },
@@ -31,12 +31,12 @@ function maxLength(max: number): EmittableRule {
   });
 }
 
-function length(minLen: number, maxLen: number): EmittableRule {
+function length(minLen: number, maxLen: number): EmittableRule<string> {
   const plan = {
     cacheKey: CacheKey.Length,
     failure: planOr(planCompare(planLength(), RuleOp.Lt, minLen), planCompare(planLength(), RuleOp.Gt, maxLen)),
   } as const;
-  return makePlannedRule({
+  return makePlannedRule<string>({
     name: 'length',
     requiresType: RequiredType.String,
     constraints: { min: minLen, max: maxLen },
@@ -45,8 +45,8 @@ function length(minLen: number, maxLen: number): EmittableRule {
   });
 }
 
-function contains(seed: string): EmittableRule {
-  return makeRule({
+function contains(seed: string): EmittableRule<string> {
+  return makeRule<string>({
     name: 'contains',
     requiresType: RequiredType.String,
     constraints: { seed },
@@ -58,8 +58,8 @@ function contains(seed: string): EmittableRule {
   });
 }
 
-function notContains(seed: string): EmittableRule {
-  return makeRule({
+function notContains(seed: string): EmittableRule<string> {
+  return makeRule<string>({
     name: 'notContains',
     requiresType: RequiredType.String,
     constraints: { seed },
@@ -71,14 +71,14 @@ function notContains(seed: string): EmittableRule {
   });
 }
 
-function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
+function matches(pattern: string | RegExp, modifiers?: string): EmittableRule<string> {
   // Strip stateful flags (g/y): the compiled regex is shared in the executor closure and reused for
   // every value, so a stateful `lastIndex` would make `.test()` alternate true/false across calls.
   // Rebuilding from source also detaches any externally-shared RegExp instance.
   const source = pattern instanceof RegExp ? pattern.source : pattern;
   const flags = (pattern instanceof RegExp ? pattern.flags : (modifiers ?? '')).replace(/[gy]/g, '');
   const re = new RegExp(source, flags);
-  return makeRule({
+  return makeRule<string>({
     name: 'matches',
     requiresType: RequiredType.String,
     constraints: { pattern: re.source },
@@ -94,7 +94,7 @@ function matches(pattern: string | RegExp, modifiers?: string): EmittableRule {
 // Group B: Simple Boolean Checks
 // ─────────────────────────────────────────────────────────────────────────────
 
-const isLowercase = makeRule({
+const isLowercase = makeRule<string>({
   name: 'isLowercase',
   requiresType: RequiredType.String,
   constraints: {},
@@ -102,7 +102,7 @@ const isLowercase = makeRule({
   emit: (varName: string, ctx: EmitContext): string => `if (${varName} !== ${varName}.toLowerCase()) ${ctx.fail('isLowercase')};`,
 });
 
-const isUppercase = makeRule({
+const isUppercase = makeRule<string>({
   name: 'isUppercase',
   requiresType: RequiredType.String,
   constraints: {},
@@ -171,7 +171,7 @@ const isOriginValue = (value: string): boolean => {
     return false;
   }
 };
-const isOrigin = makeRule({
+const isOrigin = makeRule<string>({
   name: 'isOrigin',
   requiresType: RequiredType.String,
   constraints: { format: 'origin' },
@@ -185,7 +185,7 @@ const isOrigin = makeRule({
 // CORS superset of isOrigin: additionally accepts the '*' wildcard literal
 // (Access-Control-Allow-Origin). Keep '*' out of the general isOrigin.
 const isCorsOriginValue = (value: string): boolean => value === '*' || isOriginValue(value);
-const isCorsOrigin = makeRule({
+const isCorsOrigin = makeRule<string>({
   name: 'isCorsOrigin',
   requiresType: RequiredType.String,
   constraints: { format: 'origin', allowWildcard: true },
@@ -197,7 +197,7 @@ const isCorsOrigin = makeRule({
 });
 
 // BooleanString: 'true' | 'false' | '1' | '0'
-const isBooleanString = makeRule({
+const isBooleanString = makeRule<string>({
   name: 'isBooleanString',
   requiresType: RequiredType.String,
   constraints: {},
@@ -216,7 +216,7 @@ const NO_SYMBOLS_RE = /^[0-9]+$/;
 // looser than "is this string a number". Matches validator.js's default isNumeric behavior.
 const NUMERIC_STRING_RE = /^[+-]?(?:[0-9]*\.)?[0-9]+$/;
 
-function isNumberString(options?: IsNumberStringOptions): EmittableRule {
+function isNumberString(options?: IsNumberStringOptions): EmittableRule<string> {
   const noSymbols = options?.noSymbols ?? false;
   const re = noSymbols ? NO_SYMBOLS_RE : NUMERIC_STRING_RE;
 
@@ -232,7 +232,7 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule {
   );
 }
 
-function isDecimal(): EmittableRule {
+function isDecimal(): EmittableRule<string> {
   // Require a digit after the dot — `\d+(?:\.\d*)?` accepted a dangling "5.".
   const decimalRe = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)$/;
   return makeStringRule(

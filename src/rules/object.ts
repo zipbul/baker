@@ -12,7 +12,7 @@ export interface IsNotEmptyObjectOptions {
   nullable?: boolean;
 }
 
-export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRule {
+export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRule<object> {
   const validate = (value: unknown): boolean => {
     if (value === null || typeof value !== 'object' || Array.isArray(value)) {
       return false;
@@ -32,7 +32,7 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
     return false;
   };
 
-  return makeRule({
+  return makeRule<object>({
     name: 'isNotEmptyObject',
     requiresType: RequiredType.Object,
     constraints: options?.nullable !== undefined ? { nullable: options.nullable } : {},
@@ -52,8 +52,8 @@ export function isNotEmptyObject(options?: IsNotEmptyObjectOptions): EmittableRu
 // isInstance(targetType) — checks if value is an instance of a specific class
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function isInstance(targetType: new (...args: never[]) => object): EmittableRule {
-  return makeRule({
+export function isInstance<T extends object>(targetType: new (...args: never[]) => T): EmittableRule<T> {
+  return makeRule<T>({
     name: 'isInstance',
     constraints: { type: targetType.name },
     validate: value => value instanceof targetType,

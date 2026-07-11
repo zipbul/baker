@@ -22,14 +22,14 @@ const planCompare = (left: RulePlanExpr, op: RuleOp, right: number | RulePlanExp
 
 const planOr = (...checks: RulePlanCheck[]): RulePlanCheck => ({ kind: RulePlanCheckKind.Or, checks });
 
-function makePlannedRule(options: {
+function makePlannedRule<V = unknown>(options: {
   name: string;
   requiresType: RequiredType;
   constraints?: Record<string, unknown>;
   plan: RulePlan;
   validate: (value: unknown) => boolean;
-}): EmittableRule {
-  const inner: Parameters<typeof makeRule>[0] = {
+}): EmittableRule<V> {
+  const inner: Parameters<typeof makeRule<V>>[0] = {
     name: options.name,
     requiresType: options.requiresType,
     plan: options.plan,
@@ -39,10 +39,10 @@ function makePlannedRule(options: {
   if (options.constraints !== undefined) {
     inner.constraints = options.constraints;
   }
-  return makeRule(inner);
+  return makeRule<V>(inner);
 }
 
-function makeRule(options: {
+function makeRule<V = unknown>(options: {
   name: string;
   validate: (value: unknown) => boolean | Promise<boolean>;
   emit: (varName: string, ctx: EmitContext) => string;
@@ -50,8 +50,8 @@ function makeRule(options: {
   constraints?: Record<string, unknown>;
   isAsync?: boolean;
   plan?: RulePlan;
-}): EmittableRule {
-  const fn = ((value: unknown) => options.validate(value)) as InternalRule;
+}): EmittableRule<V> {
+  const fn = ((value: unknown) => options.validate(value)) as InternalRule<V>;
   const meta: Parameters<typeof defineRuleMetadata>[1] = {
     emit: options.emit,
     ruleName: options.name,

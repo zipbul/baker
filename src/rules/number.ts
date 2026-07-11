@@ -8,7 +8,7 @@ import { makePlannedRule, makeRule, planCompare, planLiteral, planOr, planValue 
 // min — v >= n check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
+export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule<number> {
   if (!Number.isFinite(n)) {
     throw new BakerError(`min: bound must be a finite number, got ${n}`);
   }
@@ -19,7 +19,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
       planCompare(planValue(), exclusive ? RuleOp.Lte : RuleOp.Lt, planLiteral(n)),
     ),
   } as const;
-  return makePlannedRule({
+  return makePlannedRule<number>({
     name: 'min',
     requiresType: RequiredType.Number,
     constraints: exclusive ? { min: n, exclusive: true } : { min: n },
@@ -32,7 +32,7 @@ export function min(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 // max — v <= n check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
+export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule<number> {
   if (!Number.isFinite(n)) {
     throw new BakerError(`max: bound must be a finite number, got ${n}`);
   }
@@ -43,7 +43,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
       planCompare(planValue(), exclusive ? RuleOp.Gte : RuleOp.Gt, planLiteral(n)),
     ),
   } as const;
-  return makePlannedRule({
+  return makePlannedRule<number>({
     name: 'max',
     requiresType: RequiredType.Number,
     constraints: exclusive ? { max: n, exclusive: true } : { max: n },
@@ -56,7 +56,7 @@ export function max(n: number, opts?: { exclusive?: boolean }): EmittableRule {
 // isPositive — v > 0 (0 not included). requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isPositive = makePlannedRule({
+export const isPositive = makePlannedRule<number>({
   name: 'isPositive',
   requiresType: RequiredType.Number,
   constraints: { min: 0, exclusive: true },
@@ -70,7 +70,7 @@ export const isPositive = makePlannedRule({
 // isNegative — v < 0 (0 not included). requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isNegative = makePlannedRule({
+export const isNegative = makePlannedRule<number>({
   name: 'isNegative',
   requiresType: RequiredType.Number,
   constraints: { max: 0, exclusive: true },
@@ -84,11 +84,11 @@ export const isNegative = makePlannedRule({
 // isDivisibleBy — v % n === 0 check. requiresType='number'
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function isDivisibleBy(n: number): EmittableRule {
+export function isDivisibleBy(n: number): EmittableRule<number> {
   if (n === 0) {
     throw new BakerError('isDivisibleBy: divisor must not be zero');
   }
-  return makeRule({
+  return makeRule<number>({
     name: 'isDivisibleBy',
     requiresType: RequiredType.Number,
     constraints: { divisor: n },

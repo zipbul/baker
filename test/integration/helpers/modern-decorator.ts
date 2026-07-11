@@ -1,6 +1,6 @@
 // Test helper: apply a modern `@Field(...)` decorator to a class programmatically, mirroring what
 // the runtime does (field-only). Registration is done per-Baker via `new Baker().Recipe`.
-type FieldDecorator = (value: undefined, context: ClassFieldDecoratorContext) => void;
+type FieldDecorator<V = never> = (value: undefined, context: ClassFieldDecoratorContext<unknown, V | null | undefined>) => void;
 
 function ownMetadata(ctor: Function): Record<PropertyKey, unknown> {
   if (!Object.hasOwn(ctor, Symbol.metadata)) {
@@ -15,7 +15,7 @@ function ownMetadata(ctor: Function): Record<PropertyKey, unknown> {
 }
 
 /** Apply a `@Field(...)` decorator to ctor[key] as the runtime would. Field-only — no registration. */
-export function applyField(decorator: FieldDecorator, ctor: Function, key: string): void {
+export function applyField<V = never>(decorator: FieldDecorator<V>, ctor: Function, key: string): void {
   const metadata = ownMetadata(ctor);
   decorator(undefined, {
     kind: 'field',
@@ -25,5 +25,5 @@ export function applyField(decorator: FieldDecorator, ctor: Function, key: strin
     metadata,
     access: { has: () => false, get: () => undefined, set: () => undefined },
     addInitializer: () => undefined,
-  } as ClassFieldDecoratorContext);
+  } as ClassFieldDecoratorContext<unknown, V | null | undefined>);
 }

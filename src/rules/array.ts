@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from './interfaces';
+import type { CollectionValue } from './types';
 
 import { CacheKey } from '../common';
 import { RequiredType, RuleOp } from './enums';
@@ -8,8 +9,8 @@ import { makePlannedRule, makeRule, planCompare, planLength } from './rule-plan'
 // arrayContains(values) — array contains all specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayContains(values: unknown[]): EmittableRule {
-  return makeRule({
+function arrayContains(values: unknown[]): EmittableRule<CollectionValue> {
+  return makeRule<CollectionValue>({
     name: 'arrayContains',
     requiresType: RequiredType.Array,
     constraints: { values },
@@ -25,8 +26,8 @@ function arrayContains(values: unknown[]): EmittableRule {
 // arrayNotContains(values) — array does not contain any of the specified values
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayNotContains(values: unknown[]): EmittableRule {
-  return makeRule({
+function arrayNotContains(values: unknown[]): EmittableRule<CollectionValue> {
+  return makeRule<CollectionValue>({
     name: 'arrayNotContains',
     requiresType: RequiredType.Array,
     constraints: { values },
@@ -42,9 +43,9 @@ function arrayNotContains(values: unknown[]): EmittableRule {
 // arrayMinSize(min) — minimum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayMinSize(min: number): EmittableRule {
+function arrayMinSize(min: number): EmittableRule<CollectionValue> {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Lt, min) } as const;
-  return makePlannedRule({
+  return makePlannedRule<CollectionValue>({
     name: 'arrayMinSize',
     requiresType: RequiredType.Array,
     constraints: { min },
@@ -57,9 +58,9 @@ function arrayMinSize(min: number): EmittableRule {
 // arrayMaxSize(max) — maximum array length
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayMaxSize(max: number): EmittableRule {
+function arrayMaxSize(max: number): EmittableRule<CollectionValue> {
   const plan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Gt, max) } as const;
-  return makePlannedRule({
+  return makePlannedRule<CollectionValue>({
     name: 'arrayMaxSize',
     requiresType: RequiredType.Array,
     constraints: { max },
@@ -72,8 +73,8 @@ function arrayMaxSize(max: number): EmittableRule {
 // arrayUnique(identifier?) — no duplicates in array
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
-  return makeRule({
+function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule<CollectionValue> {
+  return makeRule<CollectionValue>({
     name: 'arrayUnique',
     requiresType: RequiredType.Array,
     constraints: {},
@@ -102,7 +103,7 @@ function arrayUnique(identifier?: (val: unknown) => unknown): EmittableRule {
 // ─────────────────────────────────────────────────────────────────────────────
 
 const arrayNotEmptyPlan = { cacheKey: CacheKey.Length, failure: planCompare(planLength(), RuleOp.Eq, 0) } as const;
-const arrayNotEmpty = makePlannedRule({
+const arrayNotEmpty = makePlannedRule<CollectionValue>({
   name: 'arrayNotEmpty',
   requiresType: RequiredType.Array,
   constraints: {},

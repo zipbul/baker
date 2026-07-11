@@ -46,8 +46,8 @@ const RGBA_RE =
 const RGB_PERCENT_NOALPHA_RE = /^rgb\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*\)$/;
 const RGBA_PERCENT_RE = /^rgba\(\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(\d{1,2}|100)%\s*,\s*(0|0?\.\d+|1(?:\.0+)?)\s*\)$/;
 
-function isRgbColor(includePercentValues: boolean = false): EmittableRule {
-  return makeRule({
+function isRgbColor(includePercentValues: boolean = false): EmittableRule<string> {
+  return makeRule<string>({
     name: 'isRgbColor',
     requiresType: RequiredType.String,
     constraints: { includePercentValues },
@@ -91,7 +91,7 @@ const isHSL = makeStringRule(
 // Base32
 const BASE32_RE = /^[A-Z2-7]+=*$/i;
 // Empty-string fails the `+`-quantified regex anyway, so the explicit length===0 check is dead.
-function isBase32(): EmittableRule {
+function isBase32(): EmittableRule<string> {
   return makeStringRule(
     'isBase32',
     v => v.length % 8 === 0 && BASE32_RE.test(v),
@@ -123,7 +123,7 @@ interface IsBase64Options {
   urlSafe?: boolean;
 }
 
-function isBase64(options?: IsBase64Options): EmittableRule {
+function isBase64(options?: IsBase64Options): EmittableRule<string> {
   const re = options?.urlSafe ? BASE64_URL_RE : BASE64_RE;
   // Empty-string check is redundant — both base64 regexes require ≥1 char and fail on empty input.
   return makeStringRule(

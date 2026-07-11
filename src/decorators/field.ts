@@ -2,7 +2,7 @@ import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { EmittableRule, InternalRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ArrayOfMarker, FieldOptions } from './interfaces';
-import type { FieldDecorator, RuleArg } from './types';
+import type { FieldDecorator, FieldValue, RuleArg } from './types';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
 import { metaStore } from '../metadata';
@@ -22,7 +22,7 @@ import { ExcludeMode } from './enums';
  * tags!: string[];
  * ```
  */
-function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
+function arrayOf<E>(...rules: EmittableRule<E>[]): ArrayOfMarker<E> {
   return { rules, [ARRAY_OF]: true };
 }
 
@@ -292,12 +292,18 @@ class FieldMetaApplier {
 
 /** `@Field`() — empty field registration */
 function Field(): FieldDecorator;
-/** `@Field`(isString(), email()) — variadic rules */
-function Field(...rules: RuleArg[]): FieldDecorator;
 /** `@Field`({ type: () => Dto }) — options object */
 function Field(options: FieldOptions): FieldDecorator;
-/** `@Field`(isString(), { optional: true }) — rules + options mixed */
-function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): FieldDecorator;
+/**
+ * `@Field`(isString, isEmail()) — validated field. `V` is the intersection of the rules' domains, so
+ * a rule applied to a field of the wrong type fails to compile; an `arrayOf(...)` marker additionally
+ * requires the field to be a container of the element type.
+ */
+function Field<V, E = never>(...rules: (EmittableRule<V> | ArrayOfMarker<E>)[]): FieldDecorator<FieldValue<V, NoInfer<E>>>;
+/** `@Field`(isString, { optional: true }) — rules + options mixed */
+function Field<V, E = never>(
+  ...rulesAndOptions: [...(EmittableRule<V> | ArrayOfMarker<E>)[], FieldOptions]
+): FieldDecorator<FieldValue<V, NoInfer<E>>>;
 function Field(...args: unknown[]): FieldDecorator {
   return (_value, context) => {
     if (context.static) {

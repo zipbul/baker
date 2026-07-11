@@ -5,7 +5,7 @@ import { makeStringRule } from './string-shared';
 
 const NUMERIC_RANGE_RE = /^-?\d+(\.\d+)?$/;
 
-function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRule {
+function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRule<string | number> {
   const check = (value: unknown): boolean => {
     if (typeof value === 'number') {
       return value >= lo && value <= hi;
@@ -20,7 +20,7 @@ function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRul
     }
     return false;
   };
-  return makeRule({
+  return makeRule<string | number>({
     name,
     constraints: {},
     validate: check,
@@ -40,7 +40,7 @@ function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRul
 // LatLong
 const LAT_LONG_RE = /^[-+]?([1-8]?\d(?:\.\d+)?|90(?:\.0+)?),\s*[-+]?(180(?:\.0+)?|1[0-7]\d(?:\.\d+)?|\d{1,2}(?:\.\d+)?)$/;
 
-function isLatLong(): EmittableRule {
+function isLatLong(): EmittableRule<string> {
   return makeStringRule(
     'isLatLong',
     v => LAT_LONG_RE.test(v),
