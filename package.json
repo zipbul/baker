@@ -71,7 +71,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "bash scripts/build.sh",
+    "build": "tsgo -p tsconfig.build.json",
     "changeset": "changeset",
     "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
     "format": "oxfmt",
@@ -83,8 +83,8 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:memory": "bun run scripts/check-memory.ts",
-    "typecheck": "tsc --noEmit",
-    "typecheck:bench": "tsc --noEmit -p bench/tsconfig.json && tsc --noEmit -p bench/class-validator/tsconfig.json",
+    "typecheck": "tsgo --noEmit",
+    "typecheck:bench": "tsgo --noEmit -p bench/tsconfig.json && tsgo --noEmit -p bench/class-validator/tsconfig.json",
     "version-packages": "changeset version"
   },
   "dependencies": {
@@ -97,6 +97,7 @@
     "@sinclair/typebox": "^0.34.48",
     "@types/bun": "^1.3.9",
     "@types/luxon": "^3.7.1",
+    "@typescript/native-preview": "7.0.0-dev.20260629.1",
     "ajv": "^8.18.0",
     "arktype": "^2.2.0",
     "class-transformer": "^0.5.1",

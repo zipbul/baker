@@ -1,4 +1,4 @@
-// Cross-cutting enums with no single owning stage (string-valued; inlined in --production builds).
+// Cross-cutting enums with no single owning stage (string-valued).
 
 /** Direction of a (de)serialization pass. */
 export enum Direction {
