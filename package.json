@@ -71,7 +71,7 @@
     "provenance": true
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.build.json",
+    "build": "rm -rf dist && tsgo -p tsconfig.build.json",
     "changeset": "changeset",
     "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
     "format": "oxfmt",
