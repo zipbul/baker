@@ -71,6 +71,8 @@
     "provenance": true
   },
   "scripts": {
+    "bench": "for f in bench/*.bench.ts; do bun \"$f\" || exit 1; done",
+    "bench:cv": "cd bench/class-validator && for f in *.cv.bench.ts; do bun \"$f\" || exit 1; done",
     "build": "rm -rf dist && tsgo -p tsconfig.build.json",
     "changeset": "changeset",
     "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
