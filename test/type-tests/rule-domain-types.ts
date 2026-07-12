@@ -4,7 +4,7 @@
  * asserts a MISMATCH is rejected at compile time; every un-annotated line asserts a valid use compiles.
  * Runtime behaviour is unchanged — see the *.test.ts suites.
  */
-import { Baker, Field, arrayOf } from '../../index';
+import { Field, arrayOf } from '../../index';
 import {
   isString,
   isBoolean,
@@ -23,10 +23,8 @@ import {
   oneOf,
 } from '../../src/rules/index';
 
-const baker = new Baker();
-
 // ── 1. HAPPY — correct rule/field pairings compile ───────────────────────────
-class Happy {
+export class Happy {
   @Field(isString) s!: string;
   @Field(min(5)) n!: number;
   @Field(isBoolean) b!: boolean;
@@ -38,7 +36,7 @@ class Happy {
 }
 
 // ── 2. NEGATIVE — domain mismatches must NOT compile ─────────────────────────
-class Negative {
+export class Negative {
   // @ts-expect-error string rule on a number field
   @Field(isString) age!: number;
   // @ts-expect-error number rule on a string field
@@ -68,7 +66,7 @@ class Negative {
 }
 
 // ── 3. EDGE — valid boundary cases compile ───────────────────────────────────
-class Edge {
+export class Edge {
   @Field(isString) opt?: string;
   @Field(isString) nul!: string | null;
   @Field(isString) und!: string | undefined;
@@ -94,16 +92,7 @@ class Edge {
 }
 
 // ── 4. EXCEPTION — the type layer never changes runtime; guards still hold ────
-class Exception {
+export class Exception {
   // A deliberate type escape (the untyped path) still compiles and the runtime validates as string.
   @Field({ rules: [isString] }) viaOptions!: number;
-}
-
-// The type layer is compile-time only: runtime still rejects invalid input for a wrongly-typed field.
-export function exerciseRuntimeUnchanged(): void {
-  baker.seal();
-  void Happy;
-  void Negative;
-  void Edge;
-  void Exception;
 }

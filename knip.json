@@ -8,7 +8,8 @@
     "src/transformers/index.ts!",
     "bench/*.bench.ts",
     "bench/class-validator/*.cv.bench.ts",
-    "scripts/*.ts"
+    "scripts/*.ts",
+    "test/type-tests/*.ts!"
   ],
   "project": ["src/**/*.ts", "bench/**/*.ts", "scripts/**/*.ts", "test/**/*.ts"],
   "ignoreDependencies": ["@commitlint/types"],
