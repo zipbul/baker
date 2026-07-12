@@ -300,7 +300,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
     const b = new Baker();
     @b.Recipe
     class NestedConflict {
-      @Field(isEmail(), min(5)) v!: unknown;
+      @Field({ rules: [isEmail(), min(5)] }) v!: unknown;
     }
     @b.Recipe
     class ParentWrap {
@@ -346,7 +346,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
     const b = new Baker();
     @b.Recipe
     class ConflictReq {
-      @Field(isEmail(), min(5)) v!: unknown;
+      @Field({ rules: [isEmail(), min(5)] }) v!: unknown;
     }
     let caught: unknown;
     try {
@@ -362,7 +362,7 @@ describe('baker.seal() — transactional failure cleanup', () => {
     const bad = new Baker();
     @bad.Recipe
     class BadRetry {
-      @Field(isEmail(), min(5)) v!: unknown;
+      @Field({ rules: [isEmail(), min(5)] }) v!: unknown;
     }
     expect(() => bad.seal()).toThrow(BakerError);
     expect(() => bad.deserialize(BadRetry, {})).toThrow(/not sealed by this baker/);

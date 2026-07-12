@@ -36,12 +36,12 @@ const isBtcAddress = makeStringRule(
   },
 );
 
-function isHash(algorithm: string): EmittableRule {
+function isHash(algorithm: string): EmittableRule<string> {
   const re = HASH_REGEXES[algorithm];
   if (!re) {
     throw new BakerError(`Unsupported algorithm: "${algorithm}" for isHash`);
   }
-  return makeRule({
+  return makeRule<string>({
     name: 'isHash',
     requiresType: RequiredType.String,
     constraints: { algorithm },

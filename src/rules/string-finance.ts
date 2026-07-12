@@ -33,7 +33,7 @@ function validateISBN13(str: string): boolean {
   return check === s.charCodeAt(12) - 48;
 }
 
-function isISBN(version?: 10 | 13): EmittableRule {
+function isISBN(version?: 10 | 13): EmittableRule<string> {
   const validateFn = (value: unknown): boolean => {
     if (typeof value !== 'string') {
       return false;
@@ -61,7 +61,7 @@ function isISBN(version?: 10 | 13): EmittableRule {
     `var ck=(10-(sm%10))%10;` +
     `if(ck!==(s.charCodeAt(12)-48)){%%FAIL%%}}}`;
 
-  return makeRule({
+  return makeRule<string>({
     name: 'isISBN',
     requiresType: RequiredType.String,
     constraints: { version },
@@ -169,13 +169,13 @@ function validateISSN(value: string, options?: IsISSNOptions): boolean {
   return sum % 11 === 0;
 }
 
-function isISSN(options?: IsISSNOptions): EmittableRule {
+function isISSN(options?: IsISSNOptions): EmittableRule<string> {
   const requireHyphen = options?.requireHyphen !== false;
   const validateIssn = (value: unknown): boolean => typeof value === 'string' && validateISSN(value, options);
 
   const formatRe = requireHyphen ? /^\d{4}-\d{3}[\dX]$/ : /^\d{7}[\dX]$/;
 
-  return makeRule({
+  return makeRule<string>({
     name: 'isISSN',
     requiresType: RequiredType.String,
     constraints: { requireHyphen },
@@ -241,7 +241,7 @@ const isBIC = makeStringRule(
 // both. The previous `[-+]?\$?-?` allowed two signs (e.g. `+-5`, `-$-5`).
 const CURRENCY_RE = /^(?:[-+]?\$?|\$[-+]?)(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$/;
 
-function isCurrency(): EmittableRule {
+function isCurrency(): EmittableRule<string> {
   // Currency regex requires at least one digit; empty input fails the regex by itself.
   return makeStringRule(
     'isCurrency',
@@ -275,7 +275,7 @@ function luhn(str: string): boolean {
   return sum % 10 === 0;
 }
 
-const isCreditCard = makeRule({
+const isCreditCard = makeRule<string>({
   name: 'isCreditCard',
   requiresType: RequiredType.String,
   constraints: {},
@@ -324,10 +324,10 @@ function validateIBAN(value: string, options?: IsIBANOptions): boolean {
   return remainder === 1;
 }
 
-function isIBAN(options?: IsIBANOptions): EmittableRule {
+function isIBAN(options?: IsIBANOptions): EmittableRule<string> {
   const allowSpaces = options?.allowSpaces ?? false;
   const validateIban = (value: unknown): boolean => typeof value === 'string' && validateIBAN(value, options);
-  return makeRule({
+  return makeRule<string>({
     name: 'isIBAN',
     requiresType: RequiredType.String,
     constraints: { allowSpaces },

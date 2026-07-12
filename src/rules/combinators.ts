@@ -1,4 +1,5 @@
 import type { EmitContext, EmittableRule } from './interfaces';
+import type { UnionOfDomains } from './types';
 
 import { BakerError } from '../common';
 import { makeRule } from './rule-plan';
@@ -9,7 +10,7 @@ import { makeRule } from './rule-plan';
 //  first matching branch wins, short-circuit.)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function oneOf(...branches: EmittableRule[]): EmittableRule {
+function oneOf<const B extends readonly EmittableRule<unknown>[]>(...branches: B): EmittableRule<UnionOfDomains<B>> {
   if (branches.length === 0) {
     throw new BakerError('oneOf requires at least one rule.');
   }
@@ -25,7 +26,7 @@ function oneOf(...branches: EmittableRule[]): EmittableRule {
       }
       return false;
     };
-    return makeRule({
+    return makeRule<UnionOfDomains<B>>({
       name: 'oneOf',
       constraints,
       isAsync: true,
@@ -39,9 +40,9 @@ function oneOf(...branches: EmittableRule[]): EmittableRule {
 
   // Sync branch: `isAsync` was false, so every branch returns boolean — view them as sync once here
   // instead of asserting `as boolean` on each call.
-  const syncBranches = branches as ((value: unknown) => boolean)[];
+  const syncBranches = branches as readonly ((value: unknown) => boolean)[];
   const validate = (value: unknown): boolean => syncBranches.some(b => b(value));
-  return makeRule({
+  return makeRule<UnionOfDomains<B>>({
     name: 'oneOf',
     constraints,
     validate,
@@ -58,7 +59,7 @@ function oneOf(...branches: EmittableRule[]): EmittableRule {
 // validation stays at the @Field level via arrayOf.
 // ─────────────────────────────────────────────────────────────────────────────
 
-function arrayEvery(...rules: EmittableRule[]): EmittableRule {
+function arrayEvery<E>(...rules: EmittableRule<E>[]): EmittableRule<readonly E[]> {
   if (rules.length === 0) {
     throw new BakerError('arrayEvery requires at least one rule.');
   }
@@ -79,7 +80,7 @@ function arrayEvery(...rules: EmittableRule[]): EmittableRule {
       }
       return true;
     };
-    return makeRule({
+    return makeRule<readonly E[]>({
       name: 'arrayEvery',
       constraints,
       isAsync: true,
@@ -95,7 +96,7 @@ function arrayEvery(...rules: EmittableRule[]): EmittableRule {
   const syncRules = rules as ((value: unknown) => boolean)[];
   const elementPredicate = (el: unknown): boolean => syncRules.every(r => r(el));
   const validate = (value: unknown): boolean => Array.isArray(value) && value.every(elementPredicate);
-  return makeRule({
+  return makeRule<readonly E[]>({
     name: 'arrayEvery',
     constraints,
     validate,

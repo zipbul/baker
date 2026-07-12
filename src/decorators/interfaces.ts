@@ -10,9 +10,11 @@ import { ARRAY_OF } from './constants';
 // arrayOf marker — produced by arrayOf(...), compiles to per-rule `each: true`
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface ArrayOfMarker {
+export interface ArrayOfMarker<E = unknown> {
   readonly [ARRAY_OF]: true;
-  readonly rules: EmittableRule[];
+  readonly rules: EmittableRule<E>[];
+  /** Phantom element type — never set at runtime; lets `@Field` infer the array element domain E. */
+  readonly __e?: E;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

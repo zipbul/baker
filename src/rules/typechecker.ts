@@ -13,7 +13,7 @@ function emitMaxDecimalCheck(varName: string, maxDecimalPlaces: number, ctx: Emi
 // isString — typeof check (operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isString = makeRule({
+export const isString = makeRule<string>({
   name: 'isString',
   constraints: {},
   validate: value => typeof value === 'string',
@@ -30,7 +30,7 @@ export interface IsNumberOptions {
   maxDecimalPlaces?: number;
 }
 
-export function isNumber(options?: IsNumberOptions): EmittableRule {
+export function isNumber(options?: IsNumberOptions): EmittableRule<number> {
   const allowNaN = options?.allowNaN ?? false;
   const allowInfinity = options?.allowInfinity ?? false;
   const maxDecimalPlaces = options?.maxDecimalPlaces;
@@ -71,7 +71,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
     return true;
   };
 
-  return makeRule({
+  return makeRule<number>({
     name: 'isNumber',
     constraints,
     validate,
@@ -106,7 +106,7 @@ export function isNumber(options?: IsNumberOptions): EmittableRule {
 // isBoolean — typeof check
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isBoolean = makeRule({
+export const isBoolean = makeRule<boolean>({
   name: 'isBoolean',
   constraints: {},
   validate: value => typeof value === 'boolean',
@@ -117,7 +117,7 @@ export const isBoolean = makeRule({
 // isDate — instanceof Date + getTime() NaN check
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isDate = makeRule({
+export const isDate = makeRule<Date>({
   name: 'isDate',
   constraints: {},
   validate: value => value instanceof Date && !isNaN(value.getTime()),
@@ -129,7 +129,7 @@ export const isDate = makeRule({
 // isEnum — factory: indexOf check using Object.values array
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function isEnum(entity: object): EmittableRule {
+export function isEnum(entity: object): EmittableRule<string | number> {
   // TS numeric enums compile to a reverse-mapped object ({ 0: 'Inactive', 1: 'Active', Active: 1,
   // Inactive: 0 }), so Object.values would also yield the member-name strings. Read values through the
   // non-numeric keys instead — this drops the reverse-map entries while keeping every real member,
@@ -144,7 +144,7 @@ export function isEnum(entity: object): EmittableRule {
   const useSet = values.length >= 8;
   const valuesSet = useSet ? new Set(values) : null;
 
-  return makeRule({
+  return makeRule<string | number>({
     name: 'isEnum',
     constraints: { values },
     validate: useSet ? value => valuesSet!.has(value) : value => values.includes(value),
@@ -163,7 +163,7 @@ export function isEnum(entity: object): EmittableRule {
 // isInt — typeof + Number.isInteger check
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isInt = makeRule({
+export const isInt = makeRule<number>({
   name: 'isInt',
   requiresType: RequiredType.Number,
   constraints: {},
@@ -178,7 +178,7 @@ export const isInt = makeRule({
 // isArray — Array.isArray check (operator inline)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isArray = makeRule({
+export const isArray = makeRule<readonly unknown[]>({
   name: 'isArray',
   constraints: {},
   validate: value => Array.isArray(value),
@@ -189,7 +189,7 @@ export const isArray = makeRule({
 // isObject — typeof object + non-null + non-array
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isObject = makeRule({
+export const isObject = makeRule<object>({
   name: 'isObject',
   constraints: {},
   validate: value => typeof value === 'object' && value !== null && !Array.isArray(value),
@@ -201,7 +201,7 @@ export const isObject = makeRule({
 // isRegExp — instanceof RegExp (self-narrowing, no typeof gate needed)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isRegExp = makeRule({
+export const isRegExp = makeRule<RegExp>({
   name: 'isRegExp',
   constraints: {},
   validate: value => value instanceof RegExp,
@@ -212,7 +212,7 @@ export const isRegExp = makeRule({
 // isFunction — typeof check (accepts arrow fns, unlike isInstance(Function))
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isFunction = makeRule({
+export const isFunction = makeRule<Function>({
   name: 'isFunction',
   constraints: {},
   validate: value => typeof value === 'function',
@@ -224,7 +224,7 @@ export const isFunction = makeRule({
 // across repeated test()/exec()). Safe for reuse as a single-shot matcher.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isStatelessRegExp = makeRule({
+export const isStatelessRegExp = makeRule<RegExp>({
   name: 'isStatelessRegExp',
   constraints: {},
   validate: value => value instanceof RegExp && !value.global && !value.sticky,

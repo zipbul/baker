@@ -1,4 +1,4 @@
-// Rule-domain enums (string-valued; inlined in --production builds).
+// Rule-domain enums (string-valued).
 
 /** Type a rule assumes for its value — drives the builder's type gate, gate dedup, and autoConvert target. */
 export enum RequiredType {

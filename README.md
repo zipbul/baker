@@ -42,8 +42,9 @@ class UserDto {
 // Call once at startup, after this baker's DTOs are defined.
 baker.seal();
 
-// All rules here are sync, so deserialize returns the value directly (no await).
-const result = baker.deserialize(UserDto, {
+// All rules here are sync. `deserializeSync` returns `UserDto | BakerIssueSet` — a precise,
+// non-Promise type you can narrow and read directly.
+const result = baker.deserializeSync(UserDto, {
   name: 'Alice',
   age: 30,
   email: 'alice@test.com',
@@ -57,7 +58,9 @@ if (isBakerIssueSet(result)) {
 }
 ```
 
-`deserialize` returns either your typed instance or a `BakerIssueSet`; narrow between them with `isBakerIssueSet`. If any rule or transformer on the DTO is async, `deserialize` returns a `Promise` instead — `await` it (see [Runtime API](#runtime-api)).
+`deserializeSync` returns either your typed instance or a `BakerIssueSet`; narrow between them with `isBakerIssueSet`. If any rule or transformer on the DTO is async, use `deserializeAsync` and `await` it instead (see [Runtime API](#runtime-api)).
+
+> **Which variant?** The bare `deserialize` returns the honest sync-or-async union `T | BakerIssueSet | Promise<T | BakerIssueSet>`, so reading a property off its result does not typecheck — TypeScript cannot rule out the `Promise` arm. Use `deserializeSync` (throws if the DTO is async) or `deserializeAsync` (always a `Promise`) for a directly-usable type. The same applies to `validate`/`serialize`.
 
 ## Core Concepts
 
@@ -100,6 +103,27 @@ Only fields decorated with `@Field` participate in validation, deserialization, 
 ```
 
 Each rule must be an emittable rule object created via `createRule()` or one of the built-in rule factories. Passing a raw function (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) throws `BakerError` at decorator-evaluation time.
+
+### Type-checked fields
+
+Every rule carries the value type it validates, so `@Field` rejects a rule applied to a field of the wrong type **at compile time** — a field that could never validate no longer type-checks:
+
+```typescript
+@baker.Recipe
+class UserDto {
+  @Field(isString) name!: string; // ok
+  @Field(isString) age!: number; // ✗ compile error: 'number' is not assignable to 'string'
+  @Field(isString, min(5)) code!: string; // ✗ compile error: mixed rule domains (string + number)
+}
+```
+
+- `optional`/`nullable` fields work: `@Field(isString) name!: string | null` compiles (the type check covers the rule's domain, not presence — `null` is still rejected at runtime unless `{ nullable: true }`).
+- `equals`/`isIn` keep the check via literal widening — `@Field(isIn(['a', 'b'] as const)) status!: string` compiles.
+- `arrayOf(...)` constrains the element type: `@Field(arrayOf(isString)) tags!: string[]` (also `Set<string>` / `Map<string, X>`); a wrong element rule fails to compile.
+- `isEmpty`/`isNotEmpty` are universal and apply to any field.
+- Need a dynamically-built, unchecked rule list? Pass it via options: `@Field({ rules: buildRules() })` is intentionally not domain-checked.
+
+This uses native (TC39) decorator field types — no schema duplication; the field's own `: T` annotation is the single source of truth.
 
 ### Options
 
@@ -408,7 +432,7 @@ const isEven = createRule({
 
 ### `isBakerIssueSet(value)`
 
-Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ path, code, message?, context? }` issues.
+Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ path, code, message?, context?, constraints? }` issues. `constraints` carries the failing rule's parameters when it has any (e.g. `{ min: 5 }` for `min(5)`); type-check rules and structural failures omit it.
 
 ## Error Handling
 
@@ -418,11 +442,12 @@ baker separates two failure modes:
 - **`BakerIssueSet` (returned)** — a validation failure. `deserialize` and `validate` return it instead of throwing. Guard with `isBakerIssueSet` and read `.errors`.
 
 ```typescript
-const result = baker.deserialize(UserDto, input);
+const result = baker.deserializeSync(UserDto, input);
 
 if (isBakerIssueSet(result)) {
   for (const issue of result.errors) {
     console.log(`${issue.path}: ${issue.code}`); // e.g. "email: isEmail"
+    // issue.constraints holds the rule's parameters when present, e.g. { min: 5 } for min(5).
   }
 } else {
   // result is a typed UserDto
@@ -437,7 +462,7 @@ When performance matters. baker generates optimized validation/serialization cod
 
 ### How does baker compare to Zod?
 
-Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker generates optimized code at definition time instead of interpreting schemas at runtime. Choose Zod if you need schema-first design or Node support; choose baker if you need class-based DTOs on Bun with maximum performance.
+Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker generates optimized code at definition time instead of interpreting schemas at runtime. Like Zod, baker is type-checked: a rule applied to the wrong field type is a compile error (see [Type-checked fields](#type-checked-fields)) — the difference is baker takes the field's own `: T` annotation as the source of truth rather than inferring the type from a schema. Choose Zod if you need schema-first design or Node support; choose baker if you need class-based DTOs on Bun with maximum performance.
 
 ### Does baker support async validation?
 

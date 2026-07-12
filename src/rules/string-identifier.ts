@@ -59,10 +59,10 @@ function validateISO8601Strict(v: string): boolean {
   return hh >= 0 && hh <= 23 && mm >= 0 && mm <= 59 && ss >= 0 && ss <= 60;
 }
 
-function isISO8601(options?: IsISO8601Options): EmittableRule {
+function isISO8601(options?: IsISO8601Options): EmittableRule<string> {
   if (options?.strict) {
     const validateStrict = (v: unknown): boolean => typeof v === 'string' && validateISO8601Strict(v);
-    return makeRule({
+    return makeRule<string>({
       name: 'isISO8601',
       requiresType: RequiredType.String,
       constraints: { format: 'date-time', strict: true },
@@ -112,7 +112,7 @@ const isISRC = makeStringRule(
   },
 );
 
-const isISO31661Alpha2 = makeRule({
+const isISO31661Alpha2 = makeRule<string>({
   name: 'isISO31661Alpha2',
   requiresType: RequiredType.String,
   constraints: {},
@@ -123,7 +123,7 @@ const isISO31661Alpha2 = makeRule({
   },
 });
 
-const isISO31661Alpha3 = makeRule({
+const isISO31661Alpha3 = makeRule<string>({
   name: 'isISO31661Alpha3',
   requiresType: RequiredType.String,
   constraints: {},
@@ -182,7 +182,7 @@ function isCalendarValidDate(v: string): boolean {
   return d >= 1 && d <= maxDay;
 }
 
-function isDateString(): EmittableRule {
+function isDateString(): EmittableRule<string> {
   return makeStringRule('isDateString', isCalendarValidDate, (varName, ctx) => {
     const i = ctx.addRegex(DATE_STRING_RE);
     return (
@@ -196,7 +196,7 @@ function isDateString(): EmittableRule {
 // ULID
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
-function isULID(): EmittableRule {
+function isULID(): EmittableRule<string> {
   return makeStringRule(
     'isULID',
     v => ULID_RE.test(v),
@@ -212,7 +212,7 @@ function isULID(): EmittableRule {
 // CUID2 spec: length 24-32, lowercase alphanum, starts with a-z.
 const CUID2_RE = /^[a-z][0-9a-z]{23,31}$/;
 
-function isCUID2(): EmittableRule {
+function isCUID2(): EmittableRule<string> {
   return makeStringRule(
     'isCUID2',
     v => CUID2_RE.test(v),

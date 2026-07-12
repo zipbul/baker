@@ -483,19 +483,36 @@ class DeserializeBuilder {
     return extra;
   }
 
-  /** Per-rule extras — a message function receives the failing rule's `constraints`. */
+  /**
+   * Split a rule's issue extras into its own message/context part and its (non-empty) constraints
+   * part, sharing one `constraints` ref between a message function's argument and the issue field.
+   * `each`/element paths use the combined form directly (no field-level fallback for elements); the
+   * field path (makeRuleEmitCtx) consumes the two parts to layer the field-level fallback in between.
+   */
+  private computeRuleExtraParts(
+    rd: RuleDef,
+    fieldKey: string,
+    varName: string,
+  ): { ruleMsgCtx: string; constraintsExtra: string } {
+    const constraints = rd.rule.constraints;
+    const hasConstraints = constraints !== undefined && Object.keys(constraints).length > 0;
+    let constraintsIdx = -1;
+    const constraintsRef = (): string => {
+      if (constraintsIdx === -1) {
+        constraintsIdx = this.refs.length;
+        this.refs.push(constraints ?? {});
+      }
+      return `refs[${constraintsIdx}]`;
+    };
+    const ruleMsgCtx = this.buildIssueExtras(rd.message, rd.context, constraintsRef, fieldKey, varName);
+    const constraintsExtra = hasConstraints ? `,constraints:${constraintsRef()}` : '';
+    return { ruleMsgCtx, constraintsExtra };
+  }
+
+  /** Per-element (`each`) extras — rule's own message/context + non-empty constraints, no field fallback. */
   private computeRuleExtras(rd: RuleDef, fieldKey: string, varName: string): string {
-    return this.buildIssueExtras(
-      rd.message,
-      rd.context,
-      () => {
-        const constraintsIdx = this.refs.length;
-        this.refs.push(rd.rule.constraints ?? {});
-        return `refs[${constraintsIdx}]`;
-      },
-      fieldKey,
-      varName,
-    );
+    const { ruleMsgCtx, constraintsExtra } = this.computeRuleExtraParts(rd, fieldKey, varName);
+    return ruleMsgCtx + constraintsExtra;
   }
 
   /** Field-level extras appended to EVERY failure of a field — including non-rule failures
@@ -505,12 +522,20 @@ class DeserializeBuilder {
     return this.buildIssueExtras(meta.message, meta.context, () => '{}', fieldKey, varName);
   }
 
-  /** Create per-rule EmitContext (with message/context overrides) */
+  /**
+   * Create a per-rule EmitContext. A rule's failure issue resolves message/context as "rule's own,
+   * else the field-level fallback" and always carries the rule's own non-empty constraints:
+   *   - rule contributes nothing (no own message/context, no constraints) → reuse baseEmitCtx (which
+   *     already emits the field-level extras) — unchanged output, no snapshot churn.
+   *   - rule contributes → message/context = the rule's own if present, else the field-level
+   *     `fieldExtras` baked onto baseEmitCtx; constraints appended from the rule.
+   */
   private makeRuleEmitCtx(baseEmitCtx: EmitContext, fieldKey: string, varName: string, rd: RuleDef): EmitContext {
-    const extra = this.computeRuleExtras(rd, fieldKey, varName);
-    if (!extra) {
+    const { ruleMsgCtx, constraintsExtra } = this.computeRuleExtraParts(rd, fieldKey, varName);
+    if (!ruleMsgCtx && !constraintsExtra) {
       return baseEmitCtx;
     }
+    const extra = (ruleMsgCtx || (baseEmitCtx.fieldExtras ?? '')) + constraintsExtra;
     const pathExpr = baseEmitCtx.pathExpr ?? JSON.stringify(fieldKey);
     const validateOnly = this.validateOnly;
     return {
@@ -1674,6 +1699,7 @@ class DeserializeBuilder {
       },
       collectErrors,
       pathExpr: pathExpr,
+      fieldExtras,
     };
   }
 }

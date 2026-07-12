@@ -32,12 +32,12 @@ export interface CreateRuleOptions {
  *   validate: (v) => typeof v === 'number' && v % 2 === 0,
  * });
  */
-export function createRule(name: string, validate: (value: unknown) => boolean | Promise<boolean>): EmittableRule;
-export function createRule(options: CreateRuleOptions): EmittableRule;
-export function createRule(
+export function createRule<V = unknown>(name: string, validate: (value: unknown) => boolean | Promise<boolean>): EmittableRule<V>;
+export function createRule<V = unknown>(options: CreateRuleOptions): EmittableRule<V>;
+export function createRule<V = unknown>(
   nameOrOptions: string | CreateRuleOptions,
   validateFn?: (value: unknown) => boolean | Promise<boolean>,
-): EmittableRule {
+): EmittableRule<V> {
   const name = typeof nameOrOptions === 'string' ? nameOrOptions : nameOrOptions.name;
   const validate = typeof nameOrOptions === 'string' ? validateFn : nameOrOptions.validate;
   // The overloads require `validate`; guard the untyped-JS path instead of asserting with `!`,
@@ -59,7 +59,7 @@ export function createRule(
       );
     }
     return result;
-  } as InternalRule;
+  } as InternalRule<V>;
 
   // .emit() — generates function call code via the refs array
   fn.emit = function (varName: string, ctx: EmitContext): string {

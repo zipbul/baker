@@ -6,7 +6,8 @@ import { Field } from './field';
 
 // Build a faithful ClassFieldDecoratorContext so the @Field runtime guards can be exercised
 // directly — the field's static/private/name flags are exactly what the runtime supplies.
-function fieldContext(overrides: Partial<ClassFieldDecoratorContext>): ClassFieldDecoratorContext {
+type FieldCtx = ClassFieldDecoratorContext<unknown, string | null | undefined>;
+function fieldContext(overrides: Partial<FieldCtx>): FieldCtx {
   return {
     kind: 'field',
     name: 'x',
@@ -16,7 +17,7 @@ function fieldContext(overrides: Partial<ClassFieldDecoratorContext>): ClassFiel
     access: { has: () => false, get: () => undefined, set: () => undefined },
     addInitializer: () => undefined,
     ...overrides,
-  } as ClassFieldDecoratorContext;
+  } as FieldCtx;
 }
 
 describe('@Field — target guards', () => {

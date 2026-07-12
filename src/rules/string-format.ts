@@ -10,7 +10,7 @@ import { makeStringRule } from './string-shared';
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
-function isEmail(): EmittableRule {
+function isEmail(): EmittableRule<string> {
   return makeStringRule(
     'isEmail',
     v => EMAIL_RE.test(v),
@@ -30,13 +30,13 @@ interface IsURLOptions {
 
 const URL_PROTOCOLS_DEFAULT = Object.freeze(['http', 'https', 'ftp']);
 
-function isURL(options?: IsURLOptions): EmittableRule {
+function isURL(options?: IsURLOptions): EmittableRule<string> {
   const protocols = options?.protocols ?? URL_PROTOCOLS_DEFAULT;
   const protocolPattern = protocols.map(p => p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
   const re = new RegExp(
     `^(?:${protocolPattern}):\\/\\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)(?::(6553[0-5]|655[0-2]\\d|65[0-4]\\d{2}|6[0-4]\\d{3}|[1-5]\\d{4}|[1-9]\\d{0,3}|0))?(?:\\/[^\\s]*)?$`,
   );
-  return makeRule({
+  return makeRule<string>({
     name: 'isURL',
     requiresType: RequiredType.String,
     // Copy so each rule owns an independent, mutable constraints array (the frozen default and a
@@ -60,7 +60,7 @@ const UUID_RE = {
   5: /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-5[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/,
 } as const;
 
-function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule {
+function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule<string> {
   const re = version != null ? UUID_RE[version] : UUID_RE.all;
   return makeStringRule(
     'isUUID',
@@ -80,8 +80,8 @@ const IPV4_RE =
 const IPV6_RE =
   /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::(?:[0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,7}:$|^(?:[0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,5}(?::[0-9a-fA-F]{1,4}){1,2}$|^(?:[0-9a-fA-F]{1,4}:){1,4}(?::[0-9a-fA-F]{1,4}){1,3}$|^(?:[0-9a-fA-F]{1,4}:){1,3}(?::[0-9a-fA-F]{1,4}){1,4}$|^(?:[0-9a-fA-F]{1,4}:){1,2}(?::[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:(?::[0-9a-fA-F]{1,4}){1,6}$|^::$|^::(?:ffff(?::0{1,4})?:)?(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$|^(?:[0-9a-fA-F]{1,4}:){1,4}:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/;
 
-function isIP(version?: 4 | 6): EmittableRule {
-  return makeRule({
+function isIP(version?: 4 | 6): EmittableRule<string> {
+  return makeRule<string>({
     name: 'isIP',
     requiresType: RequiredType.String,
     constraints: { version },
@@ -122,9 +122,9 @@ const MAC_COLON_RE = /^[0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5}$/;
 const MAC_HYPHEN_RE = /^[0-9a-fA-F]{2}(?:-[0-9a-fA-F]{2}){5}$/;
 const MAC_NO_SEP_RE = /^[0-9a-fA-F]{12}$/;
 
-function isMACAddress(options?: IsMACAddressOptions): EmittableRule {
+function isMACAddress(options?: IsMACAddressOptions): EmittableRule<string> {
   const noSeparators = options?.noSeparators ?? false;
-  return makeRule({
+  return makeRule<string>({
     name: 'isMACAddress',
     requiresType: RequiredType.String,
     constraints: { noSeparators },
@@ -190,7 +190,7 @@ interface IsFQDNOptions {
   allowTrailingDot?: boolean;
 }
 
-function isFQDN(options?: IsFQDNOptions): EmittableRule {
+function isFQDN(options?: IsFQDNOptions): EmittableRule<string> {
   const requireTld = options?.requireTld !== false;
   const allowUnderscores = options?.allowUnderscores ?? false;
   const allowTrailingDot = options?.allowTrailingDot ?? false;
@@ -233,7 +233,7 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule {
     });
   };
 
-  return makeRule({
+  return makeRule<string>({
     name: 'isFQDN',
     requiresType: RequiredType.String,
     constraints: { requireTld, allowUnderscores, allowTrailingDot },
@@ -294,7 +294,7 @@ const validateJsonString = (value: unknown): boolean => {
   }
 };
 
-const isJSON = makeRule({
+const isJSON = makeRule<string>({
   name: 'isJSON',
   requiresType: RequiredType.String,
   constraints: {},
@@ -326,7 +326,7 @@ const isMagnetURI = makeStringRule(
 );
 
 // ByteLength — counts UTF-8 bytes via Buffer.byteLength
-function isByteLength(min: number, max?: number): EmittableRule {
+function isByteLength(min: number, max?: number): EmittableRule<string> {
   const validateByteLength = (value: unknown): boolean => {
     if (typeof value !== 'string') {
       return false;
@@ -340,7 +340,7 @@ function isByteLength(min: number, max?: number): EmittableRule {
     }
     return true;
   };
-  return makeRule({
+  return makeRule<string>({
     name: 'isByteLength',
     requiresType: RequiredType.String,
     constraints: { min, max },
@@ -380,7 +380,7 @@ interface IsStrongPasswordOptions {
   minSymbols?: number;
 }
 
-function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
+function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule<string> {
   const minLength = options?.minLength ?? 8;
   const minLower = options?.minLowercase ?? 1;
   const minUpper = options?.minUppercase ?? 1;
@@ -412,7 +412,7 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
     return lower >= minLower && upper >= minUpper && nums >= minNums && symbols >= minSymbols;
   };
 
-  return makeRule({
+  return makeRule<string>({
     name: 'isStrongPassword',
     requiresType: RequiredType.String,
     constraints: {},
@@ -448,12 +448,12 @@ function isStrongPassword(options?: IsStrongPasswordOptions): EmittableRule {
 
 // isTaxId — locale-specific tax identifier (factory)
 
-function isTaxId(locale: string): EmittableRule {
+function isTaxId(locale: string): EmittableRule<string> {
   const re = TAX_ID_REGEXES[locale];
   if (!re) {
     throw new BakerError(`Unsupported locale: "${locale}" for isTaxId`);
   }
-  return makeRule({
+  return makeRule<string>({
     name: 'isTaxId',
     requiresType: RequiredType.String,
     constraints: { locale },

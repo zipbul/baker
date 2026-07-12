@@ -8,13 +8,13 @@ import { makePlannedRule, planCompare, planLiteral, planOr, planTime } from './r
 // minDate — v >= date (inclusive, getTime comparison). (refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function minDate(date: Date): EmittableRule {
+export function minDate(date: Date): EmittableRule<Date> {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: CacheKey.Time,
     failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Lt, planLiteral(timestamp))),
   } as const;
-  return makePlannedRule({
+  return makePlannedRule<Date>({
     name: 'minDate',
     requiresType: RequiredType.Date,
     constraints: { min: date.toISOString() },
@@ -27,13 +27,13 @@ export function minDate(date: Date): EmittableRule {
 // maxDate — v <= date (inclusive, getTime comparison). (refs function call)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function maxDate(date: Date): EmittableRule {
+export function maxDate(date: Date): EmittableRule<Date> {
   const timestamp = date.getTime();
   const plan = {
     cacheKey: CacheKey.Time,
     failure: planOr(planCompare(planTime(), RuleOp.Neq, planTime()), planCompare(planTime(), RuleOp.Gt, planLiteral(timestamp))),
   } as const;
-  return makePlannedRule({
+  return makePlannedRule<Date>({
     name: 'maxDate',
     requiresType: RequiredType.Date,
     constraints: { max: date.toISOString() },

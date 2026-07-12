@@ -6,7 +6,7 @@ import { makeRule } from './rule-plan';
 // isUint8Array — instanceof guard (self-narrowing, no typeof gate; mirrors isRegExp)
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const isUint8Array = makeRule({
+export const isUint8Array = makeRule<Uint8Array>({
   name: 'isUint8Array',
   constraints: {},
   validate: value => value instanceof Uint8Array,
@@ -25,8 +25,8 @@ export const isUint8Array = makeRule({
 // consistent with isByteLength.
 // ─────────────────────────────────────────────────────────────────────────────
 
-export function isByteSize(min: number, max?: number): EmittableRule {
-  return makeRule({
+export function isByteSize(min: number, max?: number): EmittableRule<ArrayBufferView> {
+  return makeRule<ArrayBufferView>({
     name: 'isByteSize',
     constraints: max !== undefined ? { min, max } : { min },
     // Fail-form mirrors emit exactly (same as isByteLength), so validate() and the generated code

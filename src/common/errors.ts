@@ -22,6 +22,11 @@ export interface BakerIssue {
   readonly message?: string;
   /** User-defined context — included only when the decorator context option is set */
   readonly context?: unknown;
+  /**
+   * The failing rule's constraint parameters (e.g. `{ min: 5 }` for `min(5)`), included only when the
+   * rule stamps non-empty constraints. Type-check rules and structural gates carry none.
+   */
+  readonly constraints?: Record<string, unknown>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

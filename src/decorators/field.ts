@@ -2,7 +2,7 @@ import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { EmittableRule, InternalRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ArrayOfMarker, FieldOptions } from './interfaces';
-import type { FieldDecorator, RuleArg } from './types';
+import type { FieldDecorator, FieldValue, RuleArg } from './types';
 
 import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
 import { metaStore } from '../metadata';
@@ -22,7 +22,7 @@ import { ExcludeMode } from './enums';
  * tags!: string[];
  * ```
  */
-function arrayOf(...rules: EmittableRule[]): ArrayOfMarker {
+function arrayOf<E>(...rules: EmittableRule<E>[]): ArrayOfMarker<E> {
   return { rules, [ARRAY_OF]: true };
 }
 
@@ -101,94 +101,188 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
   return { rules: args as RuleArg[], options: {} };
 }
 
-// Copy the field-level groups/message/context options onto a rule def (only when provided). The
-// message/context copy is REQUIRED, not redundant: the per-element ('each') emission path reads
-// `rd.message`/`rd.context` directly via computeRuleExtras and does NOT fall back to the field-level
-// meta.message/meta.context (that fallback only covers the non-each, field-own-path failures).
-function decorateRuleDef(rd: RuleDef, options: FieldOptions): RuleDef {
-  if (options.groups !== undefined) {
-    rd.groups = options.groups;
-  }
-  if (options.message !== undefined) {
-    rd.message = options.message;
-  }
-  if (options.context !== undefined) {
-    rd.context = options.context;
-  }
-  return rd;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// FieldMetaApplier — apply a parsed @Field's rules + options onto RawPropertyMeta
+// ─────────────────────────────────────────────────────────────────────────────
 
-/** Copy the field-level groups option onto an expose def (only when provided). */
-function withGroups(ed: ExposeDef, options: FieldOptions): ExposeDef {
-  if (options.groups !== undefined) {
-    ed.groups = options.groups;
-  }
-  return ed;
-}
+/**
+ * Applies a parsed @Field's rules and options onto the field's {@link RawPropertyMeta}. Holds
+ * `(meta, propertyKey, options)` as fields so each aspect (validation, flags, type, expose, exclude,
+ * transform) reads from a single source of truth instead of threading the same trio through a pile of
+ * free functions — mirroring the seal-stage builders (DeserializeBuilder / SerializeBuilder).
+ */
+class FieldMetaApplier {
+  readonly #meta: RawPropertyMeta;
+  readonly #propertyKey: string;
+  readonly #options: FieldOptions;
 
-/** Register validation rules + handle arrayOf */
-function applyValidation(meta: RawPropertyMeta, rules: RuleArg[], options: FieldOptions): void {
-  for (const rule of rules) {
-    if (isArrayOfMarker(rule)) {
-      for (const innerRule of rule.rules) {
-        meta.validation.push(decorateRuleDef({ rule: innerRule, each: true }, options));
+  constructor(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions) {
+    this.#meta = meta;
+    this.#propertyKey = propertyKey;
+    this.#options = options;
+  }
+
+  apply(rules: RuleArg[]): void {
+    this.#applyValidation(rules);
+    this.#applyMessageContext();
+    this.#applyFlags();
+    this.#applyType();
+    this.#applyExpose();
+    this.#applyExclude();
+    this.#applyTransform();
+  }
+
+  /** Register validation rules + handle arrayOf. */
+  #applyValidation(rules: RuleArg[]): void {
+    for (const rule of rules) {
+      if (isArrayOfMarker(rule)) {
+        for (const innerRule of rule.rules) {
+          this.#meta.validation.push(this.#decorateRuleDef({ rule: innerRule, each: true }));
+        }
+      } else {
+        this.#meta.validation.push(this.#decorateRuleDef({ rule: rule as InternalRule }));
       }
+    }
+  }
+
+  /**
+   * Field-level message/context — stored regardless of rules so non-rule failures (type gate,
+   * required-missing, conversion, structural gates) and type-only fields can carry them, not just
+   * rule-body failures.
+   */
+  #applyMessageContext(): void {
+    if (this.#options.context !== undefined) {
+      this.#meta.context = this.#options.context;
+    }
+    if (this.#options.message !== undefined) {
+      this.#meta.message = this.#options.message;
+    }
+  }
+
+  #applyFlags(): void {
+    if (this.#options.optional) {
+      this.#meta.flags.isOptional = true;
+    }
+    if (this.#options.nullable) {
+      this.#meta.flags.isNullable = true;
+    }
+    if (this.#options.when) {
+      this.#meta.flags.validateIf = this.#options.when;
+    }
+  }
+
+  /** Nested DTO + discriminator + collection. */
+  #applyType(): void {
+    if (!this.#options.type) {
+      return;
+    }
+    const td: TypeDef = { fn: this.#options.type as TypeDef['fn'] };
+    if (this.#options.discriminator !== undefined) {
+      td.discriminator = this.#options.discriminator;
+    }
+    if (this.#options.keepDiscriminatorProperty !== undefined) {
+      td.keepDiscriminatorProperty = this.#options.keepDiscriminatorProperty;
+    }
+    const cv = this.#options.mapValue ?? this.#options.setValue;
+    if (cv !== undefined) {
+      td.collectionValue = cv;
+    }
+    this.#meta.type = td;
+  }
+
+  /** Expose 5-branch logic. */
+  #applyExpose(): void {
+    const options = this.#options;
+    if (options.name) {
+      this.#meta.expose.push(this.#withGroups({ name: options.name }));
+    } else if (options.deserializeName || options.serializeName) {
+      if (options.deserializeName) {
+        this.#meta.expose.push(this.#withGroups({ name: options.deserializeName, deserializeOnly: true }));
+      }
+      if (options.serializeName) {
+        this.#meta.expose.push(this.#withGroups({ name: options.serializeName, serializeOnly: true }));
+      }
+    } else if (options.groups) {
+      this.#meta.expose.push({ groups: options.groups });
     } else {
-      meta.validation.push(decorateRuleDef({ rule: rule as InternalRule }, options));
+      this.#meta.expose.push({});
     }
   }
-}
 
-/** Handle expose 5-branch logic */
-function applyExpose(meta: RawPropertyMeta, options: FieldOptions): void {
-  if (options.name) {
-    meta.expose.push(withGroups({ name: options.name }, options));
-  } else if (options.deserializeName || options.serializeName) {
-    if (options.deserializeName) {
-      meta.expose.push(withGroups({ name: options.deserializeName, deserializeOnly: true }, options));
+  #applyExclude(): void {
+    const exclude = this.#options.exclude;
+    if (!exclude) {
+      return;
     }
-    if (options.serializeName) {
-      meta.expose.push(withGroups({ name: options.serializeName, serializeOnly: true }, options));
+    if (exclude === true) {
+      this.#meta.exclude = {};
+    } else if (exclude === ExcludeMode.DeserializeOnly) {
+      this.#meta.exclude = { deserializeOnly: true };
+    } else if (exclude === ExcludeMode.SerializeOnly) {
+      this.#meta.exclude = { serializeOnly: true };
     }
-  } else if (options.groups) {
-    meta.expose.push({ groups: options.groups });
-  } else {
-    meta.expose.push({});
   }
-}
 
-/** Register Transformer — split into direction-specific TransformDefs */
-function wrapTransform(
-  propertyKey: string,
-  direction: Direction,
-  fn: Transformer['deserialize'] | Transformer['serialize'],
-): { fn: typeof fn; isAsync: boolean } {
-  const isAsync = isAsyncFunction(fn);
-  const wrapped = (params => {
-    const result = fn(params);
-    if (!isAsync && isPromiseLike(result)) {
-      throw new BakerError(
-        `@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`,
+  /** Register Transformer — split into direction-specific TransformDefs. */
+  #applyTransform(): void {
+    const transform = this.#options.transform;
+    if (!transform) {
+      return;
+    }
+    const transformers = Array.isArray(transform) ? transform : [transform];
+    for (const t of transformers) {
+      const deserialize = this.#wrapTransform(Direction.Deserialize, t.deserialize);
+      const serialize = this.#wrapTransform(Direction.Serialize, t.serialize);
+      this.#meta.transform.push(
+        { fn: deserialize.fn, isAsync: deserialize.isAsync, options: { deserializeOnly: true } },
+        { fn: serialize.fn, isAsync: serialize.isAsync, options: { serializeOnly: true } },
       );
     }
-    return result;
-  }) as typeof fn;
-  return { fn: wrapped, isAsync };
-}
-
-/** Register Transformer — split into direction-specific TransformDefs */
-function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions): void {
-  if (!options.transform) {
-    return;
   }
-  const transformers = Array.isArray(options.transform) ? options.transform : [options.transform];
-  for (const t of transformers) {
-    const deserialize = wrapTransform(propertyKey, Direction.Deserialize, t.deserialize);
-    const serialize = wrapTransform(propertyKey, Direction.Serialize, t.serialize);
-    meta.transform.push(
-      { fn: deserialize.fn, isAsync: deserialize.isAsync, options: { deserializeOnly: true } },
-      { fn: serialize.fn, isAsync: serialize.isAsync, options: { serializeOnly: true } },
-    );
+
+  // Copy the field-level groups/message/context options onto a rule def (only when provided). The
+  // message/context copy is REQUIRED, not redundant: the per-element ('each') emission path reads
+  // `rd.message`/`rd.context` directly via computeRuleExtras and does NOT fall back to the field-level
+  // meta.message/meta.context (that fallback only covers the non-each, field-own-path failures).
+  #decorateRuleDef(rd: RuleDef): RuleDef {
+    const options = this.#options;
+    if (options.groups !== undefined) {
+      rd.groups = options.groups;
+    }
+    if (options.message !== undefined) {
+      rd.message = options.message;
+    }
+    if (options.context !== undefined) {
+      rd.context = options.context;
+    }
+    return rd;
+  }
+
+  /** Copy the field-level groups option onto an expose def (only when provided). */
+  #withGroups(ed: ExposeDef): ExposeDef {
+    if (this.#options.groups !== undefined) {
+      ed.groups = this.#options.groups;
+    }
+    return ed;
+  }
+
+  /** Wrap one direction of a transformer, guarding a sync transform that returns a Promise. */
+  #wrapTransform(
+    direction: Direction,
+    fn: Transformer['deserialize'] | Transformer['serialize'],
+  ): { fn: typeof fn; isAsync: boolean } {
+    const isAsync = isAsyncFunction(fn);
+    const propertyKey = this.#propertyKey;
+    const wrapped = (params => {
+      const result = fn(params);
+      if (!isAsync && isPromiseLike(result)) {
+        throw new BakerError(
+          `@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`,
+        );
+      }
+      return result;
+    }) as typeof fn;
+    return { fn: wrapped, isAsync };
   }
 }
 
@@ -198,12 +292,18 @@ function applyTransform(meta: RawPropertyMeta, propertyKey: string, options: Fie
 
 /** `@Field`() — empty field registration */
 function Field(): FieldDecorator;
-/** `@Field`(isString(), email()) — variadic rules */
-function Field(...rules: RuleArg[]): FieldDecorator;
 /** `@Field`({ type: () => Dto }) — options object */
 function Field(options: FieldOptions): FieldDecorator;
-/** `@Field`(isString(), { optional: true }) — rules + options mixed */
-function Field(...rulesAndOptions: [...RuleArg[], FieldOptions]): FieldDecorator;
+/**
+ * `@Field`(isString, isEmail()) — validated field. `V` is the intersection of the rules' domains, so
+ * a rule applied to a field of the wrong type fails to compile; an `arrayOf(...)` marker additionally
+ * requires the field to be a container of the element type.
+ */
+function Field<V, E = never>(...rules: (EmittableRule<V> | ArrayOfMarker<E>)[]): FieldDecorator<FieldValue<V, NoInfer<E>>>;
+/** `@Field`(isString, { optional: true }) — rules + options mixed */
+function Field<V, E = never>(
+  ...rulesAndOptions: [...(EmittableRule<V> | ArrayOfMarker<E>)[], FieldOptions]
+): FieldDecorator<FieldValue<V, NoInfer<E>>>;
 function Field(...args: unknown[]): FieldDecorator {
   return (_value, context) => {
     if (context.static) {
@@ -250,59 +350,7 @@ function Field(...args: unknown[]): FieldDecorator {
       }
     }
 
-    applyValidation(meta, rules, options);
-
-    // Field-level message/context — stored regardless of rules so non-rule failures
-    // (type gate, required-missing, conversion, structural gates) and type-only fields
-    // can carry them, not just rule-body failures.
-    if (options.context !== undefined) {
-      meta.context = options.context;
-    }
-    if (options.message !== undefined) {
-      meta.message = options.message;
-    }
-
-    // ── flags ──
-    if (options.optional) {
-      meta.flags.isOptional = true;
-    }
-    if (options.nullable) {
-      meta.flags.isNullable = true;
-    }
-    if (options.when) {
-      meta.flags.validateIf = options.when;
-    }
-
-    // ── type (nested DTO + discriminator + collection) ──
-    if (options.type) {
-      const td: TypeDef = { fn: options.type as TypeDef['fn'] };
-      if (options.discriminator !== undefined) {
-        td.discriminator = options.discriminator;
-      }
-      if (options.keepDiscriminatorProperty !== undefined) {
-        td.keepDiscriminatorProperty = options.keepDiscriminatorProperty;
-      }
-      const cv = options.mapValue ?? options.setValue;
-      if (cv !== undefined) {
-        td.collectionValue = cv;
-      }
-      meta.type = td;
-    }
-
-    applyExpose(meta, options);
-
-    // ── exclude ──
-    if (options.exclude) {
-      if (options.exclude === true) {
-        meta.exclude = {};
-      } else if (options.exclude === ExcludeMode.DeserializeOnly) {
-        meta.exclude = { deserializeOnly: true };
-      } else if (options.exclude === ExcludeMode.SerializeOnly) {
-        meta.exclude = { serializeOnly: true };
-      }
-    }
-
-    applyTransform(meta, propertyKey, options);
+    new FieldMetaApplier(meta, propertyKey, options).apply(rules);
   };
 }
 export { arrayOf, Field };
