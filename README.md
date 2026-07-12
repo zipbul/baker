@@ -104,6 +104,27 @@ Only fields decorated with `@Field` participate in validation, deserialization, 
 
 Each rule must be an emittable rule object created via `createRule()` or one of the built-in rule factories. Passing a raw function (e.g. `@Field(isNumber)` instead of `@Field(isNumber())`) throws `BakerError` at decorator-evaluation time.
 
+### Type-checked fields
+
+Every rule carries the value type it validates, so `@Field` rejects a rule applied to a field of the wrong type **at compile time** — a field that could never validate no longer type-checks:
+
+```typescript
+@baker.Recipe
+class UserDto {
+  @Field(isString) name!: string; // ok
+  @Field(isString) age!: number; // ✗ compile error: 'number' is not assignable to 'string'
+  @Field(isString, min(5)) code!: string; // ✗ compile error: mixed rule domains (string + number)
+}
+```
+
+- `optional`/`nullable` fields work: `@Field(isString) name!: string | null` compiles (the type check covers the rule's domain, not presence — `null` is still rejected at runtime unless `{ nullable: true }`).
+- `equals`/`isIn` keep the check via literal widening — `@Field(isIn(['a', 'b'] as const)) status!: string` compiles.
+- `arrayOf(...)` constrains the element type: `@Field(arrayOf(isString)) tags!: string[]` (also `Set<string>` / `Map<string, X>`); a wrong element rule fails to compile.
+- `isEmpty`/`isNotEmpty` are universal and apply to any field.
+- Need a dynamically-built, unchecked rule list? Pass it via options: `@Field({ rules: buildRules() })` is intentionally not domain-checked.
+
+This uses native (TC39) decorator field types — no schema duplication; the field's own `: T` annotation is the single source of truth.
+
 ### Options
 
 Most fields need only rules. The options below cover nested, conditional, collection, and key-mapping cases — reach for them as needed.
@@ -441,7 +462,7 @@ When performance matters. baker generates optimized validation/serialization cod
 
 ### How does baker compare to Zod?
 
-Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker generates optimized code at definition time instead of interpreting schemas at runtime. Choose Zod if you need schema-first design or Node support; choose baker if you need class-based DTOs on Bun with maximum performance.
+Zod uses schema method chains (`z.string().email()`), baker uses decorators (`@Field(isString, isEmail())`). baker generates optimized code at definition time instead of interpreting schemas at runtime. Like Zod, baker is type-checked: a rule applied to the wrong field type is a compile error (see [Type-checked fields](#type-checked-fields)) — the difference is baker takes the field's own `: T` annotation as the source of truth rather than inferring the type from a schema. Choose Zod if you need schema-first design or Node support; choose baker if you need class-based DTOs on Bun with maximum performance.
 
 ### Does baker support async validation?
 
