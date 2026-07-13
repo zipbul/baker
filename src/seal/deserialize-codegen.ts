@@ -329,7 +329,7 @@ export function generateNestedEachResultCode(
   return `${indent}if (Array.isArray(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
 }
 
-/** Generate validate-mode nested result handling (null check instead of isErr) (pure) */
+/** Generate validate-mode nested result handling (null-sentinel check instead of Array.isArray) (pure) */
 export function generateValidateNestedResult(
   fieldKey: string,
   resultVar: string,

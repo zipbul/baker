@@ -79,7 +79,7 @@ export function toBakerIssueSet(errors: BakerIssue[]): BakerIssueSet {
  * Thrown when, e.g.:
  * - deserialize()/serialize()/validate() is called on an unsealed class
  * - new Baker() receives a config object with an unknown key or a non-plain-object
- * - seal-time metadata invariants fail (discriminator, Map keys, banned names, …)
+ * - seal-time metadata invariants fail (discriminator, Map keys, banned names, Array-exotic DTO classes, …)
  * - per-call options contain unsupported keys
  * - @Field receives a non-rule value, or a rule/transformer factory is misused
  * - a user @Type/collectionValue thunk throws (wrapped, with the original error as `cause`)
