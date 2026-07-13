@@ -8,37 +8,58 @@ import { DES_GEN as GEN } from './constants';
 import { GuardKey } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Lazy error-list emission — single source for the `errors = null` allocate-on-first-push
+// pattern, used by every deserialize AND validate push/mark/epilogue site. `GEN.errList` is a
+// fixed generated-variable name, so these take only the varying piece (the pushed item / mark
+// variable) rather than threading the list name through every call site.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Lazy-alloc push onto the shared error list: `(errors || (errors = [])).push(item)`. */
+export function emitErrPush(itemExpr: string): string {
+  return `(${GEN.errList} || (${GEN.errList} = [])).push(${itemExpr})`;
+}
+
+/** Declare a length-mark snapshot that tolerates a still-null (lazy) error list. */
+export function emitMarkDecl(markVar: string): string {
+  return `var ${markVar} = ${GEN.errList} === null ? 0 : ${GEN.errList}.length;\n`;
+}
+
+/** Condition for "no new errors were pushed since `markVar`" against the lazy error list. */
+export function emitMarkCheck(markVar: string): string {
+  return `${GEN.errList} === null || ${GEN.errList}.length === ${markVar}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helpers — code generation utilities (pure, module-level)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Generate nested error push code that propagates message/context/constraints fields */
-export function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
+export function nestedErrPush(pathExpr: string, errItemExpr: string, tmpVar: string): string {
   // Cache errItemExpr once — avoids repeated property reads in the generated body
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `      if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined){${errList}.push({path:${pathExpr},code:${eVar}.code});}\n` +
+    `      if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined){${emitErrPush(`{path:${pathExpr},code:${eVar}.code}`)};}\n` +
     `      else{var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `      if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `      if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `      if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
-    `      ${errList}.push(${tmpVar});}\n`
+    `      ${emitErrPush(tmpVar)};}\n`
   );
 }
 
 /** Generate nested error return code that propagates message/context/constraints fields */
-export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string, validateOnly?: boolean): string {
-  const ret = (arr: string) => (validateOnly ? `return ${arr};\n` : `return err(${arr});\n`);
+export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string): string {
   // Cache errItemExpr once — mirrors nestedErrPush, avoids repeated property reads in the generated body.
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `    if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined)${ret(`[{path:${pathExpr},code:${eVar}.code}]`)}` +
+    `    if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined)return [{path:${pathExpr},code:${eVar}.code}];\n` +
     `    var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `    if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `    if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `    if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
-    `    ${ret(`[${tmpVar}]`)}`
+    `    return [${tmpVar}];\n`
   );
 }
 
@@ -255,20 +276,20 @@ export function generateNestedResultCode(
   if (collectErrors) {
     const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
     return (
-      `  if (isErr(${resultVar})) {\n` +
-      `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+      `  if (Array.isArray(${resultVar})) {\n` +
+      `    var ${GEN.errors}${sk} = ${resultVar};\n` +
       `    var __bk$pp${sk} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
-      nestedErrPush(GEN.errList, `__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
+      nestedErrPush(`__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`
     );
   }
   const errFirst = `${GEN.errors}${sk}[0]`;
   return (
-    `  if (isErr(${resultVar})) {\n` +
-    `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+    `  if (Array.isArray(${resultVar})) {\n` +
+    `    var ${GEN.errors}${sk} = ${resultVar};\n` +
     `    var __bk$pp${sk} = ${ppValue};\n` +
     `    ` +
     nestedErrReturn(`__bk$pp${sk}+${errFirst}.path`, errFirst, `__ne${sk}`) +
@@ -278,10 +299,10 @@ export function generateNestedResultCode(
 
 /**
  * Nested-executor result handling inside a per-element loop (Set / Map / array / discriminator-each).
- * Single source for the `if (isErr(result)) { …re-path nested errors… } else { <success> }` block that
- * every collection loop repeats — only the element path expression (`ppExpr`), the success statement
- * (`arr.push` / `map.set` / `set.add`), and the base indent differ. The single-object case keeps using
- * {@link generateNestedResultCode} (it writes straight to `out[field]`).
+ * Single source for the `if (Array.isArray(result)) { …re-path nested errors… } else { <success> }`
+ * block that every collection loop repeats — only the element path expression (`ppExpr`), the success
+ * statement (`arr.push` / `map.set` / `set.add`), and the base indent differ. The single-object case
+ * keeps using {@link generateNestedResultCode} (it writes straight to `out[field]`).
  */
 export function generateNestedEachResultCode(
   resultVar: string,
@@ -293,19 +314,19 @@ export function generateNestedEachResultCode(
 ): string {
   const errs = `${GEN.errors}${sk}`;
   const ppVar = `__bk$pp${sk}`;
-  const decls = `${indent}  var ${errs} = ${resultVar}.data;\n${indent}  var ${ppVar} = ${ppExpr};\n`;
+  const decls = `${indent}  var ${errs} = ${resultVar};\n${indent}  var ${ppVar} = ${ppExpr};\n`;
   let inner: string;
   if (collectErrors) {
     const ni = `${GEN.nestedIdx}${sk}`;
     inner =
       `${indent}  for (var ${ni}=0; ${ni}<${errs}.length; ${ni}++) {\n` +
       `${indent}  ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${errs}[${ni}].path`, `${errs}[${ni}]`, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${errs}[${ni}].path`, `${errs}[${ni}]`, `__ne${sk}`) +
       `${indent}  }\n`;
   } else {
     inner = `${indent}  ` + nestedErrReturn(`${ppVar}+${errs}[0].path`, `${errs}[0]`, `__ne${sk}`);
   }
-  return `${indent}if (isErr(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
+  return `${indent}if (Array.isArray(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
 }
 
 /** Generate validate-mode nested result handling (null check instead of isErr) (pure) */
@@ -326,7 +347,7 @@ export function generateValidateNestedResult(
       `    var ${ppVar} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${resultVar}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  }\n`
     );
@@ -336,7 +357,7 @@ export function generateValidateNestedResult(
     `  if (${resultVar} !== null) {\n` +
     `    var ${ppVar} = ${ppValue};\n` +
     `    ` +
-    nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`, true) +
+    nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`) +
     `  }\n`
   );
 }
@@ -360,10 +381,10 @@ export function generateValidateNestedEachResultCode(
     code +=
       `${indent}  for (var ${ni}=0; ${ni}<${resultVar}.length; ${ni}++) {\n` +
       `${indent}  ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${resultVar}[${ni}].path`, `${resultVar}[${ni}]`, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${resultVar}[${ni}].path`, `${resultVar}[${ni}]`, `__ne${sk}`) +
       `${indent}  }\n`;
   } else {
-    code += `${indent}  ` + nestedErrReturn(`${ppVar}+${resultVar}[0].path`, `${resultVar}[0]`, `__ne${sk}`, true);
+    code += `${indent}  ` + nestedErrReturn(`${ppVar}+${resultVar}[0].path`, `${resultVar}[0]`, `__ne${sk}`);
   }
   code += `${indent}}\n`;
   return code;

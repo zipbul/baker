@@ -1,4 +1,3 @@
-import { err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
 import type { RuntimeOptions } from '../common/interfaces';
@@ -79,7 +78,7 @@ describe('runDeserialize', () => {
   it('should return BakerIssueSet when deserialize returns Err', async () => {
     const errors = [{ path: 'name', code: 'isString' }];
     const result = await runDeserialize(
-      sealedFor(() => err(errors)),
+      sealedFor(() => errors),
       { name: 42 },
     );
     expect(isBakerIssueSet(result)).toBe(true);
@@ -91,7 +90,7 @@ describe('runDeserialize', () => {
       { path: 'email', code: 'isEmail' },
     ];
     const result = await runDeserialize(
-      sealedFor(() => err(errors)),
+      sealedFor(() => errors),
       {},
     );
     assertBakerIssueSet(result);
@@ -100,7 +99,7 @@ describe('runDeserialize', () => {
 
   it('should return BakerIssueSet(code:invalidInput) when deserialize returns invalidInput error', async () => {
     const result = await runDeserialize(
-      sealedFor(() => err([{ path: '', code: 'invalidInput' }])),
+      sealedFor(() => [{ path: '', code: 'invalidInput' }]),
       null,
     );
     assertBakerIssueSet(result);
@@ -109,7 +108,7 @@ describe('runDeserialize', () => {
 
   it('should return BakerIssueSet when deserialize returns Err for array input', async () => {
     const result = await runDeserialize(
-      sealedFor(() => err([{ path: '', code: 'invalidInput' }])),
+      sealedFor(() => [{ path: '', code: 'invalidInput' }]),
       [1, 2, 3],
     );
     expect(isBakerIssueSet(result)).toBe(true);
@@ -163,7 +162,7 @@ describe('runDeserialize', () => {
 
   it('should return BakerIssueSet when sync executor returns Err', async () => {
     const result = await runDeserialize(
-      sealedFor(() => err([{ path: 'x', code: 'fail' }]), { isAsync: false }),
+      sealedFor(() => [{ path: 'x', code: 'fail' }], { isAsync: false }),
       {},
     );
     expect(isBakerIssueSet(result)).toBe(true);
@@ -171,7 +170,7 @@ describe('runDeserialize', () => {
 
   it('should return BakerIssueSet when async executor resolves to Err', async () => {
     const result = await runDeserialize(
-      sealedFor(() => Promise.resolve(err([{ path: 'x', code: 'fail' }])), { isAsync: true }),
+      sealedFor(() => Promise.resolve([{ path: 'x', code: 'fail' }]), { isAsync: true }),
       {},
     );
     expect(isBakerIssueSet(result)).toBe(true);

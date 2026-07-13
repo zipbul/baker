@@ -1,13 +1,9 @@
-import type { Result, ResultAsync } from '@zipbul/result';
-
-import { err as resultErr, isErr as resultIsErr } from '@zipbul/result';
-
-import type { RuntimeOptions, BakerIssue } from '../common';
+import type { RuntimeOptions } from '../common';
 import type { RawClassMeta, RawPropertyMeta, RuleDef, MessageArgs } from '../metadata';
 import type { EmitContext, RulePlanCache } from '../rules';
 import type { TypeGateConfig } from './deserialize-codegen';
 import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
-import type { DeserializeExecutor, ValidateExecutor } from './types';
+import type { DeserializeExecutor, DeserializeOutcome, ValidateExecutor } from './types';
 
 import { CacheKey, BakerError, Direction } from '../common';
 import { CollectionType } from '../metadata';
@@ -26,6 +22,9 @@ import {
   generateNestedEachResultCode,
   generateValidateNestedResult,
   generateValidateNestedEachResultCode,
+  emitErrPush,
+  emitMarkDecl,
+  emitMarkCheck,
 } from './deserialize-codegen';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -155,9 +154,6 @@ class DeserializeBuilder {
     const { validateOnly, exposeDefaultValues, collectErrors, needsCircularCheck, isAsync, merged, options, Class } = this;
     const { regexes, refs, execs } = this;
 
-    // Helper: wrap error array return — validate mode returns raw array, deserialize mode wraps in Result.err
-    const wrapErr = validateOnly ? (inner: string) => inner : (inner: string) => `err(${inner})`;
-
     let body = "'use strict';\n";
 
     // Create instance — skip in validate mode (no object creation needed)
@@ -171,11 +167,11 @@ class DeserializeBuilder {
 
     // Error array (collectErrors mode)
     if (collectErrors) {
-      body += `var ${GEN.errList} = [];\n`;
+      body += `var ${GEN.errList} = null;\n`;
     }
 
     // preamble: input type guard
-    body += `if (input == null || typeof input !== 'object' || Array.isArray(input)) return ${wrapErr("[{path:'',code:'invalidInput'}]")};\n`;
+    body += `if (input == null || typeof input !== 'object' || Array.isArray(input)) return [{path:'',code:'invalidInput'}];\n`;
 
     // WeakSet guard (circular references) — N-3 fix: WeakSet lives per-call, threaded through
     // `opts` via a Symbol-keyed slot so nested DTOs in the same call share it. Symbol keys are
@@ -188,7 +184,7 @@ class DeserializeBuilder {
       // better than Object.assign({}, ...) (audit H4/H5).
       body += `var __seen = (opts && opts[__SEEN_KEY]) || null;\n`;
       body += `if (__seen === null) { __seen = new WeakSet(); opts = opts ? { ...opts, [__SEEN_KEY]: __seen } : { [__SEEN_KEY]: __seen }; }\n`;
-      body += `if (__seen.has(input)) return ${wrapErr("[{path:'',code:'circular'}]")};\n`;
+      body += `if (__seen.has(input)) return [{path:'',code:'circular'}];\n`;
       body += `__seen.add(input);\n`;
       body += `try {\n`;
     }
@@ -207,9 +203,9 @@ class DeserializeBuilder {
       // Bun/JSC. The keys array allocation is dominated by the per-iteration cost of for-in's
       // prototype walk + hasOwn function call.
       if (collectErrors) {
-        body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))${GEN.errList}.push({path:${GEN.key},code:'whitelistViolation'});}}\n`;
+        body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))${emitErrPush(`{path:${GEN.key},code:'whitelistViolation'}`)};}}\n`;
       } else {
-        body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))return ${wrapErr(`[{path:${GEN.key},code:'whitelistViolation'}]`)};}}\n`;
+        body += `{var __wlk=Object.keys(input);for(var __wli=0;__wli<__wlk.length;__wli++){var ${GEN.key}=__wlk[__wli];if(!refs[${allowedIdx}].has(${GEN.key}))return [{path:${GEN.key},code:'whitelistViolation'}];}}\n`;
       }
     }
 
@@ -250,7 +246,7 @@ class DeserializeBuilder {
     // ── epilogue ──────────────────────────────────────────────────────────────
 
     if (collectErrors) {
-      body += `if (${GEN.errList}.length) return ${validateOnly ? GEN.errList : `err(${GEN.errList})`};\n`;
+      body += `if (${GEN.errList} !== null) return ${GEN.errList};\n`;
     }
     body += `return ${validateOnly ? 'null' : GEN.out};\n`;
 
@@ -273,14 +269,9 @@ class DeserializeBuilder {
       're',
       'refs',
       'execs',
-      'err',
-      'isErr',
       '__SEEN_KEY',
       `return ${fnKeyword}(input, opts) { ` + body + ' }',
-    )(Class, regexes, refs, execs, resultErr, resultIsErr, seenKey) as (
-      input: unknown,
-      opts?: RuntimeOptions,
-    ) => Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
+    )(Class, regexes, refs, execs, seenKey) as (input: unknown, opts?: RuntimeOptions) => DeserializeOutcome<T>;
 
     return executor;
   }
@@ -537,16 +528,13 @@ class DeserializeBuilder {
     }
     const extra = (ruleMsgCtx || (baseEmitCtx.fieldExtras ?? '')) + constraintsExtra;
     const pathExpr = baseEmitCtx.pathExpr ?? JSON.stringify(fieldKey);
-    const validateOnly = this.validateOnly;
     return {
       ...baseEmitCtx,
       fail(code: string): string {
         if (baseEmitCtx.collectErrors) {
-          return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}${extra}})`;
-        } else if (validateOnly) {
-          return `return [{path:${pathExpr},code:${JSON.stringify(code)}${extra}}]`;
+          return emitErrPush(`{path:${pathExpr},code:${JSON.stringify(code)}${extra}}`);
         }
-        return `return err([{path:${pathExpr},code:${JSON.stringify(code)}${extra}}])`;
+        return `return [{path:${pathExpr},code:${JSON.stringify(code)}${extra}}]`;
       },
     };
   }
@@ -724,9 +712,9 @@ class DeserializeBuilder {
           code += emitInnerRules('  ');
         } else {
           const markVar = `${GEN.mark}${sk}`;
-          code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+          code += `  ${emitMarkDecl(markVar)}`;
           code += emitInnerRules('  ');
-          code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+          code += `  if (${emitMarkCheck(markVar)}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
         }
         code += `}\n`;
       } else {
@@ -736,9 +724,9 @@ class DeserializeBuilder {
           code += emitInnerRules('  ');
         } else {
           const markVar = `${GEN.mark}${sk}`;
-          code += `  var ${markVar} = ${GEN.errList}.length;\n`;
+          code += `  ${emitMarkDecl(markVar)}`;
           code += emitInnerRules('  ');
-          code += `  if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+          code += `  if (${emitMarkCheck(markVar)}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
         }
         code += `}\n`;
       }
@@ -784,9 +772,9 @@ class DeserializeBuilder {
         code += this.emitRuleList(fieldKey, varName, generalRules, emitCtx, '', fieldGroups);
       } else {
         const markVar = `${GEN.mark}${sk}`;
-        code += `var ${markVar} = ${GEN.errList}.length;\n`;
+        code += emitMarkDecl(markVar);
         code += this.emitRuleList(fieldKey, varName, generalRules, emitCtx, '', fieldGroups);
-        code += `if (${GEN.errList}.length === ${markVar}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
+        code += `if (${emitMarkCheck(markVar)}) ${GEN.out}[${JSON.stringify(fieldKey)}] = ${varName};\n`;
       }
     } else {
       code += this.emitRuleList(fieldKey, varName, generalRules, emitCtx, '', fieldGroups);
@@ -876,10 +864,8 @@ class DeserializeBuilder {
       const emitCollectionBlock = (col: (typeof collections)[number]): string => {
         const failFn = (c: string) =>
           collectErrors
-            ? `${GEN.errList}.push({path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}})`
-            : this.validateOnly
-              ? `return [{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}]`
-              : `return err([{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
+            ? emitErrPush(`{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}`)
+            : `return [{path:${prefixVar}+${col.idxVar}+']',code:${JSON.stringify(c)}${extra}}]`;
         const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
         let block = '';
         block += `  ${col.counterDecl}`;
@@ -1040,10 +1026,8 @@ class DeserializeBuilder {
       const guardClose = rdGroups ? `${indent}}\n` : '';
       const failFn = (c: string) =>
         this.collectErrors
-          ? `${GEN.errList}.push({path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}})`
-          : this.validateOnly
-            ? `return [{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}]`
-            : `return err([{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}])`;
+          ? emitErrPush(`{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}`)
+          : `return [{path:${prefixVar}+${idxVar}+']',code:${JSON.stringify(c)}${extra}}]`;
       const colEmitCtx: EmitContext = { ...emitCtx, fail: failFn };
       code += guardOpen;
       code += `${indent}  var ${idxVar} = 0;\n`;
@@ -1092,9 +1076,13 @@ class DeserializeBuilder {
       if (execIdx >= 0) {
         // nested DTO Set
         const iVar = `${GEN.index}${sk}`;
+        const execVar = `${GEN.exec}${sk}`;
         code += `  var ${GEN.arr}${sk} = new Set();\n`;
+        // Hoist the nested executor object out of the loop — it is loop-invariant. Hoisting the
+        // object (not the method) preserves `this` so receiver-sensitive executors keep working.
+        code += `  var ${execVar} = execs[${execIdx}];\n`;
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-        code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${iVar}], opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}${execVar}.deserialize(${varName}[${iVar}], opts);\n`;
         code += generateNestedEachResultCode(
           `${GEN.result}${sk}`,
           `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`,
@@ -1132,11 +1120,15 @@ class DeserializeBuilder {
         const kVar = `${GEN.key}${sk}`;
         const ksVar = `__bk$mk${sk}`;
         const iVarMap = `__bk$mi${sk}`;
+        const execVar = `${GEN.exec}${sk}`;
         code += `  var ${GEN.arr}${sk} = new Map();\n`;
         code += `  var ${ksVar} = Object.keys(${varName});\n`;
+        // Hoist the nested executor object out of the loop — it is loop-invariant. Hoisting the
+        // object (not the method) preserves `this` so receiver-sensitive executors keep working.
+        code += `  var ${execVar} = execs[${execIdx}];\n`;
         code += `  for (var ${iVarMap}=0; ${iVarMap}<${ksVar}.length; ${iVarMap}++) {\n`;
         code += `    var ${kVar} = ${ksVar}[${iVarMap}];\n`;
-        code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].deserialize(${varName}[${kVar}], opts);\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKw}${execVar}.deserialize(${varName}[${kVar}], opts);\n`;
         code += generateNestedEachResultCode(
           `${GEN.result}${sk}`,
           `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`,
@@ -1227,7 +1219,7 @@ class DeserializeBuilder {
       code += `      }\n`;
     }
     const discCtx = `{path:${elemPath},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
-    code += collectErrors ? `      default: ${GEN.errList}.push(${discCtx});\n` : `      default: return err([${discCtx}]);\n`;
+    code += collectErrors ? `      default: ${emitErrPush(discCtx)};\n` : `      default: return [${discCtx}];\n`;
     code += `    }\n`;
     code += `  }\n`;
     code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
@@ -1270,11 +1262,9 @@ class DeserializeBuilder {
       const discPathExpr = emitCtx.pathExpr ?? JSON.stringify(fieldKey);
       const discValueExpr = `${GEN.disc}${sk}`;
       if (collectErrors) {
-        code += `  default: ${GEN.errList}.push({path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}});\n`;
-      } else if (this.validateOnly) {
-        code += `  default: return [{path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}}];\n`;
+        code += `  default: ${emitErrPush(`{path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}}`)};\n`;
       } else {
-        code += `  default: return err([{path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}}]);\n`;
+        code += `  default: return [{path:${discPathExpr},code:'invalidDiscriminator',context:{received:${discValueExpr},validSubTypes:${validSubTypeNamesJson}}}];\n`;
       }
       code += `}\n`;
       // keepDiscriminatorProperty: preserve discriminator property in result object (PB-3).
@@ -1295,6 +1285,9 @@ class DeserializeBuilder {
 
       if (hasEach) {
         const iVar = `${GEN.index}${sk}`;
+        const nVar = `${GEN.arrLen}${sk}`;
+        const wVar = `${GEN.arrW}${sk}`;
+        const execVar = `${GEN.exec}${sk}`;
         const awaitKwE = this.isAsync ? 'await ' : '';
         code += `if (Array.isArray(${varName})) {\n`;
 
@@ -1302,18 +1295,27 @@ class DeserializeBuilder {
         const nonEachRules = meta.validation.filter(rd => !rd.each);
         code += this.emitRuleList(fieldKey, varName, nonEachRules, emitCtx, '  ');
 
-        code += `  var ${GEN.arr}${sk} = [];\n`;
-        code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
-        code += `    var ${GEN.result}${sk} = ${awaitKwE}execs[${execIdx}].deserialize(${varName}[${iVar}], opts);\n`;
+        // Preallocated cursor output array (element count is known up front — trimmed only if an
+        // element failed and was skipped) + hoisted nested executor object. Both are loop-invariant,
+        // so computing them once before the loop avoids a per-element property read/growth-
+        // reallocation and a per-element `execs[idx]` property lookup. The object (not the method)
+        // is hoisted so `this` stays bound for receiver-sensitive executors.
+        code += `  var ${nVar} = ${varName}.length;\n`;
+        code += `  var ${GEN.arr}${sk} = new Array(${nVar});\n`;
+        code += `  var ${wVar} = 0;\n`;
+        code += `  var ${execVar} = execs[${execIdx}];\n`;
+        code += `  for (var ${iVar}=0; ${iVar}<${nVar}; ${iVar}++) {\n`;
+        code += `    var ${GEN.result}${sk} = ${awaitKwE}${execVar}.deserialize(${varName}[${iVar}], opts);\n`;
         code += generateNestedEachResultCode(
           `${GEN.result}${sk}`,
           `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`,
           sk,
           collectErrors,
-          `${GEN.arr}${sk}.push(${GEN.result}${sk});`,
+          `${GEN.arr}${sk}[${wVar}++] = ${GEN.result}${sk};`,
           '    ',
         );
         code += `  }\n`;
+        code += `  if (${wVar} !== ${nVar}) ${GEN.arr}${sk}.length = ${wVar};\n`;
         code += `  ${GEN.out}[${JSON.stringify(fieldKey)}] = ${GEN.arr}${sk};\n`;
         code += `} else { ${emitCtx.fail('isArray')}; }\n`;
       } else {
@@ -1406,7 +1408,7 @@ class DeserializeBuilder {
       code += `      }\n`;
     }
     const discCtx = `{path:${elemPath},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
-    code += collectErrors ? `      default: ${GEN.errList}.push(${discCtx});\n` : `      default: return [${discCtx}];\n`;
+    code += collectErrors ? `      default: ${emitErrPush(discCtx)};\n` : `      default: return [${discCtx}];\n`;
     code += `    }\n`;
     code += `  }\n`;
     code += `} else { ${emitCtx.fail('isArray')}; }\n`;
@@ -1460,7 +1462,7 @@ class DeserializeBuilder {
       const discPathExprV = emitCtx.pathExpr ?? JSON.stringify(fieldKey);
       const discValueExprV = `${GEN.disc}${sk}`;
       if (collectErrors) {
-        code += `  default: ${GEN.errList}.push({path:${discPathExprV},code:'invalidDiscriminator',context:{received:${discValueExprV},validSubTypes:${validSubTypeNamesJsonV}}});\n`;
+        code += `  default: ${emitErrPush(`{path:${discPathExprV},code:'invalidDiscriminator',context:{received:${discValueExprV},validSubTypes:${validSubTypeNamesJsonV}}}`)};\n`;
       } else {
         code += `  default: return [{path:${discPathExprV},code:'invalidDiscriminator',context:{received:${discValueExprV},validSubTypes:${validSubTypeNamesJsonV}}}];\n`;
       }
@@ -1480,6 +1482,17 @@ class DeserializeBuilder {
         const nonEachRules = meta.validation.filter(rd => !rd.each);
         code += this.emitRuleList(fieldKey, varName, nonEachRules, emitCtx, '  ');
 
+        // FALLBACK (function-call) path: hoist the nested executor object out of the loop — it is
+        // loop-invariant — before the loop header is emitted. The object (not the method) is
+        // hoisted so `this` stays bound for receiver-sensitive executors.
+        const execVar = `${GEN.exec}${sk}`;
+        let execIdx = -1;
+        if (!useInline) {
+          execIdx = execs.length;
+          execs.push(nestedSealed);
+          code += `  var ${execVar} = execs[${execIdx}];\n`;
+        }
+
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
 
         if (useInline) {
@@ -1496,7 +1509,7 @@ class DeserializeBuilder {
           code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
           code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
           if (collectErrors) {
-            code += `${GEN.errList}.push({path:${ppExpr},code:'invalidInput'});\n`;
+            code += `${emitErrPush(`{path:${ppExpr},code:'invalidInput'}`)};\n`;
           } else {
             code += `return [{path:${ppExpr},code:'invalidInput'}];\n`;
           }
@@ -1504,11 +1517,9 @@ class DeserializeBuilder {
           code += this.emitInlineNestedBlock(nestedMerged!, nestedCls, itemVar, ppExpr, vpPrefix);
           code += `    }\n`;
         } else {
-          // FALLBACK: function call to validate
-          const execIdx = execs.length;
-          execs.push(nestedSealed);
+          // FALLBACK: call .validate on the hoisted executor object computed above
           const awaitKw = this.isAsync ? 'await ' : '';
-          code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
+          code += `    var ${GEN.result}${sk} = ${awaitKw}${execVar}.validate(${varName}[${iVar}], opts);\n`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
@@ -1581,6 +1592,15 @@ class DeserializeBuilder {
 
       if (nestedSealed) {
         const iVar = `${GEN.index}${sk}`;
+        const execVar = `${GEN.exec}${sk}`;
+        // FALLBACK (function-call) path: hoist the nested executor object out of the loop — it is
+        // loop-invariant — before the loop header is emitted. The object (not the method) is
+        // hoisted so `this` stays bound for receiver-sensitive executors.
+        if (!useInline) {
+          const execIdx = execs.length;
+          execs.push(nestedSealed);
+          code += `  var ${execVar} = execs[${execIdx}];\n`;
+        }
         code += `  for (var ${iVar}=0; ${iVar}<${varName}.length; ${iVar}++) {\n`;
 
         if (useInline) {
@@ -1594,7 +1614,7 @@ class DeserializeBuilder {
           code += `    var ${itemVar} = ${varName}[${iVar}];\n`;
           code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
           if (collectErrors) {
-            code += `${GEN.errList}.push({path:${ppExpr},code:'invalidInput'});\n`;
+            code += `${emitErrPush(`{path:${ppExpr},code:'invalidInput'}`)};\n`;
           } else {
             code += `return [{path:${ppExpr},code:'invalidInput'}];\n`;
           }
@@ -1602,9 +1622,7 @@ class DeserializeBuilder {
           code += this.emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix);
           code += `    }\n`;
         } else {
-          const execIdx = execs.length;
-          execs.push(nestedSealed);
-          code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${iVar}], opts);\n`;
+          code += `    var ${GEN.result}${sk} = ${awaitKw}${execVar}.validate(${varName}[${iVar}], opts);\n`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${iVar}+'].'`;
@@ -1627,7 +1645,16 @@ class DeserializeBuilder {
         const kVar = `${GEN.key}${sk}`;
         const ksVar = `__bk$vk${sk}`;
         const iVar = `__bk$vi${sk}`;
+        const execVar = `${GEN.exec}${sk}`;
         code += `  var ${ksVar} = Object.keys(${varName});\n`;
+        // FALLBACK (function-call) path: hoist the nested executor object out of the loop — it is
+        // loop-invariant — before the loop header is emitted. The object (not the method) is
+        // hoisted so `this` stays bound for receiver-sensitive executors.
+        if (!useInline) {
+          const execIdx = execs.length;
+          execs.push(nestedSealed);
+          code += `  var ${execVar} = execs[${execIdx}];\n`;
+        }
         code += `  for (var ${iVar}=0; ${iVar}<${ksVar}.length; ${iVar}++) {\n`;
         code += `    var ${kVar} = ${ksVar}[${iVar}];\n`;
 
@@ -1641,7 +1668,7 @@ class DeserializeBuilder {
           code += `    var ${itemVar} = ${varName}[${kVar}];\n`;
           code += `    if (${itemVar} == null || typeof ${itemVar} !== 'object' || Array.isArray(${itemVar})) `;
           if (collectErrors) {
-            code += `${GEN.errList}.push({path:${itemInvalidPathExpr},code:'invalidInput'});\n`;
+            code += `${emitErrPush(`{path:${itemInvalidPathExpr},code:'invalidInput'}`)};\n`;
           } else {
             code += `return [{path:${itemInvalidPathExpr},code:'invalidInput'}];\n`;
           }
@@ -1649,9 +1676,7 @@ class DeserializeBuilder {
           code += this.emitInlineNestedBlock(nestedMerged!, nestedCls!, itemVar, ppExpr, vpPrefix);
           code += `    }\n`;
         } else {
-          const execIdx = execs.length;
-          execs.push(nestedSealed);
-          code += `    var ${GEN.result}${sk} = ${awaitKw}execs[${execIdx}].validate(${varName}[${kVar}], opts);\n`;
+          code += `    var ${GEN.result}${sk} = ${awaitKw}${execVar}.validate(${varName}[${kVar}], opts);\n`;
           const ppInit = this.pathPrefix
             ? `${this.pathPrefix}+${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`
             : `${JSON.stringify(fieldKey)}+'['+${kVar}+'].'`;
@@ -1674,7 +1699,7 @@ class DeserializeBuilder {
   // ── makeEmitCtx — create per-field EmitContext ──
 
   private makeEmitCtx(fieldKey: string, fieldExtras = ''): EmitContext {
-    const { collectErrors, regexes, refs, execs, validateOnly, pathPrefix } = this;
+    const { collectErrors, regexes, refs, execs, pathPrefix } = this;
     const pathExpr = pathPrefix ? `${pathPrefix}+${JSON.stringify(fieldKey)}` : JSON.stringify(fieldKey);
     return {
       addRegex(re: RegExp): number {
@@ -1691,11 +1716,9 @@ class DeserializeBuilder {
       },
       fail(code: string): string {
         if (collectErrors) {
-          return `${GEN.errList}.push({path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}})`;
-        } else if (validateOnly) {
-          return `return [{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}]`;
+          return emitErrPush(`{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}`);
         }
-        return `return err([{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}])`;
+        return `return [{path:${pathExpr},code:${JSON.stringify(code)}${fieldExtras}}]`;
       },
       collectErrors,
       pathExpr: pathExpr,

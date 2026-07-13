@@ -1,7 +1,3 @@
-import type { Err } from '@zipbul/result';
-
-import { isErr } from '@zipbul/result';
-
 import type { BakerIssueSet } from '../../../src/common/errors';
 
 import { isBakerIssueSet } from '../../../src/common/errors';
@@ -30,14 +26,14 @@ export function assertNotBakerIssueSet<T>(value: T | BakerIssueSet): asserts val
 }
 
 /**
- * Test-only assertion helper — narrows a Result to its `Err<E>` branch.
+ * Test-only assertion helper — narrows a deserialize outcome to its `E` (raw error array) branch.
  *
- * Required because in-test `if (!isErr<E>(result)) throw` triggers
+ * Required because in-test `if (!Array.isArray(result)) throw` triggers
  * jest(no-conditional-in-test); placing the `if` inside this helper avoids it.
  */
-export function assertIsErr<E = unknown>(value: unknown): asserts value is Err<E> {
-  if (!isErr<E>(value)) {
-    throw new Error(`expected Err, got: ${JSON.stringify(value)}`);
+export function assertIsErr<E = unknown>(value: unknown): asserts value is E {
+  if (!Array.isArray(value)) {
+    throw new Error(`expected an error array, got: ${JSON.stringify(value)}`);
   }
 }
 

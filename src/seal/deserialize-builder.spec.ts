@@ -1,4 +1,3 @@
-import { isErr, err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
 import type { BakerIssue } from '../common/errors';
@@ -44,7 +43,7 @@ function stringFieldExecutors<T extends object>(Class: new () => T, prop: string
       const i = input as Record<string, unknown>;
       const value = i?.[prop];
       if (typeof value !== 'string') {
-        return err([{ path: prop, code: 'isString' }]);
+        return [{ path: prop, code: 'isString' }];
       }
       const out: T = new Class();
       Object.defineProperty(out, prop, {
@@ -109,7 +108,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec(null);
     // Assert
     assertIsErr<BakerIssue[]>(result);
-    const errs = result.data;
+    const errs = result;
     expect(errs[0]?.path).toBe('');
     expect(errs[0]?.code).toBe('invalidInput');
   });
@@ -123,7 +122,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec([1, 2, 3]);
     // Assert
     assertIsErr<BakerIssue[]>(result);
-    expect(result.data[0]?.code).toBe('invalidInput');
+    expect(result[0]?.code).toBe('invalidInput');
   });
 
   it('should skip optional field when value is undefined (@IsOptional)', async () => {
@@ -145,7 +144,7 @@ describe('buildDeserializeCode', () => {
     const result = await run(OptDto, merged, undefined, {});
     // Assert — success, age is not validated (undefined skipped)
     expect(result).toBeInstanceOf(OptDto);
-    expect(isErr(result)).toBe(false);
+    expect(Array.isArray(result)).toBe(false);
   });
 
   it('should use class default value when exposeDefaultValues:true and key is absent from input', async () => {
@@ -200,7 +199,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec({ name: 42, age: 'not-a-number' });
     // Assert — collects both errors
     assertIsErr<BakerIssue[]>(result);
-    const errs = result.data;
+    const errs = result;
     expect(errs.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -219,7 +218,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec({ name: 42, age: 'bad' });
     // Assert — early return with 1 error
     assertIsErr<BakerIssue[]>(result);
-    const errs = result.data;
+    const errs = result;
     expect(errs.length).toBe(1);
   });
 
@@ -268,7 +267,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec({ email: 123 });
     // Assert
     assertIsErr<BakerIssue[]>(result);
-    const errs = result.data;
+    const errs = result;
     expect(errs[0]?.path).toBe('email');
     expect(errs[0]?.code).toBe('isString');
   });
@@ -286,7 +285,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec({});
     // Assert
     assertIsErr<BakerIssue[]>(result);
-    const errs = result.data;
+    const errs = result;
     expect(errs.some((e: BakerIssue) => e.path === 'name')).toBe(true);
   });
 
@@ -311,7 +310,7 @@ describe('buildDeserializeCode', () => {
     // Act — key absent + isOptional → skip (not error)
     const result = await exec({});
     // Assert — no error (optional guard subsumes exposeDefault guard)
-    expect(isErr(result)).toBe(false);
+    expect(Array.isArray(result)).toBe(false);
   });
 
   // ── Edge ───────────────────────────────────────────────────────────────────
@@ -324,7 +323,7 @@ describe('buildDeserializeCode', () => {
     const result = await exec({});
     // Assert
     expect(result).toBeInstanceOf(EmptyDto);
-    expect(isErr(result)).toBe(false);
+    expect(Array.isArray(result)).toBe(false);
   });
 });
 
@@ -349,7 +348,7 @@ it('should include string message in BakerIssue when validation fails', async ()
   const result = await run(MsgDto, merged, undefined, { name: 42 });
   // Assert
   assertIsErr<BakerIssue[]>(result);
-  const errs = result.data;
+  const errs = result;
   expect(errs[0]?.message).toBe('이름은 문자열이어야 합니다');
 });
 
@@ -377,7 +376,7 @@ it('should include function message result in BakerIssue when validation fails',
   const result = await run(FnMsgDto, merged, undefined, { age: 'hello' });
   // Assert
   assertIsErr<BakerIssue[]>(result);
-  const errs = result.data;
+  const errs = result;
   expect(errs[0]?.message).toContain('age must be a number');
 });
 
@@ -400,7 +399,7 @@ it('should include context in BakerIssue when validation fails', async () => {
   const result = await run(CtxDto, merged, undefined, { name: 99 });
   // Assert
   assertIsErr<BakerIssue[]>(result);
-  const errs = result.data;
+  const errs = result;
   expect(errs[0]?.context).toEqual({ httpStatus: 400, extra: 'info' });
 });
 
@@ -423,7 +422,7 @@ it('should not include message/context when not set (backward compat)', async ()
   const result = await run(NoMsgDto, merged, undefined, { name: 42 });
   // Assert
   assertIsErr<BakerIssue[]>(result);
-  const errs = result.data;
+  const errs = result;
   expect(errs[0]?.message).toBeUndefined();
   expect(errs[0]?.context).toBeUndefined();
 });
@@ -448,7 +447,7 @@ it('should validate each element when value is a Set and each:true', async () =>
   // Act — invalid: Set contains non-string
   const result = await run(SetDto, merged, undefined, { names: new Set(['hello', 42, 'world']) });
   // Assert
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 it('should pass when Set contains all valid elements with each:true', async () => {
@@ -469,7 +468,7 @@ it('should pass when Set contains all valid elements with each:true', async () =
   // Act — valid: all elements are strings
   const result = await run(SetDto2, merged, undefined, { names: new Set(['hello', 'world']) });
   // Assert
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 // ── each: true with Map ────────────────────────────────────────────────────
@@ -497,7 +496,7 @@ it('should validate each value when input is a Map and each:true', async () => {
     ]),
   });
   // Assert
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 it('should pass when Map has all valid values with each:true', async () => {
@@ -523,7 +522,7 @@ it('should pass when Map has all valid values with each:true', async () => {
     ]),
   });
   // Assert
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 // ─── stopAtFirstError: true — each:true with Set/Map (covers L507-528) ────────
@@ -544,7 +543,7 @@ it('should fail at first error with Set and each:true when stopAtFirstError:true
   };
   const exec = buildDeserializeCode<SetStopDto>(SetStopDto, merged, { stopAtFirstError: true }, false, false, resolve);
   const result = await exec({ names: new Set(['hello', 42]) });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 it('should pass with Set and each:true when stopAtFirstError:true and all valid', async () => {
@@ -563,7 +562,7 @@ it('should pass with Set and each:true when stopAtFirstError:true and all valid'
   };
   const exec = buildDeserializeCode<SetStopDto2>(SetStopDto2, merged, { stopAtFirstError: true }, false, false, resolve);
   const result = await exec({ names: new Set(['a', 'b']) });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 it('should fail with Map and each:true when stopAtFirstError:true', async () => {
@@ -587,7 +586,7 @@ it('should fail with Map and each:true when stopAtFirstError:true', async () => 
       ['k2', 42],
     ]),
   });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 // ─── @ValidateIf flag (covers L183-184, L233) ─────────────────────────────────
@@ -609,7 +608,7 @@ it('should skip validation when @ValidateIf returns false', async () => {
   };
   const exec = buildDeserializeCode<ConditionalDto>(ConditionalDto, merged, undefined, false, false, resolve);
   const result = await exec({ checkAge: false, age: 'notanumber' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 it('should run validation when @ValidateIf returns true', async () => {
@@ -629,7 +628,7 @@ it('should run validation when @ValidateIf returns true', async () => {
   };
   const exec = buildDeserializeCode<ConditionalDto2>(ConditionalDto2, merged, undefined, false, false, resolve);
   const result = await exec({ checkAge: true, age: 'notanumber' });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 // ─── needsCircularCheck: true (covers L79-82) ─────────────────────────────────
@@ -650,7 +649,7 @@ it('should generate circular-check code when needsCircularCheck is true', async 
   };
   const exec = buildDeserializeCode<CircularDto>(CircularDto, merged, undefined, true, false, resolve);
   const result = await exec({ name: 'Alice' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 // ─── exclude: deserializeOnly skip (covers L162-163) ─────────────────────────
@@ -680,7 +679,7 @@ it('should skip field when exclude is set without serializeOnly (deserializeOnly
   };
   const exec = buildDeserializeCode<ExcludeDto>(ExcludeDto, merged, undefined, false, false, resolve);
   const result = await exec({ name: 'Alice', secret: 'hidden' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as ExcludeDto & { secret?: unknown }).secret).toBeUndefined();
 });
 
@@ -711,7 +710,7 @@ it('should skip field where all exposures are serializeOnly', async () => {
   };
   const exec = buildDeserializeCode<ExposeOnlyDto>(ExposeOnlyDto, merged, undefined, false, false, resolve);
   const result = await exec({ name: 'Alice', outOnly: 'ignored' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as ExposeOnlyDto).outOnly).toBeUndefined();
 });
 
@@ -733,7 +732,7 @@ it('should include message extras in error when stopAtFirstError:true', async ()
   };
   const exec = buildDeserializeCode<MsgDto>(MsgDto, merged, { stopAtFirstError: true }, false, false, resolve);
   const result = await exec({ name: 42 });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 // ─── nested type (covers L598-609, L623-627) ─────────────────────────────────
@@ -759,7 +758,7 @@ it('should deserialize nested DTO field when sealed executor is provided', async
   };
   const exec = buildDeserializeCode<PersonDto>(PersonDto, merged, undefined, false, false, resolve);
   const result = await exec({ address: { street: '123 Main St' } });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as PersonDto).address.street).toBe('123 Main St');
 });
 
@@ -785,7 +784,7 @@ it('should return error when nested DTO deserialization fails', async () => {
   const exec = buildDeserializeCode<ContactDto>(ContactDto, merged, undefined, false, false, resolve);
   // phone.number is not a string → nested error
   const result = await exec({ phone: { number: 42 } });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 it('should return nested error when stopAtFirstError:true (covers L623-627)', async () => {
@@ -810,7 +809,7 @@ it('should return nested error when stopAtFirstError:true (covers L623-627)', as
   const exec = buildDeserializeCode<LocationDto>(LocationDto, merged, { stopAtFirstError: true }, false, false, resolve);
   // city.name is missing → nested error propagation
   const result = await exec({ city: { name: 42 } });
-  expect(isErr(result)).toBe(true);
+  expect(Array.isArray(result)).toBe(true);
 });
 
 // ─── nested hasEach (covers L582-596) ─────────────────────────────────────────
@@ -842,7 +841,7 @@ it('should deserialize array of nested DTOs when each:true (hasEach path)', asyn
   };
   const exec = buildDeserializeCode<PostDto>(PostDto, merged, undefined, false, false, resolve);
   const result = await exec({ tags: [{ label: 'ts' }, { label: 'js' }] });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 // ─── string type gate with typeAsserter (covers L398) ──────────────────────
@@ -866,7 +865,7 @@ it('should generate string type gate when isString + minLength are combined in c
   // Act — valid string passes gate and minLength
   const result = await exec({ name: 'Alice' });
   // Assert
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as StringGateDto).name).toBe('Alice');
 });
 
@@ -891,7 +890,7 @@ it('should emit otherGeneral rules in collectErrors mode when type gate has addi
   // Act — valid string passes all rules
   const result = await exec({ name: 'Bob' });
   // Assert
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as OtherGenDto).name).toBe('Bob');
 });
 
@@ -916,7 +915,7 @@ it('should emit otherGeneral rules in stopAtFirstError mode when type gate has a
   // Act — valid string passes all rules
   const result = await exec({ name: 'Carol' });
   // Assert
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as StopGenDto).name).toBe('Carol');
 });
 
@@ -963,7 +962,7 @@ it('should support rules that call addExecutor on EmitContext', async () => {
   // Act
   const result = await exec({ val: 'test' });
   // Assert — should succeed; the addExecutor call was exercised during code gen
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as ExecRuleDto).val).toBe('test');
 });
 // ── sanitizeKey replace callback coverage (deserialize-builder.ts#L13) ────
@@ -987,7 +986,7 @@ it('should sanitize hyphenated field key to valid JS variable name when field na
   // Act
   const result = await exec({ 'my-field': 'hello' });
   // Assert — field with special char is deserialized correctly
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as HyphenDto)['my-field']).toBe('hello');
 });
 
@@ -1008,7 +1007,7 @@ it('whitelist: should pass when no extra keys', async () => {
     },
   };
   const result = await run(WlDto, merged, { whitelist: true }, { name: 'ok' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
   expect((result as WlDto).name).toBe('ok');
 });
 
@@ -1028,7 +1027,7 @@ it('whitelist: should fail with whitelistViolation for extra key (stopAtFirstErr
   };
   const result = await run(WlDto2, merged, { whitelist: true, stopAtFirstError: true }, { name: 'ok', extra: 1 });
   assertIsErr<BakerIssue[]>(result);
-  const errors = result.data;
+  const errors = result;
   expect(errors).toHaveLength(1);
   expect(errors[0]?.code).toBe('whitelistViolation');
   expect(errors[0]?.path).toBe('extra');
@@ -1050,7 +1049,7 @@ it('whitelist: should collect all violations (collectErrors)', async () => {
   };
   const result = await run(WlDto3, merged, { whitelist: true }, { name: 'ok', extra1: 1, extra2: 2 });
   assertIsErr<BakerIssue[]>(result);
-  const errors = result.data;
+  const errors = result;
   expect(errors.length).toBeGreaterThanOrEqual(2);
   expect(errors.some(matchPathAndCode('extra1', 'whitelistViolation'))).toBe(true);
   expect(errors.some(matchPathAndCode('extra2', 'whitelistViolation'))).toBe(true);
@@ -1072,7 +1071,7 @@ it('whitelist: should use extract key (not field key) for @Expose', async () => 
   };
   // user_name is the extract key, so it should be in the allowed set
   const result = await run(WlDto4, merged, { whitelist: true }, { user_name: 'ok' });
-  expect(isErr(result)).toBe(false);
+  expect(Array.isArray(result)).toBe(false);
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1114,36 +1113,36 @@ const runVal = (merged: RawClassMeta, input: unknown, opts?: RuntimeOpts) =>
 describe('declared collection — element validation (deserialize)', () => {
   // BUG A — declared Map dropped every each-rule
   it('declared Map enforces each-rule on values (invalid)', async () => {
-    expect(isErr(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'ok', k2: 42 } }))).toBe(true);
+    expect(Array.isArray(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'ok', k2: 42 } }))).toBe(true);
   });
   it('declared Map passes when all values valid', async () => {
-    expect(isErr(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'a', k2: 'b' } }))).toBe(false);
+    expect(Array.isArray(await runDes(mapMeta([{ rule: isString, each: true }]), { tags: { k1: 'a', k2: 'b' } }))).toBe(false);
   });
   it('declared Set still enforces each-rule (regression)', async () => {
-    expect(isErr(await runDes(setMeta([{ rule: isString, each: true }]), { names: ['ok', 42] }))).toBe(true);
+    expect(Array.isArray(await runDes(setMeta([{ rule: isString, each: true }]), { names: ['ok', 42] }))).toBe(true);
   });
   it('declared Set still enforces array-level rule arrayMinSize (regression)', async () => {
-    expect(isErr(await runDes(setMeta([{ rule: arrayMinSize(5) }]), { names: ['a'] }))).toBe(true);
+    expect(Array.isArray(await runDes(setMeta([{ rule: arrayMinSize(5) }]), { names: ['a'] }))).toBe(true);
   });
 
   // BUG B — declared collections ignored the runtime groups filter on each-rules
   it('declared Set each-rule is skipped when its group is not active', async () => {
     expect(
-      isErr(
+      Array.isArray(
         await runDes(setMeta([{ rule: isString, each: true, groups: ['admin'] }]), { names: ['ok', 42] }, { groups: ['user'] }),
       ),
     ).toBe(false);
   });
   it('declared Set each-rule runs when its group is active', async () => {
     expect(
-      isErr(
+      Array.isArray(
         await runDes(setMeta([{ rule: isString, each: true, groups: ['admin'] }]), { names: ['ok', 42] }, { groups: ['admin'] }),
       ),
     ).toBe(true);
   });
   it('declared Map each-rule is skipped when its group is not active', async () => {
     expect(
-      isErr(
+      Array.isArray(
         await runDes(mapMeta([{ rule: isString, each: true, groups: ['admin'] }]), { tags: { k: 42 } }, { groups: ['user'] }),
       ),
     ).toBe(false);
@@ -1160,7 +1159,7 @@ describe('declared collection — element validation (deserialize)', () => {
       { names: ['aaa', 'bbb'] },
     );
     assertIsErr<BakerIssue[]>(r);
-    expect(r.data.map(e => e.code)).toEqual(['minLength', 'minLength', 'maxLength', 'maxLength']);
+    expect(r.map(e => e.code)).toEqual(['minLength', 'minLength', 'maxLength', 'maxLength']);
   });
 
   // BUG C — function message received the whole collection instead of the failing element

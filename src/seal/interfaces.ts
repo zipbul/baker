@@ -1,7 +1,6 @@
-import type { Result, ResultAsync } from '@zipbul/result';
-
 import type { BakerIssue, RuntimeOptions } from '../common';
 import type { CollectionType, RawClassMeta, RuleDef } from '../metadata';
+import type { DeserializeOutcome } from './types';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SealOptions — seal-time options resolved from a Baker's config
@@ -34,8 +33,8 @@ export interface SealOptions {
 // executor maps and `execs[]`). Switching to the `DeserializeExecutor`/`ValidateExecutor` aliases
 // (arrow types) would make the parameters contravariant and break that upcast.
 export interface SealedExecutors<T> {
-  /** Internal executor — Result pattern. deserialize() wraps and converts to throw */
-  deserialize(input: unknown, options?: RuntimeOptions): Result<T, BakerIssue[]> | ResultAsync<T, BakerIssue[]>;
+  /** Internal executor — array-sentinel pattern (see {@link DeserializeOutcome}). deserialize() wraps and converts to throw */
+  deserialize(input: unknown, options?: RuntimeOptions): DeserializeOutcome<T>;
   /** Internal executor — always succeeds. serialize assumes no validation */
   serialize(instance: T, options?: RuntimeOptions): Record<string, unknown> | Promise<Record<string, unknown>>;
   /** Internal executor — validate-only (no object creation). Returns null on success, BakerIssue[] on failure */

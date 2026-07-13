@@ -124,6 +124,16 @@ class SealRun {
         }
       }
 
+      // 1a2. Array-exotic DTO guard — a deserialize SUCCESS is a `Class` instance, a FAILURE is a raw
+      // BakerIssue[], and the two are told apart via `Array.isArray`. A DTO extending Array would make
+      // a successful instance satisfy `Array.isArray` too, breaking that sentinel. Runs per class, so
+      // nested DTOs (sealed recursively below) are covered as well.
+      if (Class === Array || Class.prototype instanceof Array) {
+        throw new BakerError(
+          `${Class.name}: DTO classes must not extend Array — a deserialized instance would be indistinguishable from a validation-failure array.`,
+        );
+      }
+
       // 1b. TypeDef normalization — resolve @Type/@Field type fn(), detect arrays, auto-infer nested DTOs.
       //     Copies the shared RAW `type` before mutating (C-16) and mutates the per-seal-cloned `flags`.
       normalizeTypeDefs(merged, Class.name);
