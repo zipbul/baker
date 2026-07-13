@@ -26,12 +26,34 @@ export function checkCallOptions(opts: unknown): RuntimeOptions | undefined {
     const ctorName = (opts as { constructor?: { name?: string } }).constructor?.name ?? 'unknown';
     throw new BakerError(`Call options must be a plain object literal. Received instance of ${ctorName}.`);
   }
-  for (const key of Object.keys(opts)) {
+  // `for...in` replaces `Object.keys(opts)` to avoid allocating a keys array on the hot path.
+  // `proto` above is `null` or `Object.prototype`, but `for...in` also walks inherited ENUMERABLE
+  // properties — and while `Object.prototype`'s built-ins are non-enumerable, user/library code may
+  // have added enumerable ones (prototype pollution). The `Object.hasOwn` guard filters those out,
+  // restoring exact `Object.keys` membership and order (own enumerable string keys) allocation-free.
+  for (const key in opts) {
+    if (!Object.hasOwn(opts, key)) {
+      continue;
+    }
     if (key === 'groups') {
       const groups = (opts as RuntimeOptions).groups;
-      if (groups !== undefined && (!Array.isArray(groups) || groups.some(g => typeof g !== 'string'))) {
-        const received = Array.isArray(groups) ? 'an array with a non-string element' : typeof groups;
-        throw new BakerError(`Call option 'groups' must be a string[] of group names. Received: ${received}.`);
+      if (groups !== undefined) {
+        const isArray = Array.isArray(groups);
+        let hasNonString = false;
+        if (isArray) {
+          // `i in groups` skips holes — matches `Array.prototype.some`'s HasProperty check, so a
+          // sparse array (e.g. `new Array(1)`) is treated the same as before this loop replaced `some`.
+          for (let i = 0; i < groups.length; i++) {
+            if (i in groups && typeof groups[i] !== 'string') {
+              hasNonString = true;
+              break;
+            }
+          }
+        }
+        if (!isArray || hasNonString) {
+          const received = isArray ? 'an array with a non-string element' : typeof groups;
+          throw new BakerError(`Call option 'groups' must be a string[] of group names. Received: ${received}.`);
+        }
       }
       continue;
     }
