@@ -1,10 +1,9 @@
 import type { RawPropertyMeta, RuleDef, ExposeDef, TypeDef } from '../metadata';
 import type { EmittableRule, InternalRule } from '../rules';
-import type { Transformer } from '../transformers';
 import type { ArrayOfMarker, FieldOptions } from './interfaces';
 import type { FieldDecorator, FieldValue, RuleArg } from './types';
 
-import { Direction, BakerError, isAsyncFunction, isPromiseLike } from '../common';
+import { BakerError, isAsyncFunction } from '../common';
 import { metaStore } from '../metadata';
 import { ARRAY_OF, FIELD_OPTION_KEYS } from './constants';
 import { ExcludeMode } from './enums';
@@ -107,18 +106,16 @@ function parseFieldArgs(args: unknown[]): { rules: RuleArg[]; options: FieldOpti
 
 /**
  * Applies a parsed @Field's rules and options onto the field's {@link RawPropertyMeta}. Holds
- * `(meta, propertyKey, options)` as fields so each aspect (validation, flags, type, expose, exclude,
- * transform) reads from a single source of truth instead of threading the same trio through a pile of
- * free functions — mirroring the seal-stage builders (DeserializeBuilder / SerializeBuilder).
+ * `(meta, options)` as fields so each aspect (validation, flags, type, expose, exclude, transform)
+ * reads from a single source of truth instead of threading the same pair through a pile of free
+ * functions — mirroring the seal-stage builders (DeserializeBuilder / SerializeBuilder).
  */
 class FieldMetaApplier {
   readonly #meta: RawPropertyMeta;
-  readonly #propertyKey: string;
   readonly #options: FieldOptions;
 
-  constructor(meta: RawPropertyMeta, propertyKey: string, options: FieldOptions) {
+  constructor(meta: RawPropertyMeta, options: FieldOptions) {
     this.#meta = meta;
-    this.#propertyKey = propertyKey;
     this.#options = options;
   }
 
@@ -223,7 +220,11 @@ class FieldMetaApplier {
     }
   }
 
-  /** Register Transformer — split into direction-specific TransformDefs. */
+  /**
+   * Register Transformer — split into direction-specific TransformDefs, storing each direction's raw
+   * user fn (seal-time `isAsync` detection only; the sync-transform-returned-Promise guard is inlined
+   * into generated code by deserialize-builder/serialize-builder, gated on `isAsync`).
+   */
   #applyTransform(): void {
     const transform = this.#options.transform;
     if (!transform) {
@@ -231,11 +232,9 @@ class FieldMetaApplier {
     }
     const transformers = Array.isArray(transform) ? transform : [transform];
     for (const t of transformers) {
-      const deserialize = this.#wrapTransform(Direction.Deserialize, t.deserialize);
-      const serialize = this.#wrapTransform(Direction.Serialize, t.serialize);
       this.#meta.transform.push(
-        { fn: deserialize.fn, isAsync: deserialize.isAsync, options: { deserializeOnly: true } },
-        { fn: serialize.fn, isAsync: serialize.isAsync, options: { serializeOnly: true } },
+        { fn: t.deserialize, isAsync: isAsyncFunction(t.deserialize), options: { deserializeOnly: true } },
+        { fn: t.serialize, isAsync: isAsyncFunction(t.serialize), options: { serializeOnly: true } },
       );
     }
   }
@@ -264,25 +263,6 @@ class FieldMetaApplier {
       ed.groups = this.#options.groups;
     }
     return ed;
-  }
-
-  /** Wrap one direction of a transformer, guarding a sync transform that returns a Promise. */
-  #wrapTransform(
-    direction: Direction,
-    fn: Transformer['deserialize'] | Transformer['serialize'],
-  ): { fn: typeof fn; isAsync: boolean } {
-    const isAsync = isAsyncFunction(fn);
-    const propertyKey = this.#propertyKey;
-    const wrapped = (params => {
-      const result = fn(params);
-      if (!isAsync && isPromiseLike(result)) {
-        throw new BakerError(
-          `@Field(${propertyKey}) ${direction} transform returned Promise. Declare the transform with async if it is asynchronous.`,
-        );
-      }
-      return result;
-    }) as typeof fn;
-    return { fn: wrapped, isAsync };
   }
 }
 
@@ -350,7 +330,7 @@ function Field(...args: unknown[]): FieldDecorator {
       }
     }
 
-    new FieldMetaApplier(meta, propertyKey, options).apply(rules);
+    new FieldMetaApplier(meta, options).apply(rules);
   };
 }
 export { arrayOf, Field };

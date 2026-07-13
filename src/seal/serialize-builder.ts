@@ -2,7 +2,7 @@ import type { RuntimeOptions } from '../common';
 import type { RawClassMeta, RawPropertyMeta, TransformDef } from '../metadata';
 import type { SealOptions, SealedExecutors } from './interfaces';
 
-import { BakerError, Direction } from '../common';
+import { BakerError, Direction, isAsyncFunction } from '../common';
 import { CollectionType } from '../metadata';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
 import { SER_GEN as GEN } from './constants';
@@ -366,25 +366,58 @@ class SerializeBuilder<T> {
   }
 
   /**
-   * Build serialize-direction transform expression.
-   * Serialize direction reverses declaration order (codec stack unwrapping).
+   * Build serialize-direction transform code. Serialize direction reverses declaration order (codec
+   * stack unwrapping). A chain with at least one sync transform emits one assignment statement per
+   * transform, guarding the sync step's result against a Promise return BEFORE it feeds the next
+   * transform — a pure-async chain has nothing to guard, so it keeps the nested-expression form.
    */
-  private buildTransformExpr(inputExpr: string, fieldKey: string, serTransforms: TransformDef[]): string | null {
+  private buildTransformExpr(
+    inputExpr: string,
+    fieldKey: string,
+    serTransforms: TransformDef[],
+  ): { code: string; expr: string } | null {
     if (serTransforms.length === 0) {
       return null;
     }
     const refs = this.refs;
-    // Walk serTransforms backwards in place (serialize reverses declaration order) — no clone allocation.
-    // The general loop already emits byte-identical code for 1 and 2 transforms, so no length fast-paths.
+    const fkJson = JSON.stringify(fieldKey);
+    // Mirror AsyncAnalyzer's `td.isAsync ?? isAsyncFunction(td.fn)` fallback — metadata built outside
+    // the @Field decorator (e.g. direct metaStore writes) may omit `isAsync`.
+    const asyncFlags = serTransforms.map(td => td.isAsync ?? isAsyncFunction(td.fn));
+    const hasSync = asyncFlags.some(isAsync => !isAsync);
+
+    if (!hasSync) {
+      // Walk serTransforms backwards in place (serialize reverses declaration order) — no clone allocation.
+      let valueExpr = inputExpr;
+      for (let k = serTransforms.length - 1; k >= 0; k -= 1) {
+        const td = serTransforms[k]!;
+        const refIdx = refs.length;
+        refs.push(td.fn);
+        const callExpr = `refs[${refIdx}]({value:${valueExpr},key:${fkJson},obj:instance})`;
+        valueExpr = `(await ${callExpr})`;
+      }
+      return { code: '', expr: valueExpr };
+    }
+
+    const tmpVar = `${GEN.transformTmp}${sanitizeKey(fieldKey)}`;
+    const guardMsg = JSON.stringify(
+      `@Field(${fieldKey}) ${Direction.Serialize} transform returned Promise. Declare the transform with async if it is asynchronous.`,
+    );
+    let code = `var ${tmpVar};\n`;
     let valueExpr = inputExpr;
     for (let k = serTransforms.length - 1; k >= 0; k -= 1) {
       const td = serTransforms[k]!;
+      const isAsync = asyncFlags[k]!;
       const refIdx = refs.length;
       refs.push(td.fn);
-      const callExpr = `refs[${refIdx}]({value:${valueExpr},key:${JSON.stringify(fieldKey)},obj:instance})`;
-      valueExpr = td.isAsync ? `(await ${callExpr})` : callExpr;
+      const callExpr = `refs[${refIdx}]({value:${valueExpr},key:${fkJson},obj:instance})`;
+      code += `${tmpVar} = ${isAsync ? 'await ' : ''}${callExpr};\n`;
+      if (!isAsync) {
+        code += `if (${tmpVar} !== null && (typeof ${tmpVar} === 'object' || typeof ${tmpVar} === 'function') && typeof ${tmpVar}.then === 'function') throw new BakerError(${guardMsg});\n`;
+      }
+      valueExpr = tmpVar;
     }
-    return valueExpr;
+    return { code, expr: tmpVar };
   }
 
   /**
@@ -392,8 +425,8 @@ class SerializeBuilder<T> {
    * Reads the current value from outputTarget, chains transforms, writes back.
    */
   private buildPostNestedTransformCode(outputTarget: string, fieldKey: string, serTransforms: TransformDef[]): string {
-    const transformed = this.buildTransformExpr(outputTarget, fieldKey, serTransforms);
-    return transformed ? `\n${outputTarget} = ${transformed};` : '';
+    const result = this.buildTransformExpr(outputTarget, fieldKey, serTransforms);
+    return result ? `\n${result.code}${outputTarget} = ${result.expr};` : '';
   }
 
   /**
@@ -406,8 +439,8 @@ class SerializeBuilder<T> {
     const serTransforms = meta.transform.filter(td => !td.options?.deserializeOnly);
 
     if (serTransforms.length > 0) {
-      const transformed = this.buildTransformExpr(fieldValueExpr, fieldKey, serTransforms)!;
-      return `${outputTarget} = ${transformed};`;
+      const result = this.buildTransformExpr(fieldValueExpr, fieldKey, serTransforms)!;
+      return `${result.code}${outputTarget} = ${result.expr};`;
     }
 
     return `${outputTarget} = ${fieldValueExpr};`;

@@ -72,6 +72,7 @@ export const SER_GEN = {
   nestedArr: '__bk$na',
   nestedIdx: '__bk$ni',
   nestedItem: '__bk$nitem',
+  transformTmp: '__bk$tv',
 } as const;
 
 /** `@Type`() primitive builtin → target type mapping */

@@ -5,7 +5,7 @@ import type { TypeGateConfig } from './deserialize-codegen';
 import type { SealOptions, SealedExecutors, ChildScope, CategorizedRules, ResolvedTypeGate } from './interfaces';
 import type { DeserializeExecutor, DeserializeOutcome, ValidateExecutor } from './types';
 
-import { CacheKey, BakerError, Direction } from '../common';
+import { CacheKey, BakerError, Direction, isAsyncFunction } from '../common';
 import { CollectionType } from '../metadata';
 import { emitRulePlan } from '../rules';
 import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
@@ -270,8 +270,9 @@ class DeserializeBuilder {
       'refs',
       'execs',
       '__SEEN_KEY',
+      'BakerError',
       `return ${fnKeyword}(input, opts) { ` + body + ' }',
-    )(Class, regexes, refs, execs, seenKey) as (input: unknown, opts?: RuntimeOptions) => DeserializeOutcome<T>;
+    )(Class, regexes, refs, execs, seenKey, BakerError) as (input: unknown, opts?: RuntimeOptions) => DeserializeOutcome<T>;
 
     return executor;
   }
@@ -388,29 +389,23 @@ class DeserializeBuilder {
     if (dsTransforms.length > 0) {
       const fkJson = JSON.stringify(fieldKey);
       const objExpr = this.inputExpr || 'input';
-      if (dsTransforms.length === 1) {
-        const td = dsTransforms[0]!;
+      // Seal-time-precomputed guard message — identical for every sync transform on this field (only
+      // propertyKey + direction vary, both constant per field/direction).
+      const guardMsg = JSON.stringify(
+        `@Field(${fieldKey}) ${Direction.Deserialize} transform returned Promise. Declare the transform with async if it is asynchronous.`,
+      );
+      for (const td of dsTransforms) {
         const refIdx = this.refs.length;
         this.refs.push(td.fn);
+        // Mirror AsyncAnalyzer's `td.isAsync ?? isAsyncFunction(td.fn)` fallback — metadata built
+        // outside the @Field decorator (e.g. direct metaStore writes) may omit `isAsync`.
+        const isAsync = td.isAsync ?? isAsyncFunction(td.fn);
         const callExpr = `refs[${refIdx}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
-        code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
-      } else if (dsTransforms.length === 2) {
-        const td0 = dsTransforms[0]!;
-        const td1 = dsTransforms[1]!;
-        const refIdx0 = this.refs.length;
-        this.refs.push(td0.fn);
-        const refIdx1 = this.refs.length;
-        this.refs.push(td1.fn);
-        const call0 = `refs[${refIdx0}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
-        const expr0 = td0.isAsync ? `await ${call0}` : call0;
-        const call1 = `refs[${refIdx1}]({value:${expr0},key:${fkJson},obj:${objExpr}})`;
-        code += `${varName} = ${td1.isAsync ? 'await ' : ''}${call1};\n`;
-      } else {
-        for (const td of dsTransforms) {
-          const refIdx = this.refs.length;
-          this.refs.push(td.fn);
-          const callExpr = `refs[${refIdx}]({value:${varName},key:${fkJson},obj:${objExpr}})`;
-          code += `${varName} = ${td.isAsync ? 'await ' : ''}${callExpr};\n`;
+        code += `${varName} = ${isAsync ? 'await ' : ''}${callExpr};\n`;
+        // Sync transforms only — a Promise return from a sync-declared transform is a contract
+        // violation; the value must be guarded BEFORE it feeds the next transform/validation.
+        if (!isAsync) {
+          code += `if (${varName} !== null && (typeof ${varName} === 'object' || typeof ${varName} === 'function') && typeof ${varName}.then === 'function') throw new BakerError(${guardMsg});\n`;
         }
       }
     }
