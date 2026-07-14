@@ -34,15 +34,20 @@ class MetaStore {
 
   /** The class's OWN metadata object, creating one if absent. */
   #ensureOwnMeta(cls: Function): MetaObject {
-    if (!Object.hasOwn(cls, Symbol.metadata)) {
-      Object.defineProperty(cls, Symbol.metadata, {
-        value: {} as MetaObject,
-        writable: true,
-        configurable: true,
-        enumerable: false,
-      });
+    if (Object.hasOwn(cls, Symbol.metadata)) {
+      const own = this.#metaOf(cls);
+      if (own) {
+        return own;
+      }
     }
-    return (cls as MetaCarrier)[Symbol.metadata]!;
+    const meta: MetaObject = {};
+    Object.defineProperty(cls, Symbol.metadata, {
+      value: meta,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
+    return meta;
   }
 
   get(cls: Function): RawClassMeta | undefined {
@@ -72,7 +77,10 @@ class MetaStore {
   /** Test-only: drop a class's own RAW slot so specs can reset state between cases. */
   delete(cls: Function): void {
     if (Object.hasOwn(cls, Symbol.metadata)) {
-      delete (cls as MetaCarrier)[Symbol.metadata]![this.#rawKey];
+      const meta = this.#metaOf(cls);
+      if (meta) {
+        delete meta[this.#rawKey];
+      }
     }
   }
 

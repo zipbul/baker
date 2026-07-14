@@ -173,7 +173,7 @@ class FieldMetaApplier {
     if (!this.#options.type) {
       return;
     }
-    const td: TypeDef = { fn: this.#options.type as TypeDef['fn'] };
+    const td: TypeDef = { fn: this.#options.type };
     if (this.#options.discriminator !== undefined) {
       td.discriminator = this.#options.discriminator;
     }

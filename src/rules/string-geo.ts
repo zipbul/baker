@@ -1,7 +1,7 @@
 import type { EmitContext, EmittableRule } from './interfaces';
 
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule } from './string-shared';
 
 const NUMERIC_RANGE_RE = /^-?\d+(\.\d+)?$/;
 
@@ -41,14 +41,7 @@ function rangeNumberOrString(name: string, lo: number, hi: number): EmittableRul
 const LAT_LONG_RE = /^[-+]?([1-8]?\d(?:\.\d+)?|90(?:\.0+)?),\s*[-+]?(180(?:\.0+)?|1[0-7]\d(?:\.\d+)?|\d{1,2}(?:\.\d+)?)$/;
 
 function isLatLong(): EmittableRule<string> {
-  return makeStringRule(
-    'isLatLong',
-    v => LAT_LONG_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(LAT_LONG_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isLatLong')};`;
-    },
-  );
+  return makeRegexRule('isLatLong', LAT_LONG_RE);
 }
 
 const isLatitude = rangeNumberOrString('isLatitude', -90, 90);

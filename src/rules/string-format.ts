@@ -4,23 +4,14 @@ import { BakerError } from '../common';
 import { TAX_ID_REGEXES } from './constants';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule } from './string-shared';
 
 // Email — RFC 5322 simplified
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
 
 function isEmail(): EmittableRule<string> {
-  return makeStringRule(
-    'isEmail',
-    v => EMAIL_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(EMAIL_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isEmail')};`;
-    },
-    RequiredType.String,
-    { format: 'email' },
-  );
+  return makeRegexRule('isEmail', EMAIL_RE, RequiredType.String, { format: 'email' });
 }
 
 // URL — RFC 3986 simplified
@@ -36,18 +27,9 @@ function isURL(options?: IsURLOptions): EmittableRule<string> {
   const re = new RegExp(
     `^(?:${protocolPattern}):\\/\\/(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)(?::(6553[0-5]|655[0-2]\\d|65[0-4]\\d{2}|6[0-4]\\d{3}|[1-5]\\d{4}|[1-9]\\d{0,3}|0))?(?:\\/[^\\s]*)?$`,
   );
-  return makeRule<string>({
-    name: 'isURL',
-    requiresType: RequiredType.String,
-    // Copy so each rule owns an independent, mutable constraints array (the frozen default and a
-    // caller-supplied array are both isolated from `rule.constraints`).
-    constraints: { format: 'uri', protocols: [...protocols] },
-    validate: value => typeof value === 'string' && re.test(value),
-    emit: (varName: string, ctx: EmitContext): string => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isURL')};`;
-    },
-  });
+  // Copy so each rule owns an independent, mutable constraints array (the frozen default and a
+  // caller-supplied array are both isolated from `rule.constraints`).
+  return makeRegexRule('isURL', re, RequiredType.String, { format: 'uri', protocols: [...protocols] });
 }
 
 // UUID
@@ -62,16 +44,7 @@ const UUID_RE = {
 
 function isUUID(version?: 1 | 2 | 3 | 4 | 5 | 'all'): EmittableRule<string> {
   const re = version != null ? UUID_RE[version] : UUID_RE.all;
-  return makeStringRule(
-    'isUUID',
-    v => re.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isUUID')};`;
-    },
-    RequiredType.String,
-    { format: 'uuid', version },
-  );
+  return makeRegexRule('isUUID', re, RequiredType.String, { format: 'uuid', version });
 }
 
 // IP
@@ -151,37 +124,16 @@ function isMACAddress(options?: IsMACAddressOptions): EmittableRule<string> {
 
 // JWT — 3-part dot-separated base64url
 const JWT_RE = /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
-const isJWT = makeStringRule(
-  'isJWT',
-  v => JWT_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(JWT_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isJWT')};`;
-  },
-);
+const isJWT = makeRegexRule('isJWT', JWT_RE);
 
 // Locale — BCP 47 simplified. Variant subtags are `5*8alphanum` OR a digit followed by 3 alphanum
 // (e.g. the `1996` orthography variant in `de-DE-1996`).
 const LOCALE_RE = /^[a-zA-Z]{2,3}(?:-[a-zA-Z]{4})?(?:-(?:[a-zA-Z]{2}|\d{3}))?(?:-(?:[a-zA-Z\d]{5,8}|\d[a-zA-Z\d]{3}))*$/;
-const isLocale = makeStringRule(
-  'isLocale',
-  v => LOCALE_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(LOCALE_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isLocale')};`;
-  },
-);
+const isLocale = makeRegexRule('isLocale', LOCALE_RE);
 
 // DataURI
 const DATA_URI_RE = /^data:([a-zA-Z0-9!#$&\-^_]+\/[a-zA-Z0-9!#$&\-^_]+)(?:;[a-zA-Z0-9-]+=[a-zA-Z0-9-]+)*(?:;base64)?,[\s\S]*$/;
-const isDataURI = makeStringRule(
-  'isDataURI',
-  v => DATA_URI_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(DATA_URI_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isDataURI')};`;
-  },
-);
+const isDataURI = makeRegexRule('isDataURI', DATA_URI_RE);
 
 // FQDN
 interface IsFQDNOptions {
@@ -272,14 +224,7 @@ function isFQDN(options?: IsFQDNOptions): EmittableRule<string> {
 
 // Port — 0 to 65535
 const PORT_RE = /^(?:6553[0-5]|655[0-2]\d|65[0-4]\d{2}|6[0-4]\d{3}|[1-5]\d{4}|[1-9]\d{1,3}|\d)$/;
-const isPort = makeStringRule(
-  'isPort',
-  v => PORT_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(PORT_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isPort')};`;
-  },
-);
+const isPort = makeRegexRule('isPort', PORT_RE);
 
 // JSON
 const validateJsonString = (value: unknown): boolean => {
@@ -305,25 +250,11 @@ const isJSON = makeRule<string>({
 // MimeType
 const MIME_TYPE_RE =
   /^(application|audio|font|image|message|model|multipart|text|video)\/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*(?:;.+)?$/;
-const isMimeType = makeStringRule(
-  'isMimeType',
-  v => MIME_TYPE_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(MIME_TYPE_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isMimeType')};`;
-  },
-);
+const isMimeType = makeRegexRule('isMimeType', MIME_TYPE_RE);
 
 // Magnet URI
 const MAGNET_URI_RE = /^magnet:\?xt=urn:[a-z0-9]+:[a-z0-9]{32,40}(?:&[a-z][a-z0-9.]*=[^&\s]*)*$/i;
-const isMagnetURI = makeStringRule(
-  'isMagnetURI',
-  v => MAGNET_URI_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(MAGNET_URI_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isMagnetURI')};`;
-  },
-);
+const isMagnetURI = makeRegexRule('isMagnetURI', MAGNET_URI_RE);
 
 // ByteLength — counts UTF-8 bytes via Buffer.byteLength
 function isByteLength(min: number, max?: number): EmittableRule<string> {
@@ -361,14 +292,7 @@ function isByteLength(min: number, max?: number): EmittableRule<string> {
 
 const PHONE_E164_RE = /^\+[1-9]\d{6,14}$/;
 
-const isPhoneNumber = makeStringRule(
-  'isPhoneNumber',
-  v => PHONE_E164_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(PHONE_E164_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isPhoneNumber')};`;
-  },
-);
+const isPhoneNumber = makeRegexRule('isPhoneNumber', PHONE_E164_RE);
 
 // isStrongPassword — strong password check (factory)
 

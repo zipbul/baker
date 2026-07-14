@@ -4,18 +4,11 @@ import { BakerError } from '../common';
 import { HASH_REGEXES } from './constants';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule, makeStringRule } from './string-shared';
 
 const ETH_ADDRESS_RE = /^0x[0-9a-fA-F]{40}$/;
 
-const isEthereumAddress = makeStringRule(
-  'isEthereumAddress',
-  v => ETH_ADDRESS_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ETH_ADDRESS_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isEthereumAddress')};`;
-  },
-);
+const isEthereumAddress = makeRegexRule('isEthereumAddress', ETH_ADDRESS_RE);
 
 const BTC_P2PKH_RE = /^1[a-km-zA-HJ-NP-Z1-9]{25,34}$/;
 

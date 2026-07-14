@@ -36,7 +36,7 @@ export function isByteSize(min: number, max?: number): EmittableRule<ArrayBuffer
       if (!ArrayBuffer.isView(value)) {
         return false;
       }
-      const byteLen = (value as ArrayBufferView).byteLength;
+      const byteLen = value.byteLength;
       if (byteLen < min) {
         return false;
       }

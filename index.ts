@@ -17,7 +17,7 @@ export type { BakerIssue, BakerIssueSet } from './src/common';
 export { isBakerIssueSet, BakerError } from './src/common';
 
 // Types
-export type { EmittableRule } from './src/rules';
+export type { EmittableRule, WidenLiteral } from './src/rules';
 export type { Transformer, TransformParams } from './src/transformers';
 export type { BakerConfig } from './src/config';
 

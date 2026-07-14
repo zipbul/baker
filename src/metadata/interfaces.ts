@@ -14,6 +14,9 @@ export interface MessageArgs {
   constraints: Record<string, unknown>;
 }
 
+/** Nested DTO / collection type thunk — lazy, supports circular class references. */
+export type TypeThunk = () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
+
 export interface RuleDef {
   rule: InternalRule;
   each?: boolean;
@@ -59,7 +62,7 @@ export interface DiscriminatorDef {
 }
 
 export interface TypeDef {
-  fn: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
+  fn: TypeThunk;
   discriminator?: DiscriminatorDef;
   keepDiscriminatorProperty?: boolean;
   /** seal-time normalization result — true if fn() returns an array */

@@ -1,19 +1,10 @@
 import type { LuxonLike, LuxonTransformerOptions, Transformer } from './interfaces';
 
-import { BakerError } from '../common';
 import { LUXON_MISSING } from './constants';
+import { loadPeerDependency } from './peer-dependency';
 
 async function luxonTransformer(opts?: LuxonTransformerOptions): Promise<Transformer> {
-  let luxon: typeof import('luxon');
-  try {
-    luxon = await import('luxon');
-  } catch (e) {
-    // Only ERR_MODULE_NOT_FOUND ("not installed") maps to the peer-dep hint; a module that IS installed
-    // but throws during evaluation surfaces its real error, not a misleading "install it" message. This
-    // branch is untestable in a 1:1 spec — luxon is an installed devDependency, so luxon.spec.ts exercises
-    // the real module and a throwing mock cannot coexist with it in one bun process.
-    throw (e as { code?: string }).code === 'ERR_MODULE_NOT_FOUND' ? new BakerError(LUXON_MISSING, { cause: e }) : e;
-  }
+  const luxon = await loadPeerDependency<typeof import('luxon')>(() => import('luxon'), LUXON_MISSING);
   const { DateTime } = luxon;
   const zone = opts?.zone ?? 'utc';
   // Hoist format option once so the serialize closure doesn't re-read opts per call

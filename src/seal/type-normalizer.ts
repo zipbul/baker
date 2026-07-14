@@ -44,7 +44,7 @@ export function normalizeTypeDefs(merged: RawClassMeta, className: string): void
             },
           );
         }
-        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls as Function)) {
+        if (valCls != null && typeof valCls === 'function' && !PRIMITIVE_CTORS.has(valCls)) {
           typeCopy.resolvedCollectionValue = valCls as ClassCtor;
         }
       }

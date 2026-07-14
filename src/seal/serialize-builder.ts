@@ -4,7 +4,15 @@ import type { SealOptions, SealedExecutors } from './interfaces';
 
 import { BakerError, Direction, isAsyncFunction } from '../common';
 import { CollectionType } from '../metadata';
-import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
+import {
+  sanitizeKey,
+  buildGroupsHasExpr,
+  resolveExposeName,
+  resolveExposeGroups,
+  resolveNestedExecutor,
+  resolveFieldSkip,
+  emitPromiseGuard,
+} from './codegen-utils';
 import { SER_GEN as GEN } from './constants';
 
 // Field rename + expose-group resolution (both directions) live in codegen-utils as the single
@@ -112,17 +120,9 @@ class SerializeBuilder<T> {
     return executor;
   }
 
-  /**
-   * Resolve a nested class's sealed executor. seal() seals every nested DTO (step 4) before serialize
-   * codegen (step 7), so this is always present; throwing on `undefined` turns a would-be runtime
-   * "Cannot read 'serialize' of undefined" into a clear seal-time error and removes the cast at call sites.
-   */
+  /** Resolve a nested class's sealed executor, throwing a clear seal-time error if absent. */
   private resolveExecutor(cls: Function): SealedExecutors<unknown> {
-    const sealed = this.resolve(cls);
-    if (sealed === undefined) {
-      throw new BakerError(`${this.Class.name}: nested class '${cls.name}' was not sealed before serialize codegen.`);
-    }
-    return sealed;
+    return resolveNestedExecutor(this.resolve, this.Class.name, cls, Direction.Serialize);
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -133,23 +133,9 @@ class SerializeBuilder<T> {
     const className = this.Class.name;
     const options = this.options;
 
-    // ⓪ Exclude serializeOnly / bidirectional → skip
-    if (meta.exclude) {
-      if (!meta.exclude.deserializeOnly) {
-        if (options?.debug) {
-          const reason = meta.exclude.serializeOnly ? 'serializeOnly' : 'bidirectional';
-          return `// [baker] field ${JSON.stringify(fieldKey)} excluded (${reason} @Exclude)\n`;
-        }
-        return '';
-      }
-    }
-
-    // Expose: if all @Expose entries are deserializeOnly, skip for serialize
-    if (meta.expose.length > 0 && meta.expose.every(e => e.deserializeOnly)) {
-      if (options?.debug) {
-        return `// [baker] field ${JSON.stringify(fieldKey)} excluded (all @Expose entries are deserializeOnly)\n`;
-      }
-      return '';
+    const skip = resolveFieldSkip(meta, Direction.Serialize, options?.debug, fieldKey);
+    if (skip !== null) {
+      return skip;
     }
 
     const outputKey = resolveExposeName(fieldKey, meta.expose, Direction.Serialize);
@@ -400,9 +386,6 @@ class SerializeBuilder<T> {
     }
 
     const tmpVar = `${GEN.transformTmp}${sanitizeKey(fieldKey)}`;
-    const guardMsg = JSON.stringify(
-      `@Field(${fieldKey}) ${Direction.Serialize} transform returned Promise. Declare the transform with async if it is asynchronous.`,
-    );
     let code = `var ${tmpVar};\n`;
     let valueExpr = inputExpr;
     for (let k = serTransforms.length - 1; k >= 0; k -= 1) {
@@ -413,7 +396,7 @@ class SerializeBuilder<T> {
       const callExpr = `refs[${refIdx}]({value:${valueExpr},key:${fkJson},obj:instance})`;
       code += `${tmpVar} = ${isAsync ? 'await ' : ''}${callExpr};\n`;
       if (!isAsync) {
-        code += `if (${tmpVar} !== null && (typeof ${tmpVar} === 'object' || typeof ${tmpVar} === 'function') && typeof ${tmpVar}.then === 'function') throw new BakerError(${guardMsg});\n`;
+        code += emitPromiseGuard(tmpVar, fieldKey, Direction.Serialize);
       }
       valueExpr = tmpVar;
     }

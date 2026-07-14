@@ -197,6 +197,11 @@ export function generateConversionCode(
   }
 }
 
+/** The type-gate kinds a rule's `requiresType` may specify — single source of truth for both
+ *  `typedBuckets`' keys and the mixed-gate conflict scan below. */
+export const TYPE_GATE_KINDS = ['string', 'number', 'boolean', 'date', 'array', 'object'] as const;
+export type TypeGateKind = (typeof TYPE_GATE_KINDS)[number];
+
 /** Result of categorizeRules — each/nonEach split and typed dependency classification */
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts (pure) */
 export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validation']): CategorizedRules {
@@ -204,7 +209,7 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   // a fresh intermediate. For a field with N rules, runs at seal time only but adds up across DTOs.
   const each: RuleDef[] = [];
   const generalRules: RuleDef[] = [];
-  const typedBuckets: Record<string, RuleDef[]> = {
+  const typedBuckets: Record<TypeGateKind, RuleDef[]> = {
     string: [],
     number: [],
     boolean: [],
@@ -219,7 +224,7 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
     }
     const reqType = rd.rule.requiresType;
     if (reqType !== undefined) {
-      typedBuckets[reqType]!.push(rd);
+      typedBuckets[reqType].push(rd);
     } else {
       generalRules.push(rd);
     }
@@ -228,8 +233,8 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   // Mixed gate conflict detection — at most one bucket should be non-empty
   let chosen: CategorizedRules['typedDeps'] = undefined;
   let activeTypes: string[] | null = null;
-  for (const t of ['string', 'number', 'boolean', 'date', 'array', 'object'] as const) {
-    const deps = typedBuckets[t]!;
+  for (const t of TYPE_GATE_KINDS) {
+    const deps = typedBuckets[t];
     if (deps.length === 0) {
       continue;
     }

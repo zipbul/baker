@@ -2,40 +2,19 @@ import type { EmitContext, EmittableRule } from './interfaces';
 
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule, makeStringRule } from './string-shared';
 
 // Hexadecimal
 const HEX_RE = /^[0-9a-fA-F]+$/;
-const isHexadecimal = makeStringRule(
-  'isHexadecimal',
-  v => HEX_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(HEX_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHexadecimal')};`;
-  },
-);
+const isHexadecimal = makeRegexRule('isHexadecimal', HEX_RE);
 
 // Octal
 const OCTAL_RE = /^(0[oO])?[0-7]+$/;
-const isOctal = makeStringRule(
-  'isOctal',
-  v => OCTAL_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(OCTAL_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isOctal')};`;
-  },
-);
+const isOctal = makeRegexRule('isOctal', OCTAL_RE);
 
 // HexColor: #RGB or #RRGGBB
 const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
-const isHexColor = makeStringRule(
-  'isHexColor',
-  v => HEX_COLOR_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(HEX_COLOR_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHexColor')};`;
-  },
-);
+const isHexColor = makeRegexRule('isHexColor', HEX_COLOR_RE);
 
 // RgbColor
 const RGB_RE =
@@ -79,18 +58,11 @@ function isRgbColor(includePercentValues: boolean = false): EmittableRule<string
 // Alpha belongs to hsla() only — `hsla?(...)?` previously let hsl() carry alpha and hsla() omit it.
 const HSL_RE =
   /^(?:hsl\(\s*(?:360|3[0-5]\d|[12]\d{2}|[1-9]\d|\d)\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:100|[1-9]\d|\d)%\s*\)|hsla\(\s*(?:360|3[0-5]\d|[12]\d{2}|[1-9]\d|\d)\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:100|[1-9]\d|\d)%\s*,\s*(?:0|0?\.\d+|1(?:\.0+)?)\s*\))$/;
-const isHSL = makeStringRule(
-  'isHSL',
-  v => HSL_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(HSL_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHSL')};`;
-  },
-);
+const isHSL = makeRegexRule('isHSL', HSL_RE);
 
 // Base32
 const BASE32_RE = /^[A-Z2-7]+=*$/i;
-// Empty-string fails the `+`-quantified regex anyway, so the explicit length===0 check is dead.
+// No empty-string guard needed — the `+`-quantified regex already rejects empty input.
 function isBase32(): EmittableRule<string> {
   return makeStringRule(
     'isBase32',
@@ -104,14 +76,7 @@ function isBase32(): EmittableRule<string> {
 
 // Base58
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]+$/;
-const isBase58 = makeStringRule(
-  'isBase58',
-  v => BASE58_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(BASE58_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isBase58')};`;
-  },
-);
+const isBase58 = makeRegexRule('isBase58', BASE58_RE);
 
 // Base64
 const BASE64_RE = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{4})$/;
@@ -125,17 +90,8 @@ interface IsBase64Options {
 
 function isBase64(options?: IsBase64Options): EmittableRule<string> {
   const re = options?.urlSafe ? BASE64_URL_RE : BASE64_RE;
-  // Empty-string check is redundant — both base64 regexes require ≥1 char and fail on empty input.
-  return makeStringRule(
-    'isBase64',
-    v => re.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isBase64')};`;
-    },
-    RequiredType.String,
-    options?.urlSafe !== undefined ? { urlSafe: options.urlSafe } : {},
-  );
+  // No empty-string guard needed — both base64 regexes already require ≥1 char and reject empty input.
+  return makeRegexRule('isBase64', re, RequiredType.String, options?.urlSafe !== undefined ? { urlSafe: options.urlSafe } : {});
 }
 
 export { isHexadecimal, isOctal, isHexColor, isRgbColor, isHSL, isBase32, isBase58, isBase64 };

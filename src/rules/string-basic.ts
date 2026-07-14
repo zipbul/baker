@@ -3,7 +3,7 @@ import type { EmitContext, EmittableRule } from './interfaces';
 import { CacheKey } from '../common';
 import { RequiredType, RuleOp } from './enums';
 import { makePlannedRule, makeRule, planCompare, planLength, planOr } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule } from './string-shared';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Group A: Length / Range
@@ -78,16 +78,7 @@ function matches(pattern: string | RegExp, modifiers?: string): EmittableRule<st
   const source = pattern instanceof RegExp ? pattern.source : pattern;
   const flags = (pattern instanceof RegExp ? pattern.flags : (modifiers ?? '')).replace(/[gy]/g, '');
   const re = new RegExp(source, flags);
-  return makeRule<string>({
-    name: 'matches',
-    requiresType: RequiredType.String,
-    constraints: { pattern: re.source },
-    validate: value => typeof value === 'string' && re.test(value),
-    emit: (varName: string, ctx: EmitContext): string => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('matches')};`;
-    },
-  });
+  return makeRegexRule('matches', re, RequiredType.String, { pattern: re.source });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -112,51 +103,23 @@ const isUppercase = makeRule<string>({
 
 // ASCII: all code points in [0x00, 0x7F]
 const ASCII_RE = new RegExp(`^[${String.fromCharCode(0)}-${String.fromCharCode(0x7f)}]*$`);
-const isAscii = makeStringRule(
-  'isAscii',
-  v => ASCII_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ASCII_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isAscii')};`;
-  },
-);
+const isAscii = makeRegexRule('isAscii', ASCII_RE);
 
 // Alpha — [a-zA-Z]+ singleton
 const ALPHA_DEFAULT_RE = /^[a-zA-Z]+$/;
-// length > 0 guard is dead — `+` quantifier requires ≥1 char so the regex returns false on empty.
-const isAlpha = makeStringRule(
-  'isAlpha',
-  v => ALPHA_DEFAULT_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ALPHA_DEFAULT_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isAlpha')};`;
-  },
-);
+// No length guard needed — `+` quantifier requires ≥1 char so the regex already rejects empty input.
+const isAlpha = makeRegexRule('isAlpha', ALPHA_DEFAULT_RE);
 
 // Alphanumeric — [a-zA-Z0-9]+ singleton (same empty-input rationale as isAlpha)
 const ALNUM_DEFAULT_RE = /^[a-zA-Z0-9]+$/;
-const isAlphanumeric = makeStringRule(
-  'isAlphanumeric',
-  v => ALNUM_DEFAULT_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ALNUM_DEFAULT_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isAlphanumeric')};`;
-  },
-);
+const isAlphanumeric = makeRegexRule('isAlphanumeric', ALNUM_DEFAULT_RE);
 
 // HTTP token — RFC 9110 §5.6.2: token = 1*tchar.
 // tchar = "!"/"#"/"$"/"%"/"&"/"'"/"*"/"+"/"-"/"."/"^"/"_"/"`"/"|"/"~" / DIGIT / ALPHA.
 // Used for HTTP method names and header field-names (not field-values). The hyphen is
 // escaped so it stays literal — an unescaped `+-.` would form a range that admits ",".
 const HTTP_TOKEN_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-const isHttpToken = makeStringRule(
-  'isHttpToken',
-  v => HTTP_TOKEN_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(HTTP_TOKEN_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isHttpToken')};`;
-  },
-);
+const isHttpToken = makeRegexRule('isHttpToken', HTTP_TOKEN_RE);
 
 // RFC 6454 §6.2 serialized origin — a string equal to WHATWG URL `.origin`.
 // The opaque-origin literal 'null' is matched explicitly because `new URL('null')` throws.
@@ -220,29 +183,13 @@ function isNumberString(options?: IsNumberStringOptions): EmittableRule<string> 
   const noSymbols = options?.noSymbols ?? false;
   const re = noSymbols ? NO_SYMBOLS_RE : NUMERIC_STRING_RE;
 
-  return makeStringRule(
-    'isNumberString',
-    (s: string): boolean => re.test(s),
-    (varName, ctx) => {
-      const i = ctx.addRegex(re);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isNumberString')};`;
-    },
-    RequiredType.String,
-    { noSymbols },
-  );
+  return makeRegexRule('isNumberString', re, RequiredType.String, { noSymbols });
 }
 
 function isDecimal(): EmittableRule<string> {
   // Require a digit after the dot — `\d+(?:\.\d*)?` accepted a dangling "5.".
   const decimalRe = /^[-+]?(?:\d+(?:\.\d+)?|\.\d+)$/;
-  return makeStringRule(
-    'isDecimal',
-    v => decimalRe.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(decimalRe);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isDecimal')};`;
-    },
-  );
+  return makeRegexRule('isDecimal', decimalRe);
 }
 
 export {

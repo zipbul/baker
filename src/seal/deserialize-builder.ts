@@ -8,7 +8,15 @@ import type { DeserializeExecutor, DeserializeOutcome, ValidateExecutor } from '
 import { CacheKey, BakerError, Direction, isAsyncFunction } from '../common';
 import { CollectionType } from '../metadata';
 import { emitRulePlan } from '../rules';
-import { sanitizeKey, buildGroupsHasExpr, resolveExposeName, resolveExposeGroups } from './codegen-utils';
+import {
+  sanitizeKey,
+  buildGroupsHasExpr,
+  resolveExposeName,
+  resolveExposeGroups,
+  resolveNestedExecutor,
+  resolveFieldSkip,
+  emitPromiseGuard,
+} from './codegen-utils';
 import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE, GATE_ONLY_ASSERTERS } from './constants';
 import {
   toVarName,
@@ -282,24 +290,9 @@ class DeserializeBuilder {
   private generateFieldCode(fieldKey: string, meta: RawPropertyMeta): string {
     const { exposeDefaultValues } = this;
 
-    // ⓪ Exclude deserializeOnly / bidirectional → skip
-    if (meta.exclude) {
-      if (!meta.exclude.serializeOnly) {
-        if (this.options?.debug) {
-          const reason = meta.exclude.deserializeOnly ? 'deserializeOnly' : 'bidirectional';
-          return `// [baker] field ${JSON.stringify(fieldKey)} excluded (${reason} @Exclude)\n`;
-        }
-        return '';
-      }
-    }
-
-    // Expose: check if this field is exposed to deserialize
-    // If all @Expose entries are serializeOnly, skip field
-    if (meta.expose.length > 0 && meta.expose.every(e => e.serializeOnly)) {
-      if (this.options?.debug) {
-        return `// [baker] field ${JSON.stringify(fieldKey)} excluded (all @Expose entries are serializeOnly)\n`;
-      }
-      return '';
+    const skip = resolveFieldSkip(meta, Direction.Deserialize, this.options?.debug, fieldKey);
+    if (skip !== null) {
+      return skip;
     }
 
     const varName = toVarName(fieldKey, this.varPrefix);
@@ -389,11 +382,6 @@ class DeserializeBuilder {
     if (dsTransforms.length > 0) {
       const fkJson = JSON.stringify(fieldKey);
       const objExpr = this.inputExpr || 'input';
-      // Seal-time-precomputed guard message — identical for every sync transform on this field (only
-      // propertyKey + direction vary, both constant per field/direction).
-      const guardMsg = JSON.stringify(
-        `@Field(${fieldKey}) ${Direction.Deserialize} transform returned Promise. Declare the transform with async if it is asynchronous.`,
-      );
       for (const td of dsTransforms) {
         const refIdx = this.refs.length;
         this.refs.push(td.fn);
@@ -405,7 +393,7 @@ class DeserializeBuilder {
         // Sync transforms only — a Promise return from a sync-declared transform is a contract
         // violation; the value must be guarded BEFORE it feeds the next transform/validation.
         if (!isAsync) {
-          code += `if (${varName} !== null && (typeof ${varName} === 'object' || typeof ${varName} === 'function') && typeof ${varName}.then === 'function') throw new BakerError(${guardMsg});\n`;
+          code += emitPromiseGuard(varName, fieldKey, Direction.Deserialize);
         }
       }
     }
@@ -973,17 +961,9 @@ class DeserializeBuilder {
     return code;
   }
 
-  /**
-   * Resolve a nested class's sealed executor. seal() seals every nested DTO (step 4) before deserialize
-   * codegen (step 6), so this is always present; throwing on `undefined` turns a would-be runtime
-   * "Cannot read 'deserialize'/'merged' of undefined" into a clear seal-time error and removes the cast.
-   */
+  /** Resolve a nested class's sealed executor, throwing a clear seal-time error if absent. */
   private resolveExecutor(cls: Function): SealedExecutors<unknown> {
-    const sealed = this.resolve(cls);
-    if (sealed === undefined) {
-      throw new BakerError(`${this.Class.name}: nested class '${cls.name}' was not sealed before deserialize codegen.`);
-    }
-    return sealed;
+    return resolveNestedExecutor(this.resolve, this.Class.name, cls, Direction.Deserialize);
   }
 
   /**
@@ -1270,6 +1250,13 @@ class DeserializeBuilder {
       }
     } else {
       // simple nested or each array
+      // INVARIANT: resolvedClass is always set here. normalizeTypeDefs (seal step 1b) sets
+      // resolvedClass together with (and only together with) flags.validateNested, unwrapping the
+      // `[Element]` array form to the element class first — so a real seal() run can never reach
+      // this branch (guarded by `meta.flags.validateNested` in generateValidationCode) with
+      // resolvedClass unset. The `meta.type.fn()` fallback exists only for deserialize-builder.spec.ts,
+      // which calls buildDeserializeCode directly with hand-rolled metadata that bypasses
+      // normalizeTypeDefs and always uses a bare-constructor thunk (never the array form).
       const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
       const nestedSealed = this.resolveExecutor(nestedCls);
       const execIdx = execs.length;
@@ -1329,7 +1316,8 @@ class DeserializeBuilder {
 
   // Inline-eligibility predicate: a nested DTO can be inlined unless it is already in the
   // active inline-set (circular reference). Inlined directly at the three call sites below
-  // — no extra function call at seal time.
+  // — the GENERATED code validates the nested DTO's fields in place instead of calling out to
+  // its executor at runtime (there is still exactly one codegen call at seal time either way).
 
   /**
    * Emit inline validation code for all fields of a nested DTO via a CHILD builder.
@@ -1463,6 +1451,8 @@ class DeserializeBuilder {
       }
       code += `}\n`;
     } else {
+      // INVARIANT: see the identical fallback in generateNestedCode above — resolvedClass is always
+      // set by the time a real seal() run reaches this branch.
       const nestedCls = meta.type.resolvedClass ?? (meta.type.fn() as Function);
       const nestedSealed = this.resolveExecutor(nestedCls);
       const nestedMerged = nestedSealed.merged;
