@@ -6,7 +6,7 @@ The fastest decorator-based DTO validation library for TypeScript. baker generat
 bun add @zipbul/baker
 ```
 
-Zero `reflect-metadata`. Sealed codegen.
+Zero `reflect-metadata`. Zero runtime dependencies. Sealed codegen.
 
 ## Requirements
 
@@ -19,8 +19,8 @@ Zero `reflect-metadata`. Sealed codegen.
 {
   "compilerOptions": {
     "target": "ESNext", // must include Symbol.metadata (ES2022+/ESNext)
-    "experimentalDecorators": false // use native TC39 decorators — this is the default; do NOT enable it
-  }
+    "experimentalDecorators": false, // use native TC39 decorators — this is the default; do NOT enable it
+  },
 }
 ```
 
@@ -64,13 +64,13 @@ if (isBakerIssueSet(result)) {
 
 ## Core Concepts
 
-| Concept | What it does |
-| ------------------- | ------------------------------------------------------------------------------ |
-| `new Baker(config?)` | An isolated registration + seal scope. Multiple bakers never mix. Use `@app.Recipe` and `app.seal()`. |
-| `@app.Recipe`       | Marks a class as a DTO of that baker. Only `@Field` properties are part of the contract. |
-| `@Field(...rules)`  | Declares a validated field. Global — works with any baker.                     |
-| `app.seal()`        | Compiles that baker's DTOs into executor functions. Call once, at startup.     |
-| `app.deserialize` / `app.validate` / `app.serialize` | Run that baker's compiled executors: parse+validate, validate-only, or emit a plain object. |
+| Concept                                              | What it does                                                                                          |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `new Baker(config?)`                                 | An isolated registration + seal scope. Multiple bakers never mix. Use `@app.Recipe` and `app.seal()`. |
+| `@app.Recipe`                                        | Marks a class as a DTO of that baker. Only `@Field` properties are part of the contract.              |
+| `@Field(...rules)`                                   | Declares a validated field. Global — works with any baker.                                            |
+| `app.seal()`                                         | Compiles that baker's DTOs into executor functions. Call once, at startup.                            |
+| `app.deserialize` / `app.validate` / `app.serialize` | Run that baker's compiled executors: parse+validate, validate-only, or emit a plain object.           |
 
 > Examples below assume a `const baker = new Baker()` in scope and a single `baker.seal()` after the DTOs are defined.
 
@@ -78,12 +78,12 @@ if (isBakerIssueSet(result)) {
 
 baker generates optimized JavaScript functions once on first seal, then executes them on every call — no per-call rule interpretation.
 
-| Feature            | baker                | class-validator        | Zod                 |
-| ------------------ | -------------------- | ---------------------- | ------------------- |
-| Approach           | AOT code generation  | Runtime interpretation | Schema method chain |
-| Decorators         | `@Field` (unified)   | 30+ individual         | N/A                 |
-| `reflect-metadata` | Not needed           | Required               | N/A                 |
-| Sync DTO return    | Direct value         | Promise                | Direct value        |
+| Feature         | baker               | class-validator                  | Zod                 |
+| --------------- | ------------------- | -------------------------------- | ------------------- |
+| Approach        | AOT code generation | Runtime interpretation           | Schema method chain |
+| Decorators      | `@Field` (unified)  | 30+ individual                   | N/A                 |
+| Dependencies    | None (zero runtime) | `validator`, `libphonenumber-js` | None                |
+| Sync DTO return | Direct value        | Promise                          | Direct value        |
 
 ## Performance
 
@@ -119,8 +119,9 @@ class UserDto {
 
 - `optional`/`nullable` fields work: `@Field(isString) name!: string | null` compiles (the type check covers the rule's domain, not presence — `null` is still rejected at runtime unless `{ nullable: true }`).
 - `equals`/`isIn` keep the check via literal widening — `@Field(isIn(['a', 'b'] as const)) status!: string` compiles.
-- `arrayOf(...)` constrains the element type: `@Field(arrayOf(isString)) tags!: string[]` (also `Set<string>` / `Map<string, X>`); a wrong element rule fails to compile.
+- `arrayOf(...)` constrains the element type: `@Field(arrayOf(isString)) tags!: string[]` (also `Set<string>` / `Map` — any key type, the element/value type is what's checked); a wrong element rule fails to compile.
 - `isEmpty`/`isNotEmpty` are universal and apply to any field.
+- Some rules have a union domain: `isLatitude`/`isLongitude` accept a `string` or a `number` field.
 - Need a dynamically-built, unchecked rule list? Pass it via options: `@Field({ rules: buildRules() })` is intentionally not domain-checked.
 
 This uses native (TC39) decorator field types — no schema duplication; the field's own `: T` annotation is the single source of truth.
@@ -129,24 +130,25 @@ This uses native (TC39) decorator field types — no schema duplication; the fie
 
 Most fields need only rules. The options below cover nested, conditional, collection, and key-mapping cases — reach for them as needed.
 
-| Option                      | Type                                              | Description                              |
-| --------------------------- | ------------------------------------------------- | ---------------------------------------- |
+| Option                      | Type                                              | Description                                                 |
+| --------------------------- | ------------------------------------------------- | ----------------------------------------------------------- |
 | `type`                      | `() => Dto \| [Dto] \| Set \| Map`                | Nested DTO. `[Dto]` for arrays; `Set`/`Map` for collections |
-| `discriminator`             | `{ property, subTypes }`                          | Polymorphic dispatch (requires `type`)   |
-| `keepDiscriminatorProperty` | `boolean`                                         | Keep the discriminator key in the result |
-| `optional`                  | `boolean`                                         | Allow undefined                          |
-| `nullable`                  | `boolean`                                         | Allow null                               |
-| `name`                      | `string`                                          | Bidirectional key mapping                |
-| `deserializeName`           | `string`                                          | Input key mapping                        |
-| `serializeName`             | `string`                                          | Output key mapping                       |
-| `exclude`                   | `boolean \| 'deserializeOnly' \| 'serializeOnly'` | Field exclusion                          |
-| `groups`                    | `string[]`                                         | Conditional visibility                   |
-| `when`                      | `(obj) => boolean`                                | Conditional validation                   |
-| `transform`                 | `Transformer \| Transformer[]`                    | Value transformer                        |
-| `message`                   | `string \| (args) => string`                      | Error message override                   |
-| `context`                   | `unknown`                                          | Error context                            |
-| `mapValue`                  | `() => Dto`                                        | Map value DTO                            |
-| `setValue`                  | `() => Dto`                                        | Set element DTO                          |
+| `discriminator`             | `{ property, subTypes }`                          | Polymorphic dispatch (requires `type`)                      |
+| `keepDiscriminatorProperty` | `boolean`                                         | Keep the discriminator key in the result                    |
+| `rules`                     | `(EmittableRule \| ArrayOfMarker)[]`              | Dynamic rule list; bypasses the compile-time domain check   |
+| `optional`                  | `boolean`                                         | Allow undefined                                             |
+| `nullable`                  | `boolean`                                         | Allow null                                                  |
+| `name`                      | `string`                                          | Bidirectional key mapping                                   |
+| `deserializeName`           | `string`                                          | Input key mapping                                           |
+| `serializeName`             | `string`                                          | Output key mapping                                          |
+| `exclude`                   | `boolean \| 'deserializeOnly' \| 'serializeOnly'` | Field exclusion                                             |
+| `groups`                    | `string[]`                                        | Conditional visibility                                      |
+| `when`                      | `(obj) => boolean`                                | Conditional validation                                      |
+| `transform`                 | `Transformer \| Transformer[]`                    | Value transformer                                           |
+| `message`                   | `string \| (args) => string`                      | Error message override                                      |
+| `context`                   | `unknown`                                         | Error context                                               |
+| `mapValue`                  | `() => Dto`                                       | Map value DTO                                               |
+| `setValue`                  | `() => Dto`                                       | Set element DTO                                             |
 
 ### Conditional fields & custom messages
 
@@ -177,11 +179,13 @@ A field with no `groups` is always included; a field tagged with `groups` partic
 
 114 built-in validation rules.
 
+> The sections below are curated highlights, not an exhaustive listing — the full set is the export surface of `@zipbul/baker/rules`.
+
 > **Constants vs factories:** rules listed without `()` are pre-built constants — use them bare (`@Field(isString)`). Rules shown with `()` are factories you must call (`@Field(isNumber())`). Passing a factory without calling it throws `BakerError`.
 
 ### Type Checkers
 
-`isString`, `isInt`, `isBoolean`, `isDate`, `isArray`, `isObject` — constants, no `()` needed.
+`isString`, `isInt`, `isBoolean`, `isDate`, `isArray`, `isObject`, `isRegExp`, `isFunction`, `isStatelessRegExp` — constants, no `()` needed.
 
 `isNumber(options?)`, `isEnum(entity)` — factories, require `()`.
 
@@ -215,6 +219,24 @@ A field with no `groups` is always included; a field tagged with `groups` partic
 
 `isMobilePhone(locale)`, `isPostalCode(locale)`, `isIdentityCard(locale)`, `isPassportNumber(locale)`
 
+### Object
+
+`isNotEmptyObject(options?)`, `isInstance(Ctor)` — factories, require `()`.
+
+### Binary
+
+`isUint8Array` — constant, no `()` needed.
+
+`isByteSize(min, max?)` — factory, requires `()`.
+
+### Combinators
+
+`oneOf(...rules)` — value matches at least one of the given rules (first matching branch wins).
+
+`arrayEvery(...rules)` — value is an array and every element passes all of the given rules.
+
+Both are factories — call with the rules to combine — and are exported from `@zipbul/baker/rules`.
+
 ## Transformers
 
 Bidirectional value transformers with separate `deserialize` and `serialize` methods.
@@ -244,17 +266,17 @@ import {
 } from '@zipbul/baker/transformers';
 ```
 
-| Transformer              | deserialize             | serialize               |
-| ------------------------ | ----------------------- | ----------------------- |
-| `trimTransformer`        | trim string             | trim string             |
-| `toLowerCaseTransformer` | lowercase               | lowercase               |
-| `toUpperCaseTransformer` | uppercase               | uppercase               |
-| `roundTransformer(n?)`   | round to n decimals     | round to n decimals     |
-| `unixSecondsTransformer` | unix seconds → Date     | Date → unix seconds     |
-| `unixMillisTransformer`  | unix ms → Date          | Date → unix ms          |
-| `isoStringTransformer`   | ISO string → Date       | Date → ISO string       |
-| `csvTransformer(sep?)`   | `"a,b"` → `["a","b"]`   | `["a","b"]` → `"a,b"`   |
-| `jsonTransformer`        | JSON string → object    | object → JSON string    |
+| Transformer              | deserialize           | serialize             |
+| ------------------------ | --------------------- | --------------------- |
+| `trimTransformer`        | trim string           | trim string           |
+| `toLowerCaseTransformer` | lowercase             | lowercase             |
+| `toUpperCaseTransformer` | uppercase             | uppercase             |
+| `roundTransformer(n?)`   | round to n decimals   | round to n decimals   |
+| `unixSecondsTransformer` | unix seconds → Date   | Date → unix seconds   |
+| `unixMillisTransformer`  | unix ms → Date        | Date → unix ms        |
+| `isoStringTransformer`   | ISO string → Date     | Date → ISO string     |
+| `csvTransformer(sep?)`   | `"a,b"` → `["a","b"]` | `["a","b"]` → `"a,b"` |
+| `jsonTransformer`        | JSON string → object  | object → JSON string  |
 
 ### Transform Array Order
 
@@ -272,7 +294,7 @@ email!: string;
 
 ### Optional Peer Transformers
 
-`luxonTransformer` and `momentTransformer` require their respective libraries as optional peer dependencies — install whichever you use.
+`luxonTransformer` and `momentTransformer` require their respective libraries as optional peer dependencies — install whichever you use. Their options objects are exported as the `LuxonTransformerOptions` / `MomentTransformerOptions` types. Calling either transformer without its peer installed throws `BakerError` at `await` (the load happens inside the async constructor).
 
 ```typescript
 // bun add luxon
@@ -372,6 +394,7 @@ const app = new Baker({
   allowClassDefaults: true, // use class field initializers for missing keys
   stopAtFirstError: true, // return on first validation failure
   forbidUnknown: true, // reject undeclared fields
+  debug: false, // include field-exclusion reasons as comments in generated code
 });
 ```
 
@@ -383,11 +406,11 @@ const app = new Baker({
 
 Three entry points share the same sync/async shape. If the DTO has any async rule or transformer on the relevant side, the call returns a `Promise`; otherwise it returns the value directly.
 
-| Function    | Signature                          | Returns (sync)          | Notes                                  |
-| ----------- | ---------------------------------- | ----------------------- | -------------------------------------- |
-| `deserialize` | `(Class, input, options?)`       | `T \| BakerIssueSet`    | Parse + validate. Never throws on validation failure. |
-| `validate`    | `(Class, input, options?)`       | `true \| BakerIssueSet` | Validate only. |
-| `serialize`   | `(instance, options?)`           | `Record<string, unknown>` | Emit a plain object. No validation. |
+| Function      | Signature                  | Returns (sync)            | Notes                                                 |
+| ------------- | -------------------------- | ------------------------- | ----------------------------------------------------- |
+| `deserialize` | `(Class, input, options?)` | `T \| BakerIssueSet`      | Parse + validate. Never throws on validation failure. |
+| `validate`    | `(Class, input, options?)` | `true \| BakerIssueSet`   | Validate only.                                        |
+| `serialize`   | `(instance, options?)`     | `Record<string, unknown>` | Emit a plain object. No validation.                   |
 
 Async returns are wrapped: `Promise<T \| BakerIssueSet>`, `Promise<true \| BakerIssueSet>`, and `Promise<Record<string, unknown>>` respectively. The deserialize and serialize sides are independent — a DTO can be async on deserialize but sync on serialize, and vice versa.
 
@@ -438,7 +461,17 @@ Type guard. Narrows a result to `BakerIssueSet`, whose `errors` array holds `{ p
 
 baker separates two failure modes:
 
-- **`BakerError` (thrown)** — a programming mistake: using a DTO before `app.seal()`, passing a raw rule function, an unknown config key, or calling a strict `*Sync` variant on an async DTO. Fix the code; don't catch it in request handlers.
+- **`BakerError` (thrown)** — a programming mistake, not a data problem. Thrown for, e.g.:
+  - using a DTO before `app.seal()`, or calling a strict `*Sync` variant on an async DTO
+  - `new Baker()` given a config object with an unknown key, or a non-plain-object config
+  - a seal-time metadata invariant failing — an invalid discriminator shape, a wrong Map key type, a reserved/banned field name, or a DTO class that `extends Array` (rejected because a successful instance would otherwise be indistinguishable from a validation-failure array)
+  - an unsupported key in per-call `options`
+  - `@Field` receiving a non-rule value, or a rule/transformer factory that was never called
+  - a `@Field` `type`/collection thunk that throws (wrapped, with the original error as `cause`)
+  - a missing optional peer dependency (`luxon` or `moment`)
+
+  Fix the code; don't catch it in request handlers.
+
 - **`BakerIssueSet` (returned)** — a validation failure. `deserialize` and `validate` return it instead of throwing. Guard with `isBakerIssueSet` and read `.errors`.
 
 ```typescript
@@ -458,7 +491,7 @@ if (isBakerIssueSet(result)) {
 
 ### When should I use baker instead of class-validator?
 
-When performance matters. baker generates optimized validation/serialization code at seal time instead of interpreting rules on every call, so it is substantially faster than class-validator on both valid and invalid input while providing the same decorator-based DX. baker also eliminates the `reflect-metadata` dependency. Run [`bench/`](./bench) to measure the exact difference on your machine.
+When performance matters. baker generates optimized validation/serialization code at seal time instead of interpreting rules on every call, so it is substantially faster than class-validator on both valid and invalid input while providing the same decorator-based DX. baker also ships with zero runtime dependencies. Run [`bench/`](./bench) to measure the exact difference on your machine.
 
 ### How does baker compare to Zod?
 
@@ -483,14 +516,32 @@ Calling `app.seal()` once at startup walks the baker's DTOs (and their nested DT
 ```typescript
 import {
   Baker, // .deserialize / .validate / .serialize (+ *Sync / *Async) live on the instance
-  createRule, Field, arrayOf, isBakerIssueSet, BakerError, RequiredType, ExcludeMode,
+  createRule,
+  Field,
+  arrayOf,
+  isBakerIssueSet,
+  BakerError,
+  RequiredType,
+  ExcludeMode,
 } from '@zipbul/baker';
-import type { Transformer, TransformParams, BakerIssue, BakerIssueSet, FieldOptions, EmittableRule, RuntimeOptions, BakerConfig } from '@zipbul/baker';
+import type {
+  Transformer,
+  TransformParams,
+  BakerIssue,
+  BakerIssueSet,
+  FieldOptions,
+  ArrayOfMarker,
+  EmittableRule,
+  RuntimeOptions,
+  BakerConfig,
+} from '@zipbul/baker';
 import { isString, isEmail, isULID, isCUID2 /* …114 rules */ } from '@zipbul/baker/rules';
 import { trimTransformer, jsonTransformer /* …and more */ } from '@zipbul/baker/transformers';
 ```
 
 Decorators are also available from the `@zipbul/baker/decorators` subpath.
+
+Advanced: `@zipbul/baker/symbols` exposes the `Symbol.metadata` polyfill (self-installing) and the internal `RAW` metadata symbol — most apps never import this directly.
 
 ## License
 
