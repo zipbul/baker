@@ -1,10 +1,10 @@
 import type { RawPropertyMeta, RuleDef } from '../metadata';
 import type { EmitContext } from '../rules';
-import type { CategorizedRules } from './interfaces';
+import type { CategorizedRules, ResolvedTypeGate, SealOptions } from './interfaces';
 
 import { BakerError } from '../common';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
-import { DES_GEN as GEN } from './constants';
+import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE } from './constants';
 import { GuardKey } from './enums';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -19,6 +19,16 @@ export function emitErrPush(itemExpr: string): string {
   return `(${GEN.errList} || (${GEN.errList} = [])).push(${itemExpr})`;
 }
 
+/**
+ * Emit the fail statement for an issue literal: a lazy push onto the shared error list
+ * (collectErrors) or a single-item return (stopAtFirstError). Single source for the
+ * `collectErrors ? emitErrPush(item) : "return [item]"` split repeated across every rule/element/
+ * discriminator failure site.
+ */
+export function emitFailStmt(itemExpr: string, collectErrors: boolean): string {
+  return collectErrors ? emitErrPush(itemExpr) : `return [${itemExpr}]`;
+}
+
 /** Declare a length-mark snapshot that tolerates a still-null (lazy) error list. */
 export function emitMarkDecl(markVar: string): string {
   return `var ${markVar} = ${GEN.errList} === null ? 0 : ${GEN.errList}.length;\n`;
@@ -27,6 +37,36 @@ export function emitMarkDecl(markVar: string): string {
 /** Condition for "no new errors were pushed since `markVar`" against the lazy error list. */
 export function emitMarkCheck(markVar: string): string {
   return `${GEN.errList} === null || ${GEN.errList}.length === ${markVar}`;
+}
+
+/**
+ * Emit the `default:` arm of an discriminator switch for an invalid/unmatched discriminator value —
+ * shared by the single-object and per-element (each) discriminator codegen, both deserialize and
+ * validate-only. Callers own the arm's indentation; the returned fragment starts at `default:` and
+ * ends with `;\n`.
+ */
+export function emitInvalidDiscriminatorDefault(
+  pathExpr: string,
+  discVar: string,
+  validNamesJson: string,
+  collectErrors: boolean,
+): string {
+  const item = `{path:${pathExpr},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
+  return `default: ${emitFailStmt(item, collectErrors)};\n`;
+}
+
+/**
+ * Groups-guard open/close pair for a per-rule element block (each / declared-each loops) — `null`
+ * rdGroups (no group restriction on this rule) yields empty strings for both.
+ */
+export function emitGroupsGuardPair(rdGroups: string[] | null, indent: string): { guardOpen: string; guardClose: string } {
+  if (!rdGroups) {
+    return { guardOpen: '', guardClose: '' };
+  }
+  return {
+    guardOpen: `${indent}if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rdGroups)}) {\n`,
+    guardClose: `${indent}}\n`,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -171,13 +211,11 @@ export function generateConversionCode(
   targetType: string,
   varName: string,
   fieldKey: string,
-  skipVar: string | null, // null = stopAtFirstError
-  collectErrors: boolean,
+  skipVar: string | null, // non-null = collectErrors (flag skip on failure); null = stopAtFirstError
   emitCtx: EmitContext,
 ): string {
-  const failCode = collectErrors
-    ? `${emitCtx.fail('conversionFailed')}; ${skipVar} = true;`
-    : emitCtx.fail('conversionFailed') + ';';
+  const failCode =
+    skipVar !== null ? `${emitCtx.fail('conversionFailed')}; ${skipVar} = true;` : emitCtx.fail('conversionFailed') + ';';
 
   switch (targetType) {
     case 'string':
@@ -202,7 +240,6 @@ export function generateConversionCode(
 export const TYPE_GATE_KINDS = ['string', 'number', 'boolean', 'date', 'array', 'object'] as const;
 export type TypeGateKind = (typeof TYPE_GATE_KINDS)[number];
 
-/** Result of categorizeRules — each/nonEach split and typed dependency classification */
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts (pure) */
 export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validation']): CategorizedRules {
   // Single-pass partition — was 9 separate .filter() passes over the same array, each allocating
@@ -253,6 +290,66 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   }
 
   return { each, generalRules, typedDeps: chosen };
+}
+
+/** resolveTypeGate — determine effective gate type from asserters/conversion/type hints (pure) */
+export function resolveTypeGate(
+  fieldKey: string,
+  categorized: CategorizedRules,
+  meta: RawPropertyMeta | undefined,
+  options: SealOptions | undefined,
+): ResolvedTypeGate {
+  const { generalRules, typedDeps } = categorized;
+
+  const hasTypedDeps = !!typedDeps;
+  const gateType = typedDeps?.type ?? null;
+  const gateDeps = typedDeps?.deps ?? [];
+
+  // Find type asserter in generalRules matching gate type
+  let typeAsserterIdx = -1;
+  if (gateType) {
+    typeAsserterIdx = generalRules.findIndex(rd => ASSERTER_TO_GATE[rd.rule.ruleName] === gateType);
+  }
+
+  // enableImplicitConversion check — skip if explicit @Transform for deserialize direction
+  const enableConversion = !!options?.enableImplicitConversion && !meta?.transform.some(td => !td.options?.serializeOnly);
+
+  // enableImplicitConversion: asserter-only gate inference — generate conversion gate even for standalone @IsNumber() usage
+  let asserterInferredGate: string | null = null;
+  if (!hasTypedDeps && enableConversion && typeAsserterIdx < 0) {
+    for (let i = 0; i < generalRules.length; i++) {
+      const gate = ASSERTER_TO_GATE[generalRules[i]!.rule.ruleName];
+      if (gate) {
+        typeAsserterIdx = i;
+        asserterInferredGate = gate;
+        break;
+      }
+    }
+  }
+
+  const typeAsserter = typeAsserterIdx >= 0 ? generalRules[typeAsserterIdx] : undefined;
+
+  // @Type() primitive hint — infer conversion target when no typed deps exist
+  let typeHintGate: string | null = null;
+  if (!hasTypedDeps && !asserterInferredGate && enableConversion && meta?.type?.fn) {
+    try {
+      const raw = meta.type.fn();
+      const typeCtor = Array.isArray(raw) ? raw[0] : raw;
+      typeHintGate = typeCtor ? (PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null) : null;
+    } catch (e) {
+      throw new BakerError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`, { cause: e });
+    }
+  }
+
+  return {
+    effectiveGateType: gateType ?? asserterInferredGate ?? typeHintGate,
+    gateDeps,
+    typeAsserterIdx,
+    typeAsserter,
+    enableConversion,
+    asserterInferredGate,
+    typeHintGate,
+  };
 }
 
 /** Config object for emitTypedRules — bundles closure-captured vars into explicit parameter */
