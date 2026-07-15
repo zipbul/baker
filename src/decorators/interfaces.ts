@@ -1,5 +1,5 @@
 import type { ClassCtor } from '../common';
-import type { DiscriminatorDef } from '../metadata';
+import type { DiscriminatorDef, MessageArgs, TypeThunk } from '../metadata';
 import type { EmittableRule } from '../rules';
 import type { Transformer } from '../transformers';
 import type { ExcludeMode } from './enums';
@@ -23,7 +23,7 @@ export interface ArrayOfMarker<E = unknown> {
 
 export interface FieldOptions {
   /** Nested DTO type. Thunk — supports circular references. [Dto] for arrays. */
-  type?: () => ClassCtor | ClassCtor[] | MapConstructor | SetConstructor;
+  type?: TypeThunk;
   /** Polymorphic discriminator configuration — used with type */
   discriminator?: DiscriminatorDef;
   /** Whether to keep the discriminator property in the result object */
@@ -49,7 +49,7 @@ export interface FieldOptions {
   /** Transformer or array of transformers (serialize direction applies in reverse order) */
   transform?: Transformer | Transformer[];
   /** Error message on validation failure — applied to all rules of the field (rule's own message takes precedence) */
-  message?: string | ((args: { property: string; value: unknown; constraints: Record<string, unknown> }) => string);
+  message?: string | ((args: MessageArgs) => string);
   /** Error context on validation failure — applied to all rules of the field (rule's own context takes precedence) */
   context?: unknown;
   /** Nested DTO class thunk for Map values — used with type: () => Map */

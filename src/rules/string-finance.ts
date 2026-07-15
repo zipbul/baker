@@ -3,7 +3,7 @@ import type { EmitContext, EmittableRule } from './interfaces';
 import { IBAN_COUNTRY_LENGTH, ISO4217_CODES } from './constants';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule, makeStringRule } from './string-shared';
 
 // ISBN
 function validateISBN10(str: string): boolean {
@@ -227,14 +227,7 @@ const isEAN = makeStringRule('isEAN', validateEAN, (varName, ctx) => {
 
 // BIC / SWIFT code — case-insensitive via /i flag avoids per-call .toUpperCase() string allocation
 const BIC_RE = /^[A-Z]{6}[A-Z0-9]{2}(?:[A-Z0-9]{3})?$/i;
-const isBIC = makeStringRule(
-  'isBIC',
-  v => BIC_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(BIC_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isBIC')};`;
-  },
-);
+const isBIC = makeRegexRule('isBIC', BIC_RE);
 
 // Currency
 // A single optional sign, either before the `$` (`-$5`, `+5`) or after it (`$-5`, `$+5`) — never
@@ -243,14 +236,7 @@ const CURRENCY_RE = /^(?:[-+]?\$?|\$[-+]?)(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2}
 
 function isCurrency(): EmittableRule<string> {
   // Currency regex requires at least one digit; empty input fails the regex by itself.
-  return makeStringRule(
-    'isCurrency',
-    v => CURRENCY_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(CURRENCY_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isCurrency')};`;
-    },
-  );
+  return makeRegexRule('isCurrency', CURRENCY_RE);
 }
 
 // Credit Card — Luhn algorithm

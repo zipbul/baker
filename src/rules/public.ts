@@ -109,3 +109,5 @@ export { isNotEmptyObject, isInstance } from './object';
 export type { IsNotEmptyObjectOptions } from './object';
 export { isMobilePhone, isPostalCode, isIdentityCard, isPassportNumber } from './locales';
 export { isUint8Array, isByteSize } from './binary';
+export type { EmittableRule } from './interfaces';
+export type { WidenLiteral } from './types';

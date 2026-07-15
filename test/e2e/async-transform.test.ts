@@ -93,6 +93,26 @@ describe('async @Transform — deserialize', () => {
       promiseDeserializeBaker.deserialize<PromiseDeserializeDto>(PromiseDeserializeDto, { name: '  Alice  ' }),
     ).toThrow('deserialize transform returned Promise');
   });
+
+  it('promise-returning non-async deserialize transform throws at chain position 2 (mid-chain)', () => {
+    // Two-transform chain — deserialize executes in declaration order, so the second declared
+    // transform is also the second one called. The guard must fire there too, not just on a
+    // single-transform field.
+    class PromiseDeserializeChainDto {
+      @Field(isString, {
+        transform: [
+          { deserialize: passthrough, serialize: passthrough },
+          { deserialize: promiseTrimIfString, serialize: passthrough },
+        ],
+      })
+      name!: string;
+    }
+    const promiseDeserializeChainBaker = sealClass(PromiseDeserializeChainDto);
+
+    expect(() =>
+      promiseDeserializeChainBaker.deserialize<PromiseDeserializeChainDto>(PromiseDeserializeChainDto, { name: '  Alice  ' }),
+    ).toThrow('deserialize transform returned Promise');
+  });
 });
 
 describe('async @Transform — serialize', () => {
@@ -116,6 +136,25 @@ describe('async @Transform — serialize', () => {
 
     const dto = Object.assign(new PromiseSerializeDto(), { tag: 'world' });
     expect(() => promiseSerializeBaker.serialize(dto)).toThrow('serialize transform returned Promise');
+  });
+
+  it('promise-returning non-async serialize transform throws at chain position 2 (mid-chain)', () => {
+    // Two-transform chain — serialize executes in REVERSE declaration order, so the transform
+    // declared first is the second one called. The guard must fire there too, not just on the
+    // last-declared (first-called) transform.
+    class PromiseSerializeChainDto {
+      @Field(isString, {
+        transform: [
+          { deserialize: passthrough, serialize: ({ value }) => Promise.resolve(`[${value}]`) },
+          { deserialize: passthrough, serialize: passthrough },
+        ],
+      })
+      tag!: string;
+    }
+    const promiseSerializeChainBaker = sealClass(PromiseSerializeChainDto);
+
+    const dto = Object.assign(new PromiseSerializeChainDto(), { tag: 'world' });
+    expect(() => promiseSerializeChainBaker.serialize(dto)).toThrow('serialize transform returned Promise');
   });
 });
 

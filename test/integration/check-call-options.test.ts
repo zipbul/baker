@@ -36,8 +36,15 @@ describe('checkCallOptions — only `groups` is a valid per-call option', () => 
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: 'admin' })).toThrow(/groups.*string\[\]/);
   });
 
-  it('groups with a non-string element throws BakerError', () => {
+  it('groups with a non-string element throws BakerError (dense array)', () => {
     expect(() => deserializeBad(CallOptDto, { name: 'x' }, { groups: ['a', 1] })).toThrow(/groups.*string\[\]/);
+  });
+
+  it('groups as a sparse array (holes only, no real elements) does not throw', () => {
+    // Regression: the indexed validation loop must skip holes like `Array.prototype.some` did
+    // (HasProperty check) — `new Array(1)` has no own index 0, so it must be accepted, not
+    // rejected as "an array with a non-string element".
+    expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: new Array(1) })).not.toThrow();
   });
 
   it('groups as an empty array is fine (no group filtering)', () => {
@@ -102,5 +109,39 @@ describe('checkCallOptions — only `groups` is a valid per-call option', () => 
     const opts = Object.create(null);
     opts.groups = ['a'];
     expect(() => baker.deserialize(CallOptDto, { name: 'x' }, opts)).not.toThrow();
+  });
+
+  it('valid options are accepted despite an enumerable Object.prototype pollution', () => {
+    // Regression: the key loop uses `for...in`, which walks inherited ENUMERABLE properties.
+    // A user-added enumerable prop on Object.prototype must be ignored (hasOwn guard), not
+    // rejected as an unknown per-call option.
+    Object.defineProperty(Object.prototype, 'bakerPollutedTestKey', {
+      value: 1,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      expect(() => baker.deserialize(CallOptDto, { name: 'x' }, { groups: ['x'] })).not.toThrow();
+    } finally {
+      delete (Object.prototype as Record<string, unknown>).bakerPollutedTestKey;
+    }
+  });
+
+  it('own unknown keys are still rejected under Object.prototype pollution', () => {
+    // The hasOwn guard must only filter inherited keys — own keys keep Object.keys-equivalent behavior.
+    Object.defineProperty(Object.prototype, 'bakerPollutedTestKey', {
+      value: 1,
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      expect(() => deserializeBad(CallOptDto, { name: 'x' }, { totallyUnknownKey: 1 })).toThrow(
+        /Unknown per-call option 'totallyUnknownKey'/,
+      );
+    } finally {
+      delete (Object.prototype as Record<string, unknown>).bakerPollutedTestKey;
+    }
   });
 });

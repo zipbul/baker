@@ -1,8 +1,4 @@
-import type { Result } from '@zipbul/result';
-
-import { isErr } from '@zipbul/result';
-
-import type { RuntimeOptions, BakerIssue, BakerIssueSet } from '../common';
+import type { RuntimeOptions, BakerIssueSet } from '../common';
 import type { SealedExecutors } from '../seal';
 
 import { BakerError } from '../common';
@@ -14,12 +10,13 @@ import { checkCallOptions } from './check-call-options';
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * Map a deserialize Result to the public `T | BakerIssueSet` shape. `isErr<BakerIssue[]>` types the
- * error payload, so no cast is needed on the error arm; the `unknown → T` assertion on the success arm
- * is unavoidable — the sealed executor is generically typed `SealedExecutors<unknown>` at this boundary.
+ * Map a deserialize outcome to the public `T | BakerIssueSet` shape. Success is always a class
+ * instance (never a raw array), so `Array.isArray()` discriminates the `BakerIssue[]` failure array
+ * soundly; the `unknown → T` assertion on the success arm is unavoidable — the sealed executor is
+ * generically typed `SealedExecutors<unknown>` at this boundary.
  */
-function unwrapDeserialize<T>(result: Result<unknown, BakerIssue[]>): T | BakerIssueSet {
-  return isErr<BakerIssue[]>(result) ? toBakerIssueSet(result.data) : (result as T);
+function unwrapDeserialize<T>(result: unknown): T | BakerIssueSet {
+  return Array.isArray(result) ? toBakerIssueSet(result) : (result as T);
 }
 
 function runDeserialize<T>(

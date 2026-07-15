@@ -1,4 +1,3 @@
-import { err } from '@zipbul/result';
 import { describe, it, expect } from 'bun:test';
 
 import type { BakerIssue } from '../../../src/common/errors';
@@ -28,12 +27,12 @@ describe('test assert helpers', () => {
   });
 
   describe('assertIsErr', () => {
-    it('throws on a plain success value (not an Err)', () => {
-      expect(() => assertIsErr({ name: 'Alice' })).toThrow(/expected Err/);
+    it('throws on a plain success value (not an array)', () => {
+      expect(() => assertIsErr({ name: 'Alice' })).toThrow(/expected an error array/);
     });
-    it('does not throw on Err', () => {
+    it('does not throw on an error array', () => {
       const errVal: BakerIssue[] = [{ path: '', code: 'x' }];
-      expect(() => assertIsErr(err(errVal))).not.toThrow();
+      expect(() => assertIsErr(errVal)).not.toThrow();
     });
   });
 

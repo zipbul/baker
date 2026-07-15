@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import type { EmittableRule } from '../../src/rules/interfaces';
 
 import { Baker, Field, BakerError } from '../../index';
-import { isNumber } from '../../src/rules/index';
+import { isNumber, isString } from '../../src/rules/index';
 import { applyField } from '../integration/helpers/modern-decorator';
 import { sealClass } from '../integration/helpers/seal';
 import { unseal } from '../integration/helpers/unseal';
@@ -46,6 +46,48 @@ describe('BakerError', () => {
     class CtorDto {}
     applyField(Field(isNumber()), CtorDto, 'constructor');
     expect(() => sealClass(CtorDto)).toThrow(BakerError);
+  });
+
+  // A deserialized SUCCESS instance is distinguished from a raw BakerIssue[] failure via
+  // Array.isArray. A DTO class extending Array would make a successful instance look like a
+  // failure array, so it must be rejected at seal time — see `sealOne`'s Array-exotic guard.
+  it('DTO class extending Array throws BakerError at seal', () => {
+    class Bad extends Array {
+      @Field(isString) x!: string;
+    }
+    expect(() => sealClass(Bad)).toThrow(
+      'Bad: DTO classes must not extend Array — a deserialized instance would be indistinguishable from a validation-failure array.',
+    );
+  });
+
+  it('DTO class extending Array throws BakerError at seal even with allowClassDefaults: true', () => {
+    class BadWithDefaults extends Array {
+      @Field(isString) x!: string;
+    }
+    const b = new Baker({ allowClassDefaults: true });
+    (b.Recipe as (value: Function) => void)(BadWithDefaults);
+    expect(() => b.seal()).toThrow(
+      'BadWithDefaults: DTO classes must not extend Array — a deserialized instance would be indistinguishable from a validation-failure array.',
+    );
+  });
+
+  it('a nested DTO extending Array (reached via type: () => BadNested) throws BakerError at seal', () => {
+    class BadNested extends Array {
+      @Field(isString) x!: string;
+    }
+    class Outer {
+      @Field({ type: () => BadNested }) nested!: BadNested;
+    }
+    expect(() => sealClass(Outer)).toThrow(
+      'BadNested: DTO classes must not extend Array — a deserialized instance would be indistinguishable from a validation-failure array.',
+    );
+  });
+
+  it('a normal DTO (not extending Array) still seals fine', () => {
+    class NormalDto {
+      @Field(isString) x!: string;
+    }
+    expect(() => sealClass(NormalDto)).not.toThrow();
   });
 
   it('serialize null → BakerError', () => {

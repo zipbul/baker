@@ -41,6 +41,9 @@ export const DES_GEN = {
   result: '__bk$r_',
   errors: '__bk$re_',
   arr: '__bk$arr_',
+  arrLen: '__bk$n_',
+  arrW: '__bk$w_',
+  exec: '__bk$ex_',
   disc: '__bk$dt_',
   nestedIdx: '__bk$j_',
   out: '__bk$out',
@@ -69,6 +72,7 @@ export const SER_GEN = {
   nestedArr: '__bk$na',
   nestedIdx: '__bk$ni',
   nestedItem: '__bk$nitem',
+  transformTmp: '__bk$tv',
 } as const;
 
 /** `@Type`() primitive builtin → target type mapping */

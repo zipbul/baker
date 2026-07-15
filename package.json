@@ -1,7 +1,7 @@
 {
   "name": "@zipbul/baker",
   "version": "6.0.0",
-  "description": "Bun-only AOT decorator-based DTO validation & serialization. class-validator DX, sealed code generation, zero reflect-metadata.",
+  "description": "Bun-only AOT decorator-based DTO validation & serialization. class-validator DX, sealed code generation, zero reflect-metadata, zero runtime dependencies.",
   "keywords": [
     "aot",
     "bun",
@@ -71,6 +71,8 @@
     "provenance": true
   },
   "scripts": {
+    "bench": "for f in bench/*.bench.ts; do bun \"$f\" || exit 1; done",
+    "bench:cv": "cd bench/class-validator && for f in *.cv.bench.ts; do bun \"$f\" || exit 1; done",
     "build": "rm -rf dist && tsgo -p tsconfig.build.json",
     "changeset": "changeset",
     "deps:check": "dpdm --no-warning --no-tree --no-output -T index.ts src/",
@@ -86,9 +88,6 @@
     "typecheck": "tsgo --noEmit",
     "typecheck:bench": "tsgo --noEmit -p bench/tsconfig.json && tsgo --noEmit -p bench/class-validator/tsconfig.json",
     "version-packages": "changeset version"
-  },
-  "dependencies": {
-    "@zipbul/result": "1.0.0"
   },
   "devDependencies": {
     "@changesets/cli": "^2.29.8",

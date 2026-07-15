@@ -90,7 +90,7 @@ describe('@Field — metadata collection', () => {
 
   // ── transform ──
 
-  it('@Field({ transform }) stores deserialize+serialize fns in transform stack', () => {
+  it('@Field({ transform }) stores the raw deserialize+serialize fns in transform stack', () => {
     const Cls = makeClass();
     const desFn = ({ value }: TransformParams): unknown => value;
     const serFn = ({ value }: TransformParams): unknown => value;
@@ -98,12 +98,14 @@ describe('@Field — metadata collection', () => {
     expect(fieldMeta(Cls, 'name').transform).toHaveLength(2);
     const d = fieldTransform(Cls, 'name', 0);
     const s = fieldTransform(Cls, 'name', 1);
-    expect(d.fn).not.toBe(desFn);
+    // The stored fn is the raw user function — no wrapping closure (the Promise-return guard is
+    // inlined into generated codegen instead, gated on the isAsync flag computed here).
+    expect(d.fn).toBe(desFn);
+    expect(d.isAsync).toBe(false);
     expect(d.options?.deserializeOnly).toBe(true);
-    expect(d.fn({ value: 'x', key: 'name', obj: {} })).toBe('x');
-    expect(s.fn).not.toBe(serFn);
+    expect(s.fn).toBe(serFn);
+    expect(s.isAsync).toBe(false);
     expect(s.options?.serializeOnly).toBe(true);
-    expect(s.fn({ value: 'y', key: 'name', obj: {} })).toBe('y');
   });
 
   // ── type ──

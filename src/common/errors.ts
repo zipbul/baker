@@ -12,6 +12,8 @@
  * - 'invalidDiscriminator': when the discriminator value is not in subTypes
  * - 'conversionFailed': when type conversion fails in enableImplicitConversion
  * - 'whitelistViolation': when undeclared fields exist in input with whitelist: true
+ * - 'circular': when a circular reference is detected during deserialize
+ * - 'isDefined': when a required (non-optional, non-nullable) field is undefined/null
  *
  * Future extension fields (expected, actual, etc.) must be added as Optional.
  */
@@ -46,7 +48,7 @@ export interface BakerIssueSet {
  * Type guard — narrows deserialize()/validate() result to BakerIssueSet.
  *
  * @example
- * const result = await deserialize(UserDto, input);
+ * const result = await app.deserialize(UserDto, input);
  * if (isBakerIssueSet(result)) {
  *   result.errors // readonly BakerIssue[]
  * } else {
@@ -79,7 +81,7 @@ export function toBakerIssueSet(errors: BakerIssue[]): BakerIssueSet {
  * Thrown when, e.g.:
  * - deserialize()/serialize()/validate() is called on an unsealed class
  * - new Baker() receives a config object with an unknown key or a non-plain-object
- * - seal-time metadata invariants fail (discriminator, Map keys, banned names, …)
+ * - seal-time metadata invariants fail (discriminator, Map keys, banned names, Array-exotic DTO classes, …)
  * - per-call options contain unsupported keys
  * - @Field receives a non-rule value, or a rule/transformer factory is misused
  * - a user @Type/collectionValue thunk throws (wrapped, with the original error as `cause`)

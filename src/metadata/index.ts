@@ -7,6 +7,7 @@ export type {
   ExposeDef,
   TypeDef,
   MessageArgs,
+  TypeThunk,
   DiscriminatorDef,
 } from './interfaces';
 export { CollectionType } from './enums';

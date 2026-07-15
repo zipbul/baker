@@ -1,44 +1,105 @@
 import type { RawPropertyMeta, RuleDef } from '../metadata';
 import type { EmitContext } from '../rules';
-import type { CategorizedRules } from './interfaces';
+import type { CategorizedRules, ResolvedTypeGate, SealOptions } from './interfaces';
 
 import { BakerError } from '../common';
 import { sanitizeKey, buildGroupsHasExpr } from './codegen-utils';
-import { DES_GEN as GEN } from './constants';
+import { DES_GEN as GEN, PRIMITIVE_TYPE_HINTS, ASSERTER_TO_GATE } from './constants';
 import { GuardKey } from './enums';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Lazy error-list emission — single source for the `errors = null` allocate-on-first-push
+// pattern, used by every deserialize AND validate push/mark/epilogue site. `GEN.errList` is a
+// fixed generated-variable name, so these take only the varying piece (the pushed item / mark
+// variable) rather than threading the list name through every call site.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Lazy-alloc push onto the shared error list: `(errors || (errors = [])).push(item)`. */
+export function emitErrPush(itemExpr: string): string {
+  return `(${GEN.errList} || (${GEN.errList} = [])).push(${itemExpr})`;
+}
+
+/**
+ * Emit the fail statement for an issue literal: a lazy push onto the shared error list
+ * (collectErrors) or a single-item return (stopAtFirstError). Single source for the
+ * `collectErrors ? emitErrPush(item) : "return [item]"` split repeated across every rule/element/
+ * discriminator failure site.
+ */
+export function emitFailStmt(itemExpr: string, collectErrors: boolean): string {
+  return collectErrors ? emitErrPush(itemExpr) : `return [${itemExpr}]`;
+}
+
+/** Declare a length-mark snapshot that tolerates a still-null (lazy) error list. */
+export function emitMarkDecl(markVar: string): string {
+  return `var ${markVar} = ${GEN.errList} === null ? 0 : ${GEN.errList}.length;\n`;
+}
+
+/** Condition for "no new errors were pushed since `markVar`" against the lazy error list. */
+export function emitMarkCheck(markVar: string): string {
+  return `${GEN.errList} === null || ${GEN.errList}.length === ${markVar}`;
+}
+
+/**
+ * Emit the `default:` arm of an discriminator switch for an invalid/unmatched discriminator value —
+ * shared by the single-object and per-element (each) discriminator codegen, both deserialize and
+ * validate-only. Callers own the arm's indentation; the returned fragment starts at `default:` and
+ * ends with `;\n`.
+ */
+export function emitInvalidDiscriminatorDefault(
+  pathExpr: string,
+  discVar: string,
+  validNamesJson: string,
+  collectErrors: boolean,
+): string {
+  const item = `{path:${pathExpr},code:'invalidDiscriminator',context:{received:${discVar},validSubTypes:${validNamesJson}}}`;
+  return `default: ${emitFailStmt(item, collectErrors)};\n`;
+}
+
+/**
+ * Groups-guard open/close pair for a per-rule element block (each / declared-each loops) — `null`
+ * rdGroups (no group restriction on this rule) yields empty strings for both.
+ */
+export function emitGroupsGuardPair(rdGroups: string[] | null, indent: string): { guardOpen: string; guardClose: string } {
+  if (!rdGroups) {
+    return { guardOpen: '', guardClose: '' };
+  }
+  return {
+    guardOpen: `${indent}if ((${GEN.group0} === null && !${GEN.groupsSet}) || ${buildGroupsHasExpr(GEN.group0, GEN.groupsSet, rdGroups)}) {\n`,
+    guardClose: `${indent}}\n`,
+  };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — code generation utilities (pure, module-level)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Generate nested error push code that propagates message/context/constraints fields */
-export function nestedErrPush(errList: string, pathExpr: string, errItemExpr: string, tmpVar: string): string {
+export function nestedErrPush(pathExpr: string, errItemExpr: string, tmpVar: string): string {
   // Cache errItemExpr once — avoids repeated property reads in the generated body
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `      if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined){${errList}.push({path:${pathExpr},code:${eVar}.code});}\n` +
+    `      if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined){${emitErrPush(`{path:${pathExpr},code:${eVar}.code}`)};}\n` +
     `      else{var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `      if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `      if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `      if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
-    `      ${errList}.push(${tmpVar});}\n`
+    `      ${emitErrPush(tmpVar)};}\n`
   );
 }
 
 /** Generate nested error return code that propagates message/context/constraints fields */
-export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string, validateOnly?: boolean): string {
-  const ret = (arr: string) => (validateOnly ? `return ${arr};\n` : `return err(${arr});\n`);
+export function nestedErrReturn(pathExpr: string, errItemExpr: string, tmpVar: string): string {
   // Cache errItemExpr once — mirrors nestedErrPush, avoids repeated property reads in the generated body.
   const eVar = `${tmpVar}_e`;
   return (
     `var ${eVar}=${errItemExpr};\n` +
-    `    if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined)${ret(`[{path:${pathExpr},code:${eVar}.code}]`)}` +
+    `    if(${eVar}.message===undefined&&${eVar}.context===undefined&&${eVar}.constraints===undefined)return [{path:${pathExpr},code:${eVar}.code}];\n` +
     `    var ${tmpVar}={path:${pathExpr},code:${eVar}.code};\n` +
     `    if(${eVar}.message!==undefined)${tmpVar}.message=${eVar}.message;\n` +
     `    if(${eVar}.context!==undefined)${tmpVar}.context=${eVar}.context;\n` +
     `    if(${eVar}.constraints!==undefined)${tmpVar}.constraints=${eVar}.constraints;\n` +
-    `    ${ret(`[${tmpVar}]`)}`
+    `    return [${tmpVar}];\n`
   );
 }
 
@@ -150,13 +211,11 @@ export function generateConversionCode(
   targetType: string,
   varName: string,
   fieldKey: string,
-  skipVar: string | null, // null = stopAtFirstError
-  collectErrors: boolean,
+  skipVar: string | null, // non-null = collectErrors (flag skip on failure); null = stopAtFirstError
   emitCtx: EmitContext,
 ): string {
-  const failCode = collectErrors
-    ? `${emitCtx.fail('conversionFailed')}; ${skipVar} = true;`
-    : emitCtx.fail('conversionFailed') + ';';
+  const failCode =
+    skipVar !== null ? `${emitCtx.fail('conversionFailed')}; ${skipVar} = true;` : emitCtx.fail('conversionFailed') + ';';
 
   switch (targetType) {
     case 'string':
@@ -176,14 +235,18 @@ export function generateConversionCode(
   }
 }
 
-/** Result of categorizeRules — each/nonEach split and typed dependency classification */
+/** The type-gate kinds a rule's `requiresType` may specify — single source of truth for both
+ *  `typedBuckets`' keys and the mixed-gate conflict scan below. */
+export const TYPE_GATE_KINDS = ['string', 'number', 'boolean', 'date', 'array', 'object'] as const;
+export type TypeGateKind = (typeof TYPE_GATE_KINDS)[number];
+
 /** categorizeRules — separate each/nonEach rules, detect mixed gate conflicts (pure) */
 export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['validation']): CategorizedRules {
   // Single-pass partition — was 9 separate .filter() passes over the same array, each allocating
   // a fresh intermediate. For a field with N rules, runs at seal time only but adds up across DTOs.
   const each: RuleDef[] = [];
   const generalRules: RuleDef[] = [];
-  const typedBuckets: Record<string, RuleDef[]> = {
+  const typedBuckets: Record<TypeGateKind, RuleDef[]> = {
     string: [],
     number: [],
     boolean: [],
@@ -198,7 +261,7 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
     }
     const reqType = rd.rule.requiresType;
     if (reqType !== undefined) {
-      typedBuckets[reqType]!.push(rd);
+      typedBuckets[reqType].push(rd);
     } else {
       generalRules.push(rd);
     }
@@ -207,8 +270,8 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   // Mixed gate conflict detection — at most one bucket should be non-empty
   let chosen: CategorizedRules['typedDeps'] = undefined;
   let activeTypes: string[] | null = null;
-  for (const t of ['string', 'number', 'boolean', 'date', 'array', 'object'] as const) {
-    const deps = typedBuckets[t]!;
+  for (const t of TYPE_GATE_KINDS) {
+    const deps = typedBuckets[t];
     if (deps.length === 0) {
       continue;
     }
@@ -227,6 +290,66 @@ export function categorizeRules(fieldKey: string, validation: RawPropertyMeta['v
   }
 
   return { each, generalRules, typedDeps: chosen };
+}
+
+/** resolveTypeGate — determine effective gate type from asserters/conversion/type hints (pure) */
+export function resolveTypeGate(
+  fieldKey: string,
+  categorized: CategorizedRules,
+  meta: RawPropertyMeta | undefined,
+  options: SealOptions | undefined,
+): ResolvedTypeGate {
+  const { generalRules, typedDeps } = categorized;
+
+  const hasTypedDeps = !!typedDeps;
+  const gateType = typedDeps?.type ?? null;
+  const gateDeps = typedDeps?.deps ?? [];
+
+  // Find type asserter in generalRules matching gate type
+  let typeAsserterIdx = -1;
+  if (gateType) {
+    typeAsserterIdx = generalRules.findIndex(rd => ASSERTER_TO_GATE[rd.rule.ruleName] === gateType);
+  }
+
+  // enableImplicitConversion check — skip if explicit @Transform for deserialize direction
+  const enableConversion = !!options?.enableImplicitConversion && !meta?.transform.some(td => !td.options?.serializeOnly);
+
+  // enableImplicitConversion: asserter-only gate inference — generate conversion gate even for standalone @IsNumber() usage
+  let asserterInferredGate: string | null = null;
+  if (!hasTypedDeps && enableConversion && typeAsserterIdx < 0) {
+    for (let i = 0; i < generalRules.length; i++) {
+      const gate = ASSERTER_TO_GATE[generalRules[i]!.rule.ruleName];
+      if (gate) {
+        typeAsserterIdx = i;
+        asserterInferredGate = gate;
+        break;
+      }
+    }
+  }
+
+  const typeAsserter = typeAsserterIdx >= 0 ? generalRules[typeAsserterIdx] : undefined;
+
+  // @Type() primitive hint — infer conversion target when no typed deps exist
+  let typeHintGate: string | null = null;
+  if (!hasTypedDeps && !asserterInferredGate && enableConversion && meta?.type?.fn) {
+    try {
+      const raw = meta.type.fn();
+      const typeCtor = Array.isArray(raw) ? raw[0] : raw;
+      typeHintGate = typeCtor ? (PRIMITIVE_TYPE_HINTS[typeCtor.name] ?? null) : null;
+    } catch (e) {
+      throw new BakerError(`field "${fieldKey}": @Field type function threw: ${(e as Error).message}`, { cause: e });
+    }
+  }
+
+  return {
+    effectiveGateType: gateType ?? asserterInferredGate ?? typeHintGate,
+    gateDeps,
+    typeAsserterIdx,
+    typeAsserter,
+    enableConversion,
+    asserterInferredGate,
+    typeHintGate,
+  };
 }
 
 /** Config object for emitTypedRules — bundles closure-captured vars into explicit parameter */
@@ -255,20 +378,20 @@ export function generateNestedResultCode(
   if (collectErrors) {
     const errItem = `${GEN.errors}${sk}[${GEN.nestedIdx}${sk}]`;
     return (
-      `  if (isErr(${resultVar})) {\n` +
-      `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+      `  if (Array.isArray(${resultVar})) {\n` +
+      `    var ${GEN.errors}${sk} = ${resultVar};\n` +
       `    var __bk$pp${sk} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${GEN.errors}${sk}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
-      nestedErrPush(GEN.errList, `__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
+      nestedErrPush(`__bk$pp${sk}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  } else { ${GEN.out}[${JSON.stringify(fieldKey)}] = ${resultVar}; }\n`
     );
   }
   const errFirst = `${GEN.errors}${sk}[0]`;
   return (
-    `  if (isErr(${resultVar})) {\n` +
-    `    var ${GEN.errors}${sk} = ${resultVar}.data;\n` +
+    `  if (Array.isArray(${resultVar})) {\n` +
+    `    var ${GEN.errors}${sk} = ${resultVar};\n` +
     `    var __bk$pp${sk} = ${ppValue};\n` +
     `    ` +
     nestedErrReturn(`__bk$pp${sk}+${errFirst}.path`, errFirst, `__ne${sk}`) +
@@ -278,10 +401,10 @@ export function generateNestedResultCode(
 
 /**
  * Nested-executor result handling inside a per-element loop (Set / Map / array / discriminator-each).
- * Single source for the `if (isErr(result)) { …re-path nested errors… } else { <success> }` block that
- * every collection loop repeats — only the element path expression (`ppExpr`), the success statement
- * (`arr.push` / `map.set` / `set.add`), and the base indent differ. The single-object case keeps using
- * {@link generateNestedResultCode} (it writes straight to `out[field]`).
+ * Single source for the `if (Array.isArray(result)) { …re-path nested errors… } else { <success> }`
+ * block that every collection loop repeats — only the element path expression (`ppExpr`), the success
+ * statement (`arr.push` / `map.set` / `set.add`), and the base indent differ. The single-object case
+ * keeps using {@link generateNestedResultCode} (it writes straight to `out[field]`).
  */
 export function generateNestedEachResultCode(
   resultVar: string,
@@ -293,22 +416,22 @@ export function generateNestedEachResultCode(
 ): string {
   const errs = `${GEN.errors}${sk}`;
   const ppVar = `__bk$pp${sk}`;
-  const decls = `${indent}  var ${errs} = ${resultVar}.data;\n${indent}  var ${ppVar} = ${ppExpr};\n`;
+  const decls = `${indent}  var ${errs} = ${resultVar};\n${indent}  var ${ppVar} = ${ppExpr};\n`;
   let inner: string;
   if (collectErrors) {
     const ni = `${GEN.nestedIdx}${sk}`;
     inner =
       `${indent}  for (var ${ni}=0; ${ni}<${errs}.length; ${ni}++) {\n` +
       `${indent}  ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${errs}[${ni}].path`, `${errs}[${ni}]`, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${errs}[${ni}].path`, `${errs}[${ni}]`, `__ne${sk}`) +
       `${indent}  }\n`;
   } else {
     inner = `${indent}  ` + nestedErrReturn(`${ppVar}+${errs}[0].path`, `${errs}[0]`, `__ne${sk}`);
   }
-  return `${indent}if (isErr(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
+  return `${indent}if (Array.isArray(${resultVar})) {\n${decls}${inner}${indent}} else { ${successStmt} }\n`;
 }
 
-/** Generate validate-mode nested result handling (null check instead of isErr) (pure) */
+/** Generate validate-mode nested result handling (null-sentinel check instead of Array.isArray) (pure) */
 export function generateValidateNestedResult(
   fieldKey: string,
   resultVar: string,
@@ -326,7 +449,7 @@ export function generateValidateNestedResult(
       `    var ${ppVar} = ${ppValue};\n` +
       `    for (var ${GEN.nestedIdx}${sk}=0; ${GEN.nestedIdx}${sk}<${resultVar}.length; ${GEN.nestedIdx}${sk}++) {\n` +
       `      ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${errItem}.path`, errItem, `__ne${sk}`) +
       `    }\n` +
       `  }\n`
     );
@@ -336,7 +459,7 @@ export function generateValidateNestedResult(
     `  if (${resultVar} !== null) {\n` +
     `    var ${ppVar} = ${ppValue};\n` +
     `    ` +
-    nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`, true) +
+    nestedErrReturn(`${ppVar}+${errFirst}.path`, errFirst, `__ne${sk}`) +
     `  }\n`
   );
 }
@@ -360,10 +483,10 @@ export function generateValidateNestedEachResultCode(
     code +=
       `${indent}  for (var ${ni}=0; ${ni}<${resultVar}.length; ${ni}++) {\n` +
       `${indent}  ` +
-      nestedErrPush(GEN.errList, `${ppVar}+${resultVar}[${ni}].path`, `${resultVar}[${ni}]`, `__ne${sk}`) +
+      nestedErrPush(`${ppVar}+${resultVar}[${ni}].path`, `${resultVar}[${ni}]`, `__ne${sk}`) +
       `${indent}  }\n`;
   } else {
-    code += `${indent}  ` + nestedErrReturn(`${ppVar}+${resultVar}[0].path`, `${resultVar}[0]`, `__ne${sk}`, true);
+    code += `${indent}  ` + nestedErrReturn(`${ppVar}+${resultVar}[0].path`, `${resultVar}[0]`, `__ne${sk}`);
   }
   code += `${indent}}\n`;
   return code;

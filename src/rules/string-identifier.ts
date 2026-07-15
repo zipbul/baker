@@ -3,7 +3,7 @@ import type { EmitContext, EmittableRule } from './interfaces';
 import { ISO31661A2_CODES, ISO31661A3_CODES } from './constants';
 import { RequiredType } from './enums';
 import { makeRule } from './rule-plan';
-import { makeStringRule } from './string-shared';
+import { makeRegexRule, makeStringRule } from './string-shared';
 
 // Last calendar day of a month (1-based) under the proleptic Gregorian leap rule, valid for ALL years.
 // `new Date(year, month, 0)` cannot be used: a 0–99 year argument is remapped to 1900–1999 (so year 0,
@@ -89,28 +89,12 @@ function isISO8601(options?: IsISO8601Options): EmittableRule<string> {
     });
   }
   // non-strict: both validate and emit use same ISO8601_RE
-  return makeStringRule(
-    'isISO8601',
-    v => ISO8601_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(ISO8601_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isISO8601')};`;
-    },
-    RequiredType.String,
-    { format: 'date-time', strict: false },
-  );
+  return makeRegexRule('isISO8601', ISO8601_RE, RequiredType.String, { format: 'date-time', strict: false });
 }
 
 // ISRC — ISO 3901
 const ISRC_RE = /^[A-Z]{2}-[A-Z0-9]{3}-\d{2}-\d{5}$|^[A-Z]{2}[A-Z0-9]{3}\d{7}$/;
-const isISRC = makeStringRule(
-  'isISRC',
-  v => ISRC_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(ISRC_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isISRC')};`;
-  },
-);
+const isISRC = makeRegexRule('isISRC', ISRC_RE);
 
 const isISO31661Alpha2 = makeRule<string>({
   name: 'isISO31661Alpha2',
@@ -136,37 +120,16 @@ const isISO31661Alpha3 = makeRule<string>({
 
 // Firebase Push ID — 20 chars, base64url charset (-0-9A-Za-z_)
 const FIREBASE_RE = /^[a-zA-Z0-9_-]{20}$/;
-const isFirebasePushId = makeStringRule(
-  'isFirebasePushId',
-  v => FIREBASE_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(FIREBASE_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isFirebasePushId')};`;
-  },
-);
+const isFirebasePushId = makeRegexRule('isFirebasePushId', FIREBASE_RE);
 
 // SemVer — Semantic Versioning 2.0
 const SEMVER_RE =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
-const isSemVer = makeStringRule(
-  'isSemVer',
-  v => SEMVER_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(SEMVER_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isSemVer')};`;
-  },
-);
+const isSemVer = makeRegexRule('isSemVer', SEMVER_RE);
 
 // MongoDB ObjectId — 24-char hex
 const MONGO_ID_RE = /^[0-9a-fA-F]{24}$/;
-const isMongoId = makeStringRule(
-  'isMongoId',
-  v => MONGO_ID_RE.test(v),
-  (varName, ctx) => {
-    const i = ctx.addRegex(MONGO_ID_RE);
-    return `if (!re[${i}].test(${varName})) ${ctx.fail('isMongoId')};`;
-  },
-);
+const isMongoId = makeRegexRule('isMongoId', MONGO_ID_RE);
 
 // DateString — ISO 8601 date only (YYYY-MM-DD) with calendar validity (day must exist in month/year).
 const DATE_STRING_RE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
@@ -197,32 +160,14 @@ function isDateString(): EmittableRule<string> {
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/;
 
 function isULID(): EmittableRule<string> {
-  return makeStringRule(
-    'isULID',
-    v => ULID_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(ULID_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isULID')};`;
-    },
-    RequiredType.String,
-    { format: 'ulid' },
-  );
+  return makeRegexRule('isULID', ULID_RE, RequiredType.String, { format: 'ulid' });
 }
 
 // CUID2 spec: length 24-32, lowercase alphanum, starts with a-z.
 const CUID2_RE = /^[a-z][0-9a-z]{23,31}$/;
 
 function isCUID2(): EmittableRule<string> {
-  return makeStringRule(
-    'isCUID2',
-    v => CUID2_RE.test(v),
-    (varName, ctx) => {
-      const i = ctx.addRegex(CUID2_RE);
-      return `if (!re[${i}].test(${varName})) ${ctx.fail('isCUID2')};`;
-    },
-    RequiredType.String,
-    { format: 'cuid2' },
-  );
+  return makeRegexRule('isCUID2', CUID2_RE, RequiredType.String, { format: 'cuid2' });
 }
 
 export {
